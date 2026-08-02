@@ -216,4 +216,6 @@ jobs:
               --notes-file source/JustyBase/ReleaseNotes.md \
               --prerelease
           fi
-          gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          while IFS= read -r -d '' asset; do
+            gh release upload "$TAG" "$asset" --repo "$GITHUB_REPOSITORY" --clobber
+          done < <(find dist -maxdepth 1 -type f -print0)

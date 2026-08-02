@@ -28,6 +28,7 @@ mkdir -p "$PUBLISH_DIR" "$(dirname "$ZIP_PATH")"
 # available on hosted runners, so keep this target reliable and portable.
 dotnet publish "$PROJECT" -r "$RID" -c Release -f net10.0 \
   -p:EnableAOT=false --self-contained true -p:DebugType=None -p:DebugSymbols=false \
+  -p:UseSharedCompilation=false \
   -p:UseLocalJustyBaseLibraries=false \
   -p:Version="$VERSION" -o "$PUBLISH_DIR"
 find "$PUBLISH_DIR" -type f \( -name '*.pdb' -o -name '*.dbg' \) -delete

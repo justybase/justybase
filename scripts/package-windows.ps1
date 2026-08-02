@@ -26,6 +26,7 @@ New-Item -ItemType Directory -Path $publish, $velopack, $output -Force | Out-Nul
 
 dotnet publish $project -r win-x64 -c Release -f net10.0 `
     -p:EnableAOT=true -p:DebugType=None -p:DebugSymbols=false `
+    -p:UseSharedCompilation=false `
     -p:UseLocalJustyBaseLibraries=false `
     -p:Version=$Version -o $publish
 Get-ChildItem $publish -Include '*.pdb', '*.dbg' -File -ErrorAction SilentlyContinue | Remove-Item -Force

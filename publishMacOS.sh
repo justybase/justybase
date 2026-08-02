@@ -23,14 +23,12 @@ ZIP_PATH="$ROOT/$OUTPUT_ROOT/JustyBase-${VERSION}-macos-${ARCH}.zip"
 
 rm -rf "$PUBLISH_DIR"
 mkdir -p "$PUBLISH_DIR" "$(dirname "$ZIP_PATH")"
-# Swift system libraries used by Apple's crypto shim live below macOS's
-# platform-specific Swift directory on hosted runners.  Keep both locations
-# available to clang so ARM64 NativeAOT links deterministically.
-export LIBRARY_PATH="/usr/lib/swift/macosx:/usr/lib/swift${LIBRARY_PATH:+:$LIBRARY_PATH}"
+# macOS ARM64 is distributed as a self-contained framework-compatible build.
+# NativeAOT currently requires Swift shim symbols that are not consistently
+# available on hosted runners, so keep this target reliable and portable.
 dotnet publish "$PROJECT" -r "$RID" -c Release -f net10.0 \
-  -p:EnableAOT=true --self-contained true -p:DebugType=None -p:DebugSymbols=false \
+  -p:EnableAOT=false --self-contained true -p:DebugType=None -p:DebugSymbols=false \
   -p:UseLocalJustyBaseLibraries=false \
-  -p:IlcAdditionalLinkerArgs="-L/usr/lib/swift/macosx" \
   -p:Version="$VERSION" -o "$PUBLISH_DIR"
 find "$PUBLISH_DIR" -type f \( -name '*.pdb' -o -name '*.dbg' \) -delete
 (cd "$PUBLISH_DIR" && zip -q -r "$ZIP_PATH" .)

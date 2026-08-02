@@ -51,7 +51,7 @@ It is especially useful for:
 - **Multi-connection management** for multiple database sessions
 - **Netezza-first database support** for IBM Netezza Performance Server
 - **Other database engines** (Postgres, DB2, Snowflake, Oracle, DuckDB, MySQL, SQLite) are **coming soon / work in progress** and should not yet be considered generally supported
-- **Native AOT** support for faster startup with `PublishAot`
+- **Native AOT** support for faster startup with `PublishAot` (Windows/Linux; macOS ARM64 release is self-contained)
 
 > **Temporary dependency note:** the hierarchical DataGrid currently uses the author's `ProDataGrid` sibling checkout when it is available. This keeps development aligned with the active upstream work. The sibling is currently required for a full build; if it is absent, the build stops with an actionable error rather than silently selecting a different implementation. The arrangement is intentional but temporary and may be replaced by a stable package dependency in a future release.
 
@@ -156,7 +156,7 @@ dotnet publish -r win-x64 -c Release -f net10.0 -p:EnableAOT=true
 Release packaging:
 
 - Windows: `publishWindows.bat <version>` via Velopack
-- Linux/macOS: `publishLinux.sh` / `publishMacOS.sh`
+- Linux: `publishLinux.sh` (Native AOT); macOS ARM64: `publishMacOS.sh` (self-contained)
 
 ## Tests
 

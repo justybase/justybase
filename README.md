@@ -22,12 +22,12 @@
 - [Why JustyBase](#why-justybase)
 - [Features](#features)
 - [Screenshots](#screenshots)
-- [Quick verification](#quick-verification)
 - [AI and data privacy](#ai-and-data-privacy)
 - [Technology stack](#technology-stack)
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
 - [How to build](#how-to-build)
+- [Quick verification](#quick-verification)
 - [Tests](#tests)
 - [Architecture](#architecture)
 - [Download](#download)
@@ -76,16 +76,6 @@ Dark theme screenshots are shown below for a consistent presentation.
 | Import workflow | Settings |
 |---|---|
 | <img src="pictures/import_dark.png" alt="Import workflow" width="420"> | <img src="pictures/settings_dark.png" alt="Settings" width="420"> |
-
-## Quick verification
-
-```bash
-dotnet build .\source\JustyBase\JustyBase.csproj -c Debug
-# Launch the app once, connect to a Netezza instance, and then run the live verification test if needed.
-dotnet test .\source\JustyBase.LiveTests\JustyBase.LiveTests.csproj -c Debug --filter FullyQualifiedName~ReadmeSqlResultsHero
-```
-
-For more details, see [docs/TESTING.md](docs/TESTING.md).
 
 ## Technology stack
 
@@ -167,6 +157,16 @@ Release packaging:
 
 - Windows: `publishWindows.bat <version>` via Velopack
 - Linux: `publishLinux.sh` (Native AOT); macOS ARM64: `publishMacOS.sh` (self-contained)
+
+## Quick verification
+
+```bash
+dotnet build .\source\JustyBase\JustyBase.csproj -c Debug
+# Launch the app once, connect to a Netezza instance, and then run the live verification test if needed.
+dotnet test .\source\JustyBase.LiveTests\JustyBase.LiveTests.csproj -c Debug --filter FullyQualifiedName~ReadmeSqlResultsHero
+```
+
+For more details, see [docs/TESTING.md](docs/TESTING.md).
 
 ## Tests
 

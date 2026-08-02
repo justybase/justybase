@@ -70,7 +70,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Restore
-        run: dotnet restore .\JustyBase.slnx --force-evaluate
+        run: dotnet restore .\source\JustyBase\JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=false
       - name: Install Velopack CLI
         shell: pwsh
         run: |
@@ -113,7 +113,7 @@ jobs:
       - name: Install NativeAOT dependencies
         run: sudo apt-get update && sudo apt-get install -y clang lld zlib1g-dev zip
       - name: Restore
-        run: dotnet restore ./JustyBase.slnx --force-evaluate
+        run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=false
       - name: Build Linux package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
@@ -152,7 +152,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Restore
-        run: dotnet restore ./JustyBase.slnx --force-evaluate
+        run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=false
       - name: Build macOS package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}

@@ -30,9 +30,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Restore
-        run: dotnet restore .\JustyBase.slnx --force-evaluate
+        run: |
+          dotnet restore .\source\JustyBase.Tests\JustyBase.Tests.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=false
+          dotnet restore .\source\JustyBase.HeadlessTests\JustyBase.HeadlessTests.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=false
       - name: Build
-        run: dotnet build .\JustyBase.slnx -c Debug --no-restore
+        run: |
+          dotnet build .\source\JustyBase.Tests\JustyBase.Tests.csproj -c Debug --no-restore -p:UseLocalJustyBaseLibraries=false
+          dotnet build .\source\JustyBase.HeadlessTests\JustyBase.HeadlessTests.csproj -c Debug --no-restore -p:UseLocalJustyBaseLibraries=false
       - name: Test with coverage
         run: >
           dotnet test .\source\JustyBase.Tests\JustyBase.Tests.csproj

@@ -25,6 +25,7 @@ rm -rf "$PUBLISH_DIR"
 mkdir -p "$PUBLISH_DIR" "$(dirname "$ZIP_PATH")"
 dotnet publish "$PROJECT" -r "$RID" -c Release -f net10.0 \
   -p:EnableAOT=true --self-contained true -p:DebugType=None -p:DebugSymbols=false \
+  -p:UseLocalJustyBaseLibraries=false \
   -p:Version="$VERSION" -o "$PUBLISH_DIR"
 find "$PUBLISH_DIR" -type f \( -name '*.pdb' -o -name '*.dbg' \) -delete
 (cd "$PUBLISH_DIR" && zip -q -r "$ZIP_PATH" .)

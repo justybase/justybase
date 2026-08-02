@@ -1,3 +1,5 @@
-# Justy Base
+# JustyBase 1.0.0-rc.7
 
-Update this file before each release with changes for the installer.
+- VS Code-style interaction between SQL autocomplete and inline ghost text.
+- The selected completion item now drives the FIM prompt and updates with arrow-key navigation.
+- First `Tab` accepts autocomplete; second `Tab` accepts the remaining AI continuation.

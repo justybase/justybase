@@ -85,7 +85,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-windows
-          path: JustyBase/artifacts/*
+          path: |
+            JustyBase/artifacts/*.zip
+            JustyBase/artifacts/*-Setup.exe
           if-no-files-found: error
 
   linux:
@@ -194,10 +196,10 @@ jobs:
           for file in "${expected[@]}"; do
             test -s "dist/$file" || { echo "Missing release asset: $file" >&2; exit 1; }
           done
-          find dist -type f \( -name '*.pdb' -o -name '*.dbg' -o -name '*.log' \) -print -quit | grep -q . && {
-            echo 'Debug/log files found in release assets' >&2
-            exit 1
-          } || true
+        if find dist -type f \( -name '*.pdb' -o -name '*.dbg' -o -name '*.log' \) -print -quit | grep -q .; then
+          echo 'Debug/log files found in release assets' >&2
+          exit 1
+        fi
           for archive in dist/*.zip; do unzip -tqq "$archive"; done
       - name: Create or update prerelease with gh
         shell: bash

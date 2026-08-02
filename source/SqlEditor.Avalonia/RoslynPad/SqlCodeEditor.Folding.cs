@@ -42,10 +42,10 @@ public sealed partial class SqlCodeEditor
         return false;
     }
 
-    private FoldingManager _foldingManager;
-    private SqlFoldingStrategy _foldingStrategy;
-    private XmlFoldingStrategy _xmlFoldingStrategy;
-    private DispatcherTimer _foldingTimer;
+    private FoldingManager? _foldingManager;
+    private SqlFoldingStrategy? _foldingStrategy;
+    private XmlFoldingStrategy? _xmlFoldingStrategy;
+    private DispatcherTimer? _foldingTimer;
 
     public void FoldingSetup()
     {

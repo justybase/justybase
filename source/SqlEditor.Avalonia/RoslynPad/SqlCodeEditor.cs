@@ -234,6 +234,10 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
                     }
                     break;
                 case Key.G:
+                    if (GoToLineAsyncAction is null)
+                    {
+                        break;
+                    }
                     int res = await GoToLineAsyncAction();
                     if (res > 0 && TextArea is not null)
                     {
@@ -370,7 +374,7 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
 
     private string LanguageFileExtension => this.Document.FileName is not null ? System.IO.Path.GetExtension(this.Document.FileName).ToLower() : "";
 
-    private ISomeEditorOptions _someEditorOptions;
+    private ISomeEditorOptions _someEditorOptions = null!;
     private InMemorySchemaProvider? _parserSchema;
     private DocumentParsingCoordinator? _parsingCoordinator;
     private string? _documentUri;
@@ -641,7 +645,6 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
                 int s = k + 1;
                 if (s < bodyEnd && tokens[s].Kind is NzToken.Distinct or NzToken.All)
                     s++;
-                bool wasComma = false;
                 int itemStart = s;
                 for (int si = s; si < bodyEnd; si++)
                 {
@@ -1351,12 +1354,12 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
     }
 
     //public Func<Task> ControlHaction;
-    public Func<Task<int>> GoToLineAsyncAction;
+    public Func<Task<int>>? GoToLineAsyncAction;
 
-    public Func<Task> ContolShiftvAction;
+    public Func<Task>? ContolShiftvAction;
 
-    public Action ForcedContolftAction;
-    public Action ForcedContolhtAction;
+    public Action? ForcedContolftAction;
+    public Action? ForcedContolhtAction;
     public Action? RenameRequested;
     public Action? GoToDefinitionRequested;
     public Action? FindReferencesRequested;

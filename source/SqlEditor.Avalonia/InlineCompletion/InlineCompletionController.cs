@@ -19,6 +19,7 @@ public sealed class InlineCompletionController : IDisposable
     public static IReadOnlyList<int> AllowedDebounceMs { get; } = [250, 400, 600, 1000, 2000, 3000];
 
     private readonly TextEditor _editor;
+    private readonly CodeTextEditor? _completionHost;
     private readonly GhostTextElementGenerator _generator;
     private readonly Func<InlineCompletionContext, CancellationToken, Task<string?>> _completeAsync;
     private readonly Func<int>? _getDebounceMs;
@@ -27,18 +28,24 @@ public sealed class InlineCompletionController : IDisposable
     private CancellationTokenSource? _debounceCts;
     private bool _attached;
     private bool _disposed;
+    private CompletionSelectionSnapshot? _completionSelection;
+    private bool _completionAcceptancePending;
+    private bool _completionContinuationActive;
+    private int _ghostCompletionPrefixLength;
 
     public InlineCompletionController(
         TextEditor editor,
         Func<InlineCompletionContext, CancellationToken, Task<string?>> completeAsync,
         int debounceMs = DefaultDebounceMs,
         Func<int>? getDebounceMs = null,
-        Func<bool>? getIsEnabled = null)
+        Func<bool>? getIsEnabled = null,
+        CodeTextEditor? completionHost = null)
     {
         _editor = editor ?? throw new ArgumentNullException(nameof(editor));
         _completeAsync = completeAsync ?? throw new ArgumentNullException(nameof(completeAsync));
         _getDebounceMs = getDebounceMs;
         _getIsEnabled = getIsEnabled;
+        _completionHost = completionHost;
         _debounceMs = SnapDebounceMs(debounceMs);
         _generator = new GhostTextElementGenerator();
     }
@@ -96,6 +103,11 @@ public sealed class InlineCompletionController : IDisposable
         _editor.TextArea.AddHandler(InputElement.KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         _editor.TextArea.KeyDown += OnKeyDown;
         _editor.Document.Changed += OnDocumentChanged;
+        if (_completionHost is not null)
+        {
+            _completionHost.CompletionSelectionChanged += OnCompletionSelectionChanged;
+            _completionHost.CompletionWindowClosed += OnCompletionWindowClosed;
+        }
         _attached = true;
     }
 
@@ -114,6 +126,11 @@ public sealed class InlineCompletionController : IDisposable
         _editor.TextArea.RemoveHandler(InputElement.KeyDownEvent, OnPreviewKeyDown);
         _editor.TextArea.KeyDown -= OnKeyDown;
         _editor.Document.Changed -= OnDocumentChanged;
+        if (_completionHost is not null)
+        {
+            _completionHost.CompletionSelectionChanged -= OnCompletionSelectionChanged;
+            _completionHost.CompletionWindowClosed -= OnCompletionWindowClosed;
+        }
         _editor.TextArea.TextView.ElementGenerators.Remove(_generator);
         _attached = false;
     }
@@ -136,13 +153,29 @@ public sealed class InlineCompletionController : IDisposable
 
     private void OnTextEntering(object? sender, TextCompositionEventArgs e)
     {
+        // CompletionWindow handles Tab as a key event. Keep the preview alive until
+        // its insertion changes the document so the first Tab can leave the AI tail.
+        if (_completionAcceptancePending && string.Equals(e.Text, "\t", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _completionContinuationActive = false;
         if (_generator.HasGhostText)
         {
             ClearGhostText();
         }
     }
 
-    private void OnTextEntered(object? sender, TextCompositionEventArgs e) => Schedule();
+    private void OnTextEntered(object? sender, TextCompositionEventArgs e)
+    {
+        if (_completionAcceptancePending)
+        {
+            return;
+        }
+
+        Schedule();
+    }
 
     private void OnCaretChanged(object? sender, EventArgs e)
     {
@@ -156,6 +189,26 @@ public sealed class InlineCompletionController : IDisposable
 
     private void OnDocumentChanged(object? sender, DocumentChangeEventArgs e)
     {
+        if (_completionAcceptancePending && _completionSelection is not null)
+        {
+            var ghost = _generator.HasGhostText ? _generator.Text ?? string.Empty : string.Empty;
+            var continuation = _ghostCompletionPrefixLength >= ghost.Length
+                ? string.Empty
+                : ghost[_ghostCompletionPrefixLength..];
+
+            _completionAcceptancePending = false;
+            _completionSelection = null;
+            _completionContinuationActive = !string.IsNullOrEmpty(continuation);
+            CancelPending();
+            ClearGhostText();
+            if (!string.IsNullOrEmpty(continuation))
+            {
+                SetGhostText(_editor.CaretOffset, continuation);
+            }
+
+            return;
+        }
+
         if (_generator.HasGhostText)
         {
             ClearGhostText();
@@ -166,6 +219,14 @@ public sealed class InlineCompletionController : IDisposable
     {
         if (e.Handled)
         {
+            return;
+        }
+
+        if (e.Key == Key.Tab
+            && e.KeyModifiers == KeyModifiers.None
+            && _completionHost?.IsCompletionWindowOpen == true)
+        {
+            _completionAcceptancePending = _completionSelection is not null;
             return;
         }
 
@@ -190,11 +251,49 @@ public sealed class InlineCompletionController : IDisposable
 
         if (e.Key is Key.Right or Key.Left or Key.Up or Key.Down)
         {
-            if (_generator.HasGhostText)
+            if (_completionHost?.IsCompletionWindowOpen != true && _generator.HasGhostText)
             {
                 ClearGhostText();
             }
         }
+    }
+
+    private void OnCompletionSelectionChanged(object? sender, CompletionSelectionChangedEventArgs e)
+    {
+        _completionAcceptancePending = false;
+        _completionContinuationActive = false;
+        _completionSelection = e.Selection;
+        CancelPending();
+        ClearGhostText();
+
+        if (_completionSelection is not null)
+        {
+            var visibleSeed = GetVisibleCompletionText(_completionSelection);
+            _ghostCompletionPrefixLength = visibleSeed.Length;
+            if (!string.IsNullOrEmpty(visibleSeed))
+            {
+                SetGhostText(_editor.CaretOffset, visibleSeed);
+            }
+        }
+
+        Schedule();
+    }
+
+    private void OnCompletionWindowClosed(object? sender, EventArgs e)
+    {
+        if (_completionAcceptancePending)
+        {
+            return;
+        }
+
+        if (_completionContinuationActive)
+        {
+            _completionContinuationActive = false;
+            return;
+        }
+
+        _completionSelection = null;
+        ClearGhostText();
     }
 
     private void AcceptGhostText()
@@ -210,6 +309,19 @@ public sealed class InlineCompletionController : IDisposable
         CancelPending();
         _editor.Document.Insert(offset, text);
         _editor.CaretOffset = offset + text.Length;
+    }
+
+    private string GetVisibleCompletionText(CompletionSelectionSnapshot selection)
+    {
+        var start = Math.Clamp(selection.ReplacementStartOffset, 0, _editor.Document.TextLength);
+        var end = Math.Clamp(selection.ReplacementEndOffset, start, _editor.Document.TextLength);
+        var typed = _editor.Document.GetText(start, Math.Min(end, _editor.CaretOffset) - start);
+        if (selection.InsertText.StartsWith(typed, StringComparison.OrdinalIgnoreCase))
+        {
+            return selection.InsertText[typed.Length..];
+        }
+
+        return selection.InsertText;
     }
 
     private void Schedule()
@@ -239,10 +351,12 @@ public sealed class InlineCompletionController : IDisposable
 
             string documentText = string.Empty;
             int caret = 0;
+            CompletionSelectionSnapshot? completionSelection = null;
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 documentText = _editor.Document.Text;
                 caret = _editor.CaretOffset;
+                completionSelection = _completionSelection;
             }).GetTask().ConfigureAwait(false);
 
             if (token.IsCancellationRequested || string.IsNullOrWhiteSpace(documentText))
@@ -256,7 +370,7 @@ public sealed class InlineCompletionController : IDisposable
             }
 
             var suggestion = await _completeAsync(
-                new InlineCompletionContext(documentText, caret),
+                new InlineCompletionContext(documentText, caret, completionSelection),
                 token).ConfigureAwait(false);
 
             if (token.IsCancellationRequested || string.IsNullOrEmpty(suggestion))
@@ -266,13 +380,19 @@ public sealed class InlineCompletionController : IDisposable
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (token.IsCancellationRequested || _editor.CaretOffset != caret)
+                if (token.IsCancellationRequested
+                    || _editor.CaretOffset != caret
+                    || !Equals(_completionSelection, completionSelection))
                 {
                     return;
                 }
 
-                _generator.Set(caret, suggestion, _editor.FontFamily, _editor.FontSize);
-                _editor.TextArea.TextView.Redraw();
+                var continuation = NormalizeContinuation(suggestion, completionSelection);
+                var visibleSeed = completionSelection is null
+                    ? string.Empty
+                    : GetVisibleCompletionText(completionSelection);
+                _ghostCompletionPrefixLength = visibleSeed.Length;
+                SetGhostText(caret, visibleSeed + continuation);
             }).GetTask().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -306,12 +426,42 @@ public sealed class InlineCompletionController : IDisposable
     {
         if (!_generator.HasGhostText)
         {
+            _ghostCompletionPrefixLength = 0;
             return;
         }
 
         _generator.Clear();
+        _ghostCompletionPrefixLength = 0;
         _editor.TextArea.TextView.Redraw();
+    }
+
+    private void SetGhostText(int offset, string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            ClearGhostText();
+            return;
+        }
+
+        _generator.Set(offset, text, _editor.FontFamily, _editor.FontSize);
+        _editor.TextArea.TextView.Redraw();
+    }
+
+    private static string NormalizeContinuation(string suggestion, CompletionSelectionSnapshot? selection)
+    {
+        if (selection is null || string.IsNullOrEmpty(suggestion))
+        {
+            return suggestion;
+        }
+
+        var selectedText = selection.InsertText;
+        return suggestion.StartsWith(selectedText, StringComparison.OrdinalIgnoreCase)
+            ? suggestion[selectedText.Length..]
+            : suggestion;
     }
 }
 
-public readonly record struct InlineCompletionContext(string DocumentText, int CaretOffset);
+public readonly record struct InlineCompletionContext(
+    string DocumentText,
+    int CaretOffset,
+    CompletionSelectionSnapshot? CompletionSelection = null);

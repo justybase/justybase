@@ -26,6 +26,8 @@ public sealed class CompletionDataSql(
 
     public string Text { get; } = text;
 
+    public string InsertText => _insertText;
+
     public object Content => Text;
 
     /// <summary>Right-hand metadata column (data type, Table/View, kind).</summary>

@@ -39,9 +39,10 @@ public sealed class FimInlineCompletionBridge
         try
         {
             var budget = _getBudget();
+            var (promptText, promptCaret) = BuildPromptDocument(context);
             var (prefix, suffix) = FimContextExtractor.Extract(
-                context.DocumentText,
-                context.CaretOffset,
+                promptText,
+                promptCaret,
                 budget.MaxPromptTokens,
                 budget.PrefixPercentage,
                 budget.SuffixPercentage);
@@ -71,6 +72,22 @@ public sealed class FimInlineCompletionBridge
             System.Diagnostics.Debug.WriteLine($"[FIM] CompleteAsync failed: {ex}");
             return null;
         }
+    }
+
+    private static (string Text, int CaretOffset) BuildPromptDocument(InlineCompletionContext context)
+    {
+        var selection = context.CompletionSelection;
+        if (selection is null)
+        {
+            return (context.DocumentText, context.CaretOffset);
+        }
+
+        var documentText = context.DocumentText;
+        var caret = Math.Clamp(context.CaretOffset, 0, documentText.Length);
+        var start = Math.Clamp(selection.ReplacementStartOffset, 0, caret);
+        var insertText = selection.InsertText ?? string.Empty;
+        var virtualText = string.Concat(documentText[..start], insertText, documentText[caret..]);
+        return (virtualText, start + insertText.Length);
     }
 }
 

@@ -6,6 +6,16 @@ using System.Threading.Tasks;
 
 namespace JustyBase.Editor;
 
+public sealed record CompletionSelectionSnapshot(
+    string InsertText,
+    int ReplacementStartOffset,
+    int ReplacementEndOffset);
+
+public sealed class CompletionSelectionChangedEventArgs(CompletionSelectionSnapshot? selection) : EventArgs
+{
+    public CompletionSelectionSnapshot? Selection { get; } = selection;
+}
+
 public partial class CodeTextEditor : TextEditor
 {
     protected CompletionWindow? _completionWindow;
@@ -143,6 +153,10 @@ public partial class CodeTextEditor : TextEditor
     partial void Initialize();
 
     public bool IsCompletionWindowOpen => _completionWindow?.IsVisible == true;
+
+    public event EventHandler<CompletionSelectionChangedEventArgs>? CompletionSelectionChanged;
+
+    public event EventHandler? CompletionWindowClosed;
 
     public void CloseCompletionWindow()
     {
@@ -295,9 +309,39 @@ public partial class CodeTextEditor : TextEditor
                 // TODO-AV: Fix this in AvaloniaEdit
             }
 
-            _completionWindow.Closed += (o, args) => _completionWindow = null;
+            var completionWindow = _completionWindow;
+            completionWindow.CompletionList.SelectionChanged += CompletionListSelectionChanged;
+            RaiseCurrentCompletionSelection(completionWindow);
+            completionWindow.Closed += (o, args) =>
+            {
+                completionWindow.CompletionList.SelectionChanged -= CompletionListSelectionChanged;
+                if (ReferenceEquals(_completionWindow, completionWindow))
+                {
+                    _completionWindow = null;
+                }
+
+                CompletionWindowClosed?.Invoke(this, EventArgs.Empty);
+            };
             _completionWindow.Show();
         }
+    }
+
+    private void CompletionListSelectionChanged(object? sender, Avalonia.Controls.SelectionChangedEventArgs e)
+    {
+        RaiseCurrentCompletionSelection(_completionWindow);
+    }
+
+    private void RaiseCurrentCompletionSelection(CompletionWindow? completionWindow)
+    {
+        var selected = completionWindow?.CompletionList.SelectedItem as ICompletionDataEx;
+        var snapshot = selected is null || completionWindow is null
+            ? null
+            : new CompletionSelectionSnapshot(
+                selected.InsertText,
+                completionWindow.StartOffset,
+                completionWindow.EndOffset);
+
+        CompletionSelectionChanged?.Invoke(this, new CompletionSelectionChangedEventArgs(snapshot));
     }
 
     /// <summary>

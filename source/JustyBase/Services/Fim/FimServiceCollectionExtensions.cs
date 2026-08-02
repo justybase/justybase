@@ -5,6 +5,7 @@ using JustyBase.Ai.Fim.Download;
 using JustyBase.Ai.Fim.LlamaSharp;
 using JustyBase.Ai.Fim.Prompting;
 using JustyBase.Common.Contracts;
+using JustyBase.Editor;
 using JustyBase.Editor.InlineCompletion;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
@@ -297,7 +298,8 @@ public sealed class FimEditorAttachment : IDisposable
             editor,
             (ctx, ct) => _bridge.CompleteAsync(ctx, ct),
             getDebounceMs: getDebounceMs,
-            getIsEnabled: isEnabled);
+            getIsEnabled: isEnabled,
+            completionHost: editor as CodeTextEditor);
         _controller.Attach();
     }
 

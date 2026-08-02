@@ -1,10 +1,20 @@
-# <img src="source/JustyBase/Assets/Icon2.png" alt="JustyBase" width="64"> JustyBase
+# JustyBase
 
-Desktop SQL IDE for IBM Netezza Performance Server, built with Avalonia UI and designed for multi-connection SQL work, local AI-assisted development, and fast desktop workflows.
+<p align="center">
+  <img src="pictures/justybase-banner.png" alt="JustyBase — Local-first AI SQL workspace" width="100%">
+</p>
+
+<p align="center">
+  <strong>Local-first AI SQL workspace for IBM Netezza.</strong><br>
+  A fast, privacy-minded desktop IDE for querying, exploring schemas, and shipping SQL.
+</p>
 
 [![CI](https://github.com/justybase/justybase/actions/workflows/dotnet-test.yml/badge.svg)](https://github.com/justybase/justybase/actions/workflows/dotnet-test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![Windows](https://img.shields.io/badge/Windows-x64-0078D4?logo=windows&logoColor=white)](https://github.com/justybase/justybase/releases)
+[![Linux](https://img.shields.io/badge/Linux-x64-FCC624?logo=linux&logoColor=black)](https://github.com/justybase/justybase/releases)
+[![macOS](https://img.shields.io/badge/macOS-ARM64-000000?logo=apple&logoColor=white)](https://github.com/justybase/justybase/releases)
 
 ## Table of contents
 
@@ -27,7 +37,7 @@ Desktop SQL IDE for IBM Netezza Performance Server, built with Avalonia UI and d
 
 ## Overview
 
-JustyBase is a desktop-first SQL client focused on IBM Netezza. It combines a powerful editor, schema exploration, Git-aware workflows, and optional local AI assistance in a single cross-platform application.
+JustyBase is a local-first, cross-platform SQL IDE for IBM Netezza. It brings together a powerful editor, schema exploration, Git-aware workflows, and optional on-device AI assistance—without forcing your SQL workflow into the browser.
 
 ## Why JustyBase
 

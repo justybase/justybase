@@ -22,6 +22,7 @@
 - [Why JustyBase](#why-justybase)
 - [Features](#features)
 - [Screenshots](#screenshots)
+- [Workflow demos](#workflow-demos)
 - [AI and data privacy](#ai-and-data-privacy)
 - [Technology stack](#technology-stack)
 - [Requirements](#requirements)
@@ -77,6 +78,20 @@ Dark theme screenshots are shown below for a consistent presentation.
 |---|---|
 | <img src="pictures/import_dark.png" alt="Import workflow" width="420"> | <img src="pictures/settings_dark.png" alt="Settings" width="420"> |
 
+## Workflow demos
+
+### Local ghost-text completion
+
+<img src="pictures/justybase-ghost-text.gif" alt="Ghost-text SQL completion in the JustyBase editor" width="900">
+
+### AI-assisted SQL workflow
+
+<img src="pictures/justybase-sql-workflow.gif" alt="AI-assisted SQL workflow in JustyBase" width="900">
+
+### Results exploration and filtering
+
+<img src="pictures/justybase-data-workflow.gif" alt="Query results exploration and filtering in JustyBase" width="900">
+
 ## Technology stack
 
 * [Avalonia](https://avaloniaui.net/) — cross-platform .NET UI
@@ -119,14 +134,6 @@ On first launch, add an IBM Netezza connection from the schema or connections UI
 |------------|--------------------|
 | **ProDataGrid** | Local sibling `../ProDataGrid` (required). See [CONTRIBUTING.md](CONTRIBUTING.md). |
 | **JustyBase.Netezza\*** | Local `../JustyBase.NetezzaSql` when present (also in `JustyBase.slnx`); otherwise latest NuGet (`*-*`). Pin with `-p:JustyBaseNetezzaLibsPackageVersion=...` or force NuGet with `-p:UseLocalJustyBaseLibraries=false`. |
-
-### Updates / plugin feed
-
-Auto-update and plugin downloads can use an optional feed URL:
-
-1. No update-feed URL path is used anymore.
-
-Leave it empty for local development with no remote feed.
 
 ### AI and data privacy
 

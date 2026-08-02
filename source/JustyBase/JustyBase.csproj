@@ -44,7 +44,9 @@
     <InvariantGlobalization>false</InvariantGlobalization>
     <SelfContained>true</SelfContained>
     <!-- .NET 10 ILC: granular ISAs (popcnt/bmi/fma/etc.) were folded into profiles -->
-    <IlcInstructionSet>x86-64-v3,aes</IlcInstructionSet>
+    <!-- x86 ISA profiles are invalid for the ARM64 macOS build. Keep the
+         optimization for x64 artifacts and let ARM64 use the native default. -->
+    <IlcInstructionSet Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'linux-x64'">x86-64-v3,aes</IlcInstructionSet>
   </PropertyGroup>
 	<ItemGroup>
 		<TrimmerRootAssembly Include="JustyBase" />

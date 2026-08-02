@@ -132,7 +132,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rid: [osx-arm64, osx-x64]
+        rid: [osx-arm64]
     defaults:
       run:
         working-directory: JustyBase
@@ -190,7 +190,6 @@ jobs:
             "JustyBase-${VERSION}-win-x64.zip"
             "JustyBase-${VERSION}-linux-x64.zip"
             "JustyBase-${VERSION}-macos-arm64.zip"
-            "JustyBase-${VERSION}-macos-x64.zip"
           )
           for file in "${expected[@]}"; do
             test -s "dist/$file" || { echo "Missing release asset: $file" >&2; exit 1; }

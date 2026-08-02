@@ -2,7 +2,7 @@
 
 Desktop SQL IDE for IBM Netezza Performance Server, built with Avalonia UI and designed for multi-connection SQL work, local AI-assisted development, and fast desktop workflows.
 
-[![CI](https://github.com/justybase/JustyBase/actions/workflows/dotnet-test.yml/badge.svg)](https://github.com/justybase/JustyBase/actions/workflows/dotnet-test.yml)
+[![CI](https://github.com/justybase/justybase/actions/workflows/dotnet-test.yml/badge.svg)](https://github.com/justybase/justybase/actions/workflows/dotnet-test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
 
@@ -49,7 +49,8 @@ It is especially useful for:
 - **AI Copilot** for SQL help using OpenAI-compatible, Ollama, or LM Studio backends
 - **Data grid** with grouping, filtering, and export to Excel, CSV, and Parquet
 - **Multi-connection management** for multiple database sessions
-- **Cross-engine support** for Postgres, DB2, Snowflake, Oracle, DuckDB, MySQL, and SQLite
+- **Netezza-first database support** for IBM Netezza Performance Server
+- **Other database engines** (Postgres, DB2, Snowflake, Oracle, DuckDB, MySQL, SQLite) are **coming soon / work in progress** and should not yet be considered generally supported
 - **Native AOT** support for faster startup with `PublishAot`
 
 > **Temporary dependency note:** the hierarchical DataGrid currently uses the author's `ProDataGrid` sibling checkout when it is available. This keeps development aligned with the active upstream work. The sibling is currently required for a full build; if it is absent, the build stops with an actionable error rather than silently selecting a different implementation. The arrangement is intentional but temporary and may be replaced by a stable package dependency in a future release.
@@ -90,15 +91,15 @@ For more details, see [docs/TESTING.md](docs/TESTING.md).
 ## Requirements
 
 - **.NET 10.0 SDK**
-- **Windows x64** **Linux x64** **MacOS ARM** 
+- **Windows x64**, **Linux x64**, **macOS ARM64**
 - Sibling **ProDataGrid** checkout (see below)
 
 ## Quick start
 
 ```bash
 # 1) Clone the repository
-git clone https://github.com/justybase/JustyBase.git
-cd JustyBase
+git clone https://github.com/justybase/justybase.git
+cd justybase
 
 # 2) Clone ProDataGrid next to this repository (required)
 git clone https://github.com/wieslawsoltes/ProDataGrid.git ../ProDataGrid
@@ -110,7 +111,7 @@ cd source/JustyBase
 dotnet run
 ```
 
-On first launch, add a database connection from the schema or connections UI, open a SQL document, and execute a query.
+On first launch, add an IBM Netezza connection from the schema or connections UI, open a SQL document, and execute a query. Other database connectors are under active development and are not part of the current support commitment.
 
 ### Dependencies
 
@@ -173,7 +174,7 @@ Coverage is published as a CI artifact in Cobertura format. CI status is shown a
 
 ## Download
 
-Pre-built releases are available on the [GitHub Releases page](https://github.com/justybase/JustyBase/releases).
+Pre-built releases are available on the [GitHub Releases page](https://github.com/justybase/justybase/releases).
 
 ## Contributing
 
@@ -185,5 +186,5 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Support
 
-- [GitHub Issues](https://github.com/justybase/JustyBase/issues)
+- [GitHub Issues](https://github.com/justybase/justybase/issues)
 - Active project development and ongoing maintenance

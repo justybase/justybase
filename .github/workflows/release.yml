@@ -117,7 +117,7 @@ jobs:
       - name: Build Linux package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
-        run: ./publishLinux.sh "$VERSION" ./artifacts
+        run: bash ./publishLinux.sh "$VERSION" ./artifacts
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
         with:
@@ -156,7 +156,7 @@ jobs:
       - name: Build macOS package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
-        run: ./publishMacOS.sh "$VERSION" "${{ matrix.rid }}" ./artifacts
+        run: bash ./publishMacOS.sh "$VERSION" "${{ matrix.rid }}" ./artifacts
       - name: Upload macOS package
         uses: actions/upload-artifact@v4
         with:

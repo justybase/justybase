@@ -1,0 +1,107 @@
+name: live-ui-manual
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Scenario to run
+        required: true
+        default: schema-search-dual-sql
+        type: choice
+        options:
+          - schema-search-dual-sql
+          - full-smoke
+          - flaui-spike
+      use_sample_connection:
+        description: Prefer SAMPLE_CONNECTION / secrets when available
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  headless-live:
+    if: ${{ inputs.scenario != 'flaui-spike' }}
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: JustyBase
+    steps:
+      - name: Checkout JustyBase
+        uses: actions/checkout@v4
+        with:
+          path: JustyBase
+      - name: Checkout ProDataGrid (sibling)
+        uses: actions/checkout@v4
+        with:
+          repository: KrzysztofDusko/ProDataGrid
+          ref: fix/recycled-row-cell-content
+          path: ProDataGrid
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore .\JustyBase.slnx --force-evaluate
+      - name: Build
+        run: dotnet build .\JustyBase.slnx -c Debug --no-restore
+      - name: Headless live / concurrency scenarios
+        env:
+          RESPONSIVENESS_METRICS_PATH: ${{ github.workspace }}/JustyBase/TestResults/responsiveness-metrics.jsonl
+        run: >
+          dotnet test .\source\JustyBase.HeadlessTests\JustyBase.HeadlessTests.csproj
+          -c Debug --no-build
+          --filter "FullyQualifiedName~ResponsivenessTests|FullyQualifiedName~DualSqlConcurrencyTests|FullyQualifiedName~SmokeWorkflowTests"
+      - name: Upload responsiveness metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: responsiveness-metrics-live
+          path: JustyBase/TestResults/responsiveness-metrics.jsonl
+          if-no-files-found: warn
+      - name: Unit concurrency guards
+        run: >
+          dotnet test .\source\JustyBase.Tests\JustyBase.Tests.csproj
+          -c Debug --no-build
+          --filter "FullyQualifiedName~ConcurrencyGuardTests|FullyQualifiedName~DatabaseCacheManagerConcurrencyTests"
+
+  flaui-spike:
+    if: ${{ inputs.scenario == 'flaui-spike' }}
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: JustyBase
+    steps:
+      - name: Checkout JustyBase
+        uses: actions/checkout@v4
+        with:
+          path: JustyBase
+      - name: Checkout ProDataGrid (sibling)
+        uses: actions/checkout@v4
+        with:
+          repository: KrzysztofDusko/ProDataGrid
+          ref: fix/recycled-row-cell-content
+          path: ProDataGrid
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore .\JustyBase.slnx --force-evaluate
+      - name: Build app + LiveTests
+        run: |
+          dotnet build .\source\JustyBase\JustyBase.csproj -c Debug --no-restore
+          dotnet build .\source\JustyBase.LiveTests\JustyBase.LiveTests.csproj -c Debug --no-restore
+      - name: FlaUI screenshot capture
+        run: >
+          dotnet test .\source\JustyBase.LiveTests\JustyBase.LiveTests.csproj
+          -c Debug --no-build
+          --filter "FullyQualifiedName~FlaUIScreenshotCaptureTests|FullyQualifiedName~ReadmeSqlResultsHero"
+      - name: Upload README screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flaui-readme-screenshots
+          path: |
+            JustyBase/pictures/live/**
+            JustyBase/pictures/main.png
+            JustyBase/pictures/evo1.png
+            JustyBase/pictures/sample_01.png
+          if-no-files-found: warn

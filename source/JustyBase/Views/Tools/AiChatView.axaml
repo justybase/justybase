@@ -1,0 +1,329 @@
+<UserControl x:Class="JustyBase.Views.Tools.AiChatView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:vm="using:JustyBase.ViewModels.Tools"
+             xmlns:m="using:JustyBase.Common.Models"
+             xmlns:conv="using:JustyBase.Converters"
+             xmlns:chat="using:JustyBase.Views.Tools"
+             xmlns:md="clr-namespace:LiveMarkdown.Avalonia;assembly=LiveMarkdown.Avalonia"
+             mc:Ignorable="d"
+             d:DesignWidth="420" d:DesignHeight="720"
+             x:Name="root"
+             x:DataType="vm:AiChatViewModel">
+  <UserControl.Resources>
+    <conv:BoolToConnectionColorConverter x:Key="BoolToConnectionColorConverter" />
+  </UserControl.Resources>
+  <UserControl.Styles>
+    <Style Selector="chat|AiChatMessageBubble.ai-user">
+      <Setter Property="Background" Value="{DynamicResource AiChatUserBubbleBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AiChatUserBorderBrush}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource AiChatUserForegroundBrush}" />
+    </Style>
+    <Style Selector="chat|AiChatMessageBubble.ai-assistant">
+      <Setter Property="Background" Value="{DynamicResource AiChatAssistantBubbleBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AiChatAssistantBorderBrush}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource AiChatAssistantForegroundBrush}" />
+    </Style>
+    <Style Selector="chat|AiChatMessageBubble.ai-user chat|ChatMarkdownView">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource AiChatUserForegroundBrush}" />
+    </Style>
+    <Style Selector="chat|AiChatMessageBubble.ai-assistant chat|ChatMarkdownView">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource AiChatAssistantForegroundBrush}" />
+    </Style>
+    <Style Selector="chat|AiChatMessageBubble.ai-user md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource AiChatUserForegroundBrush}" />
+    </Style>
+    <Style Selector="chat|AiChatMessageBubble.ai-assistant md|MarkdownTextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource AiChatAssistantForegroundBrush}" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Background="{DynamicResource AiChatPanelBackgroundBrush}">
+    <!-- Copilot/VS Code inspired header -->
+    <Border Grid.Row="0"
+            Background="{DynamicResource AiChatHeaderBackgroundBrush}"
+            BorderBrush="{DynamicResource AiChatBorderBrush}"
+            BorderThickness="0 0 0 1"
+            Padding="10 7">
+      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto">
+        <Ellipse Grid.Row="0" Grid.Column="0" Width="8" Height="8" Margin="0 0 7 0" VerticalAlignment="Center">
+          <Ellipse.Fill>
+            <SolidColorBrush Color="{Binding IsConnected, Converter={StaticResource BoolToConnectionColorConverter}}"/>
+          </Ellipse.Fill>
+        </Ellipse>
+        <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="AI Chat" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <TextBlock Text="·" Opacity="0.5" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding CodexAccountLabel}" FontSize="10" Opacity="0.75" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="3">
+          <Button Command="{Binding SignInCodexCommand}" Content="Sign in" IsVisible="{Binding !IsCodexSignedIn}" Padding="7 3" FontSize="10" />
+          <Button Command="{Binding SignOutCodexCommand}" Content="Sign out" IsVisible="{Binding IsCodexSignedIn}" Padding="7 3" FontSize="10" />
+          <Button Command="{Binding NewChatCommand}" Content="＋" ToolTip.Tip="New chat" Padding="5 2" />
+          <Button Content="⋯" ToolTip.Tip="Chat actions" Padding="5 2">
+            <Button.Flyout>
+              <MenuFlyout Placement="BottomEdgeAlignedRight">
+                <MenuItem Header="New chat" Command="{Binding NewChatCommand}" />
+                <MenuItem Header="Clear chat" Command="{Binding ClearChatCommand}" />
+                <Separator />
+                <MenuItem Header="Sign in with ChatGPT" Command="{Binding SignInCodexCommand}" IsVisible="{Binding !IsCodexSignedIn}" />
+                <MenuItem Header="Sign out from Codex" Command="{Binding SignOutCodexCommand}" IsVisible="{Binding IsCodexSignedIn}" />
+                <MenuItem Header="Show/hide ChatGPT email"
+                          Command="{Binding ToggleShowCodexEmailCommand}"
+                          IsVisible="{Binding IsCodexSignedIn}" />
+              </MenuFlyout>
+            </Button.Flyout>
+          </Button>
+        </StackPanel>
+        <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="5" Margin="15 6 0 0">
+          <ComboBox ItemsSource="{Binding AvailableBackends}" SelectedIndex="{Binding SelectedBackendIndex}" Width="130" FontSize="10" ToolTip.Tip="Switch AI provider (active request will be cancelled)" />
+          <ComboBox ItemsSource="{Binding AvailableModels}" SelectedIndex="{Binding SelectedModelIndex}" Width="145" FontSize="10" IsEnabled="{Binding !IsStreaming}" />
+          <ComboBox ItemsSource="{Binding AvailableReasoningEfforts}" SelectedIndex="{Binding SelectedReasoningEffortIndex}" Width="100" FontSize="10" IsVisible="{Binding IsCodexBackend}" IsEnabled="{Binding !IsStreaming}" ToolTip.Tip="Codex reasoning effort" />
+          <ToggleButton IsChecked="{Binding ShowTodoPanel}" Content="Tasks" Padding="7 3" FontSize="10" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Active document context and optional task list -->
+    <Border Grid.Row="1" Background="{DynamicResource AiChatHeaderBackgroundBrush}" Padding="10 6" BorderBrush="{DynamicResource AiChatBorderBrush}" BorderThickness="0 0 0 1">
+      <StackPanel Spacing="5">
+        <Border Background="{DynamicResource AiChatSurfaceBrush}" BorderBrush="{DynamicResource AiChatBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="7 4">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="▣" Foreground="{DynamicResource SystemAccentColor}" />
+            <TextBlock Text="Active Document" FontSize="10" FontWeight="SemiBold" />
+            <TextBlock Text="· SQL context available" FontSize="10" Opacity="0.65" />
+          </StackPanel>
+        </Border>
+        <Expander Header="Tasks" IsExpanded="{Binding ShowTodoPanel}" IsVisible="{Binding ShowTodoPanel}">
+          <ItemsControl ItemsSource="{Binding CurrentTodoList.Items}" MaxHeight="120">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="m:TodoItem" x:DataType="m:TodoItem">
+                <StackPanel Orientation="Horizontal" Spacing="6" Margin="0 2">
+                  <TextBlock Text="{Binding StatusIcon}" />
+                  <TextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="10" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </Expander>
+      </StackPanel>
+    </Border>
+
+    <!-- Conversation -->
+    <Grid Grid.Row="2" RowDefinitions="Auto,*">
+      <Border Grid.Row="0"
+              IsVisible="{Binding IsSessionChoicePending}"
+              Background="{DynamicResource AiChatSurfaceBrush}"
+              BorderBrush="{DynamicResource AiChatBorderBrush}"
+              BorderThickness="1"
+              CornerRadius="5"
+              Margin="10 8 10 2"
+              Padding="10 8">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Continue previous chat?" FontSize="11" FontWeight="SemiBold" />
+          <TextBlock Text="A previous conversation is available. Choose explicitly how to open the chat."
+                     IsVisible="{Binding HasPreviousSession}"
+                     FontSize="10"
+                     Opacity="0.75"
+                     TextWrapping="Wrap" />
+          <TextBlock Text="No saved conversation yet. Start a new chat to begin."
+                     IsVisible="{Binding !HasPreviousSession}"
+                     FontSize="10"
+                     Opacity="0.75"
+                     TextWrapping="Wrap" />
+          <TextBlock Text="{Binding PreviousSessionSummary}"
+                     IsVisible="{Binding HasPreviousSession}"
+                     FontSize="10"
+                     Opacity="0.65"
+                     TextWrapping="Wrap" />
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Button Content="Restore previous"
+                    Command="{Binding RestorePreviousChatCommand}"
+                    IsVisible="{Binding HasPreviousSession}"
+                    Padding="9 4" />
+            <Button Content="Start new"
+                    Command="{Binding StartNewChatCommand}"
+                    Padding="9 4"
+                    FontWeight="SemiBold" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="10 8">
+        <ItemsControl ItemsSource="{Binding Messages}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="m:ChatMessage" x:DataType="m:ChatMessage">
+            <StackPanel Spacing="3" Margin="0 0 0 10">
+              <TextBlock Text="{Binding Role}" FontSize="9" FontWeight="SemiBold" Opacity="0.65" IsVisible="{Binding !IsToolConfirmation}" />
+              <chat:AiChatMessageBubble Role="{Binding Role}"
+                                        BorderThickness="1"
+                                        CornerRadius="7"
+                                        Padding="10 8"
+                                        IsVisible="{Binding !IsToolConfirmation}">
+                <Grid RowDefinitions="Auto,Auto,Auto">
+                  <ItemsControl Grid.Row="0" ItemsSource="{Binding Attachments}" IsVisible="{Binding HasAttachments}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate DataType="m:ChatAttachment" x:DataType="m:ChatAttachment">
+                        <Border Background="{DynamicResource AiChatElevatedSurfaceBrush}" BorderBrush="{DynamicResource AiChatBorderBrush}" BorderThickness="1" CornerRadius="3" Padding="5 2" Margin="0 0 0 3">
+                          <TextBlock Text="{Binding DisplayLabel}" FontSize="9" />
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <chat:ChatMarkdownView Grid.Row="1" MarkdownText="{Binding Content}" IsStreaming="{Binding IsStreaming}" />
+                  <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="3" Margin="0 4 0 0">
+                    <Button Command="{Binding $parent[ItemsControl].((vm:AiChatViewModel)DataContext).CopyMessageCommand}" CommandParameter="{Binding}" Content="Copy" Padding="6 2" FontSize="9" />
+                    <TextBlock Text="{Binding GenerationTimeDisplay}" FontSize="9" Opacity="0.55" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Grid>
+              </chat:AiChatMessageBubble>
+
+              <Border Background="{DynamicResource AiChatToolConfirmationBrush}" BorderBrush="{DynamicResource AiChatWarningBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="10 8" IsVisible="{Binding IsToolConfirmation}">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Approval required" FontWeight="SemiBold" Foreground="{DynamicResource AiChatWarningForegroundBrush}" />
+                  <TextBlock Text="{Binding ToolName}" FontSize="11" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding ToolArgsFormatted}" FontFamily="Consolas,monospace" FontSize="10" TextWrapping="Wrap" MaxHeight="180" />
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="5" IsVisible="{Binding ConfirmationPending}">
+                    <Button Command="{Binding $parent[ItemsControl].((vm:AiChatViewModel)DataContext).ConfirmToolCommand}" CommandParameter="True" Content="Allow" Padding="12 4" />
+                    <Button Command="{Binding $parent[ItemsControl].((vm:AiChatViewModel)DataContext).ConfirmToolCommand}" CommandParameter="False" Content="Deny" Padding="12 4" />
+                  </StackPanel>
+                  <TextBlock Text="{Binding Content}" FontSize="10" Opacity="0.7" IsVisible="{Binding !ConfirmationPending}" />
+                </StackPanel>
+              </Border>
+
+              <ItemsControl ItemsSource="{Binding ToolCalls}" IsVisible="{Binding HasToolCalls}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="m:ToolCallInfo" x:DataType="m:ToolCallInfo">
+                    <Border Background="{DynamicResource AiChatElevatedSurfaceBrush}" BorderBrush="{DynamicResource AiChatBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="7 4">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding StatusIcon}" />
+                        <TextBlock Text="{Binding DisplayName}" FontSize="10" />
+                        <TextBlock Text="{Binding StatusText}" FontSize="9" Opacity="0.65" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Grid>
+
+    <!-- Composer -->
+    <Border Grid.Row="3" Background="{DynamicResource AiChatHeaderBackgroundBrush}" BorderBrush="{DynamicResource AiChatBorderBrush}" BorderThickness="0 1 0 0" Padding="9 7">
+      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto">
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="6" Margin="0 0 0 5">
+          <ComboBox ItemsSource="{Binding AvailableModes}" SelectedIndex="{Binding SelectedModeIndex}" Width="130" FontSize="10" IsEnabled="{Binding !IsStreaming}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate DataType="m:ChatModeConfig" x:DataType="m:ChatModeConfig"><TextBlock Text="{Binding DisplayName}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Text="{Binding StatusMessage}" FontSize="9" Opacity="0.65" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <ItemsControl Grid.Row="1" Grid.ColumnSpan="2" ItemsSource="{Binding PendingAttachments}" IsVisible="{Binding HasPendingAttachments}" Margin="0 0 0 5">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="m:ChatAttachment" x:DataType="m:ChatAttachment">
+              <Border Background="{DynamicResource AiChatElevatedSurfaceBrush}"
+                      BorderBrush="{DynamicResource AiChatBorderBrush}"
+                      BorderThickness="1"
+                      CornerRadius="3"
+                      Padding="5 2"
+                      Margin="0 0 4 2">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <TextBlock Text="{Binding DisplayLabel}"
+                             FontSize="9"
+                             MaxWidth="180"
+                             TextTrimming="CharacterEllipsis" />
+                  <Button Command="{Binding $parent[ItemsControl].((vm:AiChatViewModel)DataContext).RemovePendingAttachmentCommand}"
+                          CommandParameter="{Binding}"
+                          Content="✕"
+                          Padding="2 0"
+                          FontSize="9"
+                          ToolTip.Tip="Remove attachment" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBox Grid.Row="2" Grid.Column="0" Name="InputTextBox" Text="{Binding InputText}" PlaceholderText="Ask about this SQL file..." Background="{DynamicResource AiChatInputBackgroundBrush}" BorderBrush="{DynamicResource AiChatBorderBrush}" Foreground="{DynamicResource AiChatPrimaryTextBrush}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="42" MaxHeight="120" KeyDown="InputTextBox_OnKeyDown" IsEnabled="{Binding CanCompose}" />
+        <Popup Grid.Row="2"
+               IsOpen="{Binding ShowSlashCommandMenu}"
+               Placement="TopEdgeAlignedLeft"
+               HorizontalOffset="0"
+               VerticalOffset="-4"
+               MinWidth="200"
+               MaxHeight="180"
+               WindowManagerAddShadowHint="False">
+          <Border Background="{DynamicResource AiChatSurfaceBrush}"
+                  BorderBrush="{DynamicResource AiChatBorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="2">
+            <ListBox Name="SlashCommandListBox"
+                     ItemsSource="{Binding AvailableSlashCommands}"
+                     SelectionMode="Single"
+                     PointerPressed="SlashCommandListBox_OnPointerPressed"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     MaxHeight="160">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="m:SlashCommand" x:DataType="m:SlashCommand">
+                  <Border Padding="6 4" CornerRadius="3">
+                    <Grid ColumnDefinitions="Auto,Auto,*">
+                      <TextBlock Grid.Column="0" Text="/" Opacity="0.5" FontSize="11" />
+                      <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="11" FontWeight="Medium" />
+                      <TextBlock Grid.Column="2" Text="{Binding Description}" FontSize="9" Opacity="0.6" Margin="8 0 0 0" TextTrimming="CharacterEllipsis" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Border>
+        </Popup>
+        <Popup Grid.Row="2"
+               IsOpen="{Binding ShowMentionMenu}"
+               Placement="TopEdgeAlignedLeft"
+               HorizontalOffset="0"
+               VerticalOffset="-4"
+               MinWidth="220"
+               MaxHeight="200"
+               WindowManagerAddShadowHint="False">
+          <Border Background="{DynamicResource AiChatSurfaceBrush}"
+                  BorderBrush="{DynamicResource AiChatBorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="4"
+                  Padding="2">
+            <ListBox Name="MentionListBox"
+                     ItemsSource="{Binding MentionSuggestions}"
+                     SelectionMode="Single"
+                     PointerPressed="MentionListBox_OnPointerPressed"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     MaxHeight="180">
+              <ListBox.ItemTemplate>
+                <DataTemplate DataType="m:MentionItem" x:DataType="m:MentionItem">
+                  <Border Padding="6 4" CornerRadius="3">
+                    <Grid ColumnDefinitions="Auto,Auto,*">
+                      <TextBlock Grid.Column="0" Text="{Binding TypeIcon}" FontSize="11" Margin="0 0 4 0" />
+                      <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="11" FontWeight="Medium" />
+                      <TextBlock Grid.Column="2" Text="{Binding TypeLabel}" FontSize="9" Opacity="0.5" Margin="6 0 0 0" TextTrimming="CharacterEllipsis" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Border>
+        </Popup>
+        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Spacing="4" Margin="6 0 0 0">
+          <Button Command="{Binding AddFileReferenceCommand}" Content="＋" ToolTip.Tip="Attach file" Padding="6 5" IsEnabled="{Binding CanCompose}" />
+          <Button Command="{Binding CancelStreamingCommand}" Content="Stop" IsVisible="{Binding IsStreaming}" Padding="8 5" />
+          <Button Command="{Binding SendMessageCommand}" Content="Send" Padding="10 5" IsEnabled="{Binding CanCompose}" FontWeight="SemiBold" />
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

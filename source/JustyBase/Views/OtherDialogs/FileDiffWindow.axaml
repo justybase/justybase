@@ -1,0 +1,87 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:JustyBase.ViewModels"
+        x:Class="JustyBase.Views.OtherDialogs.FileDiffWindow"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+        Width="900"
+        Height="600"
+        Title="File Changed - Diff Preview"
+        WindowDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        CanResize="True"
+        WindowStartupLocation="CenterOwner"
+        ShowActivated="True"
+        ShowInTaskbar="False"
+        x:DataType="vm:FileDiffViewModel">
+    <Grid RowDefinitions="Auto,*,Auto">
+        <StackPanel Grid.Row="0" Margin="15,10">
+            <TextBlock FontSize="14" FontWeight="Bold" TextWrapping="Wrap">
+                <Run Text="File on disk has changed: "/>
+                <Run Text="{Binding FilePath}"/>
+            </TextBlock>
+            <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                <Border Background="#40FF0000" Padding="5,2" Margin="0,0,10,0">
+                    <TextBlock Text="Red = Deleted" FontSize="11"/>
+                </Border>
+                <Border Background="#4000FF00" Padding="5,2" Margin="0,0,10,0">
+                    <TextBlock Text="Green = Inserted" FontSize="11"/>
+                </Border>
+                <Border Background="#40FFFF00" Padding="5,2">
+                    <TextBlock Text="Yellow = Modified" FontSize="11"/>
+                </Border>
+            </StackPanel>
+        </StackPanel>
+        
+        <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="10,0">
+            <Border Grid.Column="0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="1" Margin="0,0,5,0">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Text="Current (in editor)" FontWeight="SemiBold" Margin="5" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"/>
+                    <ScrollViewer Grid.Row="1" x:Name="OldScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding OldLines}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DiffLineViewModel">
+                                    <Border Background="{Binding Background}" Padding="4,1">
+                                        <TextBlock Text="{Binding Text}" FontFamily="Consolas" FontSize="12"/>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+            <Border Grid.Column="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="1" Margin="5,0,0,0">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Text="On Disk" FontWeight="SemiBold" Margin="5" Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"/>
+                    <ScrollViewer Grid.Row="1" x:Name="NewScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding NewLines}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:DiffLineViewModel">
+                                    <Border Background="{Binding Background}" Padding="4,1">
+                                        <TextBlock Text="{Binding Text}" FontFamily="Consolas" FontSize="12"/>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+        
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="10"
+                    VerticalAlignment="Bottom"
+                    HorizontalAlignment="Center">
+            <Button Name="btReload" Margin="5,10" Command="{Binding ReloadCommand}" 
+                    Classes="accent" MinWidth="100">
+                <TextBlock Text="Reload"/>
+            </Button>
+            <Button Name="btKeep" Margin="5,10" Command="{Binding KeepCurrentCommand}" MinWidth="120">
+                Keep Current
+            </Button>
+            <Button Name="btDismiss" Margin="5,10" Command="{Binding DismissCommand}" MinWidth="80">
+                Dismiss
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

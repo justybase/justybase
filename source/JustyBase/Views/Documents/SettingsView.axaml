@@ -1,0 +1,1323 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="960" d:DesignHeight="640"
+             x:Class="JustyBase.Views.Documents.SettingsView"
+             xmlns:vm="using:JustyBase.ViewModels.Documents"
+             x:DataType="vm:SettingsViewModel">
+	<UserControl.Styles>
+		<Style Selector="FlyoutPresenter.GoodVsibleFlyout">
+			<Setter Property="Background" Value="{DynamicResource SystemAccentColorBrush}" />
+			<Setter Property="Foreground" Value="White" />
+		</Style>
+
+		<Style Selector="Border.settings-card">
+			<Setter Property="Background" Value="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" />
+			<Setter Property="CornerRadius" Value="10" />
+			<Setter Property="Padding" Value="16 8" />
+			<Setter Property="Margin" Value="0 0 0 16" />
+		</Style>
+
+		<Style Selector="TextBlock.page-title">
+			<Setter Property="FontSize" Value="22" />
+			<Setter Property="FontWeight" Value="SemiBold" />
+			<Setter Property="Margin" Value="0 0 0 16" />
+		</Style>
+
+		<Style Selector="TextBlock.section-caption">
+			<Setter Property="FontSize" Value="11" />
+			<Setter Property="FontWeight" Value="SemiBold" />
+			<Setter Property="Opacity" Value="0.55" />
+			<Setter Property="Margin" Value="4 0 0 8" />
+		</Style>
+
+		<Style Selector="TextBlock.row-title">
+			<Setter Property="FontSize" Value="13" />
+			<Setter Property="FontWeight" Value="SemiBold" />
+			<Setter Property="HorizontalAlignment" Value="Left" />
+			<Setter Property="TextAlignment" Value="Left" />
+		</Style>
+
+		<Style Selector="TextBlock.row-desc">
+			<Setter Property="FontSize" Value="12" />
+			<Setter Property="Opacity" Value="0.65" />
+			<Setter Property="TextWrapping" Value="Wrap" />
+			<Setter Property="HorizontalAlignment" Value="Left" />
+			<Setter Property="TextAlignment" Value="Left" />
+		</Style>
+
+		<Style Selector="Grid.settings-row">
+			<Setter Property="Margin" Value="0 8" />
+			<Setter Property="MinHeight" Value="40" />
+		</Style>
+
+		<Style Selector="Grid.settings-row > StackPanel">
+			<Setter Property="VerticalAlignment" Value="Center" />
+			<Setter Property="HorizontalAlignment" Value="Stretch" />
+			<Setter Property="Margin" Value="0 0 16 0" />
+			<Setter Property="Spacing" Value="2" />
+		</Style>
+
+		<Style Selector="Grid.settings-row > TextBlock.row-title">
+			<Setter Property="VerticalAlignment" Value="Center" />
+			<Setter Property="Margin" Value="0 0 16 0" />
+		</Style>
+
+		<Style Selector="Grid.color-row">
+			<Setter Property="Margin" Value="0 6" />
+			<Setter Property="MinHeight" Value="36" />
+		</Style>
+
+		<Style Selector="Grid.color-row > TextBlock">
+			<Setter Property="VerticalAlignment" Value="Center" />
+			<Setter Property="HorizontalAlignment" Value="Left" />
+			<Setter Property="Margin" Value="0 0 12 0" />
+		</Style>
+
+		<Style Selector="Grid.color-row > ColorPicker">
+			<Setter Property="VerticalAlignment" Value="Center" />
+			<Setter Property="HorizontalAlignment" Value="Left" />
+		</Style>
+
+		<Style Selector="Expander.settings-advanced">
+			<Setter Property="Padding" Value="0" />
+			<Setter Property="HorizontalAlignment" Value="Stretch" />
+			<Setter Property="Margin" Value="0 4" />
+		</Style>
+
+		<Style Selector="Expander.settings-advanced > StackPanel">
+			<Setter Property="Margin" Value="12 12 8 8" />
+			<Setter Property="Spacing" Value="8" />
+		</Style>
+
+		<Style Selector="Separator.settings-sep">
+			<Setter Property="Margin" Value="0" />
+			<Setter Property="Opacity" Value="0.25" />
+		</Style>
+
+		<Style Selector="TreeView.settings-nav">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="BorderThickness" Value="0" />
+			<Setter Property="Padding" Value="8 4" />
+		</Style>
+
+		<Style Selector="TreeView.settings-nav TreeViewItem">
+			<Setter Property="MinHeight" Value="32" />
+			<Setter Property="Margin" Value="0 1" />
+			<Setter Property="Padding" Value="8 4" />
+			<Setter Property="CornerRadius" Value="8" />
+		</Style>
+
+		<Style Selector="TreeView.settings-nav TreeViewItem:selected">
+			<Setter Property="Background" Value="{DynamicResource SystemControlHighlightListLowBrush}" />
+		</Style>
+
+		<Style Selector="TreeView.settings-nav TreeViewItem:pointerover">
+			<Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
+		</Style>
+
+		<Style Selector="ComboBox.settings-control">
+			<Setter Property="MinWidth" Value="160" />
+			<Setter Property="HorizontalAlignment" Value="Right" />
+			<Setter Property="VerticalAlignment" Value="Center" />
+		</Style>
+
+		<Style Selector="NumericUpDown.settings-control">
+			<Setter Property="MinWidth" Value="120" />
+			<Setter Property="HorizontalAlignment" Value="Right" />
+			<Setter Property="VerticalAlignment" Value="Center" />
+		</Style>
+
+		<Style Selector="ToggleSwitch.settings-control">
+			<Setter Property="HorizontalAlignment" Value="Right" />
+			<Setter Property="VerticalAlignment" Value="Center" />
+			<Setter Property="OnContent" Value="{x:Null}" />
+			<Setter Property="OffContent" Value="{x:Null}" />
+		</Style>
+
+		<Style Selector="Button.settings-action">
+			<Setter Property="HorizontalAlignment" Value="Right" />
+			<Setter Property="VerticalAlignment" Value="Center" />
+			<Setter Property="Padding" Value="14 6" />
+			<Setter Property="CornerRadius" Value="6" />
+		</Style>
+
+		<Style Selector="PathIcon.settings-nav-icon">
+			<Setter Property="Width" Value="16" />
+			<Setter Property="Height" Value="16" />
+			<Setter Property="Opacity" Value="0.8" />
+			<Setter Property="Margin" Value="0 0 8 0" />
+			<Setter Property="VerticalAlignment" Value="Center" />
+		</Style>
+
+		<Style Selector="TextBlock.settings-nav-label">
+			<Setter Property="VerticalAlignment" Value="Center" />
+			<Setter Property="FontSize" Value="13" />
+		</Style>
+	</UserControl.Styles>
+
+	<Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="240,*" Margin="12">
+		<!-- Search -->
+		<TextBox Grid.Row="0" Grid.ColumnSpan="2"
+				 PlaceholderText="Search settings..."
+				 Text="{Binding SearchText}"
+				 Margin="0 0 0 12"
+				 CornerRadius="8"
+				 Padding="10 8" />
+
+		<!-- Sidebar -->
+		<Border Grid.Row="1" Grid.Column="0"
+				BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+				BorderThickness="0 0 1 0"
+				Padding="0 0 12 0"
+				Margin="0 0 16 0">
+			<TreeView Name="treeView"
+					  Classes="settings-nav"
+					  SelectedItem="{Binding SeletedOption}">
+				<TreeViewItem Tag="General" IsExpanded="True">
+					<TreeViewItem.Header>
+						<StackPanel Orientation="Horizontal">
+							<PathIcon Classes="settings-nav-icon" Data="{StaticResource WrenchIcon}" />
+							<TextBlock Classes="settings-nav-label" Text="General" />
+						</StackPanel>
+					</TreeViewItem.Header>
+					<TreeViewItem Tag="Export">
+						<TreeViewItem.Header>
+							<StackPanel Orientation="Horizontal">
+								<PathIcon Classes="settings-nav-icon" Data="{StaticResource CopyAsCsvIconPath}" />
+								<TextBlock Classes="settings-nav-label" Text="Export data" />
+							</StackPanel>
+						</TreeViewItem.Header>
+					</TreeViewItem>
+				</TreeViewItem>
+				<TreeViewItem Tag="SnipettsANDkeywords">
+					<TreeViewItem.Header>
+						<StackPanel Orientation="Horizontal">
+							<PathIcon Classes="settings-nav-icon" Data="{StaticResource CommentIconPath}" />
+							<TextBlock Classes="settings-nav-label" Text="Snippets" />
+						</StackPanel>
+					</TreeViewItem.Header>
+				</TreeViewItem>
+				<TreeViewItem Tag="SqlLinter">
+					<TreeViewItem.Header>
+						<StackPanel Orientation="Horizontal">
+							<PathIcon Classes="settings-nav-icon" Data="{StaticResource FormaterIconPath}" />
+							<TextBlock Classes="settings-nav-label" Text="SQL Linter" />
+						</StackPanel>
+					</TreeViewItem.Header>
+				</TreeViewItem>
+				<TreeViewItem Tag="EmbeddedAi">
+					<TreeViewItem.Header>
+						<StackPanel Orientation="Horizontal">
+							<PathIcon Classes="settings-nav-icon" Data="{StaticResource FormaterIconPath}" />
+							<TextBlock Classes="settings-nav-label" Text="Embedded AI (FIM)" />
+						</StackPanel>
+					</TreeViewItem.Header>
+				</TreeViewItem>
+				<TreeViewItem Tag="AiChat">
+					<TreeViewItem.Header>
+						<StackPanel Orientation="Horizontal">
+							<PathIcon Classes="settings-nav-icon" Data="{StaticResource FormaterIconPath}" />
+							<TextBlock Classes="settings-nav-label" Text="AI Chat" />
+						</StackPanel>
+					</TreeViewItem.Header>
+				</TreeViewItem>
+				<TreeViewItem Tag="Results" IsExpanded="True">
+					<TreeViewItem.Header>
+						<StackPanel Orientation="Horizontal">
+							<PathIcon Classes="settings-nav-icon" Data="{StaticResource CopyDataIconPath}" />
+							<TextBlock Classes="settings-nav-label" Text="Results" />
+						</StackPanel>
+					</TreeViewItem.Header>
+					<TreeViewItem Tag="Limits">
+						<TreeViewItem.Header>
+							<StackPanel Orientation="Horizontal">
+								<PathIcon Classes="settings-nav-icon" Data="{StaticResource FilterIcon}" />
+								<TextBlock Classes="settings-nav-label" Text="Limits" />
+							</StackPanel>
+						</TreeViewItem.Header>
+					</TreeViewItem>
+				</TreeViewItem>
+				<TreeViewItem Tag="Apperance">
+					<TreeViewItem.Header>
+						<StackPanel Orientation="Horizontal">
+							<PathIcon Classes="settings-nav-icon" Data="{StaticResource ScreenShotIconPath}" />
+							<TextBlock Classes="settings-nav-label" Text="Appearance" />
+						</StackPanel>
+					</TreeViewItem.Header>
+				</TreeViewItem>
+				<TreeViewItem Tag="Others">
+					<TreeViewItem.Header>
+						<StackPanel Orientation="Horizontal">
+							<PathIcon Classes="settings-nav-icon" Data="{StaticResource DocumentSaveIcon}" />
+							<TextBlock Classes="settings-nav-label" Text="Others" />
+						</StackPanel>
+					</TreeViewItem.Header>
+				</TreeViewItem>
+			</TreeView>
+		</Border>
+
+		<!-- Content pages -->
+		<ScrollViewer Grid.Row="1" Grid.Column="1"
+					  VerticalScrollBarVisibility="Auto"
+					  HorizontalScrollBarVisibility="Disabled"
+					  Padding="0 0 8 0">
+			<Panel>
+				<!-- General -->
+				<StackPanel Name="General" Spacing="4" IsVisible="True">
+					<TextBlock Classes="page-title" Text="General" />
+					<TextBlock Classes="section-caption" Text="CONNECTION" />
+					<Border Classes="settings-card">
+						<StackPanel>
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Connection timeout" />
+									<TextBlock Classes="row-desc" Text="Seconds to wait when opening a database connection (1–60)." />
+								</StackPanel>
+								<NumericUpDown Grid.Column="1" Classes="settings-control"
+											   Value="{Binding ConnectionTimeout}"
+											   Increment="1" Minimum="1" Maximum="60"
+											   AllowSpin="True" ShowButtonSpinner="False" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Command timeout" />
+									<TextBlock Classes="row-desc" Text="Seconds to wait for a SQL command to complete. Use −1 for no limit." />
+								</StackPanel>
+								<NumericUpDown Grid.Column="1" Classes="settings-control"
+											   Value="{Binding CommandTimeout}"
+											   Increment="1" Minimum="-1" Maximum="86400"
+											   AllowSpin="True" ShowButtonSpinner="False" />
+							</Grid>
+						</StackPanel>
+					</Border>
+				</StackPanel>
+
+				<!-- Export -->
+				<StackPanel Name="Export" Spacing="4" IsVisible="False">
+					<TextBlock Classes="page-title" Text="Export data" />
+					<TextBlock Classes="section-caption" Text="CSV" />
+					<Border Classes="settings-card">
+						<StackPanel>
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Column separator" />
+									<TextBlock Classes="row-desc" Text="Character used between columns when exporting CSV." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedValue="{Binding SepInExportedCsv}"
+										  ItemsSource="{Binding SepInExportedCsvList}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Row separator" />
+									<TextBlock Classes="row-desc" Text="Line ending style for exported CSV files." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedValue="{Binding SepRowsInExportedCsv}"
+										  ItemsSource="{Binding SepRowsInExportedCsvList}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="File encoding" />
+									<TextBlock Classes="row-desc" Text="Character encoding for exported CSV files." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedValue="{Binding EncondingName}"
+										  ItemsSource="{Binding EncondingNameList}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Decimal separator" />
+									<TextBlock Classes="row-desc" Text="Decimal mark used for numeric values in CSV." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedValue="{Binding DecimalDelimInCsv}"
+										  ItemsSource="{Binding DecimalDelimInCsvList}" />
+							</Grid>
+						</StackPanel>
+					</Border>
+
+					<TextBlock Classes="section-caption" Text="EXCEL" />
+					<Border Classes="settings-card">
+						<StackPanel>
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Excel format" />
+									<TextBlock Classes="row-desc" Text="Default workbook format when exporting to Excel." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedValue="{Binding ExcelFormat}"
+										  ItemsSource="{Binding ExcelFormatList}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Sheet name" />
+									<TextBlock Classes="row-desc" Text="Default worksheet name for new Excel exports." />
+								</StackPanel>
+								<TextBox Grid.Column="1" Classes="settings-control"
+										 Text="{Binding DefaultXlsxSheetName}"
+										 MinWidth="160"
+										 HorizontalAlignment="Right"
+										 VerticalAlignment="Center" />
+							</Grid>
+						</StackPanel>
+					</Border>
+				</StackPanel>
+
+				<!-- Snippets -->
+				<StackPanel Name="SnipettsANDkeywords" Spacing="4" IsVisible="False">
+					<TextBlock Classes="page-title" Text="Snippets" />
+					<TextBlock Classes="section-caption" Text="EDITOR" />
+					<Border Classes="settings-card">
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Edit snippets" />
+								<TextBlock Classes="row-desc" Text="Open the snippet editor to manage SQL snippets and keywords." />
+							</StackPanel>
+							<Button Name="btEditSnippets" Grid.Column="1" Classes="settings-action" Content="Edit snippets" />
+						</Grid>
+					</Border>
+				</StackPanel>
+
+				<!-- SQL Linter -->
+				<StackPanel Name="SqlLinter" Spacing="4" IsVisible="False">
+					<TextBlock Classes="page-title" Text="SQL Linter" />
+					<TextBlock Classes="section-caption" Text="ANALYSIS" />
+					<Border Classes="settings-card">
+						<StackPanel>
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Enable SQL linter" />
+									<TextBlock Classes="row-desc" Text="Analyze SQL in the editor and surface issues in Diagnostics." />
+								</StackPanel>
+								<ToggleSwitch Grid.Column="1" Classes="settings-control"
+											  IsChecked="{Binding SqlLinterEnabled}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ001 — SELECT *" />
+									<TextBlock Classes="row-desc" Text="Severity when a query uses SELECT *." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz001}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ002 — UPDATE without WHERE" />
+									<TextBlock Classes="row-desc" Text="Severity for UPDATE statements missing a WHERE clause." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz002}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ003 — DELETE without WHERE" />
+									<TextBlock Classes="row-desc" Text="Severity for DELETE statements missing a WHERE clause." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz003}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ011 — DISTRIBUTE" />
+									<TextBlock Classes="row-desc" Text="Severity when CTAS is missing DISTRIBUTE." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz011}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ012 — UPDATE … AS" />
+									<TextBlock Classes="row-desc" Text="Severity when UPDATE uses AS for a table alias (unsupported on Netezza)." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz012}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ004 — CROSS JOIN" />
+									<TextBlock Classes="row-desc" Text="Severity for CROSS JOIN (Cartesian product)." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz004}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ005 — LIKE '%…'" />
+									<TextBlock Classes="row-desc" Text="Severity for LIKE patterns with a leading wildcard (Zone Map)." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz005}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ008 — TRUNCATE" />
+									<TextBlock Classes="row-desc" Text="Severity when TRUNCATE removes all data." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz008}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ013 — UNION" />
+									<TextBlock Classes="row-desc" Text="Severity when UNION is used instead of UNION ALL." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz013}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ015 — Function in WHERE" />
+									<TextBlock Classes="row-desc" Text="Severity when a function wraps a column in WHERE (Zone Map)." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz015}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ102 — JOIN without ON" />
+									<TextBlock Classes="row-desc" Text="Severity for JOIN missing an ON condition." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz102}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+						</StackPanel>
+					</Border>
+				</StackPanel>
+
+				<!-- Embedded AI (FIM) -->
+				<StackPanel Name="EmbeddedAi" Spacing="4" IsVisible="False">
+					<TextBlock Classes="page-title" Text="Embedded AI (FIM)" />
+					<TextBlock Classes="section-caption" Text="INLINE AUTOCOMPLETE" />
+					<Border Classes="settings-card">
+						<StackPanel>
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Enable Fill-in-the-Middle" />
+									<TextBlock Classes="row-desc" Text="Ghost-text SQL completions from a local GGUF model (LLamaSharp). Tab accepts. Offline after download." />
+								</StackPanel>
+								<ToggleSwitch Grid.Column="1" Classes="settings-control"
+											  IsChecked="{Binding EnableEmbeddedFimAi}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Suggestion delay" />
+									<TextBlock Classes="row-desc" Text="Wait after you stop typing before requesting a ghost-text suggestion." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control" MinWidth="160"
+										  SelectedItem="{Binding SelectedEmbeddedFimDebounce}"
+										  ItemsSource="{Binding EmbeddedFimDebounceChoices}">
+									<ComboBox.ItemTemplate>
+										<DataTemplate x:DataType="vm:FimDebounceChoiceItem">
+											<TextBlock Text="{Binding DisplayName}" />
+										</DataTemplate>
+									</ComboBox.ItemTemplate>
+								</ComboBox>
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Preset" />
+									<TextBlock Classes="row-desc" Text="{Binding SelectedEmbeddedFimPresetNotes}" TextWrapping="Wrap" />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control" MinWidth="160"
+										  SelectedItem="{Binding SelectedEmbeddedFimPreset}"
+										  ItemsSource="{Binding EmbeddedFimPresetChoices}">
+									<ComboBox.ItemTemplate>
+										<DataTemplate x:DataType="vm:FimPresetChoiceItem">
+											<TextBlock Text="{Binding DisplayName}" />
+										</DataTemplate>
+									</ComboBox.ItemTemplate>
+								</ComboBox>
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Hardware suggestion" />
+									<TextBlock Classes="row-desc" Text="{Binding EmbeddedFimHardwareSuggestion}" TextWrapping="Wrap" />
+								</StackPanel>
+								<Button Grid.Column="1" Classes="settings-action"
+										Content="Apply suggested"
+										Command="{Binding ApplySuggestedFimPresetCommand}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Expander Classes="settings-advanced" Header="Fine-tune" IsExpanded="False">
+								<StackPanel>
+									<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+										<StackPanel Grid.Column="0">
+											<TextBlock Classes="row-title" Text="Max prompt tokens" />
+											<TextBlock Classes="row-desc" Text="Total prefix+suffix budget (~4 chars/token). Editing switches preset to Custom." />
+										</StackPanel>
+										<NumericUpDown Grid.Column="1" Classes="settings-control"
+													   Value="{Binding EmbeddedFimMaxPromptTokens}"
+													   Increment="64" Minimum="128" Maximum="8192"
+													   AllowSpin="True" ShowButtonSpinner="False" />
+									</Grid>
+									<Separator Classes="settings-sep" />
+									<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+										<StackPanel Grid.Column="0">
+											<TextBlock Classes="row-title" Text="Prefix %" />
+											<TextBlock Classes="row-desc" Text="Share of prompt budget before the caret." />
+										</StackPanel>
+										<NumericUpDown Grid.Column="1" Classes="settings-control"
+													   Value="{Binding EmbeddedFimPrefixPercentage}"
+													   Increment="0.05" Minimum="0.05" Maximum="0.95"
+													   FormatString="P0"
+													   AllowSpin="True" ShowButtonSpinner="False" />
+									</Grid>
+									<Separator Classes="settings-sep" />
+									<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+										<StackPanel Grid.Column="0">
+											<TextBlock Classes="row-title" Text="Suffix %" />
+											<TextBlock Classes="row-desc" Text="Share of prompt budget after the caret." />
+										</StackPanel>
+										<NumericUpDown Grid.Column="1" Classes="settings-control"
+													   Value="{Binding EmbeddedFimSuffixPercentage}"
+													   Increment="0.05" Minimum="0.05" Maximum="0.95"
+													   FormatString="P0"
+													   AllowSpin="True" ShowButtonSpinner="False" />
+									</Grid>
+									<Separator Classes="settings-sep" />
+									<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+										<StackPanel Grid.Column="0">
+											<TextBlock Classes="row-title" Text="Max generation tokens" />
+											<TextBlock Classes="row-desc" Text="How many tokens the local model may generate for one ghost-text suggestion (20–200)." />
+										</StackPanel>
+										<StackPanel Grid.Column="1" Classes="settings-control" Width="240" Spacing="4">
+											<Slider Minimum="20" Maximum="200" TickFrequency="10"
+													IsSnapToTickEnabled="True"
+													Value="{Binding EmbeddedFimMaxTokens}" />
+											<TextBlock HorizontalAlignment="Right" Opacity="0.8"
+													   Text="{Binding EmbeddedFimMaxTokensLabel}" />
+										</StackPanel>
+									</Grid>
+								</StackPanel>
+							</Expander>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Prefer Vulkan GPU" />
+									<TextBlock Classes="row-desc" Text="Use LLamaSharp Vulkan (AMD Radeon 780M etc.). Off = CPU-only native backend. Change may need app restart if the library already loaded." TextWrapping="Wrap" />
+								</StackPanel>
+								<ToggleSwitch Grid.Column="1" Classes="settings-control"
+											  IsChecked="{Binding EmbeddedFimPreferVulkan}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="GPU layers" />
+									<TextBlock Classes="row-desc" Text="llama.cpp offload count. 0 = CPU compute; 99 = as many layers as fit in VRAM. Reloads the model when changed." TextWrapping="Wrap" />
+								</StackPanel>
+								<StackPanel Grid.Column="1" Classes="settings-control" Width="200" Spacing="4"
+											IsEnabled="{Binding EmbeddedFimGpuLayersEnabled}">
+									<NumericUpDown Value="{Binding EmbeddedFimGpuLayers}"
+												   Increment="1" Minimum="0" Maximum="999"
+												   AllowSpin="True" ShowButtonSpinner="False" />
+									<TextBlock HorizontalAlignment="Right" Opacity="0.8"
+											   Text="{Binding EmbeddedFimGpuLayersLabel}" />
+								</StackPanel>
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Model" />
+									<TextBlock Classes="row-desc" Text="Qwen2.5-Coder recommended. Alternatives (CodeGemma, StarCoder2, Codestral) may require license acceptance before download." TextWrapping="Wrap" />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control" MinWidth="280"
+										  SelectedItem="{Binding SelectedEmbeddedFimModel}"
+										  ItemsSource="{Binding EmbeddedFimModelChoices}">
+									<ComboBox.ItemTemplate>
+										<DataTemplate x:DataType="vm:FimModelChoiceItem">
+											<StackPanel Spacing="2">
+												<TextBlock Text="{Binding DisplayName}" />
+												<TextBlock Opacity="0.7" FontSize="11" Text="{Binding Family}" />
+												<TextBlock Opacity="0.7" FontSize="11" Text="{Binding SizeLabel}" />
+											</StackPanel>
+										</DataTemplate>
+									</ComboBox.ItemTemplate>
+								</ComboBox>
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Selected model card" />
+									<TextBlock Classes="row-desc" Text="{Binding SelectedEmbeddedFimModelNotes}" TextWrapping="Wrap" />
+								</StackPanel>
+								<Button Grid.Column="1" Classes="settings-action"
+										Content="Open on Hugging Face"
+										Command="{Binding OpenSelectedFimModelPageCommand}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<StackPanel Spacing="8">
+								<TextBlock Classes="row-title" Text="Model files" />
+								<TextBlock Classes="row-desc" Text="{Binding FimModelDiskStatus}" TextWrapping="Wrap" />
+								<TextBlock Opacity="0.65" FontSize="11" TextWrapping="Wrap"
+										   Text="{Binding FimModelsDirectory, StringFormat='Folder: {0}'}" />
+								<ProgressBar Minimum="0" Maximum="1"
+											 Value="{Binding FimPrepareProgressValue}"
+											 IsIndeterminate="{Binding FimPrepareIsIndeterminate}"
+											 Height="8" />
+								<Grid ColumnDefinitions="*,Auto">
+									<TextBlock Grid.Column="0" Text="{Binding FimPrepareStatusMessage}" TextWrapping="Wrap" />
+									<TextBlock Grid.Column="1" Margin="12,0,0,0"
+											   Text="{Binding FimPrepareProgressPercentText}" />
+								</Grid>
+								<StackPanel Orientation="Horizontal" Spacing="8">
+									<Button Classes="settings-action"
+											Content="Download / prepare"
+											Command="{Binding PrepareEmbeddedFimModelCommand}" />
+									<Button Classes="settings-action"
+											Content="Speed test (CPU/GPU × contexts)"
+											Command="{Binding RunEmbeddedFimBenchmarkCommand}" />
+									<Button Classes="settings-action"
+											Content="Cancel"
+											Command="{Binding CancelEmbeddedFimPrepareCommand}"
+											IsVisible="{Binding FimPrepareInProgress}" />
+								</StackPanel>
+								<StackPanel Orientation="Horizontal" Spacing="12">
+									<Button Classes="settings-action" Padding="0"
+											Content="Show in folder"
+											Command="{Binding ShowEmbeddedFimModelInFolderCommand}" />
+									<Button Classes="settings-action" Padding="0"
+											Content="Delete model"
+											Command="{Binding DeleteEmbeddedFimModelCommand}" />
+								</StackPanel>
+								<Grid ColumnDefinitions="*,Auto" IsVisible="{Binding CanCopyFimBenchmarkResult}">
+									<TextBlock Grid.Column="0" Classes="row-title" Text="Speed test results"
+											   VerticalAlignment="Center" />
+									<Button Grid.Column="1" Classes="settings-action"
+											Content="Copy results"
+											Command="{Binding CopyFimBenchmarkResultCommand}" />
+								</Grid>
+								<Border IsVisible="{Binding CanCopyFimBenchmarkResult}"
+										Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+										CornerRadius="6"
+										Padding="10"
+										MaxHeight="320">
+									<ScrollViewer HorizontalScrollBarVisibility="Auto"
+												  VerticalScrollBarVisibility="Auto">
+										<SelectableTextBlock Text="{Binding FimBenchmarkResult}"
+															 FontFamily="Consolas,Courier New,monospace"
+															 FontSize="12"
+															 TextWrapping="NoWrap" />
+									</ScrollViewer>
+								</Border>
+							</StackPanel>
+</StackPanel>
+			</Border>
+		</StackPanel>
+
+		<!-- AI Chat -->
+		<StackPanel Name="AiChat" Spacing="4" IsVisible="False">
+			<TextBlock Classes="page-title" Text="AI Chat" />
+			<TextBlock Classes="section-caption" Text="CHAT ASSISTANT" />
+			<Border Classes="settings-card">
+				<StackPanel>
+					<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+						<StackPanel Grid.Column="0">
+							<TextBlock Classes="row-title" Text="Enable AI Chat" />
+							<TextBlock Classes="row-desc" Text='Enable the AI Chat dock panel and "Fix in AI Chat" actions. Supports Codex/ChatGPT, Ollama and LM Studio. Off by default.' />
+						</StackPanel>
+						<ToggleSwitch Grid.Column="1" Classes="settings-control"
+									  IsChecked="{Binding EnableAiChat}" />
+					</Grid>
+					<Separator Classes="settings-sep" />
+				</StackPanel>
+			</Border>
+
+			<TextBlock Classes="section-caption" Text="CODEX / CHATGPT" />
+			<Border Classes="settings-card">
+				<StackPanel Spacing="8">
+					<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+						<StackPanel Grid.Column="0">
+							<TextBlock Classes="row-title" Text="Codex account" />
+							<TextBlock Classes="row-desc" Text="Use the official Codex app-server with your ChatGPT subscription. No OpenAI API key is required." TextWrapping="Wrap" />
+						</StackPanel>
+						<TextBlock Grid.Column="1" Text="{Binding CodexAccountStatus}" VerticalAlignment="Center" Opacity="0.75" />
+					</Grid>
+					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+						<Button Content="Sign in with ChatGPT" Command="{Binding SignInCodexCommand}" IsVisible="{Binding !IsCodexSignedIn}" />
+						<Button Content="Sign out" Command="{Binding SignOutCodexCommand}" IsVisible="{Binding IsCodexSignedIn}" />
+						<Button Content="Show/hide email" Command="{Binding ToggleShowCodexEmailCommand}" IsVisible="{Binding IsCodexSignedIn}" />
+					</StackPanel>
+				</StackPanel>
+			</Border>
+
+			<StackPanel IsEnabled="{Binding EnableAiChat}" Spacing="4">
+				<TextBlock Classes="section-caption" Text="BACKEND &amp; MODEL" />
+				<Border Classes="settings-card">
+					<StackPanel>
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Default backend" />
+							<TextBlock Classes="row-desc" Text="Choose the provider used when AI Chat starts." TextWrapping="Wrap" />
+						</StackPanel>
+							<ComboBox Grid.Column="1" Classes="settings-control" MinWidth="220"
+									  SelectedItem="{Binding SelectedAiChatBackend}"
+									  ItemsSource="{Binding AiChatBackendChoices}">
+								<ComboBox.ItemTemplate>
+									<DataTemplate x:DataType="vm:AiChatBackendChoiceItem">
+										<StackPanel Spacing="2">
+											<TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+											<TextBlock Text="{Binding Description}" Opacity="0.7" FontSize="11" />
+										</StackPanel>
+									</DataTemplate>
+								</ComboBox.ItemTemplate>
+							</ComboBox>
+						</Grid>
+						<Separator Classes="settings-sep" />
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Default model" />
+								<TextBlock Classes="row-desc" Text="Use Auto for Codex, or a model id returned by the selected provider." />
+							</StackPanel>
+							<TextBox Grid.Column="1" Classes="settings-control"
+									 Text="{Binding AiChatDefaultModel}"
+									 MinWidth="180"
+									 HorizontalAlignment="Right"
+									 VerticalAlignment="Center" />
+						</Grid>
+					</StackPanel>
+				</Border>
+
+				<TextBlock Classes="section-caption" Text="SYSTEM PROMPTS" />
+				<Border Classes="settings-card">
+					<StackPanel Spacing="8">
+						<TextBlock Classes="row-desc"
+								   Text="These are the built-in system prompts sent for each chat mode. They are shown here so the active assistant behavior is explicit. Use the override below to prepend your own instructions."
+								   TextWrapping="Wrap" />
+						<ItemsControl ItemsSource="{Binding AiChatSystemPromptChoices}">
+							<ItemsControl.ItemTemplate>
+								<DataTemplate x:DataType="vm:AiChatSystemPromptChoiceItem">
+									<Expander Header="{Binding DisplayName}" IsExpanded="False">
+										<TextBox Text="{Binding Prompt}"
+												 IsReadOnly="True"
+												 AcceptsReturn="True"
+												 TextWrapping="Wrap"
+												 MinLines="4"
+												 MaxLines="16"
+												 HorizontalAlignment="Stretch" />
+									</Expander>
+								</DataTemplate>
+							</ItemsControl.ItemTemplate>
+						</ItemsControl>
+					</StackPanel>
+				</Border>
+
+				<TextBlock Classes="section-caption" Text="CHAT MODE" />
+				<Border Classes="settings-card">
+					<StackPanel>
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Default chat mode" />
+								<TextBlock Classes="row-desc" Text="Persona used for new chat sessions." />
+							</StackPanel>
+							<ComboBox Grid.Column="1" Classes="settings-control" MinWidth="160"
+									  SelectedItem="{Binding SelectedAiChatDefaultMode}"
+									  ItemsSource="{Binding AiChatDefaultModeChoices}">
+								<ComboBox.ItemTemplate>
+									<DataTemplate x:DataType="vm:AiChatModeChoiceItem">
+										<StackPanel Spacing="2">
+											<TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+											<TextBlock Opacity="0.7" FontSize="11" Text="{Binding Description}" />
+										</StackPanel>
+									</DataTemplate>
+								</ComboBox.ItemTemplate>
+							</ComboBox>
+						</Grid>
+					</StackPanel>
+				</Border>
+
+				<TextBlock Classes="section-caption" Text="BEHAVIOR" />
+				<Border Classes="settings-card">
+					<StackPanel>
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Auto-connect on open" />
+								<TextBlock Classes="row-desc" Text="Connect to the backend immediately when the AI Chat panel opens (rather than lazy on first message)." />
+							</StackPanel>
+							<ToggleSwitch Grid.Column="1" Classes="settings-control"
+										  IsChecked="{Binding AiChatAutoConnect}" />
+						</Grid>
+						<Separator Classes="settings-sep" />
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="History limit (sessions)" />
+								<TextBlock Classes="row-desc" Text="Maximum past sessions to retain in Preferences (0 = unlimited)." />
+							</StackPanel>
+							<NumericUpDown Grid.Column="1" Classes="settings-control"
+										   Value="{Binding AiChatHistoryLimit}"
+										   Increment="1" Minimum="0" Maximum="100"
+										   AllowSpin="True" ShowButtonSpinner="False" />
+						</Grid>
+					</StackPanel>
+				</Border>
+
+				<TextBlock Classes="section-caption" Text="PRESET" />
+				<Border Classes="settings-card">
+					<StackPanel>
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Quality / cost preset" />
+								<TextBlock Classes="row-desc" Text="{Binding SelectedAiChatPresetNotes}" TextWrapping="Wrap" />
+							</StackPanel>
+							<ComboBox Grid.Column="1" Classes="settings-control" MinWidth="160"
+									  SelectedItem="{Binding SelectedAiChatPreset}"
+									  ItemsSource="{Binding AiChatPresetChoices}">
+								<ComboBox.ItemTemplate>
+									<DataTemplate x:DataType="vm:AiChatPresetChoiceItem">
+										<TextBlock Text="{Binding DisplayName}" />
+									</DataTemplate>
+								</ComboBox.ItemTemplate>
+							</ComboBox>
+						</Grid>
+					</StackPanel>
+				</Border>
+
+				<Expander Classes="settings-advanced" Header="Fine-tune" IsExpanded="False">
+					<StackPanel>
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="System prompt override" />
+								<TextBlock Classes="row-desc" Text="Free-text preamble prepended to the chat mode's role definition. Empty = use default role." />
+							</StackPanel>
+							<TextBox Grid.Column="1" Classes="settings-control" MinWidth="300" AcceptsReturn="True"
+									 TextWrapping="Wrap" MinLines="3" MaxLines="6"
+									 Text="{Binding AiChatSystemPromptOverride}"
+									 HorizontalAlignment="Right"
+									 VerticalAlignment="Center" />
+						</Grid>
+						<Separator Classes="settings-sep" />
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Temperature" />
+								<TextBlock Classes="row-desc" Text="Sampling randomness (0.0–2.0). Lower = deterministic, higher = creative." />
+							</StackPanel>
+							<StackPanel Grid.Column="1" Classes="settings-control" Width="200" Spacing="4">
+								<NumericUpDown Value="{Binding AiChatTemperature}"
+											   Increment="0.1" Minimum="0.0" Maximum="2.0"
+											   FormatString="F1"
+											   AllowSpin="True" ShowButtonSpinner="False" />
+								<TextBlock HorizontalAlignment="Right" Opacity="0.8"
+										   Text="{Binding AiChatTemperatureLabel}" />
+							</StackPanel>
+						</Grid>
+						<Separator Classes="settings-sep" />
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Max response tokens" />
+								<TextBlock Classes="row-desc" Text="Maximum tokens the model may generate per response (256–32768)." />
+							</StackPanel>
+							<StackPanel Grid.Column="1" Classes="settings-control" Width="200" Spacing="4">
+								<NumericUpDown Value="{Binding AiChatMaxTokens}"
+											   Increment="256" Minimum="256" Maximum="32768"
+											   AllowSpin="True" ShowButtonSpinner="False" />
+								<TextBlock HorizontalAlignment="Right" Opacity="0.8"
+										   Text="{Binding AiChatMaxTokensLabel}" />
+							</StackPanel>
+						</Grid>
+						<Separator Classes="settings-sep" />
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Request timeout (ms)" />
+								<TextBlock Classes="row-desc" Text="HTTP timeout for chat completion calls (5000–600000)." />
+							</StackPanel>
+							<NumericUpDown Grid.Column="1" Classes="settings-control"
+										   Value="{Binding AiChatRequestTimeoutMs}"
+										   Increment="1000" Minimum="5000" Maximum="600000"
+										   AllowSpin="True" ShowButtonSpinner="False" />
+						</Grid>
+						<Separator Classes="settings-sep" />
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Max retries" />
+								<TextBlock Classes="row-desc" Text="Retries on transient backend errors (0–5)." />
+							</StackPanel>
+							<NumericUpDown Grid.Column="1" Classes="settings-control"
+										   Value="{Binding AiChatMaxRetries}"
+										   Increment="1" Minimum="0" Maximum="5"
+										   AllowSpin="True" ShowButtonSpinner="False" />
+						</Grid>
+					</StackPanel>
+				</Expander>
+			</StackPanel>
+		</StackPanel>
+
+		<!-- Results -->
+		<StackPanel Name="Results" Spacing="4" IsVisible="False">
+					<TextBlock Classes="page-title" Text="Results" />
+					<TextBlock Classes="section-caption" Text="LIMITS" />
+					<Border Classes="settings-card">
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Rows count limit" />
+								<TextBlock Classes="row-desc" Text="Maximum rows loaded into a results grid (100 – 10,000,000)." />
+							</StackPanel>
+							<NumericUpDown Name="Limits" Grid.Column="1" Classes="settings-control"
+										   Value="{Binding ResultRowsLimit}"
+										   AllowSpin="False" ShowButtonSpinner="False"
+										   FormatString="{}{0:N0}"
+										   ToolTip.Tip="Value from 100 to 10 000 000 is accepted" />
+						</Grid>
+					</Border>
+				</StackPanel>
+
+				<!-- Appearance -->
+				<StackPanel Name="Apperance" Spacing="4" IsVisible="False">
+					<TextBlock Classes="page-title" Text="Appearance" />
+
+					<TextBlock Classes="section-caption" Text="THEME" />
+					<Border Classes="settings-card">
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Dark theme" />
+								<TextBlock Classes="row-desc" Text="Switch between Fluent light and dark theme." />
+							</StackPanel>
+							<ToggleSwitch Grid.Column="1" Classes="settings-control"
+										  IsChecked="{Binding UseDarkTheme}" />
+						</Grid>
+					</Border>
+
+					<TextBlock Classes="section-caption" Text="ADVANCED THEME COLORS" />
+					<Border Classes="settings-card">
+						<Expander Classes="settings-advanced" Header="Advanced theme colors" IsExpanded="False">
+							<StackPanel Spacing="4">
+								<TextBlock Classes="row-desc" Text="Experimental. Restart the application after changing colors." />
+								<UniformGrid Columns="2">
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="Accent" />
+										<ColorPicker Grid.Column="1" Color="{Binding Accent}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="AltHigh" />
+										<ColorPicker Grid.Column="1" Color="{Binding AltHigh}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="AltLow" />
+										<ColorPicker Grid.Column="1" Color="{Binding AltLow}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="AltMedium" />
+										<ColorPicker Grid.Column="1" Color="{Binding AltMedium}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="AltMediumHigh" />
+										<ColorPicker Grid.Column="1" Color="{Binding AltMediumHigh}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="AltMediumLow" />
+										<ColorPicker Grid.Column="1" Color="{Binding AltMediumLow}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="BaseHigh" />
+										<ColorPicker Grid.Column="1" Color="{Binding BaseHigh}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="BaseLow" />
+										<ColorPicker Grid.Column="1" Color="{Binding BaseLow}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="BaseMedium" />
+										<ColorPicker Grid.Column="1" Color="{Binding BaseMedium}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="BaseMediumHigh" />
+										<ColorPicker Grid.Column="1" Color="{Binding BaseMediumHigh}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="BaseMediumLow" />
+										<ColorPicker Grid.Column="1" Color="{Binding BaseMediumLow}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeBlackHigh" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeBlackHigh}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeBlackLow" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeBlackLow}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeBlackMedium" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeBlackMedium}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeBlackMediumLow" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeBlackMediumLow}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeDisabledHigh" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeDisabledHigh}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeDisabledLow" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeDisabledLow}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeGray" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeGray}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeHigh" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeHigh}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeLow" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeLow}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeMedium" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeMedium}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeMediumLow" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeMediumLow}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ChromeWhite" />
+										<ColorPicker Grid.Column="1" Color="{Binding ChromeWhite}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ListLow" />
+										<ColorPicker Grid.Column="1" Color="{Binding ListLow}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="ListMedium" />
+										<ColorPicker Grid.Column="1" Color="{Binding ListMedium}" />
+									</Grid>
+									<Grid Classes="color-row" ColumnDefinitions="140,*">
+										<TextBlock Classes="row-title" Text="RegionColor" />
+										<ColorPicker Grid.Column="1" Color="{Binding RegionColor}" />
+									</Grid>
+								</UniformGrid>
+								<StackPanel Orientation="Horizontal" Spacing="8" Margin="0 8 0 0" HorizontalAlignment="Left">
+									<Button Classes="settings-action" Command="{Binding SerializeSelectedPalettCommand}"
+											Content="Set colors permanently" HorizontalAlignment="Left" />
+									<Button Classes="settings-action" Command="{Binding BackToDefaultsCommand}"
+											Content="Back to defaults" HorizontalAlignment="Left" />
+								</StackPanel>
+							</StackPanel>
+						</Expander>
+					</Border>
+
+					<TextBlock Classes="section-caption" Text="FONTS" />
+					<Border Classes="settings-card">
+						<StackPanel>
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="UI font size" />
+									<TextBlock Classes="row-desc" Text="Scale Fluent control fonts. Restart required after change." />
+								</StackPanel>
+								<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+									<Button Classes="settings-action" Command="{Binding ChangeFontSizeCommand}" CommandParameter="+" Content="Bigger" />
+									<Button Classes="settings-action" Command="{Binding ChangeFontSizeCommand}" CommandParameter="-" Content="Smaller" />
+									<Button Classes="settings-action" Command="{Binding ChangeFontSizeCommand}" CommandParameter="0" Content="Reset" />
+								</StackPanel>
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Control content font size" />
+								</StackPanel>
+								<TextBlock Grid.Column="1" VerticalAlignment="Center" Opacity="0.7"
+										   Text="{Binding ControlContentThemeFontSize}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Completion font size" />
+								</StackPanel>
+								<TextBlock Grid.Column="1" VerticalAlignment="Center" Opacity="0.7"
+										   Text="{Binding CompletitionFontSize}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Document font size" />
+								</StackPanel>
+								<TextBlock Grid.Column="1" VerticalAlignment="Center" Opacity="0.7"
+										   Text="{Binding DefaultFontSizeForDocuments}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Document font" />
+									<TextBlock Classes="row-desc" Text="Font family used in SQL documents." />
+								</StackPanel>
+								<ComboBox Name="fontDropDown" Grid.Column="1" Classes="settings-control" SelectedIndex="0" MinWidth="220">
+									<ComboBox.ItemTemplate>
+										<DataTemplate x:DataType="FontFamily">
+											<TextBlock Text="{Binding Name}" FontFamily="{Binding}" Width="200" />
+										</DataTemplate>
+									</ComboBox.ItemTemplate>
+								</ComboBox>
+							</Grid>
+						</StackPanel>
+					</Border>
+
+					<TextBlock Classes="section-caption" Text="INTERFACE" />
+					<Border Classes="settings-card">
+						<StackPanel>
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Show details button" />
+									<TextBlock Classes="row-desc" Text="Show the details button in the document toolbar." />
+								</StackPanel>
+								<ToggleSwitch Grid.Column="1" Classes="settings-control"
+											  IsChecked="{Binding ShowDetailsButton}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Splash screen" />
+									<TextBlock Classes="row-desc" Text="Show the splash screen while the application starts." />
+								</StackPanel>
+								<ToggleSwitch Grid.Column="1" Classes="settings-control"
+											  IsChecked="{Binding UseSplashScreen}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Collapse folding on startup" />
+									<TextBlock Classes="row-desc" Text="Collapse SQL code folds when a document is opened." />
+								</StackPanel>
+								<ToggleSwitch Grid.Column="1" Classes="settings-control"
+											  IsChecked="{Binding CollapseFoldingOnStartup}" />
+							</Grid>
+						</StackPanel>
+					</Border>
+				</StackPanel>
+
+				<!-- Others -->
+				<StackPanel Name="Others" Spacing="4" IsVisible="False">
+					<TextBlock Classes="page-title" Text="Others" />
+					<TextBlock Classes="section-caption" Text="DATA" />
+					<Border Classes="settings-card">
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Clear data folder" />
+								<TextBlock Classes="row-desc" Text="Delete files under the application data directory." />
+							</StackPanel>
+							<Button Grid.Column="1" Classes="settings-action"
+									Command="{Binding CleanDataFolderCommand}"
+									Content="Clear data folder" />
+						</Grid>
+					</Border>
+
+					<TextBlock Classes="section-caption" Text="EDITOR BEHAVIOR" />
+					<Border Classes="settings-card">
+						<StackPanel>
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Return accepts autocomplete" />
+									<TextBlock Classes="row-desc" Text="Pressing Enter commits the selected completion item." />
+								</StackPanel>
+								<ToggleSwitch Grid.Column="1" Classes="settings-control"
+											  IsChecked="{Binding AutocompleteOnReturn}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Confirm document closing" />
+									<TextBlock Classes="row-desc" Text="Ask before closing a document with unsaved changes." />
+								</StackPanel>
+								<ToggleSwitch Grid.Column="1" Classes="settings-control"
+											  IsChecked="{Binding ConfirmDocumentClosing}" />
+							</Grid>
+						</StackPanel>
+					</Border>
+
+					<TextBlock Classes="section-caption" Text="PLUGINS" />
+					<Border Classes="settings-card">
+						<StackPanel>
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Allow loading plugins" />
+									<TextBlock Classes="row-desc" Text="Enable loading database and extension plugins." />
+								</StackPanel>
+								<ToggleSwitch Grid.Column="1" Classes="settings-control"
+											  IsChecked="{Binding AllowToLoadPlugins}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Auto-download plugins" />
+									<TextBlock Classes="row-desc" Text="Download plugin updates automatically." />
+								</StackPanel>
+								<ToggleSwitch Grid.Column="1" Classes="settings-control"
+											  IsChecked="{Binding AutoDownloadPlugins}" />
+							</Grid>
+						</StackPanel>
+					</Border>
+
+					<TextBlock Classes="section-caption" Text="HISTORY" />
+					<Border Classes="settings-card">
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="History retention (months)" />
+								<TextBlock Classes="row-desc" Text="How many months of SQL history are loaded (1–120)." />
+							</StackPanel>
+							<NumericUpDown Grid.Column="1" Classes="settings-control"
+										   Value="{Binding LimitHistoryMonths}"
+										   Increment="1" Minimum="1" Maximum="120"
+										   AllowSpin="True" ShowButtonSpinner="False" />
+						</Grid>
+					</Border>
+
+					<TextBlock Classes="section-caption" Text="LOGGING" />
+					<Border Classes="settings-card">
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Write errors to errors.log" />
+								<TextBlock Classes="row-desc" Text="Append errors and crashes to a local errors.log file. Off by default." />
+							</StackPanel>
+							<ToggleSwitch Grid.Column="1" Classes="settings-control"
+										  IsChecked="{Binding EnableFileLogging}" />
+						</Grid>
+					</Border>
+				</StackPanel>
+			</Panel>
+		</ScrollViewer>
+
+		<!-- Footer -->
+		<StackPanel Grid.Row="2" Grid.Column="1"
+					HorizontalAlignment="Right" Orientation="Horizontal" Spacing="10"
+					Margin="0 12 0 0">
+			<Button Content="Cancel" Padding="16 6" CornerRadius="6" />
+			<Button Name="btOk" Content="OK" Padding="16 6" CornerRadius="6" />
+		</StackPanel>
+	</Grid>
+</UserControl>
+
+
+
+

@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="650" d:DesignHeight="400"
+		Width="650" Height="400"
+		MinWidth="500" MinHeight="300"
+        x:Class="JustyBase.Views.ConfirmationWindow"
+        Title="Tool Execution Confirmation"
+		ExtendClientAreaToDecorationsHint="True"
+        WindowDecorations="Full"
+		UseLayoutRounding="True" 
+		ShowInTaskbar="False"
+		WindowStartupLocation="CenterOwner">
+	<Grid RowDefinitions="Auto,*,Auto" >
+		<TextBlock Name="titleLabel" Grid.Row="0" HorizontalAlignment="Center" FontSize="18" Margin="15"
+			   FontWeight="SemiBold" >Tool Execution Confirmation</TextBlock>
+		<Border Grid.Row="1" Margin="15 0 15 0"  BorderThickness="1" CornerRadius="4" >
+			<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+				<TextBox Name="contentTextBlock" AcceptsReturn="True" IsReadOnly="True" 
+						 HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+						 TextWrapping="Wrap" FontSize="13"
+						 BorderBrush="Transparent" Background="Transparent"
+						 >Message</TextBox>
+			</ScrollViewer>
+		</Border>
+		<StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="15" Spacing="10">
+			<Button Name="btnYes" Padding="30 8" IsDefault="True">Yes</Button>
+			<Button Name="btnNo" Padding="30 8" IsCancel="True">No</Button>
+		</StackPanel>
+	</Grid>
+</Window>
+

@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:JustyBase.ViewModels"
+        x:Class="JustyBase.Views.OtherDialogs.NetezzaDistributionChartWindow"
+        x:DataType="vm:NetezzaDistributionChartViewModel"
+        Title="{Binding Title}"
+        Width="720" Height="480"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+	<DockPanel Margin="12">
+		<TextBlock DockPanel.Dock="Top" Text="{Binding Summary}" FontWeight="SemiBold" Margin="0,0,0,8" TextWrapping="Wrap"/>
+		<ScrollViewer>
+			<ItemsControl ItemsSource="{Binding Slices}">
+				<ItemsControl.ItemTemplate>
+					<DataTemplate x:DataType="vm:SkewSliceBar">
+						<Grid ColumnDefinitions="70,*,90" Margin="0,3">
+							<TextBlock Text="{Binding DataSliceId}" VerticalAlignment="Center"/>
+							<ProgressBar Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding RelativeWidth}" Height="16" Margin="4,0"/>
+							<TextBlock Grid.Column="2" Text="{Binding RowCount}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+						</Grid>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+		</ScrollViewer>
+	</DockPanel>
+</Window>

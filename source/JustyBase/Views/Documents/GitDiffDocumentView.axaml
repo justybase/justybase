@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:JustyBase.ViewModels.Documents"
+             xmlns:ae="using:AvaloniaEdit"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+             x:Class="JustyBase.Views.Documents.GitDiffDocumentView"
+             x:DataType="vm:GitDiffDocumentViewModel">
+  <UserControl.KeyBindings>
+    <KeyBinding Gesture="Alt+Up" Command="{Binding GoToPreviousChangeCommand}"/>
+    <KeyBinding Gesture="Alt+Down" Command="{Binding GoToNextChangeCommand}"/>
+  </UserControl.KeyBindings>
+  <Grid RowDefinitions="Auto,*">
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="8,6" Spacing="10">
+      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+      <Border Background="#1AFF0000" Padding="5,1" CornerRadius="2">
+        <TextBlock Text="Deleted" FontSize="10"/>
+      </Border>
+      <Border Background="#199BB955" Padding="5,1" CornerRadius="2">
+        <TextBlock Text="Inserted" FontSize="10"/>
+      </Border>
+      <Border Background="#19E2C080" Padding="5,1" CornerRadius="2">
+        <TextBlock Text="Modified" FontSize="10"/>
+      </Border>
+      <Border Background="Transparent" Padding="5,1" CornerRadius="2">
+        <TextBlock Text="{Binding ChangeCount, StringFormat='Changes: {0}'}" FontSize="10" Opacity="0.65"/>
+      </Border>
+      <Button Padding="4,2" MinWidth="22" MinHeight="20" ToolTip.Tip="Previous change (Alt+Up)"
+              Command="{Binding GoToPreviousChangeCommand}">
+        <PathIcon Width="12" Height="12" Data="{StaticResource ChevronUpPath}"/>
+      </Button>
+      <Button Padding="4,2" MinWidth="22" MinHeight="20" ToolTip.Tip="Next change (Alt+Down)"
+              Command="{Binding GoToNextChangeCommand}">
+        <PathIcon Width="12" Height="12" Data="{StaticResource ChevronDownPath}"/>
+      </Button>
+    </StackPanel>
+
+    <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="6,0,6,6">
+      <Border Grid.Column="0" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="1" Margin="0,0,3,0">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0" Text="Old" FontWeight="SemiBold" Margin="6,4"
+                     Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"/>
+          <ae:TextEditor Grid.Row="1" x:Name="OldEditor"
+                         IsReadOnly="True"
+                         ShowLineNumbers="True"
+                         WordWrap="False"
+                         HorizontalScrollBarVisibility="Auto"
+                         VerticalScrollBarVisibility="Auto"
+                         FontFamily="{Binding EditorFontFamily}"
+                         FontWeight="Regular"
+                         FontSize="{Binding EditorFontSize}"/>
+        </Grid>
+      </Border>
+      <Border Grid.Column="1" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="1" Margin="3,0,0,0">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0" Text="New" FontWeight="SemiBold" Margin="6,4"
+                     Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"/>
+          <ae:TextEditor Grid.Row="1" x:Name="NewEditor"
+                         IsReadOnly="True"
+                         ShowLineNumbers="True"
+                         WordWrap="False"
+                         HorizontalScrollBarVisibility="Auto"
+                         VerticalScrollBarVisibility="Auto"
+                         FontFamily="{Binding EditorFontFamily}"
+                         FontWeight="Regular"
+                         FontSize="{Binding EditorFontSize}"/>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

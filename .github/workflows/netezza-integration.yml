@@ -1,0 +1,28 @@
+name: netezza-integration
+
+# Optional / manual only. Hosted runners often cannot reach on-prem or VPN Netezza;
+# prefer a self-hosted runner on the VPN, or run scripts/test-netezza-integration.ps1 locally.
+on:
+  workflow_dispatch:
+
+jobs:
+  nz:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore .\source\JustyBase.IntegrationTests\JustyBase.IntegrationTests.csproj
+      - name: Test Netezza connectivity
+        run: >
+          dotnet test .\source\JustyBase.IntegrationTests\JustyBase.IntegrationTests.csproj
+          -c Release
+          --filter "Category=Integration"
+        env:
+          NZ_DEV_HOST: ${{ secrets.NZ_DEV_HOST }}
+          NZ_DEV_DATABASE: ${{ secrets.NZ_DEV_DATABASE }}
+          NZ_DEV_USER: ${{ secrets.NZ_DEV_USER }}
+          NZ_DEV_PASSWORD: ${{ secrets.NZ_DEV_PASSWORD }}
+          NZ_DEV_PORT: ${{ secrets.NZ_DEV_PORT }}

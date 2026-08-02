@@ -1,0 +1,31 @@
+root = true
+
+[*]
+charset = utf-8-bom
+end_of_line = crlf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+
+# Desktop UI assembly: public types are used by XAML, DI and composition.
+[source/JustyBase/**/*.cs]
+dotnet_diagnostic.CA1515.severity = silent
+
+# Underscores are the established naming convention for test methods.
+[source/JustyBase.Tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = silent
+
+[source/JustyBase.HeadlessTests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = silent
+
+[source/JustyBase.IntegrationTests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = silent
+
+[source/JustyBase.LiveTests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = silent
+
+# UI code intentionally resumes on the UI context after awaits.
+[source/JustyBase/**/*.cs]
+dotnet_diagnostic.CA2007.severity = silent
+
+# Nullability, disposal, SQL construction and P/Invoke security remain active.

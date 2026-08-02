@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:JustyBase.ViewModels"
+        x:Class="JustyBase.Views.OtherDialogs.NetezzaMaintenanceDialog"
+        x:DataType="vm:NetezzaMaintenanceDialogViewModel"
+        Title="{Binding Title}"
+        Width="520" SizeToContent="Height"
+        MinWidth="420"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        ExtendClientAreaToDecorationsHint="True"
+        UseLayoutRounding="True">
+	<Window.KeyBindings>
+		<KeyBinding Command="{Binding OkCommand}" Gesture="Return"/>
+		<KeyBinding Command="{Binding CancelCommand}" Gesture="Escape"/>
+	</Window.KeyBindings>
+	<Border Margin="12" Padding="8">
+		<StackPanel Spacing="10">
+			<TextBlock Text="{Binding QualifiedTable}" FontWeight="SemiBold"/>
+
+			<StackPanel IsVisible="{Binding IsGroom}" Spacing="8">
+				<TextBlock Text="Mode"/>
+				<ComboBox ItemsSource="{Binding GroomModes}" SelectedItem="{Binding SelectedGroomMode}" HorizontalAlignment="Stretch"/>
+				<TextBlock Text="RECLAIM BACKUPSET"/>
+				<ComboBox ItemsSource="{Binding BackupsetPresets}" SelectedItem="{Binding SelectedBackupset}"
+						  IsEnabled="{Binding !UseCustomBackupset}" HorizontalAlignment="Stretch"/>
+				<CheckBox Content="Custom backupset ID" IsChecked="{Binding UseCustomBackupset}"/>
+				<TextBox PlaceholderText="backupset id" Text="{Binding CustomBackupsetId}"
+						 IsVisible="{Binding UseCustomBackupset}" IsEnabled="{Binding UseCustomBackupset}"/>
+			</StackPanel>
+
+			<StackPanel IsVisible="{Binding IsGenerateStats}" Spacing="8">
+				<TextBlock Text="Mode"/>
+				<ComboBox ItemsSource="{Binding StatsModes}" SelectedItem="{Binding SelectedStatsMode}" HorizontalAlignment="Stretch"/>
+				<TextBlock Text="Optional columns (FULL only)" IsVisible="{Binding IsFullStatistics}"/>
+				<TextBox PlaceholderText="col1, col2" Text="{Binding ColumnList}"
+						 IsVisible="{Binding IsFullStatistics}" IsEnabled="{Binding IsFullStatistics}"/>
+			</StackPanel>
+
+			<TextBlock Text="SQL preview" FontWeight="SemiBold"/>
+			<TextBox Text="{Binding PreviewSql}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"/>
+
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+				<Button Content="OK" Command="{Binding OkCommand}" IsDefault="True" Padding="20,6"/>
+				<Button Content="Cancel" Command="{Binding CancelCommand}" IsCancel="True" Padding="20,6"/>
+			</StackPanel>
+		</StackPanel>
+	</Border>
+</Window>

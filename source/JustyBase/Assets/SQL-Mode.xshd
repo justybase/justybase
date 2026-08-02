@@ -1,0 +1,154 @@
+<?xml version="1.0"?>
+<SyntaxDefinition name="GeneralSql" extensions=".sql" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+	<Color name="Comment" foreground="Green" exampleText="-- comment" />
+	<Color name="Char" foreground="Red" exampleText="name = 'abc'"/>
+	<Color name="Char2" fontStyle="italic" exampleText="name = &quot;abc&quot;"/>
+	<Color name="Keywords" foreground="Blue" exampleText="SELECT FROM"/>
+	<Color name="ValueTypeKeywords" fontWeight="bold" foreground="BlueViolet" exampleText="bool b = true;" />
+	
+	<Color name="MethodCall" foreground="#FA00FA" exampleText="SUM();"/>
+	<Color name="Preprocessor" foreground="Green" exampleText="--region Title" />	
+	<Color name="NumberLiteral" foreground="Brown" exampleText="3.1415f"/>
+	<Color name="Parametr" foreground="#a304c7" background="#D9cacae3" exampleText="$variable"/>
+	
+	<Color name="Parametr2" foreground="#8b0000" background="#D9d3d3d3" exampleText="AMPvariable"/>
+	<Color name="TrueFalse" fontWeight="bold" foreground="DarkCyan" exampleText="b = false; a = true;" />
+
+	<Property name="DocCommentMarker" value="///" />
+
+	<RuleSet name="CommentMarkerSet">
+		<Keywords fontWeight="bold" foreground="Red">
+			<Word>TODO</Word>
+			<Word>FIXME</Word>
+		</Keywords>
+		<Keywords fontWeight="bold" foreground="#E0E000">
+			<Word>HACK</Word>
+			<Word>UNDONE</Word>
+		</Keywords>
+	</RuleSet>
+	
+
+	<RuleSet ignoreCase="true">
+		
+		<Span color="Preprocessor">
+			<Begin>--</Begin>
+			<RuleSet name="PreprocessorSet">
+				<Span>
+					<!-- preprocessor directives that don't allow comments -->
+					<Begin fontWeight="bold">
+						(region|endregion)\b
+					</Begin>
+				</Span>
+			</RuleSet>
+		</Span>
+
+		<Keywords color="TrueFalse">
+			<Word>true</Word>
+			<Word>false</Word>
+		</Keywords>
+
+		<Span color="Comment" ruleSet="CommentMarkerSet">
+			<Begin>--</Begin>
+		</Span>
+
+		<Span color="Comment" ruleSet="CommentMarkerSet" multiline="true">
+			<Begin>/\*</Begin>
+			<End>\*/</End>
+		</Span>
+
+		<Span color="Char" multiline="true">
+			<Begin>'</Begin>
+			<End>'</End>
+			<!--RuleSet>
+				<Span begin="\\" end="."/>
+			</RuleSet-->
+		</Span>
+
+		<Span color="Char2" multiline="true">
+			<Begin>"</Begin>
+			<End>"</End>
+			<!--RuleSet>
+				<Span begin="\\" end="."/>
+			</RuleSet-->
+		</Span>
+
+		<!-- Mark Parametr rule-->
+		<Rule color="Parametr">
+			\$[\w\d_]+
+		</Rule>
+
+		<Rule color="Parametr2">
+			&amp;[\w\d_]+
+		</Rule>
+
+		<Keywords color="ValueTypeKeywords">
+			<Word>boolean</Word>
+			<Word>float</Word>
+			<Word>double</Word>
+			<Word>date</Word>
+			<Word>datetime</Word>
+			<Word>time</Word>
+			<Word>timewithzone</Word>
+			<Word>timestamp</Word>
+			<Word>interval</Word>
+			<Word>numeric</Word>
+			<Word>char</Word>
+			<Word>nchar</Word>
+			<Word>varchar</Word>
+			<Word>varchar2</Word>
+			<Word>nvarchar</Word>
+			<Word>real</Word>
+			<Word>bigint</Word>
+			<Word>int</Word>
+			<Word>integer</Word>
+			<Word>byteint</Word>
+			<Word>smallint</Word>
+			<Word>number</Word>
+		</Keywords>
+
+		<!-- Mark method calls: any identifier followed by ( -->
+		<Rule color="MethodCall">
+			\b(?!\d)\w+(?=\s*\()</Rule>
+
+		<Keywords color="Keywords">
+			<Word>absolute</Word><Word>add</Word><Word>after</Word><Word>all</Word><Word>alter</Word><Word>and</Word>
+			<Word>any</Word><Word>as</Word><Word>asc</Word><Word>at</Word><Word>authorization</Word><Word>before</Word>
+			<Word>begin</Word><Word>between</Word><Word>by</Word><Word>call</Word><Word>cascade</Word><Word>case</Word>
+			<Word>cast</Word><Word>check</Word><Word>close</Word><Word>coalesce</Word><Word>collate</Word><Word>column</Word>
+			<Word>comment</Word><Word>commit</Word><Word>connect</Word><Word>constraint</Word><Word>continue</Word>
+			<Word>create</Word><Word>cross</Word><Word>cube</Word><Word>current</Word><Word>cursor</Word><Word>cycle</Word>
+			<Word>declare</Word><Word>default</Word><Word>delete</Word><Word>desc</Word><Word>describe</Word><Word>distinct</Word>
+			<Word>distribute</Word><Word>do</Word><Word>drop</Word><Word>each</Word><Word>else</Word><Word>end</Word>
+			<Word>escape</Word><Word>except</Word><Word>exception</Word><Word>exec</Word><Word>execute</Word><Word>exists</Word>
+			<Word>exit</Word><Word>external</Word><Word>extract</Word><Word>false</Word><Word>fetch</Word><Word>first</Word>
+			<Word>for</Word><Word>foreign</Word><Word>from</Word><Word>full</Word><Word>function</Word><Word>get</Word>
+			<Word>global</Word><Word>go</Word><Word>goto</Word><Word>grant</Word><Word>group</Word><Word>having</Word>
+			<Word>if</Word><Word>ignore</Word><Word>in</Word><Word>index</Word><Word>inner</Word><Word>inout</Word>
+			<Word>insert</Word><Word>intersect</Word><Word>into</Word><Word>is</Word><Word>isolation</Word><Word>iterate</Word>
+			<Word>join</Word><Word>key</Word><Word>language</Word><Word>lateral</Word><Word>leading</Word><Word>left</Word>
+			<Word>level</Word><Word>like</Word><Word>limit</Word><Word>local</Word><Word>lock</Word><Word>loop</Word>
+			<Word>match</Word><Word>merge</Word><Word>minus</Word><Word>mode</Word><Word>modify</Word><Word>natural</Word>
+			<Word>new</Word><Word>next</Word><Word>no</Word><Word>none</Word><Word>not</Word><Word>null</Word><Word>nullif</Word>
+			<Word>of</Word><Word>off</Word><Word>on</Word><Word>only</Word><Word>open</Word><Word>option</Word>
+			<Word>or</Word><Word>order</Word><Word>out</Word><Word>outer</Word><Word>over</Word><Word>package</Word>
+			<Word>partition</Word><Word>precision</Word><Word>primary</Word><Word>prior</Word><Word>procedure</Word>
+			<Word>public</Word><Word>raise</Word><Word>range</Word><Word>rank</Word><Word>read</Word><Word>recursive</Word>
+			<Word>references</Word><Word>release</Word><Word>rename</Word><Word>repeat</Word><Word>resource</Word>
+			<Word>restrict</Word><Word>return</Word><Word>returns</Word><Word>revoke</Word><Word>right</Word>
+			<Word>rollback</Word><Word>rollup</Word><Word>row</Word><Word>rows</Word><Word>savepoint</Word><Word>schema</Word>
+			<Word>scroll</Word><Word>select</Word><Word>sequence</Word><Word>session</Word><Word>set</Word><Word>some</Word>
+			<Word>start</Word><Word>static</Word><Word>table</Word><Word>temporary</Word><Word>then</Word><Word>to</Word>
+			<Word>top</Word><Word>trailing</Word><Word>transaction</Word><Word>trigger</Word><Word>true</Word>
+			<Word>truncate</Word><Word>type</Word><Word>union</Word><Word>unique</Word><Word>update</Word><Word>use</Word>
+			<Word>user</Word><Word>using</Word><Word>validate</Word><Word>value</Word><Word>values</Word><Word>view</Word>
+			<Word>when</Word><Word>whenever</Word><Word>where</Word><Word>while</Word><Word>with</Word><Word>without</Word>
+			<Word>work</Word><Word>write</Word><Word>year</Word><Word>zone</Word>
+		</Keywords>
+
+		<!-- Digits -->
+		<Rule color="NumberLiteral">
+			\b\d+(\.\d+)?([eE][+-]?\d+)?</Rule>
+
+
+	</RuleSet>
+</SyntaxDefinition>

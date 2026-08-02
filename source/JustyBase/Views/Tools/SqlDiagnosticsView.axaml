@@ -1,0 +1,218 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:JustyBase.ViewModels.Tools"
+             mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="300"
+             x:Class="JustyBase.Views.Tools.SqlDiagnosticsView"
+             x:DataType="vm:SqlDiagnosticsViewModel">
+
+    <UserControl.Styles>
+        <!-- ListBox styling -->
+        <Style Selector="ListBox#DiagnosticsList">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+        </Style>
+
+        <!-- Individual item styling -->
+        <Style Selector="ListBoxItem#DiagnosticItem">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="ListBoxItem#DiagnosticItem:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightAltLowBrush}"/>
+        </Style>
+        <Style Selector="ListBoxItem#DiagnosticItem:selected">
+            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightAccentBrush}"/>
+        </Style>
+
+        <!-- Severity icon styling -->
+        <Style Selector="TextBlock.SeverityIcon">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+
+        <!-- Message text -->
+        <Style Selector="TextBlock.DiagMessage">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+        </Style>
+
+        <!-- Location text -->
+        <Style Selector="TextBlock.DiagLocation">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="8,0,0,0"/>
+        </Style>
+
+        <!-- Rule code text -->
+        <Style Selector="TextBlock.DiagRuleId">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontFamily" Value="Consolas,Monaco,monospace"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="6,0,6,0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
+        </Style>
+
+        <!-- Quick fix button -->
+        <Style Selector="Button.QuickFixBtn">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="Margin" Value="6,0,0,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightAccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Button.QuickFixBtn:pointerover">
+            <Setter Property="Opacity" Value="0.8"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+        <!-- Header bar -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                BorderBrush="{DynamicResource SystemControlBackgroundChromeHighBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="8,5">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="Problems" FontWeight="SemiBold" FontSize="12"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                <TextBlock Text="{Binding IssueCount}" FontSize="12"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                <Button Content="Clear All" Command="{Binding ClearCommand}"
+                        FontSize="11" Padding="6,2" Margin="4,0,0,0"
+                        Background="Transparent"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        BorderThickness="0" Cursor="Hand"/>
+                <Button Content="Fix all safe" Command="{Binding FixAllSafeCommand}"
+                        FontSize="11" Padding="6,2"
+                        Background="Transparent"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        BorderThickness="0" Cursor="Hand"
+                        IsEnabled="{Binding HasSafeFixes}"
+                        ToolTip.Tip="Apply deterministic safe quick-fixes"/>
+                <Button Content="Fix in AI Chat" Command="{Binding SendToAiChatCommand}"
+                        FontSize="11" Padding="6,2"
+                        Background="Transparent"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        BorderThickness="0" Cursor="Hand"
+                        IsEnabled="{Binding HasIssues}"
+                        IsVisible="{Binding IsAiChatEnabled}"/>
+
+                <!-- Metrics toggle -->
+                <Button Content="&#x1F4CA;"
+                        Command="{Binding ToggleMetricsPanelCommand}"
+                        FontSize="14" Padding="4,1"
+                        Background="Transparent"
+                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                        BorderThickness="0" Cursor="Hand"
+                        ToolTip.Tip="Toggle performance metrics"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Diagnostics list -->
+        <ListBox Grid.Row="1" Name="DiagnosticsList"
+                 ItemsSource="{Binding DiagnosticsCollectionView}"
+                 SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:DiagnosticItem">
+                    <Panel>
+                        <StackPanel Orientation="Horizontal" Spacing="0">
+                            <!-- Severity icon -->
+                            <TextBlock Classes="SeverityIcon"
+                                       Text="{Binding SeverityIcon}"
+                                       Foreground="{Binding SeverityBrush}"/>
+                            <!-- Rule code -->
+                            <TextBlock Classes="DiagRuleId"
+                                       Text="{Binding RuleId}"/>
+                            <!-- Message -->
+                            <TextBlock Classes="DiagMessage"
+                                       Text="{Binding Message}"
+                                       Margin="0,0,4,0"/>
+                            <!-- Location -->
+                            <TextBlock Classes="DiagLocation"
+                                       Text="{Binding LocationText}"/>
+                            <!-- Quick fix button -->
+                            <Button Classes="QuickFixBtn"
+                                    Content="&#x26A1; Fix"
+                                    Command="{Binding QuickFixCommand}"
+                                    IsVisible="{Binding HasQuickFix}"
+                                    ToolTip.Tip="Apply quick fix"/>
+                        </StackPanel>
+                        <Panel.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Copy" Click="OnCopyDiagnostic"/>
+                                <MenuItem Header="Fix all in AI Chat"
+                                          Command="{Binding $parent[UserControl].DataContext.SendToAiChatCommand}"
+                                          IsVisible="{Binding $parent[UserControl].DataContext.IsAiChatEnabled}"/>
+                            </ContextMenu>
+                        </Panel.ContextMenu>
+                    </Panel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Metrics bar (collapsible) -->
+        <Border Grid.Row="2"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                BorderBrush="{DynamicResource SystemControlBackgroundChromeHighBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="8,5"
+                IsVisible="{Binding MetricsPanelVisible}">
+            <StackPanel Orientation="Horizontal" Spacing="2">
+                <!-- Cache hit ratio -->
+                <TextBlock Text="Cache:" FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Text="{Binding MetricsCacheHitBar}" FontSize="11"
+                           VerticalAlignment="Center"
+                           FontFamily="Consolas,Monaco,monospace"
+                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                <TextBlock Text="{Binding MetricsCacheHitRatio}" FontSize="11"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           Margin="0,0,8,0"
+                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+
+                <!-- Cheap -->
+                <TextBlock Text="Σch:" FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Text="{Binding MetricsCheapCount}" FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                <TextBlock Text="{Binding MetricsCheapAvgMs}" FontSize="11"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"
+                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+
+                <!-- Expensive -->
+                <TextBlock Text="Σex:" FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                <TextBlock Text="{Binding MetricsExpCount}" FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                <TextBlock Text="{Binding MetricsExpAvgMs}" FontSize="11"
+                           VerticalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

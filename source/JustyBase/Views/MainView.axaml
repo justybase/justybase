@@ -1,0 +1,156 @@
+﻿<UserControl x:Class="JustyBase.Views.MainView"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:dmc="using:Dock.Model.Controls"
+             xmlns:ids="using:Dock.Settings"
+             xmlns:vm="using:JustyBase.ViewModels"
+             mc:Ignorable="d"
+             d:DesignWidth="1000" d:DesignHeight="550"
+             x:DataType="vm:MainWindowViewModel">
+	<!-- xmlns:ids="using:Dock.Settings" -->
+	<!-- xmlns:dm="using:Dock.Model.Core" -->
+	<!--xmlns:collections="clr-namespace:System.Collections;assembly=netstandard"-->
+<Design.DataContext>
+    <vm:MainWindowViewModel />
+  </Design.DataContext>
+	<UserControl.Resources>
+		<StreamGeometry x:Key="DarkTheme">M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10Zm0-2V4a8 8 0 1 1 0 16Z</StreamGeometry>
+	</UserControl.Resources>
+	<Grid RowDefinitions="Auto,*,25" ColumnDefinitions="Auto,Auto,*" Background="{DynamicResource DockThemeBackgroundBrush}">
+		<StackPanel x:Name="TopNavBar" Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" Orientation="Horizontal">
+			<StackPanel.Styles>
+				<Style Selector="Button">
+					<Setter Property="Padding" Value="4"/>
+					<Setter Property="Margin" Value="0"/>
+					<Setter Property="Background" Value="Transparent"/>
+				</Style>
+				<Style Selector="Menu">
+					<Setter Property="Background" Value="Transparent"/>
+					<Setter Property="Padding" Value="0"/>
+				</Style>
+				<Style Selector="MenuItem">
+					<Setter Property="Padding" Value="4"/>
+				</Style>
+			</StackPanel.Styles>
+			<Menu>
+				<MenuItem Header="_View" SubmenuOpened="ViewMenu_SubmenuOpened">
+					<MenuItem Header="Schema"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding IsSchemaPanelVisible, Mode=OneWay}"
+					          Command="{Binding ToggleToolPanelCommand}"
+					          CommandParameter="DbSchema"/>
+					<MenuItem Header="Outline"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding IsOutlinePanelVisible, Mode=OneWay}"
+					          Command="{Binding ToggleToolPanelCommand}"
+					          CommandParameter="SqlOutline"/>
+					<MenuItem Header="Variables"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding IsVariablesPanelVisible, Mode=OneWay}"
+					          Command="{Binding ToggleToolPanelCommand}"
+					          CommandParameter="Variables"/>
+					<Separator/>
+					<MenuItem Header="Schema search"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding IsSchemaSearchPanelVisible, Mode=OneWay}"
+					          Command="{Binding ToggleToolPanelCommand}"
+					          CommandParameter="schemaSearch"/>
+					<MenuItem Header="Files"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding IsFilesPanelVisible, Mode=OneWay}"
+					          Command="{Binding ToggleToolPanelCommand}"
+					          CommandParameter="File explorer"/>
+					<MenuItem Header="Git"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding IsGitPanelVisible, Mode=OneWay}"
+					          Command="{Binding ToggleToolPanelCommand}"
+					          CommandParameter="Git"/>
+					<MenuItem Header="Log"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding IsLogPanelVisible, Mode=OneWay}"
+					          Command="{Binding ToggleToolPanelCommand}"
+					          CommandParameter="LogTool"/>
+					<MenuItem Header="NZ Sessions"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding IsNzSessionsPanelVisible, Mode=OneWay}"
+					          Command="{Binding ToggleToolPanelCommand}"
+					          CommandParameter="NetezzaSessionMonitor"/>
+					<Separator/>
+					<MenuItem Header="Results"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding IsResultsPanelVisible, Mode=OneWay}"
+					          Command="{Binding ToggleToolPanelCommand}"
+					          CommandParameter="FastViewModel"/>
+					<MenuItem Header="Diagnostics"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding IsDiagnosticsPanelVisible, Mode=OneWay}"
+					          Command="{Binding ToggleToolPanelCommand}"
+					          CommandParameter="SqlDiagnostics"/>
+<MenuItem Header="AI Chat"
+				          ToggleType="CheckBox"
+				          StaysOpenOnClick="True"
+				          IsChecked="{Binding IsAiChatPanelVisible, Mode=OneWay}"
+				          IsVisible="{Binding IsAiChatEnabled}"
+				          Command="{Binding ToggleToolPanelCommand}"
+				          CommandParameter="AiChat"/>
+					<Separator/>
+					<MenuItem Header="Side panels"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding AreSidePanelsVisible, Mode=OneWay}"
+					          Command="{Binding ConcentrateModeCommand}"
+					          ToolTip.Tip="Show or hide the left tool column (Ctrl+B)"/>
+				</MenuItem>
+			</Menu>
+			<Button Content="_History" Command="{Binding ShowHistoryCommand}" ToolTip.Tip="open history tab"/>
+			<Button Content="_Settings" Command="{Binding ShowSettingsCommand}" ToolTip.Tip="open settings tab"/>
+			<Button Content="_Import" Command="{Binding ImportCommand}" ToolTip.Tip="open import tab"/>
+			<Button Content="About" FontWeight="Bold" Command="{Binding ShowAboutCommand}"/>
+		</StackPanel>
+		
+		<Button x:Name="ThemeButton" Grid.Row="0" Grid.Column="1" Background="Transparent"
+				ToolTip.Tip="change visual theme" >
+			<PathIcon Width="18" Height="18" Opacity="0.6" Data="{StaticResource DarkTheme}"/>
+		</Button>
+		<Panel x:Name="ToolBar" DataContext="{Binding Layout}" Grid.Row="0" Grid.Column="2">
+			<Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+				  HorizontalAlignment="Right"
+				  Margin="1"
+				  x:DataType="dmc:IRootDock">
+				<Grid.Styles>
+					<Style Selector="TextBox">
+						<Setter Property="MinHeight" Value="0" />
+						<Setter Property="Margin" Value="4,0,4,0" />
+						<Setter Property="Padding" Value="4" />
+						<Setter Property="VerticalAlignment" Value="Stretch" />
+						<Setter Property="VerticalContentAlignment" Value="Center" />
+					</Style>
+				</Grid.Styles>
+			</Grid>
+		</Panel>
+		<DockControl x:Name="DockControl" Layout="{Binding Layout}" Margin="4" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+					 ids:DockProperties.IsDropEnabled="True" />
+		<StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
+					Name="StatusBar" 
+					Background="{DynamicResource SystemAccentColor}" 
+					Height="25"
+					Orientation="Horizontal"
+					Margin="0"
+					Spacing="4">
+				<TextBlock Text="{Binding CharAtMessage}" Margin="4 0 0 0" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White"/>
+				<TextBlock Text="{Binding SelectedRowsCount}" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White"/>
+		</StackPanel>
+	</Grid>
+</UserControl>

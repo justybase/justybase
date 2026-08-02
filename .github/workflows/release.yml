@@ -1,0 +1,218 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version, for example 1.0.0-rc.1
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.ref_name }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Validate release version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Validate and normalize version
+        id: version
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          raw="${INPUT_VERSION:-$REF_NAME}"
+          raw="${raw#v}"
+          if [[ ! "$raw" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release version: $raw" >&2
+            exit 1
+          fi
+          echo "version=$raw" >> "$GITHUB_OUTPUT"
+          echo "tag=v$raw" >> "$GITHUB_OUTPUT"
+
+  quality:
+    name: Unit and headless tests
+    needs: prepare
+    uses: ./.github/workflows/dotnet-test.yml
+    permissions:
+      contents: read
+
+  windows:
+    name: Windows x64 AOT packages
+    needs: [prepare, quality]
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: JustyBase
+    steps:
+      - name: Checkout JustyBase
+        uses: actions/checkout@v4
+        with:
+          path: JustyBase
+      - name: Checkout ProDataGrid
+        uses: actions/checkout@v4
+        with:
+          repository: KrzysztofDusko/ProDataGrid
+          ref: fix/recycled-row-cell-content
+          path: ProDataGrid
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore .\JustyBase.slnx --force-evaluate
+      - name: Install Velopack CLI
+        shell: pwsh
+        run: |
+          dotnet tool install --global vpk
+          "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Build Windows packages
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts
+      - name: Upload Windows packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: JustyBase/artifacts/*
+          if-no-files-found: error
+
+  linux:
+    name: Linux x64 AOT package
+    needs: [prepare, quality]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: JustyBase
+    steps:
+      - name: Checkout JustyBase
+        uses: actions/checkout@v4
+        with:
+          path: JustyBase
+      - name: Checkout ProDataGrid
+        uses: actions/checkout@v4
+        with:
+          repository: KrzysztofDusko/ProDataGrid
+          ref: fix/recycled-row-cell-content
+          path: ProDataGrid
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install NativeAOT dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang lld zlib1g-dev zip
+      - name: Restore
+        run: dotnet restore ./JustyBase.slnx --force-evaluate
+      - name: Build Linux package
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: ./publishLinux.sh "$VERSION" ./artifacts
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: JustyBase/artifacts/*
+          if-no-files-found: error
+
+  macos:
+    name: macOS ${{ matrix.rid }} AOT package
+    needs: [prepare, quality]
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [osx-arm64, osx-x64]
+    defaults:
+      run:
+        working-directory: JustyBase
+    steps:
+      - name: Checkout JustyBase
+        uses: actions/checkout@v4
+        with:
+          path: JustyBase
+      - name: Checkout ProDataGrid
+        uses: actions/checkout@v4
+        with:
+          repository: KrzysztofDusko/ProDataGrid
+          ref: fix/recycled-row-cell-content
+          path: ProDataGrid
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore ./JustyBase.slnx --force-evaluate
+      - name: Build macOS package
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: ./publishMacOS.sh "$VERSION" "${{ matrix.rid }}" ./artifacts
+      - name: Upload macOS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.rid }}
+          path: JustyBase/artifacts/*
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release and upload assets
+    needs: [prepare, windows, linux, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v4
+      - name: Download release packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Validate release assets
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          expected=(
+            "JustyBase-${VERSION}-win-x64-Setup.exe"
+            "JustyBase-${VERSION}-win-x64.zip"
+            "JustyBase-${VERSION}-linux-x64.zip"
+            "JustyBase-${VERSION}-macos-arm64.zip"
+            "JustyBase-${VERSION}-macos-x64.zip"
+          )
+          for file in "${expected[@]}"; do
+            test -s "dist/$file" || { echo "Missing release asset: $file" >&2; exit 1; }
+          done
+          find dist -type f \( -name '*.pdb' -o -name '*.dbg' -o -name '*.log' \) -print -quit | grep -q . && {
+            echo 'Debug/log files found in release assets' >&2
+            exit 1
+          } || true
+          for archive in dist/*.zip; do unzip -tqq "$archive"; done
+      - name: Create or update prerelease with gh
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "JustyBase $VERSION" \
+              --notes-file source/JustyBase/ReleaseNotes.md \
+              --prerelease
+          fi
+          gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber

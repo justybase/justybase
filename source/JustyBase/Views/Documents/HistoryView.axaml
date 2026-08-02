@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:vm="using:JustyBase.ViewModels.Documents"
+			 xmlns:m="using:JustyBase.Common.Models"
+			 xmlns:ce="using:AvaloniaEdit"
+             mc:Ignorable="d" d:DesignWidth="850" d:DesignHeight="450"
+             x:Class="JustyBase.Views.Documents.HistoryView"
+			 x:DataType="vm:HistoryViewModel">
+	<Grid RowDefinitions="Auto,Auto,2*,2,*" ColumnDefinitions="Auto,Auto,*">
+		<TextBox Name="tb" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+				 PlaceholderText="search SQL, connection, database..."
+			 Margin="20 20 8 8"
+			 Height="26"
+			 MinHeight="26"
+		     MinWidth="200"
+			 Padding="0 3 0 0"
+			 Text="{Binding SearchTxt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+			 HorizontalAlignment="Stretch"
+			 TextAlignment="Center"
+			 Background="Transparent"/>
+		<StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Margin="8 20 20 8" Spacing="8" VerticalAlignment="Center">
+			<CheckBox Content="Favorites only" IsChecked="{Binding FavoritesOnly}" />
+			<ComboBox Width="120"
+			          ItemsSource="{Binding StatusFilterOptions}"
+			          SelectedItem="{Binding SelectedStatusFilter}"
+			          ToolTip.Tip="Filter by execution status" />
+			<ComboBox Width="120"
+			          ItemsSource="{Binding DurationFilterOptions}"
+			          SelectedItem="{Binding SelectedDurationFilter}"
+			          ToolTip.Tip="Filter by query duration" />
+			<Button Content="Re-run…" Command="{Binding RerunWithParamsCmd}" MinWidth="90"
+			        ToolTip.Tip="Open in a new SQL tab and run (parameter dialog when variables are present)" />
+		</StackPanel>
+		<DataGrid Grid.Row="2" CanUserSortColumns="True" IsReadOnly="True"
+				  x:DataType="vm:HistoryViewModel"
+				  Name="hisotryGrid"
+				  Grid.ColumnSpan="3"
+				  ItemsSource="{Binding FilteredHistoryItems}"
+				  SelectedItem="{Binding SelectedItem}"
+				  ClipboardCopyMode="None"
+				  RowBackground="Transparent"
+				  BorderBrush="{DynamicResource TextControlForeground}"
+				  CornerRadius="3"
+				  BorderThickness="1"
+				  RowHeight="22"
+				  SelectionMode="Extended"
+				  AutoGenerateColumns="False">
+			<DataGrid.Columns>
+				<!-- Template: DataGridCheckBoxColumn is swallowed by row select when the grid is IsReadOnly. -->
+				<DataGridTemplateColumn Header="★" Width="36" CanUserResize="False" CanUserSort="True" SortMemberPath="IsFavorite">
+					<DataGridTemplateColumn.CellTemplate>
+						<DataTemplate x:DataType="m:HistoryEntry">
+							<CheckBox HorizontalAlignment="Center"
+							          VerticalAlignment="Center"
+							          IsChecked="{Binding IsFavorite, Mode=OneWay}"
+							          Click="FavoriteCheckBox_Click" />
+						</DataTemplate>
+					</DataGridTemplateColumn.CellTemplate>
+				</DataGridTemplateColumn>
+				<!-- Avoid Width=Auto: virtualization recalculates per row and desyncs headers while scrolling. -->
+				<DataGridTextColumn Header="Date" Width="150" MinWidth="120" Binding="{Binding RunDateTime}" x:DataType="m:HistoryEntry" />
+				<DataGridTextColumn Header="Status" Width="90" MinWidth="70" Binding="{Binding StatusText}" x:DataType="m:HistoryEntry" />
+				<DataGridTextColumn Header="Duration" Width="90" MinWidth="70" Binding="{Binding DurationText}" x:DataType="m:HistoryEntry" />
+				<DataGridTextColumn Header="Connection" Width="*" MinWidth="80" Binding="{Binding Connection}" x:DataType="m:HistoryEntry" />
+				<DataGridTextColumn Header="Database" Width="*" MinWidth="80" Binding="{Binding Database}" x:DataType="m:HistoryEntry" />
+				<DataGridTextColumn Header="SQL" Width="3*" MinWidth="160" Binding="{Binding SqlShort}" x:DataType="m:HistoryEntry" />
+			</DataGrid.Columns>
+		</DataGrid>
+		<GridSplitter Grid.Row="3" Grid.ColumnSpan="3" MinHeight="3" Height="3" Background="{DynamicResource SystemAccentColor}"
+					  ResizeDirection="Rows"/>
+		<ce:TextEditor Name="textEditor"
+			Grid.Row="4"
+			Grid.ColumnSpan="3"
+			ShowLineNumbers="False"
+			FontFamily="Cascadia Code,JetBrains Mono,Consolas,Menlo,Monospace"
+			IsReadOnly="True"
+			Background="Transparent"
+			Document="{Binding Doc}"
+			FontSize="13"
+			Margin="6"/>
+	</Grid>
+</UserControl>

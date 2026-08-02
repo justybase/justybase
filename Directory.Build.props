@@ -1,0 +1,54 @@
+<Project>
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-All</AnalysisLevel>
+    <AnalysisMode>All</AnalysisMode>
+    <!-- CS warnings for nullability -->
+    <WarningsAsErrors>$(WarningsAsErrors);CS8600;CS8602;CS8603;CS8625</WarningsAsErrors>
+    <!-- CA warnings - critical for memory leaks and disposal (Phase 4.1) -->
+    <WarningsAsErrors>$(WarningsAsErrors);CA2000;CA2213;CA2001</WarningsAsErrors>
+
+    <!--
+      Local sibling checkout (../JustyBase.NetezzaSql):
+      Prefer ProjectReference when all local projects exist; otherwise NuGet.
+      Override: -p:UseLocalJustyBaseLibraries=true|false
+      Projects are also listed in JustyBase.slnx (like ProDataGrid) so VS restore
+      does not hit NU1105 for out-of-solution refs.
+    -->
+    <JustyBaseLibrariesRoot Condition="'$(JustyBaseLibrariesRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</JustyBaseLibrariesRoot>
+    <JustyBaseLocalNetezzaProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Netezza\JustyBase.Netezza.csproj</JustyBaseLocalNetezzaProject>
+    <JustyBaseLocalNetezzaSqlParserProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.NetezzaSqlParser.csproj</JustyBaseLocalNetezzaSqlParserProject>
+    <JustyBaseLocalNetezzaDdlProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.NetezzaDdl\JustyBase.NetezzaDdl.csproj</JustyBaseLocalNetezzaDdlProject>
+    <JustyBaseLocalNetezzaCatalogSqlProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.NetezzaCatalogSql\JustyBase.NetezzaCatalogSql.csproj</JustyBaseLocalNetezzaCatalogSqlProject>
+    <JustyBaseLocalCoreProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Core\JustyBase.Core.csproj</JustyBaseLocalCoreProject>
+    <JustyBaseLocalImportExportProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.ImportExport\JustyBase.ImportExport.csproj</JustyBaseLocalImportExportProject>
+    <UseLocalJustyBaseLibraries Condition="'$(UseLocalJustyBaseLibraries)' == ''
+      and Exists('$(JustyBaseLocalNetezzaProject)')
+      and Exists('$(JustyBaseLocalNetezzaSqlParserProject)')
+      and Exists('$(JustyBaseLocalNetezzaDdlProject)')
+      and Exists('$(JustyBaseLocalNetezzaCatalogSqlProject)')
+      and Exists('$(JustyBaseLocalCoreProject)')
+      and Exists('$(JustyBaseLocalImportExportProject)')">true</UseLocalJustyBaseLibraries>
+    <UseLocalJustyBaseLibraries Condition="'$(UseLocalJustyBaseLibraries)' == ''">false</UseLocalJustyBaseLibraries>
+
+    <!-- NuGet fallback: latest published incl. prerelease. Pin e.g. 0.3.0-preview.6 -->
+    <JustyBaseNetezzaLibsPackageVersion Condition="'$(JustyBaseNetezzaLibsPackageVersion)' == ''">*-*</JustyBaseNetezzaLibsPackageVersion>
+
+    <!--
+      Local sibling ProDataGrid (../ProDataGrid relative to this repo).
+      Required for hierarchical DataGrid features. Override:
+        -p:UseLocalProDataGrid=true|false
+        -p:ProDataGridProject=path\to\Avalonia.Controls.DataGrid.csproj
+    -->
+    <ProDataGridRoot Condition="'$(ProDataGridRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\ProDataGrid\'))</ProDataGridRoot>
+    <ProDataGridProject Condition="'$(ProDataGridProject)' == ''">$(ProDataGridRoot)src\Avalonia.Controls.DataGrid\Avalonia.Controls.DataGrid.csproj</ProDataGridProject>
+    <UseLocalProDataGrid Condition="'$(UseLocalProDataGrid)' == '' and Exists('$(ProDataGridProject)')">true</UseLocalProDataGrid>
+    <UseLocalProDataGrid Condition="'$(UseLocalProDataGrid)' == ''">false</UseLocalProDataGrid>
+  </PropertyGroup>
+
+  <Target Name="EnsureProDataGridAvailable" BeforeTargets="CollectPackageReferences;ResolveProjectReferences" Condition="'$(MSBuildProjectName)' == 'JustyBase' and '$(UseLocalProDataGrid)' != 'true'">
+    <Error Text="ProDataGrid was not found at '$(ProDataGridProject)'. Clone it as a sibling of this repository (see CONTRIBUTING.md), or pass -p:ProDataGridProject=... / -p:UseLocalProDataGrid=true." />
+  </Target>
+</Project>

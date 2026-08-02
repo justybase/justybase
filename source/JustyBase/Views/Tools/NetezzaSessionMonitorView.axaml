@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:JustyBase.ViewModels.Tools"
+             xmlns:svc="using:JustyBase.Services"
+             x:Class="JustyBase.Views.Tools.NetezzaSessionMonitorView"
+             x:DataType="vm:NetezzaSessionMonitorViewModel">
+	<DockPanel Margin="8">
+		<StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+			<ComboBox Width="180" ItemsSource="{Binding ConnectionNames}" SelectedItem="{Binding SelectedConnectionName}"/>
+			<Button Content="Refresh" Command="{Binding RefreshCommand}" IsEnabled="{Binding !IsBusy}"/>
+			<Button Content="Kill selected" Command="{Binding KillSelectedCommand}" IsEnabled="{Binding !IsBusy}"/>
+			<CheckBox Content="Auto-refresh (5s)" IsChecked="{Binding AutoRefresh}" VerticalAlignment="Center"/>
+			<TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+		</StackPanel>
+		<DataGrid ItemsSource="{Binding Sessions}" SelectedItem="{Binding SelectedSession}"
+				  AutoGenerateColumns="False" IsReadOnly="True" GridLinesVisibility="Horizontal">
+			<DataGrid.Columns>
+				<DataGridTextColumn Header="ID" Binding="{Binding SessionId}" Width="70"/>
+				<DataGridTextColumn Header="User" Binding="{Binding UserName}" Width="100"/>
+				<DataGridTextColumn Header="DB" Binding="{Binding Database}" Width="100"/>
+				<DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90"/>
+				<DataGridTextColumn Header="Command" Binding="{Binding Command}" Width="100"/>
+				<DataGridTextColumn Header="IP" Binding="{Binding IpAddress}" Width="110"/>
+				<DataGridTextColumn Header="SQL" Binding="{Binding SqlPreview}" Width="*"/>
+			</DataGrid.Columns>
+		</DataGrid>
+	</DockPanel>
+</UserControl>

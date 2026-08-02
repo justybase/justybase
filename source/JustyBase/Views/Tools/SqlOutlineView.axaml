@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:JustyBase.ViewModels.Tools"
+             x:Class="JustyBase.Views.Tools.SqlOutlineView"
+             x:DataType="vm:SqlOutlineViewModel">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4">
+            <TextBlock Text="Outline" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            <Button Content="Refresh" Command="{Binding RefreshCommand}" Margin="8,0,0,0" Padding="8,2"/>
+        </StackPanel>
+        <ListBox ItemsSource="{Binding Items}"
+                 SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:SqlOutlineItem">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding Kind}" Opacity="0.6" FontSize="11"/>
+                        <TextBlock Text="{Binding Title}" FontSize="12"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </DockPanel>
+</UserControl>

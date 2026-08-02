@@ -1,0 +1,53 @@
+<Solution>
+  <Folder Name="/Benchmarks/">
+    <Project Path="source/Benchmarks/Benchy/Benchy.csproj" />
+  </Folder>
+  <Folder Name="/JustyBase.Common/">
+    <Project Path="source/JustyBase.Common/JustyBase.Common.Tools/JustyBase.Common.Tools.csproj" />
+    <Project Path="source/JustyBase.Common/JustyBase.Common/JustyBase.Common.csproj" />
+  </Folder>
+  <Folder Name="/Plugins/">
+    <Project Path="source/Plugins/DB2Plugin/DB2Plugin.csproj" />
+    <Project Path="source/Plugins/DuckDBPlugin/DuckDBPlugin.csproj" />
+    <Project Path="source/Plugins/MySqlPlugin/MySqlPlugin.csproj" />
+    <Project Path="source/Plugins/NetezzaBase/NetezzaBase.csproj" />
+    <Project Path="source/Plugins/NetezzaDotnetPlugin/NetezzaDotnetPlugin.csproj" />
+    <Project Path="source/Plugins/NetezzaOdbcPlugin/NetezzaOdbcPlugin.csproj" />
+    <Project Path="source/Plugins/OraclePlugin/OraclePlugin.csproj" />
+    <Project Path="source/Plugins/PostgresPlugin/PostgresPlugin.csproj" />
+    <Project Path="source/Plugins/SnowflakePlugin/SnowflakePlugin.csproj" />
+    <Project Path="source/Plugins/SqlitePlugin/SqlitePlugin.csproj" />
+  </Folder>
+  <Folder Name="/Plugins/Helpers/">
+    <Project Path="source/Plugins/Helpers/JustyBase.Helpers.Importers/JustyBase.Helpers.Importers.csproj" />
+    <Project Path="source/Plugins/Helpers/NetezzaImporter/JustyBase.Helpers.NetezzaImporter.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="source/JustyBase.HeadlessTests/JustyBase.HeadlessTests.csproj" />
+    <Project Path="source/JustyBase.IntegrationTests/JustyBase.IntegrationTests.csproj" />
+    <Project Path="source/JustyBase.LiveTests/JustyBase.LiveTests.csproj" />
+    <Project Path="source/JustyBase.Tests/JustyBase.Tests.csproj" />
+  </Folder>
+  <Folder Name="/JustyBase.NetezzaSql/">
+    <!-- Sibling checkout; Prefer ProjectReference when present (Directory.Build.props UseLocalJustyBaseLibraries). Listed here so VS restore avoids NU1105. -->
+    <Project Path="../JustyBase.NetezzaSql/JustyBase.NetezzaSqlParser.csproj" />
+    <Project Path="../JustyBase.NetezzaSql/JustyBase.Netezza/JustyBase.Netezza.csproj" />
+    <Project Path="../JustyBase.NetezzaSql/JustyBase.NetezzaDdl/JustyBase.NetezzaDdl.csproj" />
+    <Project Path="../JustyBase.NetezzaSql/JustyBase.NetezzaCatalogSql/JustyBase.NetezzaCatalogSql.csproj" />
+    <Project Path="../JustyBase.NetezzaSql/JustyBase.Core/JustyBase.Core.csproj" />
+    <Project Path="../JustyBase.NetezzaSql/JustyBase.ImportExport/JustyBase.ImportExport.csproj" />
+  </Folder>
+  <Folder Name="/ProDataGrid/">
+    <!-- Sibling checkout; see CONTRIBUTING.md / Directory.Build.props UseLocalProDataGrid -->
+    <Project Path="../ProDataGrid/src/Avalonia.Controls.DataGrid/Avalonia.Controls.DataGrid.csproj" />
+    <Project Path="../ProDataGrid/src/ProDataGrid.FormulaEngine/ProDataGrid.FormulaEngine.csproj" />
+    <Project Path="../ProDataGrid/src/ProDataGrid.FormulaEngine.Excel/ProDataGrid.FormulaEngine.Excel.csproj" />
+  </Folder>
+  <Project Path="source/JustyBase.Ai.Fim/JustyBase.Ai.Fim.csproj" />
+  <Project Path="source/JustyBase.PluginBase/JustyBase.PluginBase.csproj" />
+  <Project Path="source/JustyBase.PluginCommon/JustyBase.PluginCommon.csproj" />
+  <Project Path="source/JustyBase.Public.Lib/JustyBase.Public.Lib.csproj" />
+  <Project Path="source/JustyBase/JustyBase.csproj" />
+  <Project Path="source/SqlEditor.Avalonia/SqlEditor.Avalonia.csproj" />
+</Solution>
+

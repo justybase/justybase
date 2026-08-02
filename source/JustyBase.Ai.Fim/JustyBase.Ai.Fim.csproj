@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>JustyBase.Ai.Fim</RootNamespace>
+    <Description>Embedded Fill-in-the-Middle SQL completion via LLamaSharp (GGUF).</Description>
+    <!--
+      Native AOT: LLamaSharp relies on dynamic native backend loading.
+      Included in JustyBase by default (including AOT). Runtime opt-in via EnableEmbeddedFimAi.
+      See docs/internal/llamasharp-fim-aot.md
+    -->
+    <IsAotCompatible>false</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LLamaSharp" Version="0.27.0" />
+    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.27.0" />
+    <!-- AMD / Intel iGPU and multi-vendor discrete GPUs (same path LM Studio uses). -->
+    <PackageReference Include="LLamaSharp.Backend.Vulkan" Version="0.27.0" />
+  </ItemGroup>
+
+  <!-- Optional CUDA backend: enable with -p:EnableFimCuda=true (NVIDIA only; prefer Vulkan for AMD). -->
+  <ItemGroup Condition="'$(EnableFimCuda)' == 'true'">
+    <PackageReference Include="LLamaSharp.Backend.Cuda12" Version="0.27.0" />
+  </ItemGroup>
+</Project>

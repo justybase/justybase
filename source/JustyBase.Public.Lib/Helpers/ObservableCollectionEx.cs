@@ -5,8 +5,8 @@ namespace JustyBase.Public.Lib.Helpers;
 
 public class ObservableCollectionEx<T> : ObservableCollection<T>
 {
-    private bool _notificationSupressed = false;
-    private bool _supressNotification = false;
+    private bool _notificationSupressed;
+    private bool _supressNotification;
     public bool SupressNotification
     {
         get

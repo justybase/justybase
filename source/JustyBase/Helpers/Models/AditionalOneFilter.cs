@@ -4,14 +4,14 @@ namespace JustyBase.Models;
 
 public sealed class AditionalOneFilter
 {
-    public readonly string FilterEnteredTextPhase;
-    public readonly Int16? FilterEnteredPhaseAsInt16 = null;
-    public readonly int? FilterEnteredPhaseAsInt = null;
-    public readonly long? filterEnteredPhaseAsLong = null;
-    public readonly double? FilterEnteredPhaseAsDouble = null;
-    public readonly decimal? FilterEnteredPhaseAsDecimal = null;
-    public HashSet<object> NotList;
-    public HashSet<object> InList;
+    public string FilterEnteredTextPhase { get; }
+    public Int16? FilterEnteredPhaseAsInt16 { get; }
+    public int? FilterEnteredPhaseAsInt { get; }
+    public long? filterEnteredPhaseAsLong { get; }
+    public double? FilterEnteredPhaseAsDouble { get; }
+    public decimal? FilterEnteredPhaseAsDecimal { get; }
+    public HashSet<object> NotList { get; set; }
+    public HashSet<object> InList { get; set; }
     public AditionalOneFilter(string likePhase)
     {
         FilterEnteredTextPhase = likePhase;
@@ -36,7 +36,7 @@ public sealed class AditionalOneFilter
             FilterEnteredPhaseAsDecimal = resDecimal;
         }
     }
-    public FilterTypeEnum FilterType = FilterTypeEnum.contains;
+    public FilterTypeEnum FilterType { get; set; } = FilterTypeEnum.contains;
 
 
     public bool GetComparisionResultGeneral(TypeCode typeCode, object columnValue)

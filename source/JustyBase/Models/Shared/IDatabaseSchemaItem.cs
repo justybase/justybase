@@ -49,20 +49,20 @@ internal interface IDatabaseSchemaItem
             return string.Empty;
         }
         string sql = "";
-        if (optionName.StartsWith("DDL_TABLE"))
+        if (optionName.StartsWith("DDL_TABLE", StringComparison.Ordinal))
         {
             sql = await dbService.GetCreateTableText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("RECREATE_TABLE"))
+        else if (optionName.StartsWith("RECREATE_TABLE", StringComparison.Ordinal))
         {
             sql = await dbService.GetReCreateTableText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("RECREATE_ALL_TABLES"))
+        else if (optionName.StartsWith("RECREATE_ALL_TABLES", StringComparison.Ordinal))
         {
             HashSet<string> words = null;
             try
             {
-                if (SqlCodeEditorHelpers.LastFocusedEditor is not null && SqlCodeEditorHelpers.LastFocusedEditor.Text.StartsWith("RECREATE_HACK"))
+                if (SqlCodeEditorHelpers.LastFocusedEditor is not null && SqlCodeEditorHelpers.LastFocusedEditor.Text.StartsWith("RECREATE_HACK", StringComparison.Ordinal))
                 {
                     words = new HashSet<string>(SqlCodeEditorHelpers.LastFocusedEditor.Text.Split("\n").Select(o => o.Trim()));
                 }
@@ -82,7 +82,7 @@ internal interface IDatabaseSchemaItem
             }
             sql = stringBuilder.ToString();
         }
-        else if (optionName.StartsWith("DDL_ALL_TABLES"))
+        else if (optionName.StartsWith("DDL_ALL_TABLES", StringComparison.Ordinal))
         {
             var objects = dbService.GetDbObjects(DATABASE, SCHEMA, "", TypeInDatabaseEnum.Table);
             StringBuilder stringBuilder = new StringBuilder();
@@ -92,23 +92,23 @@ internal interface IDatabaseSchemaItem
             }
             sql = stringBuilder.ToString();
         }
-        else if (optionName.StartsWith("SELECT_ALL_SEARCH_TEXT"))
+        else if (optionName.StartsWith("SELECT_ALL_SEARCH_TEXT", StringComparison.Ordinal))
         {
             IEnumerable<DatabaseObject> objects = dbService.GetDbObjects(DATABASE, SCHEMA, "", TypeInDatabaseEnum.Table);
             sql = dbService.GetTop100SelectTextFromTables(DATABASE, SCHEMA, objects);
         }
-        else if (optionName.StartsWith("SELECT_ALL_SEARCH_NUMBER"))
+        else if (optionName.StartsWith("SELECT_ALL_SEARCH_NUMBER", StringComparison.Ordinal))
         {
             IEnumerable<DatabaseObject> objects = dbService.GetDbObjects(DATABASE, SCHEMA, "", TypeInDatabaseEnum.Table);
             sql = dbService.GetTop100SelectNumberFromTables(DATABASE, SCHEMA, objects);
         }
-        else if (optionName.StartsWith("SELECT_SEARCH"))
+        else if (optionName.StartsWith("SELECT_SEARCH", StringComparison.Ordinal))
         {
             sql = dbService.GetTop100Select(DATABASE, SCHEMA, ITEM_NAME, snippetMode: false /*!!*/, addWhereToTextCols: true);
         }
-        else if (optionName.StartsWith("SELECT"))
+        else if (optionName.StartsWith("SELECT", StringComparison.Ordinal))
         {
-            if (optionName.EndsWith("CLIP"))
+            if (optionName.EndsWith("CLIP", StringComparison.Ordinal))
             {
                 sql = dbService.GetTop100Select(DATABASE, SCHEMA, ITEM_NAME, snippetMode: false);
             }
@@ -117,35 +117,35 @@ internal interface IDatabaseSchemaItem
                 sql = dbService.GetTop100Select(DATABASE, SCHEMA, ITEM_NAME, snippetMode: true);
             }
         }
-        else if (optionName.StartsWith("DUPLICATES"))
+        else if (optionName.StartsWith("DUPLICATES", StringComparison.Ordinal))
         {
             sql = dbService.GetDuplicates(ITEM_NAME, DATABASE, SCHEMA);
         }
-        else if (optionName.StartsWith("DELETED"))
+        else if (optionName.StartsWith("DELETED", StringComparison.Ordinal))
         {
             sql = dbService.GetDeleted(ITEM_NAME, DATABASE, SCHEMA);
         }
-        else if (optionName.StartsWith("GRANT"))
+        else if (optionName.StartsWith("GRANT", StringComparison.Ordinal))
         {
             sql = dbService.GetGrant(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("ORGANIZE"))
+        else if (optionName.StartsWith("ORGANIZE", StringComparison.Ordinal))
         {
             sql = dbService.GetOrganize(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("DISTRIBUTE"))
+        else if (optionName.StartsWith("DISTRIBUTE", StringComparison.Ordinal))
         {
             sql = dbService.GetCheckDistributeText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("DDL_VIEW"))
+        else if (optionName.StartsWith("DDL_VIEW", StringComparison.Ordinal))
         {
             sql = await dbService.GetCreateViewText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("DDL_INDEX"))
+        else if (optionName.StartsWith("DDL_INDEX", StringComparison.Ordinal))
         {
             sql = await dbService.GetCreateIndexText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("DDL_ALL_INDEXES"))
+        else if (optionName.StartsWith("DDL_ALL_INDEXES", StringComparison.Ordinal))
         {
             var objects = dbService.GetDbObjects(DATABASE, SCHEMA, "", TypeInDatabaseEnum.Index);
             StringBuilder stringBuilder = new();
@@ -155,11 +155,11 @@ internal interface IDatabaseSchemaItem
             }
             sql = stringBuilder.ToString();
         }
-        else if (optionName.StartsWith("DDL_PARTITION"))
+        else if (optionName.StartsWith("DDL_PARTITION", StringComparison.Ordinal))
         {
             sql = await dbService.GetCreatePartitionText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("DDL_ALL_PARTITIONS"))
+        else if (optionName.StartsWith("DDL_ALL_PARTITIONS", StringComparison.Ordinal))
         {
             var objects = dbService.GetDbObjects(DATABASE, SCHEMA, "", TypeInDatabaseEnum.Partition);
             StringBuilder stringBuilder = new();
@@ -169,7 +169,7 @@ internal interface IDatabaseSchemaItem
             }
             sql = stringBuilder.ToString();
         }
-        else if (optionName.StartsWith("DDL_ALL_VIEWS"))
+        else if (optionName.StartsWith("DDL_ALL_VIEWS", StringComparison.Ordinal))
         {
             var objects = dbService.GetDbObjects(DATABASE, SCHEMA, "", TypeInDatabaseEnum.View);
             StringBuilder stringBuilder = new StringBuilder();
@@ -179,15 +179,15 @@ internal interface IDatabaseSchemaItem
             }
             sql = stringBuilder.ToString();
         }
-        else if (optionName.StartsWith("SELECT_VIEW"))
+        else if (optionName.StartsWith("SELECT_VIEW", StringComparison.Ordinal))
         {
             sql = dbService.GetTop100Select(DATABASE, SCHEMA, ITEM_NAME, snippetMode: true);
         }
-        else if (optionName.StartsWith("DDL_PROCEDURE"))
+        else if (optionName.StartsWith("DDL_PROCEDURE", StringComparison.Ordinal))
         {
             sql = await dbService.GetCreateProcedureText(DATABASE, SCHEMA, ITEM_NAME, forceFreshCode: true);
         }
-        else if (optionName.StartsWith("DDL_ALL_PROCEDURES"))
+        else if (optionName.StartsWith("DDL_ALL_PROCEDURES", StringComparison.Ordinal))
         {
             var objects = dbService.GetDbObjects(DATABASE, SCHEMA, "", TypeInDatabaseEnum.Procedure);
             StringBuilder stringBuilder = new();
@@ -197,31 +197,31 @@ internal interface IDatabaseSchemaItem
             }
             sql = stringBuilder.ToString();
         }
-        else if (optionName.StartsWith("CALL_PROCEDURE"))
+        else if (optionName.StartsWith("CALL_PROCEDURE", StringComparison.Ordinal))
         {
             sql = dbService.GetCreateProcedureCall(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("CREATE_PROCEDURE"))
+        else if (optionName.StartsWith("CREATE_PROCEDURE", StringComparison.Ordinal))
         {
             sql = dbService.GetCreateProcedurePatternText();
         }
-        else if (optionName.StartsWith("FLUID_SAMPLE") && dbService is INetezza netezza)
+        else if (optionName.StartsWith("FLUID_SAMPLE", StringComparison.Ordinal) && dbService is INetezza netezza)
         {
             sql = netezza.GetCreateFluidSample(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("KEY"))
+        else if (optionName.StartsWith("KEY", StringComparison.Ordinal))
         {
             sql = dbService.GetKeyCodeText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("UNIQUE"))
+        else if (optionName.StartsWith("UNIQUE", StringComparison.Ordinal))
         {
             sql = dbService.GetKeyUniqueCodeText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("DDL_EXTERNAL"))
+        else if (optionName.StartsWith("DDL_EXTERNAL", StringComparison.Ordinal))
         {
             sql = await dbService.GetCreateExternalText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("DDL_ALL_EXTERNALS"))
+        else if (optionName.StartsWith("DDL_ALL_EXTERNALS", StringComparison.Ordinal))
         {
             var objects = dbService.GetDbObjects(DATABASE, SCHEMA, "", TypeInDatabaseEnum.ExternalTable);
             StringBuilder stringBuilder = new();
@@ -231,15 +231,15 @@ internal interface IDatabaseSchemaItem
             }
             sql = stringBuilder.ToString();
         }
-        else if (optionName.StartsWith("DDL_SYNONYM"))
+        else if (optionName.StartsWith("DDL_SYNONYM", StringComparison.Ordinal))
         {
             sql = await dbService.GetCreateSynonymText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("COPY_TEXT"))
+        else if (optionName.StartsWith("COPY_TEXT", StringComparison.Ordinal))
         {
             sql = ITEM_NAME;
         }
-        else if (optionName.StartsWith("DDL_ALL_SYNONYMS"))
+        else if (optionName.StartsWith("DDL_ALL_SYNONYMS", StringComparison.Ordinal))
         {
             var objects = dbService.GetDbObjects(DATABASE, SCHEMA, "", TypeInDatabaseEnum.Synonym);
             StringBuilder stringBuilder = new();
@@ -249,55 +249,55 @@ internal interface IDatabaseSchemaItem
             }
             sql = stringBuilder.ToString();
         }
-        else if (optionName.StartsWith("CREATE_SYNONYM"))
+        else if (optionName.StartsWith("CREATE_SYNONYM", StringComparison.Ordinal))
         {
             sql = dbService.GetCreateSynonymPatternText();
         }
-        else if (optionName.StartsWith("CREATE_SEQUENCE"))
+        else if (optionName.StartsWith("CREATE_SEQUENCE", StringComparison.Ordinal))
         {
             sql = dbService.GetCreateSequencePatternText();
         }
-        else if (optionName.StartsWith("CREATE_INDEX"))
+        else if (optionName.StartsWith("CREATE_INDEX", StringComparison.Ordinal))
         {
             sql = dbService.GetCreateIndexPatternText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("CREATE_PARTITION"))
+        else if (optionName.StartsWith("CREATE_PARTITION", StringComparison.Ordinal))
         {
             sql = dbService.GetCreatePartitionPatternText(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("POSTGRES_INDEX_PARTITION_OVERVIEW"))
+        else if (optionName.StartsWith("POSTGRES_INDEX_PARTITION_OVERVIEW", StringComparison.Ordinal))
         {
             sql = dbService.GetPostgresIndexPartitionOverview(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("POSTGRES_MAINTENANCE"))
+        else if (optionName.StartsWith("POSTGRES_MAINTENANCE", StringComparison.Ordinal))
         {
             sql = dbService.GetPostgresMaintenanceCommandPack(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("GROOM"))
+        else if (optionName.StartsWith("GROOM", StringComparison.Ordinal))
         {
             sql = dbService.GetGroom(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("STATS"))
+        else if (optionName.StartsWith("STATS", StringComparison.Ordinal))
         {
             sql = dbService.GetGenerateStats(DATABASE, SCHEMA, ITEM_NAME);
         }
-        else if (optionName.StartsWith("COMMENT"))
+        else if (optionName.StartsWith("COMMENT", StringComparison.Ordinal))
         {
             sql = dbService.GetAddComment(ITEM_NAME, DATABASE, SCHEMA);
         }
-        else if (optionName.StartsWith("DROP"))
+        else if (optionName.StartsWith("DROP", StringComparison.Ordinal))
         {
             sql = dbService.GetDrop(ITEM_NAME, DATABASE, SCHEMA);
         }
-        else if (optionName.StartsWith("EMPTY"))
+        else if (optionName.StartsWith("EMPTY", StringComparison.Ordinal))
         {
             sql = dbService.GetEmpty(ITEM_NAME, DATABASE, SCHEMA);
         }
-        else if (optionName.StartsWith("COUNT_ROWS"))
+        else if (optionName.StartsWith("COUNT_ROWS", StringComparison.Ordinal))
         {
             sql = dbService.GetCountRows(ITEM_NAME, DATABASE, SCHEMA);
         }
-        else if (optionName.StartsWith("EXPORT_DATA"))
+        else if (optionName.StartsWith("EXPORT_DATA", StringComparison.Ordinal))
         {
             sql = dbService.GetExport(ITEM_NAME, DATABASE, SCHEMA);
         }

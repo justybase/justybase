@@ -2,6 +2,7 @@ using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
 using JustyBase.PluginCommons;
 using JustyBase.PluginDatabaseBase.Models;
+using System.Globalization;
 using System.Text;
 
 namespace JustyBase.PluginDatabaseBase.Database;
@@ -176,7 +177,7 @@ public abstract partial class DatabaseService
                     --ENDREGION
                 """;
             }
-            sb.AppendLine($$"""
+            sb.AppendLine(CultureInfo.InvariantCulture, $$"""
             --REGION RESULT_NAME:{{tableCl}}
             SELECT 
                 --REGION COLS
@@ -243,7 +244,7 @@ public abstract partial class DatabaseService
                     --ENDREGION
                 """;
             }
-            sb.AppendLine($$"""
+            sb.AppendLine(CultureInfo.InvariantCulture, $$"""
             --REGION RESULT_NAME:{{tableCl}}
             SELECT 
                 --REGION COLS
@@ -389,10 +390,10 @@ public abstract partial class DatabaseService
         {
             var f = GetQuotedTwoOrTreePartName(database, schema, synonymName);
             var g = GetQuotedTwoOrTreePartName(d3.RefObjNamePart1, d3.RefObjNamePart2, d3.RefObjNamePart3, force: true);
-            stringBuilder.Append($"CREATE SYNONYM {f} FOR {g};");
+            stringBuilder.Append(CultureInfo.InvariantCulture, $"CREATE SYNONYM {f} FOR {g};");
             return;
         }
-        stringBuilder.Append($"PROBLEM ! {database}.{schema}.{synonymName}");
+        stringBuilder.Append(CultureInfo.InvariantCulture, $"PROBLEM ! {database}.{schema}.{synonymName}");
     }
 
 

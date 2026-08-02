@@ -67,7 +67,7 @@ partial class SqlResultsViewModel
                 {
                     try
                     {
-                        byte byteScale = (byte)Math.Clamp(Convert.ToInt32(scale), 0, 127);
+                        byte byteScale = (byte)Math.Clamp(Convert.ToInt32(scale, System.Globalization.CultureInfo.InvariantCulture), 0, 127);
                         CurrentResultsTable.NumericScales[nm] = (byteScale == 127) ? (byte)8 : byteScale;
                     }
                     catch (Exception ex)

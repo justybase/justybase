@@ -504,7 +504,7 @@ public sealed class CodexAppServerClient : IAsyncDisposable
     {
         var sb = new StringBuilder();
         sb.AppendLine("You are the AI assistant inside JustyBase SQL Editor.");
-        sb.AppendLine($"Current mode: {mode.ToDisplayName()}.");
+        sb.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"Current mode: {mode.ToDisplayName()}.");
         if (!string.IsNullOrWhiteSpace(systemPrompt))
             sb.AppendLine(systemPrompt.Trim());
         sb.AppendLine("Use only the supplied active SQL context and the explicitly available tools.");

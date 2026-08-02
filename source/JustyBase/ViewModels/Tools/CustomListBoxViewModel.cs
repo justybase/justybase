@@ -66,7 +66,7 @@ public partial class CustomListBoxViewModel : ObservableObject
     public ObservableCollectionEx<FilterItem> Items { get; set; }
     public FilterTypeEnum FilterType { get; set; }
 
-    public readonly int ColumnIndex = 0;
+    public int ColumnIndex { get; }
     private readonly IValueConverter _valueConverter;
     public CustomListBoxViewModel(TableOfSqlResults table, int columnIndex, FilterTypeEnum filterType, IValueConverter valueConverter)
     {
@@ -176,8 +176,8 @@ public partial class CustomListBoxViewModel : ObservableObject
         }
     } = FilterTypeEnum.equals.StringRepresentation();
 
-    public Action CloseAction;
-    public Action OnlineSearchAction;
+    public Action? CloseAction { get; set; }
+    public Action? OnlineSearchAction { get; set; }
 
     private object[] _actualValuesList = [];
 

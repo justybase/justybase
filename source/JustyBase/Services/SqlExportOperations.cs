@@ -61,7 +61,7 @@ public class SqlExportOperations : ISqlExportOperations
                     nz = DbSimpleType.Nvarchar;
                     val = $"'{v1[j].Trim()}'";
                 }
-                sb.Append($" {(val == "" ? "null" : val)} AS {headers[j].NormalizeDbColumnName().Trim()}");
+                sb.Append(System.Globalization.CultureInfo.InvariantCulture, $" {(val == "" ? "null" : val)} AS {headers[j].NormalizeDbColumnName().Trim()}");
                 if (j != v1.Count - 1)
                 {
                     sb.Append(',');

@@ -24,6 +24,11 @@ public sealed class FimInlineCompletionBridge
 
     public Func<bool> IsEnabled { get; }
 
+    /// <summary>Raised after the selected model has been downloaded and loaded.</summary>
+    public event EventHandler? ModelReady;
+
+    public void NotifyModelReady() => ModelReady?.Invoke(this, EventArgs.Empty);
+
     public async Task<string?> CompleteAsync(InlineCompletionContext context, CancellationToken cancellationToken)
     {
         if (!IsEnabled())

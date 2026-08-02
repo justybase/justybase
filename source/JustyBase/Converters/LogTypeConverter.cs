@@ -23,7 +23,7 @@ public sealed class LogTypeConverter : IValueConverter
         }
         else if (value is DateTime dateTime)
         {
-            return dateTime.ToString("HH:mm:ss ddd");
+            return dateTime.ToString("HH:mm:ss ddd", culture);
         }
         return "";
     }

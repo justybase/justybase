@@ -51,8 +51,8 @@ public sealed class HistoryEntry
 
             var ts = TimeSpan.FromMilliseconds(ms);
             return ts.TotalHours >= 1
-                ? ts.ToString(@"h\:mm\:ss")
-                : ts.ToString(@"m\:ss");
+                ? ts.ToString(@"h\:mm\:ss", System.Globalization.CultureInfo.CurrentCulture)
+                : ts.ToString(@"m\:ss", System.Globalization.CultureInfo.CurrentCulture);
         }
     }
 
@@ -110,7 +110,7 @@ public sealed class HistoryEntry
         return SQL.Contains(searchTxt, StringComparison.OrdinalIgnoreCase)
             || Connection.Contains(searchTxt, StringComparison.OrdinalIgnoreCase)
             || Database.Contains(searchTxt, StringComparison.OrdinalIgnoreCase)
-            || Date.ToString("G").Contains(searchTxt, StringComparison.OrdinalIgnoreCase)
+            || Date.ToString("G", System.Globalization.CultureInfo.CurrentCulture).Contains(searchTxt, StringComparison.OrdinalIgnoreCase)
             || (ErrorMessage?.Contains(searchTxt, StringComparison.OrdinalIgnoreCase) == true)
             || StatusText.Contains(searchTxt, StringComparison.OrdinalIgnoreCase);
     }

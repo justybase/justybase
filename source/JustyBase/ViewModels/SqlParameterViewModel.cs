@@ -9,7 +9,7 @@ public class SqlParameterViewModel : ObservableObject
     public ICommand ClickOkCmd { get; }
     public ICommand ClickCancelCmd { get; }
 
-    public Action CloseAction;
+    public Action? CloseAction { get; set; }
 
     private readonly ObservableCollection<Pair> _myItems = [];
     public ObservableCollection<Pair> MyItems => _myItems;

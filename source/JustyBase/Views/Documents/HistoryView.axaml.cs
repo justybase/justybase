@@ -42,7 +42,7 @@ public partial class HistoryView : UserControl
                     {
                         sb.Append(historyEntry.IsFavorite ? "★" : "");
                         sb.Append('\t');
-                        sb.Append(historyEntry.Date.ToString());
+                        sb.Append(historyEntry.Date.ToString(System.Globalization.CultureInfo.CurrentCulture));
                         sb.Append('\t');
                         sb.Append(historyEntry.StatusText);
                         sb.Append('\t');

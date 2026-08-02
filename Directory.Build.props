@@ -3,12 +3,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
-    <AnalysisLevel>latest-All</AnalysisLevel>
-    <AnalysisMode>All</AnalysisMode>
+    <!-- Keep the default .NET analyzer set readable. Critical rules below remain explicit. -->
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
     <!-- CS warnings for nullability -->
     <WarningsAsErrors>$(WarningsAsErrors);CS8600;CS8602;CS8603;CS8625</WarningsAsErrors>
     <!-- CA warnings - critical for memory leaks and disposal (Phase 4.1) -->
-    <WarningsAsErrors>$(WarningsAsErrors);CA2000;CA2213;CA2001</WarningsAsErrors>
+    <WarningsAsErrors>$(WarningsAsErrors);CA2000;CA2213;CA2001;CA2200</WarningsAsErrors>
 
     <!--
       Local sibling checkout (../JustyBase.NetezzaSql):

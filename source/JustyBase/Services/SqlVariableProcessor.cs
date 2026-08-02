@@ -56,7 +56,7 @@ public class SqlVariableProcessor : ISqlVariableProcessor
         toAsk.Sort(delegate (string x, string y)
         {
             if (x.Length != y.Length) return y.Length.CompareTo(x.Length);
-            return y.CompareTo(x);
+            return string.Compare(y, x, StringComparison.Ordinal);
         });
 
         foreach (var variableTxt in toAsk)
@@ -104,7 +104,7 @@ public class SqlVariableProcessor : ISqlVariableProcessor
         object val2 = val;
         try
         {
-            if (!val.StartsWith("SQL_"))
+            if (!val.StartsWith("SQL_", StringComparison.Ordinal))
             {
                 val2 = Evaluate(val);
             }
@@ -116,7 +116,7 @@ public class SqlVariableProcessor : ISqlVariableProcessor
                     con = service.GetConnection(null);
                     con.Open();
                 }
-                if (val.StartsWith("SQL_RESULT["))
+            if (val.StartsWith("SQL_RESULT[", StringComparison.Ordinal))
                 {
                     string sql = val["SQL_RESULT[".Length..^1];
                     using (var cmd = con.CreateCommand())
@@ -129,7 +129,7 @@ public class SqlVariableProcessor : ISqlVariableProcessor
                         val2 = await Task.Run(() => cmd.ExecuteScalar());
                     }
                 }
-                else if (val.StartsWith("SQL_RECORDS_AFFECTED["))
+            else if (val.StartsWith("SQL_RECORDS_AFFECTED[", StringComparison.Ordinal))
                 {
                     string sql = val["SQL_RECORDS_AFFECTED[".Length..^1];
                     using (var cmd = con.CreateCommand())

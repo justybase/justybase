@@ -218,7 +218,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
                 try
                 {
                     var fileName = Path.GetFileName(item);
-                    if (fileName.StartsWith("message_"))
+                    if (fileName.StartsWith("message_", StringComparison.Ordinal))
                     {
                         File.Move(item, Path.Combine(IGeneralApplicationData.MessagesPath, fileName));
                     }

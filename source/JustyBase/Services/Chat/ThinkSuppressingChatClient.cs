@@ -162,7 +162,7 @@ public sealed class ThinkSuppressingChatClient : IChatClient
             if (line is null) yield break;
             if (string.IsNullOrWhiteSpace(line)) continue;
             if (line == "data: [DONE]") yield break;
-            if (!line.StartsWith("data: ")) continue;
+            if (!line.StartsWith("data: ", StringComparison.Ordinal)) continue;
 
             var json = line[6..];
             using var doc = JsonDocument.Parse(json);

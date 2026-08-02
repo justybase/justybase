@@ -46,7 +46,7 @@ public sealed partial class LogToolViewModel : Tool
         }
         return false;
     }
-    public string CurrentId = "";
+    public string CurrentId { get; set; } = "";
 
 
     private void AddNewLog(LogMessage message)
@@ -103,13 +103,13 @@ public sealed partial class LogToolViewModel : Tool
         {
             StringBuilder sb = new();
             sb.AppendLine("################################");
-            sb.AppendLine($"Title: {SelectedLogItem.Title}");
-            sb.AppendLine($"Message: {SelectedLogItem.Message}");
+        sb.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"Title: {SelectedLogItem.Title}");
+        sb.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"Message: {SelectedLogItem.Message}");
             sb.AppendLine("##Inner messages##");
             foreach (var item in SelectedLogItem.InnerMessages)
             {
-                sb.AppendLine($"   title:{item.PairTitle}");
-                sb.AppendLine($"   message:{item.PairMessage}");
+            sb.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"   title:{item.PairTitle}");
+            sb.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"   message:{item.PairMessage}");
                 sb.AppendLine();
             }
             sb.AppendLine("################################");

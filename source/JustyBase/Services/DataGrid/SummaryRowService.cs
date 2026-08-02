@@ -1,4 +1,5 @@
 using System.Text;
+using System.Globalization;
 using Avalonia.Collections;
 using JustyBase.Models;
 using JustyBase.Models.Tools;
@@ -18,12 +19,12 @@ public sealed class SummaryRowService : ISummaryRowService
 
         return summaryType switch
         {
-            ColumnSummaryType.Sum => $"Σ {stats.Sum.ToString(format)}",
-            ColumnSummaryType.Count => $"# {stats.NotNullCnt:N0}",
-            ColumnSummaryType.Average when stats.NotNullCnt > 0 => $"Ø {(stats.Sum / stats.NotNullCnt).ToString(format)}",
-            ColumnSummaryType.Min when stats.MinOfColumn.HasValue => $"↓ {stats.MinOfColumn.Value.ToString(format)}",
-            ColumnSummaryType.Max when stats.MaxOfColumn.HasValue => $"↑ {stats.MaxOfColumn.Value.ToString(format)}",
-            ColumnSummaryType.Distinct => $"≠ {stats.DistinctCnt:N0}",
+            ColumnSummaryType.Sum => $"Σ {stats.Sum.ToString(format, CultureInfo.CurrentCulture)}",
+            ColumnSummaryType.Count => $"# {stats.NotNullCnt.ToString("N0", CultureInfo.CurrentCulture)}",
+            ColumnSummaryType.Average when stats.NotNullCnt > 0 => $"Ø {(stats.Sum / stats.NotNullCnt).ToString(format, CultureInfo.CurrentCulture)}",
+            ColumnSummaryType.Min when stats.MinOfColumn.HasValue => $"↓ {stats.MinOfColumn.Value.ToString(format, CultureInfo.CurrentCulture)}",
+            ColumnSummaryType.Max when stats.MaxOfColumn.HasValue => $"↑ {stats.MaxOfColumn.Value.ToString(format, CultureInfo.CurrentCulture)}",
+            ColumnSummaryType.Distinct => $"≠ {stats.DistinctCnt.ToString("N0", CultureInfo.CurrentCulture)}",
             _ => string.Empty
         };
     }
@@ -38,24 +39,24 @@ public sealed class SummaryRowService : ISummaryRowService
         string format = $"N{(scale <= 0 ? 2 : scale)}";
 
         var sb = new StringBuilder();
-        sb.AppendLine($"Count: {stats.NotNullCnt:N0}");
-        sb.AppendLine($"Distinct: {stats.DistinctCnt:N0}");
+        sb.AppendLine(CultureInfo.CurrentCulture, $"Count: {stats.NotNullCnt:N0}");
+        sb.AppendLine(CultureInfo.CurrentCulture, $"Distinct: {stats.DistinctCnt:N0}");
 
         if (stats.Sum != 0)
         {
-            sb.AppendLine($"Sum: {stats.Sum.ToString(format)}");
+            sb.AppendLine(CultureInfo.CurrentCulture, $"Sum: {stats.Sum.ToString(format, CultureInfo.CurrentCulture)}");
             if (stats.NotNullCnt > 0)
             {
-                sb.AppendLine($"Average: {(stats.Sum / stats.NotNullCnt).ToString(format)}");
+                sb.AppendLine(CultureInfo.CurrentCulture, $"Average: {(stats.Sum / stats.NotNullCnt).ToString(format, CultureInfo.CurrentCulture)}");
             }
         }
         if (stats.MinOfColumn.HasValue)
         {
-            sb.AppendLine($"Min: {stats.MinOfColumn.Value.ToString(format)}");
+            sb.AppendLine(CultureInfo.CurrentCulture, $"Min: {stats.MinOfColumn.Value.ToString(format, CultureInfo.CurrentCulture)}");
         }
         if (stats.MaxOfColumn.HasValue)
         {
-            sb.AppendLine($"Max: {stats.MaxOfColumn.Value.ToString(format)}");
+            sb.AppendLine(CultureInfo.CurrentCulture, $"Max: {stats.MaxOfColumn.Value.ToString(format, CultureInfo.CurrentCulture)}");
         }
 
         return sb.ToString().TrimEnd();
@@ -90,19 +91,19 @@ public sealed class SummaryRowService : ISummaryRowService
 
             string valStr = summaryType switch
             {
-                ColumnSummaryType.Sum => $"Σ {stats.Sum.ToString(format)}",
-                ColumnSummaryType.Count => $"# {stats.NotNullCnt:N0}",
-                ColumnSummaryType.Average when stats.NotNullCnt > 0 => $"Ø {(stats.Sum / stats.NotNullCnt).ToString(format)}",
-                ColumnSummaryType.Min when stats.MinOfColumn.HasValue => $"↓ {stats.MinOfColumn.Value.ToString(format)}",
-                ColumnSummaryType.Max when stats.MaxOfColumn.HasValue => $"↑ {stats.MaxOfColumn.Value.ToString(format)}",
-                ColumnSummaryType.Distinct => $"≠ {stats.DistinctCnt:N0}",
+                ColumnSummaryType.Sum => $"Σ {stats.Sum.ToString(format, CultureInfo.CurrentCulture)}",
+                ColumnSummaryType.Count => $"# {stats.NotNullCnt.ToString("N0", CultureInfo.CurrentCulture)}",
+                ColumnSummaryType.Average when stats.NotNullCnt > 0 => $"Ø {(stats.Sum / stats.NotNullCnt).ToString(format, CultureInfo.CurrentCulture)}",
+                ColumnSummaryType.Min when stats.MinOfColumn.HasValue => $"↓ {stats.MinOfColumn.Value.ToString(format, CultureInfo.CurrentCulture)}",
+                ColumnSummaryType.Max when stats.MaxOfColumn.HasValue => $"↑ {stats.MaxOfColumn.Value.ToString(format, CultureInfo.CurrentCulture)}",
+                ColumnSummaryType.Distinct => $"≠ {stats.DistinctCnt.ToString("N0", CultureInfo.CurrentCulture)}",
                 _ => string.Empty
             };
 
             if (!string.IsNullOrEmpty(valStr))
             {
                 if (sb.Length > 0) sb.Append("  |  ");
-                sb.Append($"{headerName}: {valStr}");
+                sb.Append(CultureInfo.CurrentCulture, $"{headerName}: {valStr}");
             }
         }
 

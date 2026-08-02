@@ -422,7 +422,7 @@ public sealed partial class ImportViewModel
     [ObservableProperty]
     public partial int SelIndexOpt { get; set; }
 
-    public Action<string[]> ActionFromView;
+    public Action<string[]> ActionFromView { get; set; }
     private readonly Lock _lock = new();
 
     [RelayCommand(AllowConcurrentExecutions = true)]
@@ -594,7 +594,7 @@ public sealed partial class ImportViewModel
                     StringBuilder sb = new();
                     foreach (var item in sheets)
                     {
-                        sb.AppendLine($"{SelectedDatabase}.{SelectedSchema}.{tableNameMask}_{item}");
+                        sb.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"{SelectedDatabase}.{SelectedSchema}.{tableNameMask}_{item}");
                     }
 
                     TabsWarningMessage = sb.ToString();
@@ -605,7 +605,7 @@ public sealed partial class ImportViewModel
                 }
 
                 importItem.Info = "completed !";
-                importItem.Elapsed = (DateTime.Now - importItem.StartTime).ToString(@"hh\:mm\:ss");
+                importItem.Elapsed = (DateTime.Now - importItem.StartTime).ToString(@"hh\:mm\:ss", System.Globalization.CultureInfo.CurrentCulture);
                 importItem.Bck = "LightGreen";
 #if AVALONIA
                 ImportItems.Refresh();

@@ -4,7 +4,7 @@ namespace JustyBase.ViewModels;
 
 public partial class FilterItem(object filterValue, bool isChecked, IValueConverter valueConverter) : ObservableObject
 {
-    public readonly object _filterValue = filterValue;
+    public object _filterValue { get; } = filterValue;
     private readonly IValueConverter _valueConverter = valueConverter;
     private string _stringRepresentation = null;
     private string GetStringRepresentation()

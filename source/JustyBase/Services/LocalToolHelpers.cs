@@ -6,6 +6,7 @@ using DiffPlex.DiffBuilder;
 using DiffPlex.DiffBuilder.Model;
 using JustyBase.Common.Services;
 using JustyBase.PluginCommon.Enums;
+using System.Globalization;
 
 namespace JustyBase.Services;
 
@@ -134,24 +135,24 @@ public static class LocalToolHelpers
 
             if (emittedLines >= lineLimit)
             {
-                sb.AppendLine($"... [diff truncated at {lineLimit} lines]");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"... [diff truncated at {lineLimit} lines]");
                 break;
             }
 
             if (oldType == ChangeType.Deleted)
             {
-                sb.AppendLine($"- {oldLine!.Text}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"- {oldLine!.Text}");
                 emittedLines++;
             }
             else if (newType == ChangeType.Inserted)
             {
-                sb.AppendLine($"+ {newLine!.Text}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"+ {newLine!.Text}");
                 emittedLines++;
             }
             else if (oldType == ChangeType.Modified && newType == ChangeType.Modified)
             {
-                sb.AppendLine($"~ {oldLine!.Text}");
-                sb.AppendLine($"  -> {newLine!.Text}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"~ {oldLine!.Text}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  -> {newLine!.Text}");
                 emittedLines += 2;
             }
         }
@@ -167,7 +168,7 @@ public static class LocalToolHelpers
     public static string FormatReaderPreview(DbDataReader reader, int rowLimit, string databaseName, TimeSpan elapsed)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Query preview from database '{databaseName}' (up to {rowLimit} rows/result-set, elapsed {elapsed.TotalMilliseconds:N0} ms):");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Query preview from database '{databaseName}' (up to {rowLimit} rows/result-set, elapsed {elapsed.TotalMilliseconds:N0} ms):");
 
         var resultSetIndex = 0;
         do
@@ -179,7 +180,7 @@ public static class LocalToolHelpers
 
             resultSetIndex++;
             var headers = Enumerable.Range(0, reader.FieldCount).Select(reader.GetName).ToList();
-            sb.AppendLine($"Result set #{resultSetIndex}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Result set #{resultSetIndex}");
             sb.AppendLine(string.Join(" | ", headers));
             sb.AppendLine(new string('-', Math.Min(180, Math.Max(30, headers.Sum(x => x.Length + 3)))));
 
@@ -195,7 +196,7 @@ public static class LocalToolHelpers
                 count++;
             }
 
-            sb.AppendLine($"Rows shown: {count}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Rows shown: {count}");
             if (count == rowLimit)
             {
                 sb.AppendLine("Preview truncated by rowLimit.");
@@ -208,7 +209,7 @@ public static class LocalToolHelpers
             return $"Statement executed in {elapsed.TotalMilliseconds:N0} ms (database: {databaseName}).";
         }
 
-        sb.AppendLine($"Result sets returned: {resultSetIndex}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Result sets returned: {resultSetIndex}");
         return sb.ToString().TrimEnd();
     }
 

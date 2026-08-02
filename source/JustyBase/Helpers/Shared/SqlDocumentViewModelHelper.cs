@@ -123,9 +123,9 @@ public static partial class SqlDocumentViewModelHelper
     public static SqlExecutionPlan BuildExecutionPlan(bool singleCommandEnabled, string? option, string query, bool continueOnErrorCurrent)
     {
         var singleCommand = ShouldRunAsSingleCommand(singleCommandEnabled, option);
-        var tabsWithRows = query.StartsWith(DatabaseService.TABS_WITH_ROWS);
-        var timeoutOverride = query.Contains(DatabaseService.TIMEOUT_OVERRIDE);
-        var continueOnError = continueOnErrorCurrent || query.Contains(DatabaseService.CONTINUE_ON_ERROR);
+        var tabsWithRows = query.StartsWith(DatabaseService.TABS_WITH_ROWS, StringComparison.Ordinal);
+        var timeoutOverride = query.Contains(DatabaseService.TIMEOUT_OVERRIDE, StringComparison.Ordinal);
+        var continueOnError = continueOnErrorCurrent || query.Contains(DatabaseService.CONTINUE_ON_ERROR, StringComparison.Ordinal);
         var forcedTimeout = FindForcedTimeout(query);
         var sqlStatements = ConvertSqlTextToListOfSqls(singleCommand, query);
 

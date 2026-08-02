@@ -8,11 +8,14 @@
 		<BuiltInComInteropSupport>false</BuiltInComInteropSupport>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
+		<!-- Migrate the UI application to flow analysis in batches; annotations keep this build usable meanwhile. -->
 		<Nullable>annotations</Nullable>
 		<LangVersion>preview</LangVersion>
-		<WarningsAsErrors>CA2200</WarningsAsErrors>
+		<WarningsAsErrors>$(WarningsAsErrors);CA2200</WarningsAsErrors>
 		<!-- Views are constructed through DI with parameterized constructors; Avalonia's runtime-loader check is not applicable. -->
 		<NoWarn>$(NoWarn);AVLN3001</NoWarn>
+		<!-- The sibling grid is an external checkout; keep its known warnings local to this project reference. -->
+		<ProDataGridNoWarn>CS8632;CS8622;CS8600;CS8625;CS8618;CS8603;CA1815;AVP1012;CS0618;CS8602;CS1587;CS8604;CS8620;CS8601;CS1573;CS8769;CA1847;CS0067;CS1572;CS8629;CS8765</ProDataGridNoWarn>
 		<ApplicationIcon>Assets\Icon2.ico</ApplicationIcon>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -100,7 +103,7 @@
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
 		<PackageReference Include="OllamaSharp" Version="5.4.30" />
 		<!-- Prefer sibling ProDataGrid (hierarchical grid). Path from Directory.Build.props. -->
-		<ProjectReference Include="$(ProDataGridProject)" Condition="'$(UseLocalProDataGrid)' == 'true'" />
+		<ProjectReference Include="$(ProDataGridProject)" Condition="'$(UseLocalProDataGrid)' == 'true'" AdditionalProperties="NoWarn=$(ProDataGridNoWarn)" />
 		<PackageReference Include="Velopack" Version="1.2.0" />
 		<PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Desktop" Version="12.1.1" />

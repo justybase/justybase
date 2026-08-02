@@ -126,7 +126,7 @@ public class SqlExecutionService : ISqlExecutionService
 
                 actualDatabaseService.DbMessageAction += o =>
                 {
-                    if (o?.StartsWith("QUERY PLAN:") == true)
+            if (o?.StartsWith("QUERY PLAN:", StringComparison.Ordinal) == true)
                     {
                         _messageForUserTools.ShowSimpleMessageBoxInstance(o);
                     }
@@ -353,7 +353,7 @@ public class SqlExecutionService : ISqlExecutionService
                 bridge.TrackQueryState(actualqlobalQueryNum, cmd, SqlCommandState.started);
 
                 CommandBehavior cb = CommandBehavior.SequentialAccess;
-                if (option.StartsWith(".csv"))
+            if (option.StartsWith(".csv", StringComparison.Ordinal))
                 {
                     cb = CommandBehavior.Default;
                 }
@@ -393,15 +393,15 @@ public class SqlExecutionService : ISqlExecutionService
             {
                 while (true)
                 {
-                    if (string.IsNullOrEmpty(forceAnotherOption) && option.StartsWith("Grid") && rdr.FieldCount > 0)
+            if (string.IsNullOrEmpty(forceAnotherOption) && option.StartsWith("Grid", StringComparison.Ordinal) && rdr.FieldCount > 0)
                     {
                         bridge.HandleStandardGrid(actualDatabaseService, $"{localTitle}_{currentLocalSqlNumber}", query, null, executionPlan.TabsWithRows, actualqlobalQueryNum, rdr, cmd, shortQuery);
                     }
-                    else if ((forceAnotherOption == "@expXlsx" || option.StartsWith(".xlsb")) && !string.IsNullOrWhiteSpace(filePathToExport))
+            else if ((forceAnotherOption == "@expXlsx" || option.StartsWith(".xlsb", StringComparison.Ordinal)) && !string.IsNullOrWhiteSpace(filePathToExport))
                     {
                         await HandleExcelExportAsync(rdr, sql);
                     }
-                    else if ((forceAnotherOption == "@expCsv" || option.Contains(".csv") || option.StartsWith(".parquet")) && !string.IsNullOrWhiteSpace(filePathToExport))
+            else if ((forceAnotherOption == "@expCsv" || option.Contains(".csv", StringComparison.Ordinal) || option.StartsWith(".parquet", StringComparison.Ordinal)) && !string.IsNullOrWhiteSpace(filePathToExport))
                     {
                         await HandleCsvParquetExportAsync(rdr, inlineExportMatch, exportUpFrontRowCount);
                     }
@@ -487,22 +487,22 @@ public class SqlExecutionService : ISqlExecutionService
                 _sqlExecutionErrorStore.Record(exx1, localTitle, selectedConnectionName, selectedDatabase);
                 if (exx1.Message is not null
                     && exx1.Message != "ERROR: Transaction rolled back by client"
-                    && !exx1.Message.StartsWith("ERROR: Query was cancelled")
-                    && !exx1.Message.StartsWith("ERROR: 15 : Header precompile failed.")
-                    && !exx1.Message.StartsWith("ERROR: relation does not exist")
-                    && !exx1.Message.StartsWith("ERROR [42704] [IBM][DB2/NT64]")
-                    && !exx1.Message.StartsWith("ERROR [42000]")
-                    && !exx1.Message.StartsWith("ERROR: Attribute ")
-                    && !exx1.Message.StartsWith("A timeout has occured. If you were establishing a connection")
-                    && !exx1.Message.StartsWith("The CommandText to be set should not be null or Empty!")
-                    && !exx1.Message.StartsWith("ERROR:  relation does not exist")
+                && !exx1.Message.StartsWith("ERROR: Query was cancelled", StringComparison.Ordinal)
+                && !exx1.Message.StartsWith("ERROR: 15 : Header precompile failed.", StringComparison.Ordinal)
+                && !exx1.Message.StartsWith("ERROR: relation does not exist", StringComparison.Ordinal)
+                && !exx1.Message.StartsWith("ERROR [42704] [IBM][DB2/NT64]", StringComparison.Ordinal)
+                && !exx1.Message.StartsWith("ERROR [42000]", StringComparison.Ordinal)
+                && !exx1.Message.StartsWith("ERROR: Attribute ", StringComparison.Ordinal)
+                && !exx1.Message.StartsWith("A timeout has occured. If you were establishing a connection", StringComparison.Ordinal)
+                && !exx1.Message.StartsWith("The CommandText to be set should not be null or Empty!", StringComparison.Ordinal)
+                && !exx1.Message.StartsWith("ERROR:  relation does not exist", StringComparison.Ordinal)
                     )
                 {
                     _messageForUserTools.ShowSimpleMessageBoxInstance(exx1);
                 }
 
                 if ((actualDatabaseService.DatabaseType == DatabaseTypeEnum.NetezzaSQL || actualDatabaseService.DatabaseType == DatabaseTypeEnum.NetezzaSQLOdbc)
-                    && con is not null && exx1.Message.StartsWith("A timeout has occured. If you were establishing a connection"))
+                && con is not null && exx1.Message.StartsWith("A timeout has occured. If you were establishing a connection", StringComparison.Ordinal))
                 {
                     _messageForUserTools.ShowSimpleMessageBoxInstance("Due to NPS driver limitation connection have to be reopened", "Error");
                     con.Close();

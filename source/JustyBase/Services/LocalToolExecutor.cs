@@ -11,6 +11,7 @@ using JustyBase.Services.Documents;
 using JustyBase.ViewModels.Tools;
 using Microsoft.Extensions.AI;
 using System.ComponentModel;
+using System.Globalization;
 using System.Data.Common;
 using System.Diagnostics;
 using System.Text;
@@ -126,15 +127,15 @@ public sealed class LocalToolExecutor : ILocalToolExecutor
 
             var sb = new StringBuilder();
             sb.AppendLine("=== ACTIVE DATABASE CONTEXT ===");
-            sb.AppendLine($"Connection: {connectionName}");
-            sb.AppendLine($"Database: {databaseName}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Connection: {connectionName}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Database: {databaseName}");
             sb.AppendLine();
             sb.AppendLine("Always use qualified names: DATABASE.SCHEMA.OBJECT");
             sb.AppendLine();
             sb.AppendLine("Available schemas:");
             foreach (var schema in schemas)
             {
-                sb.AppendLine($"  - {databaseName}.{schema}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  - {databaseName}.{schema}");
             }
 
             return SanitizeToolResult(sb.ToString().TrimEnd(), nameof(GetActiveDatabaseContext));
@@ -162,10 +163,10 @@ public sealed class LocalToolExecutor : ILocalToolExecutor
             var schemas = service.GetSchemas(targetDb, "").Take(limit).ToList();
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Schemas in {connectionName}.{targetDb} ({schemas.Count}):");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Schemas in {connectionName}.{targetDb} ({schemas.Count}):");
             foreach (var schema in schemas)
             {
-                sb.AppendLine($"  - {targetDb}.{schema}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  - {targetDb}.{schema}");
             }
 
             return sb.ToString().TrimEnd();
@@ -206,19 +207,19 @@ public sealed class LocalToolExecutor : ILocalToolExecutor
                 if (objects.Count == 0) continue;
 
                 totalFound += objects.Count;
-                sb.AppendLine($"\n{type.ToStringEx()}s in {activeDatabase}.{schemaName} ({objects.Count}):");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"\n{type.ToStringEx()}s in {activeDatabase}.{schemaName} ({objects.Count}):");
 
                 foreach (var obj in objects)
                 {
                     var fqn = $"{activeDatabase}.{schemaName}.{obj.Name}";
                     if (string.IsNullOrWhiteSpace(obj.Desc))
                     {
-                        sb.AppendLine($"  - {fqn}");
+                        sb.AppendLine(CultureInfo.InvariantCulture, $"  - {fqn}");
                     }
                     else
                     {
                         var desc = obj.Desc.Length > 60 ? obj.Desc[..60] + "..." : obj.Desc;
-                        sb.AppendLine($"  - {fqn} // {desc}");
+                        sb.AppendLine(CultureInfo.InvariantCulture, $"  - {fqn} // {desc}");
                     }
                 }
             }
@@ -281,10 +282,10 @@ public sealed class LocalToolExecutor : ILocalToolExecutor
             if (found.Count == 0) return $"No objects matching '{pattern}' were found.";
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Found {found.Count} object(s) (limit {limit}):");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Found {found.Count} object(s) (limit {limit}):");
             foreach (var item in found)
             {
-                sb.AppendLine($"- {activeDatabase}.{item.Schema}.{item.Object.Name} [{item.Type.ToStringEx()}]");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"- {activeDatabase}.{item.Schema}.{item.Object.Name} [{item.Type.ToStringEx()}]");
             }
             return sb.ToString().TrimEnd();
         }
@@ -324,10 +325,10 @@ public sealed class LocalToolExecutor : ILocalToolExecutor
                 if (columns.Count == 0) continue;
 
                 var sb = new StringBuilder();
-                sb.AppendLine($"Columns for {objectDatabase}.{schema}.{objectShortName}:");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"Columns for {objectDatabase}.{schema}.{objectShortName}:");
                 foreach (var column in columns)
                 {
-                    sb.AppendLine($"- {column.Name} {column.FullTypeName}");
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"- {column.Name} {column.FullTypeName}");
                 }
                 return sb.ToString().TrimEnd();
             }
@@ -416,7 +417,7 @@ public sealed class LocalToolExecutor : ILocalToolExecutor
 
         var fqName = $"{targetDatabase}.{targetSchema}.{shortName}";
         var sb = new StringBuilder();
-        sb.AppendLine($"Metadata for {fqName}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Metadata for {fqName}");
 
         try
         {
@@ -428,8 +429,8 @@ public sealed class LocalToolExecutor : ILocalToolExecutor
                 var organizeLine = ddl.Split(["\r\n", "\n"], StringSplitOptions.None)
                     .FirstOrDefault(x => x.Contains("ORGANIZE ON", StringComparison.OrdinalIgnoreCase));
 
-                if (!string.IsNullOrWhiteSpace(distLine)) sb.AppendLine($"- Distribution: {distLine.Trim()}");
-                if (!string.IsNullOrWhiteSpace(organizeLine)) sb.AppendLine($"- Organize: {organizeLine.Trim()}");
+                if (!string.IsNullOrWhiteSpace(distLine)) sb.AppendLine(CultureInfo.InvariantCulture, $"- Distribution: {distLine.Trim()}");
+                if (!string.IsNullOrWhiteSpace(organizeLine)) sb.AppendLine(CultureInfo.InvariantCulture, $"- Organize: {organizeLine.Trim()}");
             }
 
             if (service is INetezza netezza)
@@ -441,14 +442,14 @@ public sealed class LocalToolExecutor : ILocalToolExecutor
                     d1.TryGetValue(targetSchema, out var d2) &&
                     d2.TryGetValue(shortName, out var distCols) && distCols.Count > 0)
                 {
-                    sb.AppendLine($"- Distribution columns: {string.Join(", ", distCols)}");
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"- Distribution columns: {string.Join(", ", distCols)}");
                 }
 
                 if (netezza.OrganizeDictionary.TryGetValue(targetDatabase, out var o1) &&
                     o1.TryGetValue(targetSchema, out var o2) &&
                     o2.TryGetValue(shortName, out var organizeCols) && organizeCols.Count > 0)
                 {
-                    sb.AppendLine($"- Organize columns: {string.Join(", ", organizeCols)}");
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"- Organize columns: {string.Join(", ", organizeCols)}");
                 }
             }
 
@@ -465,7 +466,7 @@ public sealed class LocalToolExecutor : ILocalToolExecutor
         }
         catch (Exception ex)
         {
-            sb.AppendLine($"Metadata lookup warning: {ex.Message}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"Metadata lookup warning: {ex.Message}");
         }
 
         return sb.ToString().TrimEnd();
@@ -518,9 +519,9 @@ public sealed class LocalToolExecutor : ILocalToolExecutor
 
         var sb = new StringBuilder();
         sb.AppendLine("Active SQL editor context:");
-        sb.AppendLine($"- Buffer length: {context.Value.FullText.Length}");
-        sb.AppendLine($"- Caret offset: {context.Value.CaretOffset}");
-        sb.AppendLine($"- Selection: {(hasSelection ? $"start={context.Value.SelectionStart}, length={context.Value.SelectionLength}" : "none")}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"- Buffer length: {context.Value.FullText.Length}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"- Caret offset: {context.Value.CaretOffset}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"- Selection: {(hasSelection ? $"start={context.Value.SelectionStart}, length={context.Value.SelectionLength}" : "none")}");
         if (hasSelection)
         {
             sb.AppendLine("Selected snippet:");
@@ -573,11 +574,11 @@ public sealed class LocalToolExecutor : ILocalToolExecutor
 
         var matches = query.Take(limit).ToList();
         var sb = new StringBuilder();
-        sb.AppendLine($"Diagnostics ({matches.Count} shown, {items.Count} total):");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Diagnostics ({matches.Count} shown, {items.Count} total):");
         foreach (var d in matches)
         {
             var loc = d.StartLine > 0 ? $" L{d.StartLine}:{d.StartColumn}" : "";
-            sb.AppendLine($"[{d.Severity}] {d.RuleId}: {d.Message}{loc}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"[{d.Severity}] {d.RuleId}: {d.Message}{loc}");
         }
 
         return sb.ToString().TrimEnd();

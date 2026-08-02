@@ -8,7 +8,7 @@ public sealed class TableOfSqlResults
     public List<string> DataTypeNames { get; set; }
     public List<TypeCode> TypeCodes { get; set; }
 
-    public byte[] NumericScales = Array.Empty<byte>();
+    public byte[] NumericScales { get; set; } = Array.Empty<byte>();
 
     public byte GetNumericScale(int index)
     {

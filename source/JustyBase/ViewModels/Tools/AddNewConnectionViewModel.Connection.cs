@@ -39,7 +39,7 @@ public sealed partial class AddNewConnectionViewModel
     [ObservableProperty]
     public partial bool ShowExistings { get; set; } = true;
 
-    public Action CloseWindowAction;//close window
+    public Action? CloseWindowAction { get; set; }//close window
 
     private void AddNew()
     {

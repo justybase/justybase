@@ -13,8 +13,8 @@ public partial class AskForConfirmViewModel : ObservableObject
 
     public string ResultAsString { get; set; } = "Cancel";
 
-    public Action? CloseAction;
-    public Action? AdditionalYesAction;
+    public Action? CloseAction { get; set; }
+    public Action? AdditionalYesAction { get; set; }
 
     [RelayCommand]
     private void ProcessAnswerKeys(string answerName)

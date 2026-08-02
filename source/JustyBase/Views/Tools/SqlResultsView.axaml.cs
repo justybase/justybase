@@ -496,13 +496,13 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
     {
         if (e.Row.Header is TextBlock tb)
         {
-            tb.Text = (e.Row.Index + 1).ToString("N0");
+            tb.Text = (e.Row.Index + 1).ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
         }
         else
         {
             e.Row.Header = new TextBlock()
             {
-                Text = (e.Row.Index + 1).ToString("N0"),
+                Text = (e.Row.Index + 1).ToString("N0", System.Globalization.CultureInfo.CurrentCulture),
                 Margin = RowHeaderMargin,
                 FontSize = 12
             };

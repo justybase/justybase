@@ -59,12 +59,12 @@ namespace JustyBase.Converters
 
                 string valStr = summaryType switch
                 {
-                    ColumnSummaryType.Sum => $"Σ {stats.Sum.ToString(format)}",
-                    ColumnSummaryType.Count => $"# {stats.NotNullCnt:N0}",
-                    ColumnSummaryType.Average when stats.NotNullCnt > 0 => $"Ø {(stats.Sum / stats.NotNullCnt).ToString(format)}",
-                    ColumnSummaryType.Min when stats.MinOfColumn.HasValue => $"↓ {stats.MinOfColumn.Value.ToString(format)}",
-                    ColumnSummaryType.Max when stats.MaxOfColumn.HasValue => $"↑ {stats.MaxOfColumn.Value.ToString(format)}",
-                    ColumnSummaryType.Distinct => $"≠ {stats.DistinctCnt:N0}",
+                    ColumnSummaryType.Sum => $"Σ {stats.Sum.ToString(format, culture)}",
+                    ColumnSummaryType.Count => $"# {stats.NotNullCnt.ToString("N0", culture)}",
+                    ColumnSummaryType.Average when stats.NotNullCnt > 0 => $"Ø {(stats.Sum / stats.NotNullCnt).ToString(format, culture)}",
+                    ColumnSummaryType.Min when stats.MinOfColumn.HasValue => $"↓ {stats.MinOfColumn.Value.ToString(format, culture)}",
+                    ColumnSummaryType.Max when stats.MaxOfColumn.HasValue => $"↑ {stats.MaxOfColumn.Value.ToString(format, culture)}",
+                    ColumnSummaryType.Distinct => $"≠ {stats.DistinctCnt.ToString("N0", culture)}",
                     _ => ""
                 };
 

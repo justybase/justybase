@@ -64,7 +64,7 @@ public sealed partial class ImportViewModel : DocumentBaseVM
         {
             foreach (var importItem in _importsInProgress)
             {
-                importItem.Elapsed = (DateTime.Now - importItem.StartTime).ToString(@"hh\:mm\:ss");
+                importItem.Elapsed = (DateTime.Now - importItem.StartTime).ToString(@"hh\:mm\:ss", System.Globalization.CultureInfo.CurrentCulture);
             }
         }
         ImportItems.Refresh();

@@ -13,12 +13,12 @@ public static class SqlExportPathHelper
 
     public static ExportFileSpec ResolveExportSpec(string option)
     {
-        if (option.StartsWith(".xlsb"))
+        if (option.StartsWith(".xlsb", StringComparison.Ordinal))
         {
             return new ExportFileSpec("excel files", "*.xlsb", "xlsb");
         }
 
-        if (option.StartsWith(".parquet"))
+        if (option.StartsWith(".parquet", StringComparison.Ordinal))
         {
             return new ExportFileSpec("parquet files", "*.parquet", "parquet");
         }

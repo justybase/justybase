@@ -87,7 +87,7 @@ public abstract partial class DatabaseService : IDatabaseService, IDatabaseWithS
         {
             if (!word.StartsWith('"'))
             {
-                word = word.ToUpper();
+                word = word.ToUpperInvariant();
             }
             else if (word.StartsWith('"') && word.EndsWith('"'))
             {

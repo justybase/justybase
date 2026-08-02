@@ -4,6 +4,7 @@ using JustyBase.Common.Models;
 using JustyBase.Helpers;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginDatabaseBase.Database;
+using System.Globalization;
 using System.Text;
 
 namespace JustyBase.Services;
@@ -205,15 +206,15 @@ public sealed class LocalStateProvider : ILocalStateProvider
             {
                 var fileInfo = new FileInfo(attachment.Path);
                 var ext = Path.GetExtension(attachment.Path).ToLowerInvariant();
-                sb.AppendLine($"- File: {displayName}");
-                sb.AppendLine($"  Path: {attachment.Path}");
-                sb.AppendLine($"  Type: {ext}");
-                sb.AppendLine($"  Size: {FormatFileSize(fileInfo.Length)}");
-                sb.AppendLine($"  Lines: {CountLines(attachment.Path)}");
-                sb.AppendLine($"  Last modified: {fileInfo.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"- File: {displayName}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  Path: {attachment.Path}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  Type: {ext}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  Size: {FormatFileSize(fileInfo.Length)}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  Lines: {CountLines(attachment.Path)}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  Last modified: {fileInfo.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
                 if (attachment.StartLine.HasValue || attachment.EndLine.HasValue)
                 {
-                    sb.AppendLine($"  Selected range: lines {attachment.StartLine ?? 1}-{attachment.EndLine ?? fileInfo.Length}");
+                    sb.AppendLine(CultureInfo.InvariantCulture, $"  Selected range: lines {attachment.StartLine ?? 1}-{attachment.EndLine ?? fileInfo.Length}");
                 }
                 sb.AppendLine();
             }
@@ -221,10 +222,10 @@ public sealed class LocalStateProvider : ILocalStateProvider
             {
                 var dirInfo = new DirectoryInfo(attachment.Path);
                 var fileCount = dirInfo.EnumerateFiles("*", SearchOption.AllDirectories).Count();
-                sb.AppendLine($"- Directory: {displayName}");
-                sb.AppendLine($"  Path: {attachment.Path}");
-                sb.AppendLine($"  Files: {fileCount}");
-                sb.AppendLine($"  Last modified: {dirInfo.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"- Directory: {displayName}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  Path: {attachment.Path}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  Files: {fileCount}");
+                sb.AppendLine(CultureInfo.InvariantCulture, $"  Last modified: {dirInfo.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
                 sb.AppendLine();
             }
         }

@@ -761,7 +761,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         }
     }
 
-    public Action<object, bool>? InsertTextAction;
+    public Action<object, bool>? InsertTextAction { get; set; }
 
     [ObservableProperty]
     public partial bool WordWrap { get; set; }
@@ -1259,7 +1259,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private readonly char[] _variavleEndings = [' ', '\r', '\n'];
     private void SelectConnectionFromContext()
     {
-        if (SqlEditor.Text.Length > 50 && SqlEditor.Text.StartsWith("--"))
+        if (SqlEditor.Text.Length > 50 && SqlEditor.Text.StartsWith("--", StringComparison.Ordinal))
         {
             var startPart = SqlEditor.Text.AsSpan().Slice(2, 48);
             int index = startPart.IndexOfAny(_variavleEndings);

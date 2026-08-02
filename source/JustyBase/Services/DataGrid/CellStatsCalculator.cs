@@ -1,5 +1,7 @@
 namespace JustyBase.Services.DataGrid;
 
+using System.Globalization;
+
 /// <summary>
 /// Result of cell stats calculation (Avalonia UI shape).
 /// </summary>
@@ -15,8 +17,8 @@ public sealed class CellStatsResult
 
     public string ToDisplayString()
     {
-        string minText = Min.HasValue ? Min.Value.ToString("N3") : "-";
-        string maxText = Max.HasValue ? Max.Value.ToString("N3") : "-";
+        string minText = Min.HasValue ? Min.Value.ToString("N3", CultureInfo.CurrentCulture) : "-";
+        string maxText = Max.HasValue ? Max.Value.ToString("N3", CultureInfo.CurrentCulture) : "-";
         return $"Selected {SelectedCount:N0} cells | Sum {Sum:N3} | Count {NotNullCount:N0} | Distinct {DistinctCount:N0} | Min {minText} | Max {maxText}";
     }
 }

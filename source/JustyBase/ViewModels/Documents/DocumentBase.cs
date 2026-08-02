@@ -32,7 +32,7 @@ public partial class DocumentBaseVM : Document, IDeferredContentPresentation
     private readonly bool _confirmDocumentClosing = false;
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly IDocumentCloseDecisionService _documentCloseDecisionService;
-    public readonly IActiveDocumentManager ActiveDocumentManager;
+    public IActiveDocumentManager ActiveDocumentManager { get; }
 
     // Removed parameterless constructor with Service Locator
 

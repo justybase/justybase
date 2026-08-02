@@ -101,7 +101,7 @@ public sealed class ProgramErrorHandlingService : IProgramErrorHandlingService
         ArgumentNullException.ThrowIfNull(exception);
 
         StringBuilder sb = new();
-        sb.AppendLine($"""
+        sb.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"""
                 Unobserved Task Exception Message: 
                     {exception.Message}
                 Unobserved Task Exception StackTrace

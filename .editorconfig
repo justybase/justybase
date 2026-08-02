@@ -7,6 +7,12 @@ insert_final_newline = true
 indent_style = space
 indent_size = 4
 
+# Keep SQL construction and native/security findings visible in every project.
+dotnet_diagnostic.CA2100.severity = warning
+dotnet_diagnostic.CA5392.severity = warning
+dotnet_diagnostic.CA5394.severity = warning
+dotnet_diagnostic.CA5401.severity = warning
+
 # Desktop UI assembly: public types are used by XAML, DI and composition.
 [source/JustyBase/**/*.cs]
 dotnet_diagnostic.CA1515.severity = silent
@@ -29,3 +35,28 @@ dotnet_diagnostic.CA1707.severity = silent
 dotnet_diagnostic.CA2007.severity = silent
 
 # Nullability, disposal, SQL construction and P/Invoke security remain active.
+
+# These names are part of the existing public plugin contract and changing
+# them would break consumers; keep the naming exceptions scoped to the contract.
+[source/JustyBase.PluginCommon/**/*.cs]
+dotnet_diagnostic.CA1707.severity = silent
+dotnet_diagnostic.CA1711.severity = silent
+dotnet_diagnostic.CA1720.severity = silent
+
+# Existing plugin contracts expose legacy public fields and names. These are
+# compatibility warnings, not correctness or security findings.
+[source/JustyBase.PluginBase/**/*.cs]
+dotnet_diagnostic.CA1051.severity = silent
+dotnet_diagnostic.CA1707.severity = silent
+dotnet_diagnostic.CA1711.severity = silent
+dotnet_diagnostic.CA1725.severity = silent
+
+# Public library namespaces/types are established API names.
+[source/JustyBase.Public.Lib/**/*.cs]
+dotnet_diagnostic.CA1711.severity = silent
+dotnet_diagnostic.CA1716.severity = silent
+
+# Database plugins preserve legacy provider contracts and parameter names.
+[source/Plugins/**/*.cs]
+dotnet_diagnostic.CA1707.severity = silent
+dotnet_diagnostic.CA1725.severity = silent

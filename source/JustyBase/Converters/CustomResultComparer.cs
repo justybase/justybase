@@ -62,13 +62,13 @@ internal sealed class CustomResultComparer : IComparer
     {
         T val1 = (T)x.Fields[_index];
         T val2 = (T)y.Fields[_index];
-        return (val1).CompareTo(val2);
+        return val1.CompareTo(val2);
     }
 
     public int CompareDef(TableRow x, TableRow y)
     {
         var val1 = x.Fields[_index]?.ToString();
         var val2 = y.Fields[_index]?.ToString();
-        return (val1).CompareTo(val2);
+        return string.Compare(val1, val2, StringComparison.Ordinal);
     }
 }

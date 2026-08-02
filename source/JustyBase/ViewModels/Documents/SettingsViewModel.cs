@@ -628,8 +628,30 @@ public partial class SettingsViewModel : DocumentBaseVM
         get;
         set
         {
-            SetProperty(ref field, value);
+            if (!SetProperty(ref field, value))
+            {
+                return;
+            }
+
             _generalApplicationData.Config.EnableEmbeddedFimAi = value;
+
+            if (value && !_suppressFimSideEffects)
+            {
+#if EMBEDDED_FIM
+                if (!_fimBootstrap.IsSelectedModelPresent)
+                {
+                    _messageForUserTools.ShowSimpleMessageBoxInstance(
+                        "Embedded FIM is enabled, but the selected model is not downloaded yet. " +
+                        "Download the model below in the Embedded AI (FIM) settings. " +
+                        "After the download, the current SQL tab will start using FIM without restarting the application.",
+                        "FIM model required");
+                }
+#else
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    "Embedded FIM is not available in this build.",
+                    "FIM unavailable");
+#endif
+            }
         }
     }
 
@@ -1604,7 +1626,7 @@ public partial class SettingsViewModel : DocumentBaseVM
         }
     }
 
-    public string AiChatTemperatureLabel => AiChatTemperature.ToString("F1");
+    public string AiChatTemperatureLabel => AiChatTemperature.ToString("F1", System.Globalization.CultureInfo.CurrentCulture);
 
     public int AiChatMaxTokens
     {

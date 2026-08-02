@@ -124,7 +124,7 @@ public sealed class FileSimpleLogger : ISimpleLogger, IDisposable
         {
             var redacted = LogMessageRedactor.Redact(body);
             var sb = new StringBuilder(redacted.Length + 96);
-            sb.Append('[').Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")).Append("] ")
+            sb.Append('[').Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture)).Append("] ")
               .Append(level)
               .Append(" isCrash=").Append(isCrash)
               .AppendLine()

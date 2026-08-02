@@ -22,6 +22,7 @@ public sealed class InlineCompletionController : IDisposable
     private readonly GhostTextElementGenerator _generator;
     private readonly Func<InlineCompletionContext, CancellationToken, Task<string?>> _completeAsync;
     private readonly Func<int>? _getDebounceMs;
+    private readonly Func<bool>? _getIsEnabled;
     private readonly int _debounceMs;
     private CancellationTokenSource? _debounceCts;
     private bool _attached;
@@ -31,16 +32,24 @@ public sealed class InlineCompletionController : IDisposable
         TextEditor editor,
         Func<InlineCompletionContext, CancellationToken, Task<string?>> completeAsync,
         int debounceMs = DefaultDebounceMs,
-        Func<int>? getDebounceMs = null)
+        Func<int>? getDebounceMs = null,
+        Func<bool>? getIsEnabled = null)
     {
         _editor = editor ?? throw new ArgumentNullException(nameof(editor));
         _completeAsync = completeAsync ?? throw new ArgumentNullException(nameof(completeAsync));
         _getDebounceMs = getDebounceMs;
+        _getIsEnabled = getIsEnabled;
         _debounceMs = SnapDebounceMs(debounceMs);
         _generator = new GhostTextElementGenerator();
     }
 
-    public bool IsEnabled { get; set; } = true;
+    private bool _isEnabled = true;
+
+    public bool IsEnabled
+    {
+        get => _getIsEnabled?.Invoke() ?? _isEnabled;
+        set => _isEnabled = value;
+    }
 
     private int ResolveDebounceMs() =>
         SnapDebounceMs(_getDebounceMs?.Invoke() ?? _debounceMs);
@@ -121,6 +130,9 @@ public sealed class InlineCompletionController : IDisposable
         _debounceCts = null;
         _disposed = true;
     }
+
+    /// <summary>Requests a completion using the current editor text and caret position.</summary>
+    public void RequestCompletion() => Schedule();
 
     private void OnTextEntering(object? sender, TextCompositionEventArgs e)
     {

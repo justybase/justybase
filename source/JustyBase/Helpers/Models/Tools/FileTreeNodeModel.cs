@@ -4,6 +4,7 @@ using JustyBase.Common.Contracts;
 using JustyBase.Helpers.Interactions;
 using JustyBase.PluginCommon.Contracts;
 using System.Collections.ObjectModel;
+using System.Globalization;
 
 namespace JustyBase.Models.Tools;
 
@@ -76,12 +77,12 @@ public partial class FileTreeNodeModel : ObservableObject
                 if (Size <= 1024 * 1024)
                 {
                     double l = (double)(Size / 1024.0);
-                    return l.ToString("N0") + " KB";
+                    return l.ToString("N0", CultureInfo.CurrentCulture) + " KB";
                 }
                 else
                 {
                     double l = (double)(Size / 1024.0 / 1024.0);
-                    return l.ToString("N1") + " MB";
+                    return l.ToString("N1", CultureInfo.CurrentCulture) + " MB";
                 }
             }
         }

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Globalization;
 
 namespace JustyBase.Services;
 
@@ -11,23 +12,23 @@ public static class LocalDatabaseContextFormatter
     {
         var sb = new StringBuilder();
         sb.AppendLine("[DATABASE_CONTEXT]");
-        sb.AppendLine($"Active Connection: {connectionName}");
-        sb.AppendLine($"Active Database: {databaseName}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Active Connection: {connectionName}");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"Active Database: {databaseName}");
         sb.AppendLine();
         sb.AppendLine("CRITICAL: Always use qualified object names:");
-        sb.AppendLine($"  Preferred: {databaseName}.SCHEMA.OBJECT");
-        sb.AppendLine($"  If schema unknown: {databaseName}..OBJECT (double dot - valid but less preferred)");
-        sb.AppendLine($"  Example: SELECT * FROM {databaseName}.ADMIN.USERS");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"  Preferred: {databaseName}.SCHEMA.OBJECT");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"  If schema unknown: {databaseName}..OBJECT (double dot - valid but less preferred)");
+        sb.AppendLine(CultureInfo.InvariantCulture, $"  Example: SELECT * FROM {databaseName}.ADMIN.USERS");
         sb.AppendLine();
         sb.AppendLine("Available schemas:");
         foreach (var schema in schemas)
         {
-            sb.AppendLine($"  - {databaseName}.{schema}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"  - {databaseName}.{schema}");
         }
         sb.AppendLine("[/DATABASE_CONTEXT]");
         return sb.ToString().TrimEnd();
     }
 
     public static string BuildFallbackContext(string connectionName, string databaseName)
-        => $"[DATABASE_CONTEXT]\nActive Database: {databaseName}\nConnection: {connectionName}\nFormat: {databaseName}.SCHEMA.OBJECT or {databaseName}..OBJECT\n[/DATABASE_CONTEXT]";
+        => string.Format(CultureInfo.InvariantCulture, "[DATABASE_CONTEXT]\nActive Database: {0}\nConnection: {1}\nFormat: {0}.SCHEMA.OBJECT or {0}..OBJECT\n[/DATABASE_CONTEXT]", databaseName, connectionName);
 }

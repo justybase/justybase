@@ -108,16 +108,19 @@ public sealed class FimModelBootstrapService : IFimModelBootstrapService
     private readonly LlamaSharpCompletionProvider _provider;
     private readonly IFimModelStore _store;
     private readonly LlamaSharpModelHost _host;
+    private readonly FimInlineCompletionBridge _bridge;
     private int _busy;
 
     public FimModelBootstrapService(
         LlamaSharpCompletionProvider provider,
         IFimModelStore store,
-        LlamaSharpModelHost host)
+        LlamaSharpModelHost host,
+        FimInlineCompletionBridge bridge)
     {
         _provider = provider;
         _store = store;
         _host = host;
+        _bridge = bridge;
     }
 
     public string ModelsDirectory => _store.ModelsDirectory;
@@ -261,6 +264,7 @@ public sealed class FimModelBootstrapService : IFimModelBootstrapService
         });
 
         await _provider.EnsureReadyAsync(combined, cancellationToken).ConfigureAwait(false);
+        _bridge.NotifyModelReady();
     }
 }
 
@@ -273,6 +277,10 @@ public sealed class FimEditorAttachment : IDisposable
     public FimEditorAttachment(FimInlineCompletionBridge? bridge)
     {
         _bridge = bridge;
+        if (_bridge is not null)
+        {
+            _bridge.ModelReady += OnModelReady;
+        }
     }
 
     public void Attach(TextEditor editor, Func<bool> isEnabled, Func<int>? getDebounceMs = null)
@@ -288,8 +296,8 @@ public sealed class FimEditorAttachment : IDisposable
         _controller = new InlineCompletionController(
             editor,
             (ctx, ct) => _bridge.CompleteAsync(ctx, ct),
-            getDebounceMs: getDebounceMs);
-        _controller.IsEnabled = isEnabled();
+            getDebounceMs: getDebounceMs,
+            getIsEnabled: isEnabled);
         _controller.Attach();
     }
 
@@ -307,5 +315,14 @@ public sealed class FimEditorAttachment : IDisposable
         _controller = null;
     }
 
-    public void Dispose() => Detach();
+    private void OnModelReady(object? sender, EventArgs e) => _controller?.RequestCompletion();
+
+    public void Dispose()
+    {
+        Detach();
+        if (_bridge is not null)
+        {
+            _bridge.ModelReady -= OnModelReady;
+        }
+    }
 }

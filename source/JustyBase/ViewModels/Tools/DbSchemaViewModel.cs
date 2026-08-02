@@ -40,7 +40,7 @@ public sealed partial class DbSchemaViewModel : Tool
         return SelectedSchemaItem.ActualTypeInDatabase;
     }
 
-    public Action FocusAndBringSelectionIntoView;
+    public Action? FocusAndBringSelectionIntoView { get; set; }
 
     public async Task ExpandToNodeFull(string[] toExpandPath, CancellationToken cancellationToken = default)
     {
@@ -296,7 +296,7 @@ public sealed partial class DbSchemaViewModel : Tool
 
         var sql = await IDatabaseSchemaItem.GetCode(LastItemConrtextMenuReq, CONNECTION_NAME, optionName, _generalApplicationData, _simpleLogger);
 
-        if (optionName.EndsWith("CLIP"))
+        if (optionName.EndsWith("CLIP", StringComparison.Ordinal))
         {
             await _clipboardService.SetTextAsync(sql);
         }

@@ -16,6 +16,7 @@ $projectPaths = [regex]::Matches($solutionText, '<Project\s+Path="(?<path>[^"]+\
 
 $buildOutput = @()
 $buildExitCode = 0
+$infrastructureWarnings = @()
 foreach ($projectPath in $projectPaths) {
     $buildArguments = @('build', $projectPath, '-c', $Configuration, '--no-restore', '-m:1', '-v', 'minimal')
     if ($NoIncremental) { $buildArguments += '--no-incremental' }
@@ -29,6 +30,11 @@ $warnings = foreach ($line in $buildOutput) {
     $warning = $warningPattern.Match($text)
     $project = $projectPattern.Match($text)
     if (-not $warning.Success -or -not $project.Success) { continue }
+
+    if ($warning.Groups['code'].Value -like 'MSB*') {
+        $infrastructureWarnings += $text
+        continue
+    }
 
     # ProDataGrid is an intentionally external sibling checkout. Its warnings
     # are not part of this repository's quality gate.
@@ -44,6 +50,7 @@ $warnings = foreach ($line in $buildOutput) {
 $uniqueWarnings = @($warnings | Sort-Object Code, Project, Message -Unique)
 Write-Output "Build exit code: $buildExitCode"
 Write-Output "Unique local warnings: $($uniqueWarnings.Count)"
+Write-Output "Infrastructure warnings (MSBuild): $($infrastructureWarnings.Count)"
 if ($uniqueWarnings.Count -gt 0) {
     Write-Output "`nBy rule:"
     $uniqueWarnings | Group-Object Code | Sort-Object Count -Descending |

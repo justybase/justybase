@@ -6,8 +6,8 @@ namespace JustyBase.Converters;
 public sealed class NullValueConverter : IValueConverter
 {
     public const string datetimeFormat = "yyyy-MM-dd HH:mm:ss";
-    public string NumericFormat = "N8";
-    public string NumericIntFormat = "N0";
+    public string NumericFormat { get; set; } = "N8";
+    public string NumericIntFormat { get; set; } = "N0";
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (targetType == typeof(bool?))
@@ -24,31 +24,31 @@ public sealed class NullValueConverter : IValueConverter
         }
         else if (value is DateTime dateTime)
         {
-            return dateTime.ToString(datetimeFormat);
+            return dateTime.ToString(datetimeFormat, culture);
         }
         else if (value is float floatVal)
         {
-            return floatVal.ToString(NumericFormat);
+            return floatVal.ToString(NumericFormat, culture);
         }
         else if (value is double doubleVal)
         {
-            return doubleVal.ToString(NumericFormat);
+            return doubleVal.ToString(NumericFormat, culture);
         }
         else if (value is decimal decimalVal)
         {
-            return decimalVal.ToString(NumericFormat);
+            return decimalVal.ToString(NumericFormat, culture);
         }
         else if (value is short shortVal)
         {
-            return shortVal.ToString(NumericIntFormat);
+            return shortVal.ToString(NumericIntFormat, culture);
         }
         else if (value is int intVal)
         {
-            return intVal.ToString(NumericIntFormat);
+            return intVal.ToString(NumericIntFormat, culture);
         }
         else if (value is long longVal)
         {
-            return longVal.ToString(NumericIntFormat);
+            return longVal.ToString(NumericIntFormat, culture);
         }
         return value.ToString();
     }

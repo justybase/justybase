@@ -26,7 +26,7 @@ public sealed class TableRowStats
                 notNullCnt++;
                 if (decimalCompatibile)
                 {
-                    var declimalVal = Convert.ToDecimal(val);
+                    var declimalVal = Convert.ToDecimal(val, System.Globalization.CultureInfo.InvariantCulture);
                     sum += declimalVal;
                     if (declimalVal < minOfColumn)
                     {

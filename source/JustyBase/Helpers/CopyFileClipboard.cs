@@ -1,4 +1,5 @@
 ﻿using JustyBase.Models;
+using System.Globalization;
 using System.Text;
 
 namespace JustyBase.Helpers;
@@ -41,7 +42,7 @@ internal sealed class CopyHtmlOrTextClipboard
         sb.Append("<tr>");
         for (int j = 0; j < table.Headers.Count; j++)
         {
-            sb.Append($"<th>{GetEscapedText(table.Headers[j])}</th>");
+            sb.Append(CultureInfo.InvariantCulture, $"<th>{GetEscapedText(table.Headers[j])}</th>");
         }
         sb.Append("</tr>");
         for (int i = 0; i < table.Rows.Count; i++)
@@ -50,7 +51,7 @@ internal sealed class CopyHtmlOrTextClipboard
             sb.Append("<tr>");
             for (int j = 0; j < table.Headers.Count; j++)
             {
-                sb.Append($"<td>{GetEscapedText(fields[j]?.ToString())}</td>");
+                sb.Append(CultureInfo.InvariantCulture, $"<td>{GetEscapedText(fields[j]?.ToString())}</td>");
             }
             sb.Append("</tr>");
         }

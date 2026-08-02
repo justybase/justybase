@@ -38,9 +38,9 @@ public partial class FileDiffViewModel : ObservableObject
     [ObservableProperty]
     public partial ObservableCollection<DiffLineViewModel> NewLines { get; set; } = [];
 
-    public Action? ReloadAction;
-    public Action? KeepCurrentAction;
-    public Action? CloseAction;
+    public Action? ReloadAction { get; set; }
+    public Action? KeepCurrentAction { get; set; }
+    public Action? CloseAction { get; set; }
 
     public FileDiffViewModel()
     {

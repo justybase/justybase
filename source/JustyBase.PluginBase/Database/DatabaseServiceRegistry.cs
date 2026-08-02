@@ -180,7 +180,14 @@ public sealed class DatabaseServiceRegistry
                 }
             }
 
-            databaseService = CreateDbInstanceService(typedDriver, userName, password, ip, db, connectionTimeout, databaseInfo.GetDataDir());
+            databaseService = CreateDbInstanceService(
+                typedDriver,
+                userName ?? string.Empty,
+                password ?? string.Empty,
+                ip ?? string.Empty,
+                db ?? string.Empty,
+                connectionTimeout,
+                databaseInfo.GetDataDir());
             if (databaseService is ILoginDataAwareDatabaseService loginDataAwareDatabaseService)
             {
                 loginDataAwareDatabaseService.ApplyLoginData(loginDataModel);

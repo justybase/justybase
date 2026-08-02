@@ -267,11 +267,12 @@ public static partial class StringExtension
         var tempColDistinct = tempCol.Distinct();
 
         StringBuilder stringBuilder = new StringBuilder(clip?.Length ?? 64);
-        stringBuilder.AppendLine($"--REGION pasted {tempColDistinct.Count()} unique from {tempCol.Count()}");
+        stringBuilder.AppendLine(CultureInfo.InvariantCulture,
+            $"--REGION pasted {tempColDistinct.Count()} unique from {tempCol.Count()}");
 
         if (pasteType != "Text")
         {
-            stringBuilder.Append($"({String.Join(",\n", tempColDistinct)})");
+            stringBuilder.Append(CultureInfo.InvariantCulture, $"({String.Join(",\n", tempColDistinct)})");
         }
         else
         {
@@ -280,7 +281,7 @@ public static partial class StringExtension
             stringBuilder.Append(')');
         }
         stringBuilder.AppendLine();
-        stringBuilder.AppendLine($"--ENDREGION");
+        stringBuilder.AppendLine("--ENDREGION");
         return stringBuilder.ToString();
     }
 
@@ -308,7 +309,7 @@ public static partial class StringExtension
         }
         else if (data is DateTime datetimedata)
         {
-            return datetimedata.ToString("yyyy-MM-dd HH:mm:ss");
+            return datetimedata.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
         }
         else if (data is string stringdata)
         {
@@ -619,7 +620,7 @@ public static partial class StringExtension
         if (string.IsNullOrEmpty(startName)) startName = "ABCDE_";
 
 #pragma warning disable CA5394 // Export names are not security tokens; uniqueness is the only requirement.
-        return startName + (withDate ? DateTime.Now.ToString("yyMMdd_HHmm") : "")
+        return startName + (withDate ? DateTime.Now.ToString("yyMMdd_HHmm", CultureInfo.InvariantCulture) : "")
                          + new string(Enumerable.Repeat(letters, len).Select(s => s[Random.Shared.Next(s.Length)])
                              .ToArray());
 #pragma warning restore CA5394
@@ -648,7 +649,7 @@ public static partial class StringExtension
         if (string.IsNullOrWhiteSpace(arg)) return RandomSuffix("EMPTY_COLNAME_", 3);
 
         var res = rx2.Replace(rx.Replace(
-            arg.Trim().ToUpper()
+            arg.Trim().ToUpper(CultureInfo.InvariantCulture)
                 .Replace('Ą', 'A')
                 .Replace('Ć', 'C')
                 .Replace('Ę', 'E')
@@ -910,11 +911,11 @@ public static partial class StringExtension
 
                 if (upper && char.IsLower(c))
                 {
-                    c = char.ToUpper(c);
+                    c = char.ToUpperInvariant(c);
                 }
                 else if (!upper && char.IsUpper(c))
                 {
-                    c = char.ToLower(c);
+                    c = char.ToLowerInvariant(c);
                 }
                 chars[i] = c;
             }

@@ -1,4 +1,5 @@
 using JustyBase.Common.Models;
+using System.Globalization;
 using System.Text;
 
 namespace JustyBase.Services;
@@ -68,7 +69,7 @@ SelectionStart={context.Value.SelectionStart}, SelectionLength={context.Value.Se
             var content = message.Content.Length <= maxCharsPerMessage
                 ? message.Content
                 : message.Content[..maxCharsPerMessage] + " ...[truncated]";
-            sb.AppendLine($"{role}: {content}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"{role}: {content}");
         }
         sb.AppendLine("[/RECENT_CHAT_CONTEXT]");
         return sb.ToString().TrimEnd();
@@ -102,14 +103,14 @@ SelectionStart={context.Value.SelectionStart}, SelectionLength={context.Value.Se
 
         if (userQueries.Count > 0)
         {
-            summaryBuilder.AppendLine($"User asked {userQueries.Count} questions including:");
+            summaryBuilder.AppendLine(CultureInfo.InvariantCulture, $"User asked {userQueries.Count} questions including:");
             foreach (var query in userQueries.Take(5))
             {
-                summaryBuilder.AppendLine($"  - {query}");
+                summaryBuilder.AppendLine(System.Globalization.CultureInfo.InvariantCulture, $"  - {query}");
             }
         }
 
-        summaryBuilder.AppendLine($"Assistant provided {assistantResponses} responses.");
+        summaryBuilder.AppendLine(CultureInfo.InvariantCulture, $"Assistant provided {assistantResponses} responses.");
         summaryBuilder.AppendLine("[/CONVERSATION_SUMMARY]");
 
         var compactedMessages = new List<ChatMessage>

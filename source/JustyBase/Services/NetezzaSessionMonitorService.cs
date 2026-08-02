@@ -81,13 +81,13 @@ public sealed class NetezzaSessionMonitorService
                 cancellationToken.ThrowIfCancellationRequested();
                 list.Add(new NetezzaSessionInfo
                 {
-                    SessionId = Convert.ToInt64(rdr.GetValue(0)),
-                    UserName = rdr.IsDBNull(1) ? "" : Convert.ToString(rdr.GetValue(1)) ?? "",
-                    Database = rdr.IsDBNull(2) ? "" : Convert.ToString(rdr.GetValue(2)) ?? "",
-                    Status = rdr.IsDBNull(3) ? "" : Convert.ToString(rdr.GetValue(3)) ?? "",
-                    Command = rdr.IsDBNull(4) ? "" : Convert.ToString(rdr.GetValue(4)) ?? "",
-                    IpAddress = rdr.IsDBNull(5) ? "" : Convert.ToString(rdr.GetValue(5)) ?? "",
-                    SqlPreview = rdr.IsDBNull(6) ? "" : Convert.ToString(rdr.GetValue(6)) ?? ""
+                    SessionId = Convert.ToInt64(rdr.GetValue(0), System.Globalization.CultureInfo.InvariantCulture),
+                    UserName = rdr.IsDBNull(1) ? "" : Convert.ToString(rdr.GetValue(1), System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                    Database = rdr.IsDBNull(2) ? "" : Convert.ToString(rdr.GetValue(2), System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                    Status = rdr.IsDBNull(3) ? "" : Convert.ToString(rdr.GetValue(3), System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                    Command = rdr.IsDBNull(4) ? "" : Convert.ToString(rdr.GetValue(4), System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                    IpAddress = rdr.IsDBNull(5) ? "" : Convert.ToString(rdr.GetValue(5), System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                    SqlPreview = rdr.IsDBNull(6) ? "" : Convert.ToString(rdr.GetValue(6), System.Globalization.CultureInfo.InvariantCulture) ?? ""
                 });
             }
 
@@ -154,8 +154,8 @@ public sealed class NetezzaSessionMonitorService
                 cancellationToken.ThrowIfCancellationRequested();
                 slices.Add(new NetezzaSkewSlice
                 {
-                    DataSliceId = Convert.ToInt64(rdr.GetValue(0)),
-                    RowCount = Convert.ToInt64(rdr.GetValue(1))
+                    DataSliceId = Convert.ToInt64(rdr.GetValue(0), System.Globalization.CultureInfo.InvariantCulture),
+                    RowCount = Convert.ToInt64(rdr.GetValue(1), System.Globalization.CultureInfo.InvariantCulture)
                 });
             }
 

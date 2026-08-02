@@ -26,7 +26,7 @@ public sealed partial class MessageForUserTools : IMessageForUserTools
 
     public void ShowSimpleMessageBoxInstance(Exception ex)
     {
-        if (ex.Message.StartsWith("ORA"))
+        if (ex.Message.StartsWith("ORA", StringComparison.Ordinal))
         {
             ShowSimpleMessageBoxInstance($"Message\r\n{ex.Message}", "Error", null);
         }
@@ -213,4 +213,3 @@ public sealed partial class MessageForUserTools : IMessageForUserTools
         }, priority: (DispatcherPriority)dispatcherPriority);
     }
 }
-

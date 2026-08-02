@@ -166,7 +166,7 @@ public sealed class SearchInRows
                             if (t == TypeCode.Int32)
                             {
                                 var inty = (int)actualVal;
-                                inty.TryFormat(charBuffer, out int written);
+                                inty.TryFormat(charBuffer, out int written, provider: System.Globalization.CultureInfo.InvariantCulture);
                                 if (_containsGeneralSearch && charBuffer[0..written].IndexOf(_searchText) >= 0)
                                 {
                                     founded = true;
@@ -182,7 +182,7 @@ public sealed class SearchInRows
                             else if (t == TypeCode.Int64)
                             {
                                 var longy = (long)actualVal;
-                                longy.TryFormat(charBuffer, out int written);
+                                longy.TryFormat(charBuffer, out int written, provider: System.Globalization.CultureInfo.InvariantCulture);
                                 if (_containsGeneralSearch && (charBuffer[0..written]).IndexOf(_searchText) >= 0)
                                 {
                                     founded = true;
@@ -198,7 +198,7 @@ public sealed class SearchInRows
                             else if (t == TypeCode.Decimal)
                             {
                                 var decy = (decimal)actualVal;
-                                decy.TryFormat(charBuffer, out int written);
+                                decy.TryFormat(charBuffer, out int written, provider: System.Globalization.CultureInfo.InvariantCulture);
                                 if (_containsGeneralSearch && (charBuffer[0..written]).IndexOf(_searchText) >= 0)
                                 {
                                     founded = true;
@@ -214,7 +214,7 @@ public sealed class SearchInRows
                             else if (t == TypeCode.DateTime)
                             {
                                 var dt = (DateTime)actualVal;
-                                dt.TryFormat(charBuffer, out int written, NullValueConverter.datetimeFormat);
+                                dt.TryFormat(charBuffer, out int written, NullValueConverter.datetimeFormat, System.Globalization.CultureInfo.InvariantCulture);
                                 if (_containsGeneralSearch && (charBuffer[0..written]).IndexOf(_searchText) >= 0)
                                 {
                                     founded = true;

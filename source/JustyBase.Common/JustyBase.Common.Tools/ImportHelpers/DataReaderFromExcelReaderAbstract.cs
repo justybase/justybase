@@ -114,10 +114,19 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
     public DateTime GetDateTime(int i)
     {
         ref var value = ref _excelAbstractReader.GetNativeValue(i);
-        if (value.type == ExcelDataType.DateTime)
-            return _excelAbstractReader.GetDateTime(i);
+        DateTime parsed = value.type == ExcelDataType.DateTime
+            ? _excelAbstractReader.GetDateTime(i)
+            : ParseDateTime(GetString(i));
 
-        string raw = GetString(i);
+        // A Date-overridden column must feed date-only values to the pipe;
+        // Netezza DATE columns reject a timestamp string.
+        return _databaseTypeChooser.ColumnTypesBestMatch![i].DatabaseTypeSimple == DbSimpleType.Date
+            ? parsed.Date
+            : parsed;
+    }
+
+    private static DateTime ParseDateTime(string raw)
+    {
         if (DateTime.TryParse(raw, CultureInfo.CurrentCulture, DateTimeStyles.AllowWhiteSpaces, out DateTime currentCulture))
             return currentCulture;
         if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out DateTime invariant))

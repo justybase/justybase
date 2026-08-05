@@ -42,39 +42,43 @@ public sealed class NetezzaImportRoundTripTests
         {
             ["ID"] = f => f.Equals("BIGINT", StringComparison.OrdinalIgnoreCase),
             ["PRICE"] = f => f.StartsWith("NUMERIC", StringComparison.OrdinalIgnoreCase),
-            ["NAME"] = f => f.StartsWith("NVARCHAR", StringComparison.OrdinalIgnoreCase),
+            ["NAME"] = f => IsNvarchar(f),
             ["D"] = f => f.StartsWith("TIMESTAMP", StringComparison.OrdinalIgnoreCase),
             ["FLAG"] = f => f.Contains("BOOL", StringComparison.OrdinalIgnoreCase)
         });
     }
 
+    private static bool IsNvarchar(string formatType)
+        => formatType.StartsWith("NVARCHAR", StringComparison.OrdinalIgnoreCase)
+           || formatType.StartsWith("NATIONAL CHARACTER VARYING", StringComparison.OrdinalIgnoreCase);
+
     [Fact]
     public async Task UserOverride_NumericToText_DataPreservedAsText()
     {
-        const string csv = "price\n10.5\n20.75\n1.25\n";
+        const string csv = "id,price\n1,10.5\n2,20.75\n3,1.25\n";
         await using RoundTripContext ctx = await NetezzaImportRoundTripRunner.ImportCsvAsync(csv, chooser =>
         {
-            Assert.Equal(DbSimpleType.Numeric, chooser.ColumnTypesBestMatch![0].DatabaseTypeSimple);
-            chooser.ColumnTypesBestMatch[0] = new DbTypeWithSize(DbSimpleType.Nvarchar)
+            Assert.Equal(DbSimpleType.Numeric, chooser.ColumnTypesBestMatch![1].DatabaseTypeSimple);
+            chooser.ColumnTypesBestMatch[1] = new DbTypeWithSize(DbSimpleType.Nvarchar)
             {
                 TextLength = DatabaseTypeChooser.DEFAULT_NVARCHAR_LENGTH
             };
         });
 
-        Assert.Equal(DbSimpleType.Nvarchar, ctx.Types[0].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Nvarchar, ctx.Types[1].DatabaseTypeSimple);
 
-        object?[][] expected = [["10.5"], ["20.75"], ["1.25"]];
+        object?[][] expected = [[1L, "10.5"], [2L, "20.75"], [3L, "1.25"]];
         NetezzaImportRoundTripRunner.VerifyRows(ctx, expected, "NumericToText");
         NetezzaImportRoundTripRunner.VerifyColumnFormats(ctx, new Dictionary<string, Func<string, bool>>
         {
-            ["PRICE"] = f => f.StartsWith("NVARCHAR", StringComparison.OrdinalIgnoreCase)
+            ["PRICE"] = f => IsNvarchar(f)
         });
     }
 
     [Fact]
     public async Task UserOverride_TimeStampToDate_DataPreservedAsDates()
     {
-        const string csv = "d\n2024-01-15\n2024-02-20\n";
+        const string csv = "d\n2024-01-15 10:30:00\n2024-02-20 08:05:30\n";
         await using RoundTripContext ctx = await NetezzaImportRoundTripRunner.ImportCsvAsync(csv, chooser =>
         {
             Assert.Equal(DbSimpleType.TimeStamp, chooser.ColumnTypesBestMatch![0].DatabaseTypeSimple);
@@ -126,18 +130,18 @@ public sealed class NetezzaImportRoundTripTests
     }
 
     [Fact]
-    public async Task AllEmptyCsvColumn_ImportsAsBigIntNulls()
+    public async Task AllEmptyCsvColumn_ImportsAsNvarcharNulls()
     {
         const string csv = "id,note\n1,\n2,\n3,\n";
         await using RoundTripContext ctx = await NetezzaImportRoundTripRunner.ImportCsvAsync(csv);
 
-        Assert.Equal(DbSimpleType.Integer, ctx.Types[1].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Nvarchar, ctx.Types[1].DatabaseTypeSimple);
 
         object?[][] expected = [[1L, null], [2L, null], [3L, null]];
         NetezzaImportRoundTripRunner.VerifyRows(ctx, expected, "AllEmptyCsvColumn");
         NetezzaImportRoundTripRunner.VerifyColumnFormats(ctx, new Dictionary<string, Func<string, bool>>
         {
-            ["NOTE"] = f => f.Equals("BIGINT", StringComparison.OrdinalIgnoreCase)
+            ["NOTE"] = f => IsNvarchar(f)
         });
     }
 

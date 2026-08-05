@@ -115,7 +115,8 @@ internal static class NetezzaImportRoundTripRunner
             DbSimpleType.Date or DbSimpleType.TimeStamp => $"TO_CHAR({quotedColumn}, 'YYYY-MM-DD HH24:MI:SS')",
             DbSimpleType.Numeric => $"CAST({quotedColumn} AS VARCHAR(60))",
             DbSimpleType.Integer => $"CAST({quotedColumn} AS VARCHAR(40))",
-            _ => $"CAST({quotedColumn} AS VARCHAR(4000))"
+            // NVARCHAR keeps the unicode round-trip; VARCHAR is byte-based on Netezza.
+            _ => $"CAST({quotedColumn} AS NVARCHAR(4000))"
         };
 
     public static string? CanonicalExpected(object? value, DbSimpleType type)
@@ -189,10 +190,11 @@ internal static class NetezzaImportRoundTripRunner
         IReadOnlyDictionary<string, Func<string, bool>> expectations)
     {
         string sql = $"""
-            SELECT ATTNAME, FORMAT_TYPE
-            FROM {NetezzaLiveTestHost.Database}.._V_RELATION_COLUMN
-            WHERE UPPER(TABLENAME) = '{ctx.TableName.ToUpperInvariant()}'
-            ORDER BY ATTNUM
+            SELECT X.ATTNAME, X.FORMAT_TYPE
+            FROM {NetezzaLiveTestHost.Database}.._V_RELATION_COLUMN X
+            INNER JOIN {NetezzaLiveTestHost.Database}.._V_OBJECT_DATA O ON X.OBJID = O.OBJID
+            WHERE UPPER(O.OBJNAME) = '{ctx.TableName.ToUpperInvariant()}'
+            ORDER BY X.ATTNUM
             """;
         var rows = NetezzaLiveTestHost.ExecuteReaderRows(ctx.Connection, sql, 2);
         var actual = rows

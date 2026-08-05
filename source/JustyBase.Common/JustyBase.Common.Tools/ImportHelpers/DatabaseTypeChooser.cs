@@ -33,7 +33,7 @@ public sealed class DatabaseTypeChooser
         ValidationErrors.Clear();
         NormalizedColumnHeaderNames = new string[fieldCount];
         OriginalColumnHeaderNames = new string[fieldCount];
-        _analyzer = new ImportTypeAnalyzer(fieldCount);
+        _analyzer = new ImportTypeAnalyzer(fieldCount, inferBoolean: true);
     }
 
     public void ChooseTypes(int textMargin = 5)

@@ -1,5 +1,4 @@
 using CommunityToolkit.Mvvm.ComponentModel;
-using JustyBase.Common.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
@@ -83,8 +82,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                     itemsCollection.RemoveAt(8); //fluids
                 }
                 if (databaseTypeEnum != DatabaseTypeEnum.NetezzaSQL
-                    && databaseTypeEnum != DatabaseTypeEnum.NetezzaSQLOdbc
-                    && databaseTypeEnum != DatabaseTypeEnum.Snowflake)
+                    && databaseTypeEnum != DatabaseTypeEnum.NetezzaSQLOdbc)
                 {
                     itemsCollection.RemoveAt(1); //external
                 }

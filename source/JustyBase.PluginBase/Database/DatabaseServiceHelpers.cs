@@ -91,7 +91,6 @@ public static class DatabaseServiceHelpers
         {"SQLite", DatabaseTypeEnum.Sqlite},
         {"DuckDB", DatabaseTypeEnum.DuckDB},
         {"MySQL", DatabaseTypeEnum.MySql},
-        {"Snowflake", DatabaseTypeEnum.Snowflake},
     };
 
     public static List<string> GetSupportedDriversNames()

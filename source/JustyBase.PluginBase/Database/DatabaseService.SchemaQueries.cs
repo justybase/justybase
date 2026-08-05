@@ -1,7 +1,5 @@
-using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
-using JustyBase.PluginCommons;
 using JustyBase.PluginDatabaseBase.Models;
 using System.Data.Common;
 using System.Text.RegularExpressions;
@@ -337,7 +335,7 @@ public abstract partial class DatabaseService
             _ = acualDb.TryAdd(schema, []); // no StringComparer.OrdinalIgnoreCase by purpouse
             acualDb[schema][objNme] = new DatabaseObject(objId, objNme, desc, dbType, databaseObjectType, owner, crtTime);
         }
-        if (DatabaseType == DatabaseTypeEnum.PostgreSql || DatabaseType == DatabaseTypeEnum.Snowflake)
+        if (DatabaseType == DatabaseTypeEnum.PostgreSql)
         {
             cmd.Dispose();
         }
@@ -397,7 +395,7 @@ public abstract partial class DatabaseService
             DatabaseTableIdColumnIntervalSpan[database] = currentDic;
             DatabaseColumnsList[database] = tempCols.ToArray();
         }
-        if (DatabaseType == DatabaseTypeEnum.PostgreSql || DatabaseType == DatabaseTypeEnum.Snowflake)
+        if (DatabaseType == DatabaseTypeEnum.PostgreSql)
         {
             cmd.Dispose();
         }

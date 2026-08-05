@@ -20,7 +20,7 @@ public interface IGeneralApplicationData : IDatabaseInfo, ISomeEditorOptions, IR
 
     string SelectedTabIdFromStart { get; set; }
     
-    bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server, string? role = null, string? warehouse = null, string? schema = null);
+    bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server);
     void ClearTempSippetsObjects();
     bool DeleteFromLoginData(string name);
     void SaveConfig();

@@ -11,6 +11,5 @@ public enum DatabaseTypeEnum
     Sqlite,
     PostgreSql,
     DuckDB,
-    MySql,
-    Snowflake
+    MySql
 }

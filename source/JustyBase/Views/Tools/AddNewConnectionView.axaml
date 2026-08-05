@@ -50,9 +50,6 @@
 				<RowDefinition Height="Auto"/>
 				<RowDefinition Height="Auto"/>
 				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
 			</Grid.RowDefinitions>
 			<Grid.ColumnDefinitions>
 				<ColumnDefinition Width="Auto" MinWidth="118"/>
@@ -107,53 +104,23 @@
 			<TextBox Name="tbDatabase"  Grid.Row="5" Grid.Column="1" Text="{Binding Database}"
 					 VerticalAlignment="Center"
 					 ToolTip.Tip="database name, ask your database administrator if you don't know what to type"/>
-			<StackPanel Grid.Row="6" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-						IsVisible="{Binding IsSnowflakeSelected}">
-				<PathIcon Width="18" Height="18" Data="{StaticResource databaseIcon}"  />
-				<Label Content="Schema" VerticalAlignment="Center"
-				   ToolTip.Tip="Snowflake schema name. If empty, PUBLIC is used by default."/>
-			</StackPanel>
-			<TextBox Name="tbSchema" Grid.Row="6" Grid.Column="1" Text="{Binding Schema}"
-					 VerticalAlignment="Center"
-					 ToolTip.Tip="Snowflake schema name"
-					 IsVisible="{Binding IsSnowflakeSelected}"/>
-			<StackPanel Grid.Row="7" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-						IsVisible="{Binding IsSnowflakeSelected}">
-				<PathIcon Width="18" Height="18" Data="{StaticResource databaseIcon}"  />
-				<Label Content="Warehouse" VerticalAlignment="Center"
-				   ToolTip.Tip="Snowflake warehouse used for metadata and query execution."/>
-			</StackPanel>
-			<TextBox Name="tbWarehouse" Grid.Row="7" Grid.Column="1" Text="{Binding Warehouse}"
-					 VerticalAlignment="Center"
-					 ToolTip.Tip="Snowflake warehouse"
-					 IsVisible="{Binding IsSnowflakeSelected}"/>
-			<StackPanel Grid.Row="8" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-						IsVisible="{Binding IsSnowflakeSelected}">
-				<PathIcon Width="18" Height="18" Data="{StaticResource personIcon}"  />
-				<Label Content="Role" VerticalAlignment="Center"
-				   ToolTip.Tip="Optional Snowflake role to activate for the session."/>
-			</StackPanel>
-			<TextBox Name="tbRole" Grid.Row="8" Grid.Column="1" Text="{Binding Role}"
-					 VerticalAlignment="Center"
-					 ToolTip.Tip="Snowflake role"
-					 IsVisible="{Binding IsSnowflakeSelected}"/>
-			<StackPanel Grid.Row="9" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+			<StackPanel Grid.Row="6" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
 				<PathIcon Width="18" Height="18" Data="{StaticResource personIcon}"  />
 				<Label Content="Username" VerticalAlignment="Center"
 						   ToolTip.Tip="database username, ask your database administrator if you don't know what to type"/>
 			</StackPanel>
-			<TextBox Name="tbUserName"  Grid.Row="9" Grid.Column="1" Text="{Binding UserName}"
+			<TextBox Name="tbUserName"  Grid.Row="6" Grid.Column="1" Text="{Binding UserName}"
 					 VerticalAlignment="Center"
 					 ToolTip.Tip="database username, ask your database administrator if you don't know what to type"/>
-			<StackPanel Grid.Row="10" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+			<StackPanel Grid.Row="7" Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
 				<PathIcon Width="18" Height="18" Data="{StaticResource passwordBox}"  />
 				<Label Content="Password" VerticalAlignment="Center"
 				   ToolTip.Tip="database user password, ask your database administrator if you don't know what to type"/>
 			</StackPanel>
-			<TextBox Name="tbPassword"  Grid.Row="10" Grid.Column="1" PasswordChar="*" Text="{Binding Pass}"
+			<TextBox Name="tbPassword"  Grid.Row="7" Grid.Column="1" PasswordChar="*" Text="{Binding Pass}"
 					 VerticalAlignment="Center"
 					 ToolTip.Tip="database user password, ask your database administrator if you don't know what to type"/>
-			<StackPanel Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2"
+			<StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2"
 						Orientation="Horizontal"
 						HorizontalAlignment="Center"
 						Spacing="10"

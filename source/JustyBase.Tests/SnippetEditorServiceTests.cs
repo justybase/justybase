@@ -4,8 +4,6 @@ using JustyBase.Common.Models;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Models;
 using JustyBase.Services;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace JustyBase.Tests;
 
@@ -74,7 +72,7 @@ public sealed class SnippetEditorServiceTests
         // IGeneralApplicationData
         public string SelectedTabIdFromStart { get; set; } = string.Empty;
         public string DownloadPluginsBasePath => throw new NotImplementedException();
-        public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server, string? role = null, string? warehouse = null, string? schema = null) => throw new NotImplementedException();
+        public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server) => throw new NotImplementedException();
         public bool DeleteFromLoginData(string name) => throw new NotImplementedException();
         public void SaveConfig() => throw new NotImplementedException();
         public void SaveCredentials() => throw new NotImplementedException();

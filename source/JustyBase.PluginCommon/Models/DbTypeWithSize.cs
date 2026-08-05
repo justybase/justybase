@@ -48,7 +48,6 @@ public record DbTypeWithSize(DbSimpleType DatabaseTypeSimple)
         DatabaseTypeEnum.PostgreSql => "VARCHAR",
         DatabaseTypeEnum.DuckDB => "TEXT",
         DatabaseTypeEnum.MySql => "TEXT",
-        DatabaseTypeEnum.Snowflake => "VARCHAR",
         _ => throw new NotImplementedException()
     };
 

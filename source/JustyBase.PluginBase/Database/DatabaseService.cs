@@ -1,8 +1,6 @@
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommons;
-using JustyBase.PluginDatabaseBase.Models;
-using System.Data;
 using System.Data.Common;
 
 namespace JustyBase.PluginDatabaseBase.Database;
@@ -120,7 +118,7 @@ public abstract partial class DatabaseService : IDatabaseService, IDatabaseWithS
     }
     public string ChangeDatabaseIfNeeded(DbConnection con, string selectedDatabaseName)
     {
-        if (this.DatabaseType == DatabaseTypeEnum.NetezzaSQL || this.DatabaseType == DatabaseTypeEnum.NetezzaSQLOdbc || this.DatabaseType == DatabaseTypeEnum.PostgreSql || this.DatabaseType == DatabaseTypeEnum.Snowflake)
+        if (this.DatabaseType == DatabaseTypeEnum.NetezzaSQL || this.DatabaseType == DatabaseTypeEnum.NetezzaSQLOdbc || this.DatabaseType == DatabaseTypeEnum.PostgreSql)
         {
             if (string.IsNullOrWhiteSpace(selectedDatabaseName))
             {

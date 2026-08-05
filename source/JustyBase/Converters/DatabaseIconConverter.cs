@@ -25,7 +25,6 @@ public sealed class DatabaseIconConverter : IValueConverter
     private readonly Bitmap _mySqlIcon;
     private readonly Bitmap _msSqlIcon16;
     private readonly Bitmap _postgreIcon16;
-    private readonly Bitmap _snowflakeIcon16;
     private readonly Bitmap _tableGroupIcon16;
     private readonly Bitmap _viewGroupIcon16;
     private readonly Bitmap _functuionsGroupIcon16;
@@ -55,7 +54,6 @@ public sealed class DatabaseIconConverter : IValueConverter
             _mySqlIcon = _databaseIcon16;
             _msSqlIcon16 = _databaseIcon16;
             _postgreIcon16 = _databaseIcon16;
-            _snowflakeIcon16 = _databaseIcon16;
 
             _tableIcon16 = App.Current.Resources["TableBitmap"] as Bitmap;
             _viewIcon16 = App.Current.Resources["ViewBitmap"] as Bitmap;
@@ -108,7 +106,6 @@ public sealed class DatabaseIconConverter : IValueConverter
             DatabaseTypeEnum.MySql => _mySqlIcon,
             DatabaseTypeEnum.MsSqlTrusted => _msSqlIcon16,
             DatabaseTypeEnum.PostgreSql => _postgreIcon16,
-            DatabaseTypeEnum.Snowflake => _snowflakeIcon16,
             DatabaseTypeEnum.Oracle => _oracleIcon16,
             DatabaseTypeEnum.NotSupportedDatabase => _defaultIcon,
             _ => _defaultIcon

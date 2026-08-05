@@ -12,7 +12,6 @@ namespace JustyBase.ViewModels.Tools;
 
 public sealed partial class AddNewConnectionViewModel
 {
-    private const string SnowflakeDriverName = "Snowflake";
     private readonly IGeneralApplicationData _generalApplicationData;
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly ISimpleLogger _simpleLogger;
@@ -55,10 +54,7 @@ public sealed partial class AddNewConnectionViewModel
             driverName,
             Pass,
             UserName,
-            Server,
-            driverName == SnowflakeDriverName ? Role : null,
-            driverName == SnowflakeDriverName ? Warehouse : null,
-            driverName == SnowflakeDriverName ? Schema : null);
+            Server);
         Refresh(res);
         CloseWindowAction?.Invoke();
     }
@@ -109,10 +105,7 @@ public sealed partial class AddNewConnectionViewModel
             driverName,
             Pass,
             UserName,
-            Server,
-            driverName == SnowflakeDriverName ? Role : null,
-            driverName == SnowflakeDriverName ? Warehouse : null,
-            driverName == SnowflakeDriverName ? Schema : null);
+            Server);
         if (res)
         {
             SqlDocumentViewModelHelper.SetConnectionList(_generalApplicationData, _messageForUserTools, _simpleLogger, false);
@@ -129,10 +122,6 @@ public sealed partial class AddNewConnectionViewModel
 
     [ObservableProperty]
     public partial int DriverIndex { get; set; }
-
-    public bool IsSnowflakeSelected => DriverIndex >= 0
-        && DriverIndex < DriversList.Count
-        && DriversList[DriverIndex] == SnowflakeDriverName;
 
     private readonly List<string> _driversList = DatabaseServiceHelpers.GetSupportedDriversNames();
     public List<string> DriversList => _driversList;
@@ -153,9 +142,6 @@ public sealed partial class AddNewConnectionViewModel
                     Server = tmp.Server;
                     DriverIndex = DriversList.IndexOf(tmp.Driver);
                     Database = tmp.Database;
-                    Schema = tmp.Schema;
-                    Warehouse = tmp.Warehouse;
-                    Role = tmp.Role;
                     UserName = tmp.UserName;
                     Pass = tmp.Password;
                 }
@@ -167,9 +153,6 @@ public sealed partial class AddNewConnectionViewModel
                         Server = tmp2.Server;
                         DriverIndex = DriversList.IndexOf(tmp2.Driver);
                         Database = tmp2.Database;
-                        Schema = tmp2.Schema;
-                        Warehouse = tmp2.Warehouse;
-                        Role = tmp2.Role;
                         UserName = tmp2.UserName;
                         Pass = tmp2.Password;
                     }
@@ -186,29 +169,4 @@ public sealed partial class AddNewConnectionViewModel
 
     [ObservableProperty]
     public partial string UserName { get; set; }
-
-    [ObservableProperty]
-    public partial string? Schema { get; set; }
-
-    [ObservableProperty]
-    public partial string? Warehouse { get; set; }
-
-    [ObservableProperty]
-    public partial string? Role { get; set; }
-
-    partial void OnDriverIndexChanged(int value)
-    {
-        OnPropertyChanged(nameof(IsSnowflakeSelected));
-        if (IsSnowflakeSelected)
-        {
-            ApplySnowflakeDefaultsIfNeeded();
-        }
-    }
-
-    private void ApplySnowflakeDefaultsIfNeeded()
-    {
-        Schema ??= Environment.GetEnvironmentVariable("SNOWFLAKE_LIVE_TEST_SCHEMA") ?? "PUBLIC";
-        Warehouse ??= Environment.GetEnvironmentVariable("SNOWFLAKE_LIVE_TEST_WAREHOUSE");
-        Role ??= Environment.GetEnvironmentVariable("SNOWFLAKE_LIVE_TEST_ROLE");
-    }
 }

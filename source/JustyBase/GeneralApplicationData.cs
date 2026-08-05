@@ -8,7 +8,6 @@ using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services;
-using NetezzaDotnetPlugin;
 #if NZODBC
 using NetezzaOdbcPlugin;
 #endif
@@ -112,7 +111,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         };
     }
 
-    public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server, string? role = null, string? warehouse = null, string? schema = null)
+    public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server)
     {
         name = name.ToUpper();
         LoginDataModel element;
@@ -136,18 +135,11 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         element.Password = password;
         element.UserName = userName;
         element.Server = server;
-        if (driver == "Snowflake")
-        {
-            element.Role = role;
-            element.Warehouse = warehouse;
-            element.Schema = schema;
-        }
-        else
-        {
-            element.Role = null;
-            element.Warehouse = null;
-            element.Schema = null;
-        }
+        // Snowflake-only fields were removed with Snowflake support; keep them
+        // null on edits so stale values from old credential files do not survive.
+        element.Role = null;
+        element.Warehouse = null;
+        element.Schema = null;
         return true;
     }
 
@@ -308,11 +300,8 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
 #if MYSQL
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.MySql, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new MySqlPlugin.MySql(userName, password, "3306", ip, db, connectionTimeout));
 #endif
-#if SNOWFLAKE
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Snowflake, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new SnowflakePlugin.Snowflake(userName, password, "", ip, db, connectionTimeout));
-#endif
 #if DB2
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.DB2, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new DB2Plugin.DB2(userName, password, "", ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.DB2, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new DB2Plugin.DB2DatabaseService(userName, password, "", ip, db, connectionTimeout));
 #endif
     }
 

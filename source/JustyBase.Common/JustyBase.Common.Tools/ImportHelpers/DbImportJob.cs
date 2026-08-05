@@ -1,13 +1,17 @@
-using JustyBase.Common.Tools.ImportHelpers.XML;
-using JustyBase.PluginCommon.Contracts;
+using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
-using JustyBase.PluginCommons;
 using System.Data;
-using System.Globalization;
 
 namespace JustyBase.Common.Tools.ImportHelpers;
-public class DbImportJob : IDbImportJob
+
+/// <summary>
+/// Host adapter over the shared <see cref="IImportJob"/> contract. Keeps the host
+/// <see cref="DatabaseTypeChooser"/> (and its <c>DbTypeWithSize</c> type model) for the
+/// UI, while exposing the neutral <see cref="IImportColumn"/> surface to the shared
+/// pipeline and the plugin seam.
+/// </summary>
+public class DbImportJob : IImportJob
 {
     public DbImportJob(IDataReader rdr, DatabaseTypeChooser typeChooser)
     {
@@ -24,31 +28,62 @@ public class DbImportJob : IDbImportJob
     public string? SourceSheetName { get; init; }
 
     protected string[]? _columnHeadersNames;
-    public string[]? ColumnHeadersNames => _columnHeadersNames;
+    public IReadOnlyList<string> ColumnHeadersNames => _columnHeadersNames ?? [];
     public DbTypeWithSize[] ColumnTypesBestMatch => _databaseTypeChoser.ColumnTypesBestMatch ?? [];
-    public List<string[]>? PreviewRows => _databaseTypeChoser.PreviewRows;
+    public IReadOnlyList<string[]>? PreviewRows => _databaseTypeChoser.PreviewRows;
 
-    protected static readonly CultureInfo _cultureUS = CultureInfo.CreateSpecificCulture("en-US");
     protected readonly DatabaseTypeChooser _databaseTypeChoser = new DatabaseTypeChooser();
-
-    //results 
-
-    protected OneCellValue[][]? _linesX;
 
     public IDataReader AsReader { get; set; } = null!;
 
-    public string[] ReturnHeadersWithDataTypes(DatabaseTypeEnum databaseType = DatabaseTypeEnum.NetezzaSQL)
+    public IReadOnlyList<IImportColumn> Columns
     {
-        if (ColumnHeadersNames is not null)
+        get
         {
-            StringExtension.DeDuplicate(ColumnHeadersNames);
+            var headers = ColumnHeadersNames;
+            var types = ColumnTypesBestMatch;
+            var result = new IImportColumn[Math.Max(headers.Count, types.Length)];
+            for (int i = 0; i < result.Length; i++)
+            {
+                string name = i < headers.Count ? headers[i] : $"COL{i}";
+                result[i] = i < types.Length
+                    ? ToImportColumn(name, types[i])
+                    : new ImportColumn(name, ImportColumnKind.Nvarchar, DatabaseTypeChooser.DEFAULT_NVARCHAR_LENGTH);
+            }
+
+            return result;
         }
-        string[] res = new string[ColumnHeadersNames?.Length ?? 0];
-        for (int i = 0; i < (ColumnHeadersNames?.Length ?? 0); i++)
+    }
+
+    public string[] ReturnHeadersWithDataTypes(DatabaseKind databaseKind)
+    {
+        var headers = ColumnHeadersNames;
+        var types = ColumnTypesBestMatch;
+        var res = new string[headers.Count];
+        for (int i = 0; i < headers.Count; i++)
         {
-            res[i] = ColumnHeadersNames![i] + " " + ColumnTypesBestMatch![i].ToString(databaseType);
+            res[i] = i < types.Length
+                ? $"{headers[i]} {types[i].ToString(databaseKind.ToDatabaseTypeEnum())}"
+                : headers[i];
         }
+
         return res;
     }
-}
 
+    internal static ImportColumnKind MapKind(DbSimpleType simpleType) => simpleType switch
+    {
+        DbSimpleType.Integer => ImportColumnKind.Integer,
+        DbSimpleType.Numeric => ImportColumnKind.Numeric,
+        DbSimpleType.Date => ImportColumnKind.Date,
+        DbSimpleType.TimeStamp => ImportColumnKind.TimeStamp,
+        DbSimpleType.Boolean => ImportColumnKind.Boolean,
+        _ => ImportColumnKind.Nvarchar
+    };
+
+    private static ImportColumn ToImportColumn(string name, DbTypeWithSize type) => new(
+        name,
+        MapKind(type.DatabaseTypeSimple),
+        type.DatabaseTypeSimple == DbSimpleType.Numeric ? type.NumericPrecision : type.TextLength,
+        type.NumericScale,
+        IsNullable: true);
+}

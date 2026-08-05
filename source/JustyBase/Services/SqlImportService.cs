@@ -2,9 +2,9 @@ using Avalonia.Input.Platform;
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Models;
 using JustyBase.Common.Tools.ImportHelpers;
-using JustyBase.Common.Tools.ImportHelpers.XML;
 using JustyBase.Helpers;
 using JustyBase.Helpers.Shared;
+using JustyBase.ImportExport.Import;
 using JustyBase.Models.Tools;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommons;
@@ -64,7 +64,7 @@ public sealed class SqlImportService : ISqlImportService
                 object xmlData = await clipboardService.GetDataAsync("XML Spreadsheet");
                 if (xmlData is byte[] xmlBytes)
                 {
-                    res = await service.PerformImportFromXmlAsync(new DbXMLImportJob(), xmlBytes,
+                    res = await service.PerformImportFromXmlAsync(new XmlImportJob(), xmlBytes,
                         (s) =>
                         {
                             _messageForUserTools.DispatcherActionInstance

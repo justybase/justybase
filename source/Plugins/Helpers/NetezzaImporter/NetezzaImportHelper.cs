@@ -14,7 +14,7 @@ public static class NetezzaImportHelper
     private const char DefaultColumnSeparator = '\t';
     private const char DefaultEscapeChar = '\\';
 
-    public static async Task NetezzaImportExecute(DbConnection conn, string tempDataDirectory, IDbImportJob importJob,
+    public static async Task NetezzaImportExecute(DbConnection conn, string tempDataDirectory, IImportJob importJob,
         string tableName, Action<string>? progress, string remotesource = NetezzaImportUsingOptions.DefaultRemoteSource)
     {
         var options = ImportUsingOptionsContext.Current ?? ImportUsingOptions.Default;
@@ -33,8 +33,8 @@ public static class NetezzaImportHelper
         }
 
         string serverName = NetezzaPipeImportExecutor.CreatePipeName("JDE");
-        var headersWithDataType = importJob.ReturnHeadersWithDataTypes(DatabaseTypeEnum.NetezzaSQL);
-        bool isLineReader = importJob is IDbXMLImportJob;
+        var headersWithDataType = importJob.ReturnHeadersWithDataTypes(DatabaseKind.Netezza);
+        bool isLineReader = importJob is IXmlImportJob;
 
         var pipeServer = NetezzaPipeImportExecutor.ServeDataReaderAsync(
             importJob.AsReader,
@@ -71,6 +71,8 @@ public static class NetezzaImportHelper
                         EncodingName = encodingName,
                         EscapeChar = DefaultEscapeChar.ToString(),
                         TimeStyle = "24HOUR",
+                        // The typed pipe writes booleans as 1/0 (TypeCode.Boolean path).
+                        BoolStyle = "1_0",
                         MaxErrors = 0,
                         LogDirectory = tempDataDirectory,
                         MaxRows = options.MaxRows is > 0 ? options.MaxRows : null

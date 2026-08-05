@@ -10,10 +10,12 @@ using JustyBase.PluginCommon.Models;
 using JustyBase.PluginCommons;
 using JustyBase.Helpers.Shared;
 using JustyBase.Helpers;
+using JustyBase.ImportExport.Import;
 using JustyBase.Services.Documents;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Text;
+using DatabaseTypeChooser = JustyBase.Common.Tools.ImportHelpers.DatabaseTypeChooser;
 
 namespace JustyBase.ViewModels.Documents;
 
@@ -711,7 +713,7 @@ public sealed partial class ImportViewModel
         PopulatePreview(headers, importJob.PreviewRows);
     }
 
-    private void PopulatePreview(string[] headers, List<string[]>? rows)
+    private void PopulatePreview(IReadOnlyList<string> headers, IReadOnlyList<string[]>? rows)
     {
         PreviewRows.Clear();
         if (rows is not null)
@@ -721,7 +723,7 @@ public sealed partial class ImportViewModel
                 PreviewRows.Add(row);
             }
         }
-        _messageForUserTools.DispatcherActionInstance(() => ActionFromView?.Invoke(headers));
+        _messageForUserTools.DispatcherActionInstance(() => ActionFromView?.Invoke(headers.ToArray()));
     }
 
     private void ApplySelectedSheetsToImport(ImportFromExcelFile importFile)
@@ -1026,7 +1028,7 @@ public sealed partial class ImportViewModel
                         var imp = item?.ImportJob;
 
                         SelIndexOpt = 1;
-                        PopulateColumnsFromJob(imp);
+                        PopulateColumnsFromJob(imp as DbImportJob);
                         while (ContinueEnabled)
                         {
                             await Task.Delay(50);

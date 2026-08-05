@@ -1,6 +1,5 @@
 using System.Text;
-using JustyBase.Common.Tools.ImportHelpers.XML;
-using JustyBase.PluginCommon.Enums;
+using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommons;
 
 namespace JustyBase.Services;
@@ -55,10 +54,10 @@ public class SqlExportOperations : ISqlExportOperations
             }
             for (int j = 0; j < v1.Count; j++)
             {
-                var val = DbXMLImportJob.GetValueStringRepresentationWithType(out DbSimpleType nz, v1[j]);
-                if (nz == DbSimpleType.Integer && v1[j].Trim().Length == 11 && headers[j].Contains("PESEL", StringComparison.OrdinalIgnoreCase))
+                var val = XmlCellClassifier.GetValueStringRepresentationWithType(out ImportColumnKind nz, v1[j]);
+                if (nz == ImportColumnKind.Integer && v1[j].Trim().Length == 11 && headers[j].Contains("PESEL", StringComparison.OrdinalIgnoreCase))
                 {
-                    nz = DbSimpleType.Nvarchar;
+                    nz = ImportColumnKind.Nvarchar;
                     val = $"'{v1[j].Trim()}'";
                 }
                 sb.Append(System.Globalization.CultureInfo.InvariantCulture, $" {(val == "" ? "null" : val)} AS {headers[j].NormalizeDbColumnName().Trim()}");

@@ -1,11 +1,13 @@
+using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
+using JustyBase.PluginCommon.Enums;
 using System.Data.Common;
 
 namespace JustyBase.PluginDatabaseBase.Database;
 
 public abstract partial class DatabaseService
 {
-    public virtual async Task DbSpecificImportPart(IDbImportJob importJob, string randName, Action<string>? progress, bool tableExists = false)
+    public virtual async Task DbSpecificImportPart(IImportJob importJob, string randName, Action<string>? progress, bool tableExists = false)
     {
         await Task.Run(() =>
         {
@@ -18,7 +20,7 @@ public abstract partial class DatabaseService
             conn.Open();
             if (!tableExists)
             {
-                string[] headers = importJob.ReturnHeadersWithDataTypes(this.DatabaseType);
+                string[] headers = importJob.ReturnHeadersWithDataTypes(this.DatabaseType.ToDatabaseKind());
                 string SQL = $"CREATE TABLE {randName} ({string.Join(',', headers)});";
                 using DbCommand tmpCmd = conn.CreateCommand();
                 tmpCmd.CommandText = SQL;

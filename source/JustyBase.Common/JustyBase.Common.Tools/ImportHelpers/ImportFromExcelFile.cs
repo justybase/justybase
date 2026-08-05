@@ -1,3 +1,4 @@
+using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
@@ -205,8 +206,7 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (GetTypeChooser(sheet) is null && await DetectSheetAsync(sheet, cancellationToken: cancellationToken) is null)
-                return [new ImportValidationError(sheet, 0, 0, string.Empty,
-                    new DbTypeWithSize(DbSimpleType.Nvarchar), string.Empty,
+                return [new ImportValidationError(sheet, 0, 0, string.Empty, ImportColumnKind.Nvarchar, string.Empty,
                     "The sheet could not be analysed.")];
             GetTypeChooser(sheet)?.SetValidationErrors([]);
         }
@@ -347,7 +347,7 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
                             rowNumber,
                             column,
                             chooser.NormalizedColumnHeaderNames![column],
-                            selectedType,
+                            DbImportJob.MapKind(selectedType.DatabaseTypeSimple),
                             GetSourceValue(reader, column),
                             ex.Message));
                     }
@@ -433,7 +433,7 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
     }
 
     public async IAsyncEnumerable<ImportStepHelper> ImportFromFileStepByStep(DatabaseTypeEnum databaseTypeEnum, IDatabaseWithSpecificImportService databaseService, string schemaName, string databasaTableName,
-        Action<string, string>? adColumnInfo = null, Action<List<string[]>>? previewAction = null)
+        Action<string, string>? adColumnInfo = null, Action<IReadOnlyList<string[]>>? previewAction = null)
     {
         IReadOnlyList<ImportValidationError> validationErrors = await ValidateSelectedSheetsAsync();
         if (validationErrors.Count > 0)
@@ -538,12 +538,4 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
     }
 
 }
-
-public sealed class ImportStepHelper
-{
-    public Func<Task>? Func { get; set; }
-    public DbImportJob? ImportJob { get; set; }
-}
-
-
 

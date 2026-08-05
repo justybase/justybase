@@ -5,4 +5,13 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
     </PropertyGroup>
+
+    <ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' == 'true'">
+        <ProjectReference Include="$(JustyBaseLocalImportExportProject)" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' != 'true'">
+        <PackageReference Include="JustyBase.ImportExport" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
+    </ItemGroup>
+
 </Project>

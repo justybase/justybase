@@ -1,6 +1,7 @@
-﻿using System.Data.Common;
+using System.Data.Common;
 using System.Text;
 using JustyBase.Helpers.Importers;
+using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginDatabaseBase.Database;
@@ -61,7 +62,7 @@ public sealed class Oracle : DatabaseService
         }
     }
 
-    public override async Task DbSpecificImportPart(IDbImportJob importJob, string randName, Action<string>? progress, bool tableExists = false)
+    public override async Task DbSpecificImportPart(IImportJob importJob, string randName, Action<string>? progress, bool tableExists = false)
     {
         try
         {

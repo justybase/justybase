@@ -1,3 +1,4 @@
+using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginDatabaseBase.Database;
@@ -586,7 +587,7 @@ public sealed class Postgres : DatabaseService
         }
     }
 
-    public override async Task DbSpecificImportPart(IDbImportJob importJob, string randName, Action<string>? progress, bool tableExists = false)
+    public override async Task DbSpecificImportPart(IImportJob importJob, string randName, Action<string>? progress, bool tableExists = false)
     {
         await Task.Run(() =>
         {
@@ -599,7 +600,7 @@ public sealed class Postgres : DatabaseService
             conn.Open();
             if (!tableExists)
             {
-                string[] headers = importJob.ReturnHeadersWithDataTypes(DatabaseTypeEnum.PostgreSql);
+                string[] headers = importJob.ReturnHeadersWithDataTypes(DatabaseKind.PostgreSql);
                 string sql = $"CREATE TABLE {randName} ({string.Join(',', headers)});";
                 using DbCommand cmd = conn.CreateCommand();
                 cmd.CommandText = sql;

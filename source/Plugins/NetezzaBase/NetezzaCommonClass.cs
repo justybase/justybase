@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using System.Data.Common;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -7,6 +7,7 @@ using JustyBase.Netezza.Ddl;
 using JustyBase.Netezza.Models;
 using JustyBase.NetezzaCatalogSql;
 using JustyBase.NetezzaDdl;
+using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginDatabaseBase.Database;
@@ -456,7 +457,7 @@ public class NetezzaCommonClass : DatabaseService, INetezza
     }
 
     protected virtual string DriverName => "dotnet";
-    public override async Task DbSpecificImportPart(IDbImportJob importJob, string randName, Action<string>? progress, bool tableExists = false)
+    public override async Task DbSpecificImportPart(IImportJob importJob, string randName, Action<string>? progress, bool tableExists = false)
     {
         try
         {

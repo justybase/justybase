@@ -1,5 +1,7 @@
 using System.Globalization;
 using JustyBase.Common.Tools.ImportHelpers;
+using JustyBase.ImportExport.Import;
+using DatabaseTypeChooser = JustyBase.Common.Tools.ImportHelpers.DatabaseTypeChooser;
 using JustyBase.NetezzaDriver;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
@@ -84,7 +86,7 @@ internal static class NetezzaImportRoundTripRunner
                     Connection = connection,
                     Service = service,
                     TableName = table,
-                    Columns = job.ColumnHeadersNames,
+                    Columns = job.ColumnHeadersNames.ToArray(),
                     Types = job.ColumnTypesBestMatch,
                     CsvPath = csvPath,
                     LogDir = logDir,

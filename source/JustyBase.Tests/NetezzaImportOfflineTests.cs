@@ -1,4 +1,6 @@
 using JustyBase.Common.Tools.ImportHelpers;
+using JustyBase.ImportExport.Import;
+using DatabaseTypeChooser = JustyBase.Common.Tools.ImportHelpers.DatabaseTypeChooser;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
 using JustyBase.ViewModels.Documents;
@@ -287,7 +289,7 @@ public sealed class NetezzaImportDetectionTests
         string[]? ddl = null;
         await foreach (DbImportJob job in import.ReadFileAndReturnSingleImportJobs())
         {
-            ddl = job.ReturnHeadersWithDataTypes(DatabaseTypeEnum.NetezzaSQL);
+            ddl = job.ReturnHeadersWithDataTypes(DatabaseKind.Netezza);
         }
         Assert.NotNull(ddl);
         return ddl;

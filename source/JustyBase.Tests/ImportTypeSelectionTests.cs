@@ -1,4 +1,6 @@
 using JustyBase.Common.Tools.ImportHelpers;
+using JustyBase.ImportExport.Import;
+using DatabaseTypeChooser = JustyBase.Common.Tools.ImportHelpers.DatabaseTypeChooser;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
 using JustyBase.ViewModels.Documents;
@@ -323,7 +325,7 @@ public sealed class ImportTypeSelectionTests
             Assert.Equal(sheet, error.SheetName);
             Assert.Equal(3, error.RowNumber);
             Assert.Equal("CODE", error.ColumnName);
-            Assert.Equal(DbSimpleType.Integer, error.SelectedType.DatabaseTypeSimple);
+            Assert.Equal(ImportColumnKind.Integer, error.SelectedKind);
             Assert.Equal("not-an-integer", error.Value);
             Assert.Same(chooser, import.GetTypeChooser(sheet));
             Assert.Single(chooser.ValidationErrors);

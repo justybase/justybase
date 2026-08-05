@@ -1,4 +1,5 @@
-﻿using IBM.Data.Db2;
+using IBM.Data.Db2;
+using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
@@ -890,7 +891,7 @@ public sealed class DB2DatabaseService : DatabaseService
                     ";
     }
 
-    public override async Task DbSpecificImportPart(IDbImportJob importJob, string randName, Action<string>? progress, bool tableExists = false)
+    public override async Task DbSpecificImportPart(IImportJob importJob, string randName, Action<string>? progress, bool tableExists = false)
     {
         await Task.Run(() =>
         {
@@ -903,7 +904,7 @@ public sealed class DB2DatabaseService : DatabaseService
             conn.Open();
             if (!tableExists)
             {
-                string[] headers = importJob.ReturnHeadersWithDataTypes(DatabaseTypeEnum.DB2);
+                string[] headers = importJob.ReturnHeadersWithDataTypes(DatabaseKind.Db2);
                 string SQL = $"CREATE TABLE {randName} ({string.Join(',', headers)}){Environment.NewLine}ORGANIZE BY ROW{Environment.NewLine}COMPRESS YES{Environment.NewLine};";
                 using DbCommand cmd = conn.CreateCommand();
                 cmd.CommandText = SQL;

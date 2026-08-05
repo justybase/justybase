@@ -1,8 +1,5 @@
 using JustyBase.Editor.CompletionProviders;
 using JustyBase.PluginCommons;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace JustyBase.Editor;
 
@@ -20,9 +17,7 @@ public partial class CodeTextEditor : TextEditor
 {
     protected CompletionWindow? _completionWindow;
     private OverloadInsightWindow? _insightWindow;
-#if !AVALONIA
-    private ToolTip? _toolTip;
-#endif
+
     public CodeTextEditor()
     {
         ShowLineNumbers = true;
@@ -35,10 +30,6 @@ public partial class CodeTextEditor : TextEditor
             EnableHyperlinks = false,
             EnableEmailHyperlinks = false
         };
-
-#if !AVALONIA
-        TextArea.TextView.VisualLinesChanged += OnVisualLinesChanged;
-#endif
 
         TextArea.TextEntering += OnTextEntering;
         TextArea.TextEntered += OnTextEntered;
@@ -62,89 +53,6 @@ public partial class CodeTextEditor : TextEditor
         add => AddHandler(ToolTipRequestEvent, value);
         remove => RemoveHandler(ToolTipRequestEvent, value);
     }
-
-#if !AVALONIA
-    private void OnVisualLinesChanged(object? sender, EventArgs e)
-    {
-        _toolTip?.Close(this);
-    }
-
-
-    private void OnMouseHoverStopped(object? sender, MouseEventArgs e)
-    {
-        if (_toolTip != null)
-        {
-            _toolTip.Close(this);
-            e.Handled = true;
-        }
-    }
-    private async void OnMouseHover(object? sender, MouseEventArgs e)
-    {
-        TextViewPosition? position;
-        try
-        {
-            position = TextArea.TextView.GetPositionFloor(e.GetPosition(TextArea.TextView) + TextArea.TextView.ScrollOffset);
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            // TODO: check why this happens
-            e.Handled = true;
-            return;
-        }
-        var args = new ToolTipRequestEventArgs { InDocument = position.HasValue };
-        if (!position.HasValue || position.Value.Location.IsEmpty || position.Value.IsAtEndOfLine)
-        {
-            return;
-        }
-
-        args.LogicalPosition = position.Value.Location;
-        args.Position = Document.GetOffset(position.Value.Line, position.Value.Column);
-
-        RaiseEvent(args);
-
-        if (args.ContentToShow == null)
-        {
-            var asyncRequest = AsyncToolTipRequest?.Invoke(args);
-            if (asyncRequest != null)
-            {
-                await asyncRequest.ConfigureAwait(true);
-            }
-        }
-
-        if (args.ContentToShow == null)
-        {
-            return;
-        }
-
-        if (_toolTip == null)
-        {
-            _toolTip = new ToolTip { MaxWidth = 400 };
-            InitializeToolTip();
-        }
-
-        if (args.ContentToShow is string stringContent)
-        {
-            _toolTip.SetContent(this, new TextBlock
-            {
-                Text = stringContent,
-                TextWrapping = TextWrapping.Wrap
-            });
-        }
-        else
-        {
-            _toolTip.SetContent(this, new ContentPresenter
-            {
-                Content = args.ContentToShow,
-                MaxWidth = 400
-            });
-        }
-
-        e.Handled = true;
-        _toolTip.Open(this);
-
-        AfterToolTipOpen();
-    }
-#endif
 
     partial void InitializeToolTip();
 
@@ -235,7 +143,6 @@ public partial class CodeTextEditor : TextEditor
         {
             _insightWindow?.Close();
 
-            //#if AVALONIA
             _completionWindow = new CompletionWindow(TextArea)
             {
                 CloseWhenCaretAtBeginning = triggerMode == TriggerMode.Completion || triggerMode == TriggerMode.Text,
@@ -252,11 +159,8 @@ public partial class CodeTextEditor : TextEditor
                     cw.CompletionList.BorderThickness = new Thickness(1);
                 }
             };
-#if AVALONIA
+
             _completionWindow.Opened += async (o, args) =>
-#else
-            _completionWindow.Loaded += async (o, args) =>
-#endif
             {
                 await Task.Delay(10);
                 var cw = (o as CompletionWindow);

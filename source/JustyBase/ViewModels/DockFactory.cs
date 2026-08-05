@@ -14,10 +14,8 @@ using JustyBase.ViewModels.Documents;
 using JustyBase.ViewModels.Tools;
 using JustyBase.Helpers;
 using JustyBase.ViewModels.Views;
-using Avalonia.Threading;
 using System.Data.Common;
 using System.Diagnostics;
-using Orientation = Dock.Model.Core.Orientation;
 
 namespace JustyBase.ViewModels;
 

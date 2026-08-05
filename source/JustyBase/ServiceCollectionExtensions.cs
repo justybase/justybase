@@ -3,6 +3,7 @@ using JustyBase.Common;
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Helpers;
 using JustyBase.Common.Services;
+using JustyBase.Core.Database;
 using JustyBase.Helpers;
 using JustyBase.Helpers.Interactions;
 using JustyBase.PluginCommon.Contracts;
@@ -72,6 +73,24 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IClipboardService, ClipboardService>();
         collection.AddSingleton<ISearchInFiles, SearchInFiles>();
         collection.AddSingleton<AutocompleteService>();
+        collection.AddSingleton<ISqlDbWordListProvider>(sp =>
+        {
+            var generalData = sp.GetRequiredService<IGeneralApplicationData>();
+            return new DbWordListProvider(
+                sp.GetRequiredService<AutocompleteService>(),
+                connectionName =>
+                {
+                    try
+                    {
+                        return DatabaseServiceHelpers.GetDatabaseService(generalData, connectionName);
+                    }
+                    catch
+                    {
+                        // Unknown connection / driver not loaded — treat as no word list.
+                        return null;
+                    }
+                });
+        });
         collection.AddSingleton<DocumentParsingCoordinator>();
         collection.AddSingleton<NzLinterService>();
         collection.AddSingleton<SqlDiagnosticsViewModel>();

@@ -6,30 +6,21 @@ using JustyBase.Common.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using JustyBase.Common.Models;
 using JustyBase.Common.Services;
-using JustyBase.Common.Tools.ImportHelpers;
-using JustyBase.Common.Tools.ImportHelpers.XML;
 using JustyBase.Editor;
 using JustyBase.Helpers;
 using JustyBase.Models.Tools;
 using JustyBase.PluginCommon.Contracts;
-using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommons;
-using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services;
 using JustyBase.Helpers.Shared;
-using JustyBase.Themes;
 using JustyBase.ViewModels.Tools;
 using System.Collections.ObjectModel;
-using System.Data.Common;
 using System.Text;
-using JustyBase.Common.Tools;
-using JustyBase.Helpers.Interactions;
 using System.Data;
-using System.Diagnostics;
 using JustyBase.Services.Documents;
-using System.Text.RegularExpressions;
 using JustyBase.NetezzaSqlParser.Completion;
 using JustyBase.NetezzaSqlParser.Caching;
+using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.NetezzaSqlParser.Visitor;
 using JustyBase.NetezzaSqlParser.Authoring;
 #if EMBEDDED_FIM
@@ -72,6 +63,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private readonly Queue<string> _pendingSnippetTexts = [];
     private IReadOnlyList<SymbolOccurrence> _lastReferenceOccurrences = [];
     private int _referenceNavigateIndex;
+    private SqlDialect _documentDialect = SqlDialect.Netezza;
 
     public SqlDocumentViewModel(IFactory factory,
        IGeneralApplicationData generalApplicationData, HistoryService historyService,
@@ -261,9 +253,11 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         value.RenameRequested = () => _ = ExecuteRenameAsync();
         value.GoToDefinitionRequested = () => NavigateSqlSymbol(definitionOnly: true);
         value.FindReferencesRequested = () => NavigateSqlSymbol(definitionOnly: false);
+        _documentDialect = GetCurrentSqlDialect();
         var documentUri = $"sql-doc-{Id}";
         value.Initialize(this, _generalApplicationData, _completionEngine, _parserSchema, _parsingCoordinator, documentUri,
-            ensureTableColumns: (database, schema, table) => _linterService?.EnsureTableColumns(database, schema, table));
+            ensureTableColumns: (database, schema, table) => _linterService?.EnsureTableColumns(database, schema, table),
+            dialect: _documentDialect);
 #if EMBEDDED_FIM
         _fimAttachment.Attach(
             value,
@@ -276,13 +270,13 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
                         : InlineCompletionController.DefaultDebounceMs)));
 #endif
         _completionEngine?.SetDocumentUri(documentUri);
-        _linterService?.AttachToEditor(value, documentUri);
+        _linterService?.AttachToEditor(value, documentUri, _documentDialect);
         if (contentWasSet)
         {
             // One intentional pass after attach — text was set before handlers were wired.
             if (!string.IsNullOrEmpty(value.Document.Text))
             {
-                SemanticLineColorizer.ScheduleUpdate(value.Document, documentUri, value.TextArea.TextView);
+                SemanticLineColorizer.ScheduleUpdate(value.Document, documentUri, value.TextArea.TextView, _documentDialect);
             }
 
             _linterService?.ForceReanalyze(value);
@@ -1029,7 +1023,40 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             SelectedDatabase = SqlDocumentViewModelHelper.ConnectionsList[SelectedConnectionIndex].DefaultDatabase;
         }
 
+        UpdateDocumentDialect();
         _ = _linterService?.SyncSchemaFromAllConnectionsAsync();
+    }
+
+    /// <summary>
+    /// Resolves the SQL dialect of the currently selected connection
+    /// (Db2 documents use the Db2 dialect from JustyBase.NetezzaSql).
+    /// </summary>
+    private SqlDialect GetCurrentSqlDialect()
+    {
+        if (SelectedConnectionIndex >= 0 && SelectedConnectionIndex < ConnectionsList.Count)
+        {
+            return SqlDialectResolver.ForDatabaseType(ConnectionsList[SelectedConnectionIndex].DatabaseType);
+        }
+
+        return SqlDialect.Netezza;
+    }
+
+    /// <summary>
+    /// Propagates a connection-change dialect switch to the editor (completion,
+    /// hover, semantic coloring) and the attached linter.
+    /// </summary>
+    private void UpdateDocumentDialect()
+    {
+        SqlDialect dialect = GetCurrentSqlDialect();
+        if (_documentDialect == dialect)
+            return;
+
+        _documentDialect = dialect;
+        if (SqlEditor is null)
+            return;
+
+        SqlEditor.SetSqlDialect(dialect);
+        _linterService?.AttachToEditor(SqlEditor, $"sql-doc-{Id}", dialect);
     }
 
     [ObservableProperty]
@@ -1289,7 +1316,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         IsReadOnly = true;
         try
         {
-            _sqlCodeFormatterService.FormatSql(SqlEditor);
+            _sqlCodeFormatterService.FormatSql(SqlEditor, _documentDialect);
         }
         finally
         {

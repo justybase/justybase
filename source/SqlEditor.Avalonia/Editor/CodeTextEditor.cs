@@ -1,11 +1,4 @@
-﻿using System;
-using Avalonia.Controls;
-using Avalonia.Controls.Presenters;
-using Avalonia.Input;
-using Avalonia.Media;
-using Avalonia.Threading;
-
-namespace JustyBase.Editor;
+﻿namespace JustyBase.Editor;
 
 //roslyn code editor
 public partial class CodeTextEditor

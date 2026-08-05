@@ -1,6 +1,5 @@
 using Avalonia.Input.Platform;
 using JustyBase.Common.Contracts;
-using JustyBase.Common.Models;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.Services;
 using JustyBase.Services.Documents;

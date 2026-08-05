@@ -1,6 +1,8 @@
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Contracts;
 using SpreadSheetTasks;
 using System.Data;
+using System.Globalization;
 
 namespace JustyBase.Common.Tools.ImportHelpers;
 
@@ -55,15 +57,27 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
         }
         else if (w.type == ExcelDataType.Int64)
         {
-            return w.int64Value == 1;
+            return w.int64Value switch
+            {
+                0 => false,
+                1 => true,
+                _ => throw new FormatException($"'{GetString(i)}' is not a supported boolean value.")
+            };
         }
         else if (w.type == ExcelDataType.Int32)
         {
-            return w.int32Value == 1;
+            return w.int32Value switch
+            {
+                0 => false,
+                1 => true,
+                _ => throw new FormatException($"'{GetString(i)}' is not a supported boolean value.")
+            };
         }
         else
         {
-            throw new InvalidCastException();
+            if (bool.TryParse(GetString(i), out bool parsed))
+                return parsed;
+            throw new FormatException($"'{GetString(i)}' is not a supported boolean value.");
         }
     }
 
@@ -99,18 +113,37 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
 
     public DateTime GetDateTime(int i)
     {
-        return _excelAbstractReader.GetDateTime(i);
+        ref var value = ref _excelAbstractReader.GetNativeValue(i);
+        if (value.type == ExcelDataType.DateTime)
+            return _excelAbstractReader.GetDateTime(i);
+
+        string raw = GetString(i);
+        if (DateTime.TryParse(raw, CultureInfo.CurrentCulture, DateTimeStyles.AllowWhiteSpaces, out DateTime currentCulture))
+            return currentCulture;
+        if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out DateTime invariant))
+            return invariant;
+        throw new FormatException($"'{raw}' is not a valid date or timestamp.");
     }
 
     public decimal GetDecimal(int i)
     {
         if (_isCsvReader)//special case becouse of that excel connot store decimals but Csv can..
         {
-            return _csvReader!.GetDecimal(i);
+            if (_csvReader!.IsDecimal(i))
+                return _csvReader.GetDecimal(i);
+
+            return ParseDecimal(GetString(i));
         }
         else
         {
-            return (decimal)_excelAbstractReader.GetDouble(i);
+            ref var value = ref _excelAbstractReader.GetNativeValue(i);
+            return value.type switch
+            {
+                ExcelDataType.Int64 => value.int64Value,
+                ExcelDataType.Int32 => value.int32Value,
+                ExcelDataType.Double => (decimal)value.doubleValue,
+                _ => ParseDecimal(GetString(i))
+            };
         }
     }
 
@@ -146,7 +179,17 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
 
     public long GetInt64(int i)
     {
-        return _excelAbstractReader.GetInt64(i);
+        ref var value = ref _excelAbstractReader.GetNativeValue(i);
+        if (_isCsvReader && _csvReader!.IsDecimal(i))
+            return ToInt64(_csvReader.GetDecimal(i), GetString(i));
+
+        return value.type switch
+        {
+            ExcelDataType.Int64 => value.int64Value,
+            ExcelDataType.Int32 => value.int32Value,
+            ExcelDataType.Double => ToInt64(value.doubleValue, GetString(i)),
+            _ => ParseInt64(GetString(i))
+        };
     }
 
     public string GetName(int i)
@@ -171,12 +214,15 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
 
     public object GetValue(int i)
     {
+        if (IsDBNull(i))
+            return DBNull.Value;
+
         return _databaseTypeChooser!.ColumnTypesBestMatch![i].DatabaseTypeSimple switch
         {
             DbSimpleType.Integer => GetInt64(i),
             DbSimpleType.Numeric => GetDecimal(i),
             DbSimpleType.Nvarchar => GetString(i),
-            DbSimpleType.Date => GetData(i),
+            DbSimpleType.Date => GetDateTime(i).Date,
             DbSimpleType.TimeStamp => GetDateTime(i),
             DbSimpleType.NoInfo => GetString(i),
             DbSimpleType.Boolean => GetBoolean(i),
@@ -197,6 +243,40 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
     {
         ref var valTmp = ref _excelAbstractReader.GetNativeValue(i);
         return valTmp.type == ExcelDataType.Null;
+    }
+
+    private static decimal ParseDecimal(string raw)
+    {
+        if (decimal.TryParse(raw, ImportEssentials.NumberExcelStyle, CultureInfo.CurrentCulture, out decimal currentCulture))
+            return currentCulture;
+        if (decimal.TryParse(raw, ImportEssentials.NumberExcelStyle, CultureInfo.InvariantCulture, out decimal invariant))
+            return invariant;
+        throw new FormatException($"'{raw}' is not a valid numeric value.");
+    }
+
+    private static long ParseInt64(string raw)
+    {
+        if (long.TryParse(raw, NumberStyles.Integer, CultureInfo.CurrentCulture, out long currentCulture))
+            return currentCulture;
+        if (long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out long invariant))
+            return invariant;
+        decimal decimalValue = ParseDecimal(raw);
+        return ToInt64(decimalValue, raw);
+    }
+
+    private static long ToInt64(double value, string raw)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value) || value != Math.Truncate(value)
+            || value < long.MinValue || value > long.MaxValue)
+            throw new FormatException($"'{raw}' is not an integer value.");
+        return checked((long)value);
+    }
+
+    private static long ToInt64(decimal value, string raw)
+    {
+        if (decimal.Truncate(value) != value || value < long.MinValue || value > long.MaxValue)
+            throw new FormatException($"'{raw}' is not an integer value.");
+        return checked((long)value);
     }
 
     public bool NextResult()

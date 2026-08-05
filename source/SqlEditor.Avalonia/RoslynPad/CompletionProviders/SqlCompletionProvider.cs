@@ -2,15 +2,10 @@ using JustyBase.Helpers;
 using JustyBase.NetezzaSqlParser.Authoring;
 using JustyBase.NetezzaSqlParser.Completion;
 using JustyBase.NetezzaSqlParser.Caching;
-using JustyBase.NetezzaSqlParser.Lexer;
+using JustyBase.NetezzaSqlParser.Dialects;
+using JustyBase.NetezzaSqlParser.Visitor;
 using JustyBase.Netezza.Completion;
 using JustyBase.PluginCommon.Contracts;
-using JustyBase.PluginCommons;
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace JustyBase.Editor.CompletionProviders;
 
@@ -24,13 +19,20 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
     private readonly DocumentParsingCoordinator? _parsingCoordinator;
     private readonly string? _documentUri;
     private readonly Action<string, string, string>? _ensureTableColumns;
+    private readonly InMemorySchemaProvider? _parserSchema;
+    private SqlDialect _dialect = SqlDialect.Netezza;
+
+    private static readonly object EngineCacheLock = new();
+    private static readonly Dictionary<SqlDialect, NzCompletionEngine> EngineCache = new();
 
     private const string FastSnippetTxt = "fast";
 
     public SqlCompletionProvider(SqlCodeEditor sqlCodeEditor, ISqlAutocompleteData sqlAutocompleteData,
         ISomeEditorOptions snippetsProvider, NzCompletionEngine? completionEngine = null,
         DocumentParsingCoordinator? parsingCoordinator = null, string? documentUri = null,
-        Action<string, string, string>? ensureTableColumns = null)
+        Action<string, string, string>? ensureTableColumns = null,
+        InMemorySchemaProvider? parserSchema = null,
+        SqlDialect dialect = SqlDialect.Netezza)
     {
         _someEditorOptions = snippetsProvider;
         _snippetService = new SnippetInfoService(_someEditorOptions);
@@ -40,6 +42,42 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
         _parsingCoordinator = parsingCoordinator;
         _documentUri = documentUri;
         _ensureTableColumns = ensureTableColumns;
+        _parserSchema = parserSchema;
+        _dialect = dialect;
+    }
+
+    /// <summary>
+    /// Switches the completion/signature-help surface to another SQL dialect
+    /// (e.g. Db2 uses the Db2Lexer and Db2SqlCatalog from JustyBase.NetezzaSql).
+    /// </summary>
+    public void SetDialect(SqlDialect dialect)
+    {
+        _dialect = dialect;
+    }
+
+    private NzCompletionEngine GetCompletionEngine()
+    {
+        if (_dialect == SqlDialect.Netezza)
+            return _completionEngine ?? CreateEngine(SqlDialect.Netezza);
+
+        return CreateEngine(_dialect);
+    }
+
+    private NzCompletionEngine CreateEngine(SqlDialect dialect)
+    {
+        lock (EngineCacheLock)
+        {
+            if (EngineCache.TryGetValue(dialect, out var cached))
+                return cached;
+
+            var engine = new NzCompletionEngine(
+                _parserSchema,
+                _parsingCoordinator,
+                catalog: DialectRuntime.AuthoringCatalog(dialect),
+                dialect: dialect);
+            EngineCache[dialect] = engine;
+            return engine;
+        }
     }
 
     public async Task<CompletionResult> GetCompletionData(int position, char? triggerChar, CompletionRequestKind requestKind = CompletionRequestKind.Completion)
@@ -47,7 +85,8 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
         if (requestKind == CompletionRequestKind.SignatureHelp)
         {
             var rawSql = _sqlCodeEditor.Document?.Text ?? string.Empty;
-            var signatureHelp = NzSignatureHelpService.GetSignatureHelp(rawSql, position, _parsingCoordinator, _documentUri);
+            var signatureHelp = NzSignatureHelpService.GetSignatureHelp(rawSql, position, _parsingCoordinator, _documentUri,
+                catalog: DialectRuntime.AuthoringCatalogOrNull(_dialect), dialect: _dialect);
             return new CompletionResult(
                 Array.Empty<ICompletionDataEx>(),
                 signatureHelp is null ? null : new SqlOverloadProvider(signatureHelp),
@@ -76,8 +115,10 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
         Dictionary<string, List<string>> aliasDbTable = new(StringComparer.OrdinalIgnoreCase);
         string legacySql = rawSqlText;
 
-        if (_completionEngine is not null)
+        var completionEngine = GetCompletionEngine();
+        if (completionEngine is not null)
         {
+            completionEngine.SetDocumentUri(_documentUri);
             int lineCount = _sqlCodeEditor.Document?.LineCount ?? SqlPerformancePolicy.CountLines(rawSqlText);
             // Dot / explicit invoke use the forced (48k) statement limit; passive timer uses 8k.
             bool forced = triggerChar is '.' or null;
@@ -86,12 +127,12 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
                 var (engineSql, engineCursor) = SqlAutocompleteWindow.SliceForEngine(
                     rawSqlText, position, lineCount, forced);
                 legacySql = engineSql;
-                engineItems = _completionEngine.GetCompletions(engineSql, engineCursor).ToArray();
+                engineItems = completionEngine.GetCompletions(engineSql, engineCursor).ToArray();
                 if (TryHydrateColumnsForDotCompletion(engineSql, engineCursor, engineItems))
-                    engineItems = _completionEngine.GetCompletions(engineSql, engineCursor).ToArray();
+                    engineItems = completionEngine.GetCompletions(engineSql, engineCursor).ToArray();
                 if (ShouldRunLegacyPath(engineItems, engineSql))
                 {
-                    (withHints, tempTableHints, aliasDbTable) = _completionEngine.GetScopeHints();
+                    (withHints, tempTableHints, aliasDbTable) = completionEngine.GetScopeHints();
                 }
                 foreach (var ci in engineItems)
                 {
@@ -202,7 +243,7 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
         string database = "", schema = "", table;
         try
         {
-            var tokens = NzLexer.Tokenize(sql).ToArray();
+            var tokens = DialectRuntime.Tokenize(sql, _dialect).ToArray();
             var resolved = CompletionAliasResolver.ResolveTablePath(tokens, qualifier);
             if (resolved is null)
             {

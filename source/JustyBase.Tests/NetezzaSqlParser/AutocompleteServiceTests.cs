@@ -1,5 +1,3 @@
-using JustyBase.Editor;
-using JustyBase.Editor.CompletionProviders;
 using JustyBase.Helpers;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;

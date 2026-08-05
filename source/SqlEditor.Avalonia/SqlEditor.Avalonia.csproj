@@ -3,7 +3,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-	 <DefineConstants>AVALONIA</DefineConstants>
   </PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="Avalonia" Version="12.1.1" />
@@ -14,10 +13,12 @@
 	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' == 'true'">
 		<ProjectReference Include="$(JustyBaseLocalNetezzaProject)" />
 		<ProjectReference Include="$(JustyBaseLocalNetezzaSqlParserProject)" />
+		<ProjectReference Include="$(JustyBaseLocalCoreProject)" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' != 'true'">
         <PackageReference Include="JustyBase.Netezza" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
         <PackageReference Include="JustyBase.NetezzaSqlParser" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
+        <PackageReference Include="JustyBase.Core" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
 	</ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\JustyBase.PluginCommon\JustyBase.PluginCommon.csproj" />

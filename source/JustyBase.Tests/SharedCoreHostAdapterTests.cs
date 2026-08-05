@@ -32,6 +32,20 @@ public sealed class SharedCoreHostAdapterTests
     }
 
     [Fact]
+    public void SqlRiskAnalysis_Db2Driver_KeepsGenericRisks_SuppressesNetezzaDistribute()
+    {
+        // "Db2 SQL" is the driver name the linter passes for Db2 documents
+        // (DialectRuntime.DiagnosticSource(SqlDialect.Db2)).
+        var issues = SqlRiskAnalysisService.Analyze("""
+            UPDATE t SET a = 1;
+            CREATE TABLE x (id INT);
+            """, "Db2 SQL");
+
+        Assert.Contains(issues, i => i.RuleId == "RISK001");
+        Assert.DoesNotContain(issues, i => i.RuleId == "RISK002");
+    }
+
+    [Fact]
     public void SasMacroPreprocessor_expands_let_and_ampersand_variables()
     {
         SasMacroPreprocessor.ClearSessionMacros();

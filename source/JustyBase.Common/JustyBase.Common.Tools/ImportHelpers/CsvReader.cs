@@ -1,71 +1,64 @@
+using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Enums;
 using SpreadSheetTasks;
-using Sylvan.Data.Csv;
-using System.Buffers;
-using System.IO.Compression;
 using System.Text;
 
 namespace JustyBase.Common.Tools.ImportHelpers;
 
+/// <summary>
+/// Host adapter over the shared <see cref="CsvRowReader"/>. Keeps the
+/// <see cref="ExcelReaderAbstract"/> facade (typed <see cref="FieldInfo"/> rows,
+/// progress, shared-string/update-mode-agnostic open signature).
+/// </summary>
 public sealed class CsvReader(CompressionEnum csvCompression = CompressionEnum.None) : ExcelReaderAbstract, IDisposable
 {
     public string? FilePath { get; set; }
 
-    private CsvDataReader _csvReader = null!;
-    private StreamReader _streamReader = null!;
+    private readonly CsvRowReader _inner = new(Map(csvCompression));
     private readonly CompressionEnum _csvCompression = csvCompression;
     public CompressionEnum Compression => _csvCompression;
 
-    private FileStream _originalFileStream = null!;
+    private decimal[]? _decimalVals;
+    private bool[]? _isDecimalArray;
+
+    private static CsvCompression Map(CompressionEnum value) => value switch
+    {
+        CompressionEnum.Brotli => CsvCompression.Brotli,
+        CompressionEnum.Gzip => CsvCompression.Gzip,
+        CompressionEnum.Zstd => CsvCompression.Zstd,
+        _ => CsvCompression.None
+    };
+
     public override void Open(string path, bool readSharedStrings = true, bool updateMode = false, Encoding? encoding = null)
     {
-        if (_csvCompression == CompressionEnum.Brotli)
-        {
-            _originalFileStream = File.OpenRead(path);
-            var br = new BrotliStream(new BufferedStream(_originalFileStream), CompressionMode.Decompress);
-            _streamReader = new StreamReader(br);
-        }
-        else if (_csvCompression == CompressionEnum.Gzip)
-        {
-            _originalFileStream = File.OpenRead(path);
-            var gz = new GZipStream(new BufferedStream(_originalFileStream), CompressionMode.Decompress);
-            _streamReader = new StreamReader(gz);
-        }
-        else if (_csvCompression == CompressionEnum.Zstd)
-        {
-            _originalFileStream = File.OpenRead(path);
-            var gz = new ZstdSharp.DecompressionStream(new BufferedStream(_originalFileStream));
-            _streamReader = new StreamReader(gz);
-        }
-        else
-        {
-            _streamReader = new StreamReader(path);
-        }
-
-        _csvReader = CsvDataReader.Create(_streamReader);
+        _inner.TreatAllColumnsAsText = TreatAllColumnsAsText;
+        _inner.Open(path);
         FilePath = path;
 
-        FieldCount = _csvReader.FieldCount;
+        FieldCount = _inner.FieldCount;
         innerRow = new FieldInfo[FieldCount];
         _decimalVals = new decimal[FieldCount];
         _isDecimalArray = new bool[FieldCount];
         for (int i = 0; i < FieldCount; i++)
         {
             innerRow[i].type = ExcelDataType.String;
-            innerRow[i].strValue = _csvReader.GetName(i);
+            innerRow[i].strValue = _inner.GetName(i);
         }
     }
+
     public override string[] GetSheetNames()
     {
         return [Path.GetFileName(FilePath ?? string.Empty).Replace('.', '_')];
     }
+
     public bool TransformValuesAutomaticly { get; set; } = true;
+
     public override bool Read()
     {
-        var innerReaderRead = _csvReader.Read();
+        bool innerReaderRead = _inner.Read();
         if (innerReaderRead && TransformValuesAutomaticly)
         {
-            for (int i = 0; i < _csvReader.FieldCount; i++)
+            for (int i = 0; i < _inner.FieldCount; i++)
             {
                 TransFromSpanValue(i);
             }
@@ -73,66 +66,37 @@ public sealed class CsvReader(CompressionEnum csvCompression = CompressionEnum.N
         return innerReaderRead;
     }
 
-    private bool[]? _isDecimalArray;
-    private decimal[]? _decimalVals;
-
-    private static bool IsTextColumnName(string columnName)
-    {
-        return columnName.Equals("Regon", StringComparison.OrdinalIgnoreCase) || columnName.Equals("Pesel", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private readonly SearchValues<char> _searchValues = SearchValues.Create(",.E");
-
     public void TransFromSpanValue(int i)
     {
-        var strVal = _csvReader.GetFieldSpan(i);
-        innerRow[i].type = ExcelDataType.Null;
-        if (strVal.Length == 0)
+        CsvCell cell = _inner.InferCell(i);
+        ref var w = ref innerRow[i];
+        switch (cell.Kind)
         {
-            innerRow[i].type = ExcelDataType.Null;
-        }
-        else if (TreatAllColumnsAsText)
-        {
-            innerRow[i].type = ExcelDataType.String;
-            innerRow[i].strValue = strVal.ToString();
-        }
-        else if (IsTextColumnName(_csvReader.GetName(i)))
-        {
-            innerRow[i].type = ExcelDataType.String;
-            innerRow[i].strValue = strVal.ToString();
-        }
-        else if ((strVal[0] == '-' || char.IsDigit(strVal[0])) && strVal.Length < 40 && strVal.ContainsAny(_searchValues)
-                && (
-                    decimal.TryParse(strVal, out decimal decimalRes) ||
-                    decimal.TryParse(strVal, System.Globalization.NumberStyles.Any, invariantCultureInfo, out decimalRes)
-                )
-            )
-        {
-            innerRow[i].type = ExcelDataType.Double;
-            innerRow[i].doubleValue = (double)decimalRes;//forLengthDetection in FullScanExcelReader
-            _isDecimalArray![i] = true; // Open must be called -> this is not null
-            _decimalVals![i] = decimalRes;
-        }
-        else if (strVal.Length < 20 && strVal[0] != '0' && long.TryParse(strVal, out long int64Val))
-        {
-            innerRow[i].type = ExcelDataType.Int64;
-            innerRow[i].int64Value = int64Val;
-        }
-        //else if (DateTime.TryParseExact(strVal, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out DateTime datetimeVal))
-        else if (DateTime.TryParse(strVal, out var datetimeVal))
-        {
-            innerRow[i].type = ExcelDataType.DateTime;
-            innerRow[i].dtValue = datetimeVal;
-        }
-        else if (bool.TryParse(strVal, out bool boolVal))
-        {
-            innerRow[i].type = ExcelDataType.Boolean;
-            innerRow[i].boolValue = boolVal;
-        }
-        else
-        {
-            innerRow[i].type = ExcelDataType.String;
-            innerRow[i].strValue = strVal.ToString();
+            case CsvCellKind.Null:
+                w.type = ExcelDataType.Null;
+                break;
+            case CsvCellKind.String:
+                w.type = ExcelDataType.String;
+                w.strValue = cell.StringValue;
+                break;
+            case CsvCellKind.Double:
+                w.type = ExcelDataType.Double;
+                w.doubleValue = (double)cell.DecimalValue;
+                _isDecimalArray![i] = true;
+                _decimalVals![i] = cell.DecimalValue;
+                break;
+            case CsvCellKind.Int64:
+                w.type = ExcelDataType.Int64;
+                w.int64Value = cell.Int64Value;
+                break;
+            case CsvCellKind.DateTime:
+                w.type = ExcelDataType.DateTime;
+                w.dtValue = cell.DateTimeValue;
+                break;
+            case CsvCellKind.Boolean:
+                w.type = ExcelDataType.Boolean;
+                w.boolValue = cell.BooleanValue;
+                break;
         }
     }
 
@@ -145,32 +109,15 @@ public sealed class CsvReader(CompressionEnum csvCompression = CompressionEnum.N
         }
         else
         {
-            return _csvReader.GetFieldSpan(i).ToString();
+            return _inner.GetFieldString(i);
         }
     }
-    public int GetSpanLength(int i)
-    {
-        return _csvReader.GetFieldSpan(i).Length;
-    }
+
+    public int GetSpanLength(int i) => _inner.GetFieldLength(i);
     public decimal GetDecimal(int i) => _decimalVals![i];
     public bool IsDecimal(int i) => _isDecimalArray![i] == true;
-    public override void Dispose()
-    {
-        _csvReader?.Dispose();
-        _streamReader?.Dispose();
-        _originalFileStream?.Dispose();
-    }
-    public override double RelativePositionInStream()
-    {
-        if (_streamReader.BaseStream.CanSeek)
-        {
-            return (double)_streamReader.BaseStream.Position / _streamReader.BaseStream.Length;
-        }
-        if (_csvCompression != CompressionEnum.None)
-        {
-            return (double)_originalFileStream.Position / _originalFileStream.Length;
-        }
-        return 0.5;
-    }
-}
 
+    public override void Dispose() => _inner.Dispose();
+
+    public override double RelativePositionInStream() => _inner.Position;
+}

@@ -1,5 +1,4 @@
-﻿using System;
-using JustyBase.Editor.CompletionProviders;
+﻿using JustyBase.Editor.CompletionProviders;
 using JustyBase.NetezzaSqlParser.Completion;
 
 namespace JustyBase.Editor;
@@ -19,6 +18,9 @@ public sealed class CompletionDataSql(
     private readonly string _insertText = insertText ?? text;
 
     private readonly Glyph _glyph = glyph;
+
+    /// <summary>Host icon slot; exposed so shared word-list adapters can map to a neutral kind.</summary>
+    public Glyph Glyph => _glyph;
 
     public bool IsSelected { get; } = isSelected;
 

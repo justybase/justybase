@@ -21,6 +21,7 @@ public class DbImportJob : IDbImportJob
     public DbImportJob() { }
 
     public long RowsCount => _databaseTypeChoser.RowsCount;
+    public string? SourceSheetName { get; init; }
 
     protected string[]? _columnHeadersNames;
     public string[]? ColumnHeadersNames => _columnHeadersNames;

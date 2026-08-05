@@ -1,13 +1,7 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading;
-using System.Threading.Tasks;
-using Avalonia.Media;
-using Avalonia.Threading;
-using AvaloniaEdit.Document;
-using AvaloniaEdit.Rendering;
+using JustyBase.Core.Diagnostics;
 using JustyBase.NetezzaSqlParser.Authoring;
+using JustyBase.NetezzaSqlParser.Dialects;
 
 namespace JustyBase.Editor;
 
@@ -30,7 +24,8 @@ public sealed class SemanticLineColorizer : DocumentColorizingTransformer
     private static IBrush? AliasBrush;
     private static IBrush? IdentifierBrush;
 
-    private static NzSemanticTokenClassifier? _classifier;
+    private static Func<SqlDialect, NzSemanticTokenClassifier>? _classifierFactory;
+    private static readonly Dictionary<SqlDialect, NzSemanticTokenClassifier> Classifiers = new();
     private static readonly Dictionary<int, string?> DocumentUris = new();
     private static readonly Dictionary<int, TextView?> DocumentViews = new();
     private static readonly Dictionary<int, (string Text, SemanticTokenSpan[] Tokens)> DocumentCache = new();
@@ -38,12 +33,32 @@ public sealed class SemanticLineColorizer : DocumentColorizingTransformer
     private static readonly Dictionary<int, CancellationTokenSource> PendingFullClassification = new();
     private static readonly object CacheLock = new();
 
-    public static void Configure(NzSemanticTokenClassifier classifier)
+    public static void Configure(Func<SqlDialect, NzSemanticTokenClassifier> classifierFactory)
     {
-        _classifier = classifier;
+        lock (CacheLock)
+        {
+            _classifierFactory = classifierFactory;
+            Classifiers.Clear();
+        }
     }
 
-    public static void RegisterDocument(TextDocument document, string? documentUri, TextView? textView = null)
+    private static NzSemanticTokenClassifier GetClassifier(SqlDialect dialect)
+    {
+        lock (CacheLock)
+        {
+            if (Classifiers.TryGetValue(dialect, out var cached))
+                return cached;
+
+            if (_classifierFactory is null)
+                throw new InvalidOperationException("SemanticLineColorizer.Configure was not called before classification.");
+
+            var created = _classifierFactory(dialect);
+            Classifiers[dialect] = created;
+            return created;
+        }
+    }
+
+    public static void RegisterDocument(TextDocument document, string? documentUri, TextView? textView = null, SqlDialect dialect = SqlDialect.Netezza)
     {
         lock (CacheLock)
         {
@@ -73,10 +88,12 @@ public sealed class SemanticLineColorizer : DocumentColorizingTransformer
     }
 
     [SuppressMessage("Reliability", "CA2000", Justification = "CTS instances are owned by the scheduled Task (or LexOnly path) and disposed in finally.")]
-    public static void ScheduleUpdate(TextDocument document, string? documentUri = null, TextView? textView = null)
+    public static void ScheduleUpdate(TextDocument document, string? documentUri = null, TextView? textView = null, SqlDialect dialect = SqlDialect.Netezza)
     {
-        if (_classifier is null || document is null)
+        if (_classifierFactory is null || document is null)
             return;
+
+        var classifier = GetClassifier(dialect);
 
         string text = document.Text;
         int lineCount = document.LineCount;
@@ -102,7 +119,7 @@ public sealed class SemanticLineColorizer : DocumentColorizingTransformer
                 SemanticTokenSpan[] lexTokens;
                 using (SqlTypingPerfProbe.Instance.Measure("editor.highlight", "lex", documentUri ?? "semantic-default", text.Length, lineCount))
                 {
-                    lexTokens = _classifier.ClassifyLex(text, documentUri, lineCount);
+                    lexTokens = classifier.ClassifyLex(text, documentUri, lineCount);
                 }
                 DocumentCache[docId] = (text, lexTokens);
             }
@@ -141,7 +158,7 @@ public sealed class SemanticLineColorizer : DocumentColorizingTransformer
                     SemanticTokenSpan[] lexTokens;
                     using (SqlTypingPerfProbe.Instance.Measure("editor.highlight", "lex", documentUri ?? "semantic-default", currentState.Text.Length, currentState.LineCount))
                     {
-                        lexTokens = _classifier.ClassifyLex(currentState.Text, documentUri, currentState.LineCount);
+                        lexTokens = classifier.ClassifyLex(currentState.Text, documentUri, currentState.LineCount);
                     }
 
                     TextView? view;
@@ -206,7 +223,7 @@ public sealed class SemanticLineColorizer : DocumentColorizingTransformer
                 SemanticTokenSpan[] fullTokens;
                 using (SqlTypingPerfProbe.Instance.Measure("editor.semantic_tokens", "full", documentUri ?? "semantic-default", currentText.Length, currentLineCount))
                 {
-                    fullTokens = _classifier.ClassifyFull(currentText, documentUri, currentLineCount);
+                    fullTokens = classifier.ClassifyFull(currentText, documentUri, currentLineCount);
                 }
 
                 TextView? view;
@@ -285,7 +302,7 @@ public sealed class SemanticLineColorizer : DocumentColorizingTransformer
 
     protected override void ColorizeLine(DocumentLine line)
     {
-        if (CommentBrush is null || _classifier is null)
+        if (CommentBrush is null || _classifierFactory is null)
             return;
 
         var document = CurrentContext.Document;

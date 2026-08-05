@@ -1,9 +1,11 @@
-﻿using JustyBase.PluginCommon.Contracts;
+﻿using JustyBase.ImportExport.Import;
+using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
 using JustyBase.PluginCommons;
 using SpreadSheetTasks;
 using System.Diagnostics;
+using System.Globalization;
 
 namespace JustyBase.Common.Tools.ImportHelpers;
 
@@ -11,31 +13,29 @@ public sealed class DatabaseTypeChooser
 {
     public string[]? NormalizedColumnHeaderNames { get; set; }
     public string[]? OriginalColumnHeaderNames { get; set; } // column headers not normalized
+    /// <summary>The result of source detection. It never changes when a user selects an override.</summary>
+    public DbTypeWithSize[]? DetectedColumnTypes { get; private set; }
+    /// <summary>The types used by the import job. This is the per-sheet override plan.</summary>
     public DbTypeWithSize[]? ColumnTypesBestMatch { get; set; }
+    public int[]? RawValueLengths { get; private set; }
+    public List<ImportValidationError> ValidationErrors { get; } = [];
     public const int DEFAULT_NVARCHAR_LENGTH = 255;
 
-    private Trio[][]? _innerTypeArray;
+    private ImportTypeAnalyzer? _analyzer;
 
     private int _fieldCount;
     public void InitTypes(int fieldCount)
     {
         _fieldCount = fieldCount;
         ColumnTypesBestMatch = new DbTypeWithSize[fieldCount];
+        DetectedColumnTypes = new DbTypeWithSize[fieldCount];
+        RawValueLengths = new int[fieldCount];
+        ValidationErrors.Clear();
         NormalizedColumnHeaderNames = new string[fieldCount];
         OriginalColumnHeaderNames = new string[fieldCount];
-        _innerTypeArray = new Trio[fieldCount][];
-        for (int i = 0; i < _innerTypeArray.Length; i++)
-        {
-            _innerTypeArray[i] = new Trio[7];// 7 data types
-            _innerTypeArray[i][(int)DbSimpleType.Integer] = new Trio();
-            _innerTypeArray[i][(int)DbSimpleType.Numeric] = new Trio();
-            _innerTypeArray[i][(int)DbSimpleType.Nvarchar] = new Trio();
-            _innerTypeArray[i][(int)DbSimpleType.Date] = new Trio();
-            _innerTypeArray[i][(int)DbSimpleType.TimeStamp] = new Trio();
-            _innerTypeArray[i][(int)DbSimpleType.NoInfo] = new Trio();
-            _innerTypeArray[i][(int)DbSimpleType.Boolean] = new Trio();
-        }
+        _analyzer = new ImportTypeAnalyzer(fieldCount);
     }
+
     public void ChooseTypes(int textMargin = 5)
     {
         if (NormalizedColumnHeaderNames is null)
@@ -47,16 +47,17 @@ public sealed class DatabaseTypeChooser
         if (ColumnTypesBestMatch is null)
             throw new InvalidOperationException("ColumnTypesBestMatch should be not null");
 
-        if (_innerTypeArray is null)
-            throw new InvalidOperationException("_innerTypeDictionaryHelper should be not null");
+        if (_analyzer is null)
+            throw new InvalidOperationException("_analyzer should be not null");
 
+        IReadOnlyList<DetectedImportColumnType> detected = _analyzer.Choose(OriginalColumnHeaderNames);
         for (int i = 0; i < _fieldCount; i++)
         {
             if (OriginalColumnHeaderNames[i].EndsWith("_#TEXT", StringComparison.Ordinal))
             {
                 ColumnTypesBestMatch[i] = new DbTypeWithSize(DbSimpleType.Nvarchar)
                 {
-                    TextLength = Math.Max(DEFAULT_NVARCHAR_LENGTH, _innerTypeArray[0][(int)DbSimpleType.Nvarchar].LengthOrPrecision)
+                    TextLength = GetTextLength(i)
                 };
                 continue;
             }
@@ -81,103 +82,34 @@ public sealed class DatabaseTypeChooser
                 continue;
             }
 
-            var typesCountLevel1 = _innerTypeArray[i];
-
-            Dictionary<DbSimpleType, Trio> dc = [];
-            for (int j = 0; j < typesCountLevel1.Length; j++)
-            {
-                dc[(DbSimpleType)j] = typesCountLevel1[j];
-            }
-
-            var bestChoiceTemp = dc.Where(arg => arg.Key != DbSimpleType.NoInfo && arg.Value.HowManyTimes > 0);
-
-            if (bestChoiceTemp is null)
-            {
-                ColumnTypesBestMatch[i] = new DbTypeWithSize(DbSimpleType.Nvarchar) { TextLength = DEFAULT_NVARCHAR_LENGTH };
-                continue;
-            }
-
-            // choose best suited type
-            var bestChoice = bestChoiceTemp.OrderByDescending(arg => arg.Value.HowManyTimes).FirstOrDefault();
-            bool containNumeric = typesCountLevel1[(int)DbSimpleType.Numeric].HowManyTimes > 0;
-            bool containNvarchar = typesCountLevel1[(int)DbSimpleType.Nvarchar].HowManyTimes > 0;
-            bool containInteger = typesCountLevel1[(int)DbSimpleType.Integer].HowManyTimes > 0;
-            bool containTimestamp = typesCountLevel1[(int)DbSimpleType.TimeStamp].HowManyTimes > 0;
-            bool containBoolean = typesCountLevel1[(int)DbSimpleType.Boolean].HowManyTimes > 0;
-
-            bool isTypeMix = (containNumeric ? 1 : 0) + (containInteger ? 1 : 0) + (containTimestamp ? 1 : 0) + (containBoolean ? 1 : 0) > 1;
-
-            if (containNvarchar)
-            {
-                int proposedNumericLength = typesCountLevel1[(int)DbSimpleType.Nvarchar].LengthOrPrecision;
-                if (containNumeric)
-                {
-                    int l = typesCountLevel1[(int)DbSimpleType.Numeric].LengthOrPrecision;
-                    if (proposedNumericLength < l)
-                    {
-                        proposedNumericLength = l;
-                    }
-                }
-                if (containInteger)
-                {
-                    int l = typesCountLevel1[(int)DbSimpleType.Integer].LengthOrPrecision;
-                    if (proposedNumericLength < l)
-                    {
-                        proposedNumericLength = l;
-                    }
-                }
-                if ((typesCountLevel1[(int)DbSimpleType.TimeStamp].HowManyTimes > 0 ||
-                    typesCountLevel1[(int)DbSimpleType.Date].HowManyTimes > 0
-                    ) && proposedNumericLength < 20)
-                {
-                    proposedNumericLength = 20;
-                }
-
-                ColumnTypesBestMatch[i] = new DbTypeWithSize(DbSimpleType.Nvarchar) { TextLength = proposedNumericLength == 1 ? 1 : proposedNumericLength + textMargin };
-            }
-            else if (isTypeMix)
-            {
-                ColumnTypesBestMatch[i] = new DbTypeWithSize(DbSimpleType.Nvarchar) { TextLength = 50 };
-            }
-            else if (containNumeric)
-            {
-                int a = typesCountLevel1[(int)DbSimpleType.Numeric].LengthOrPrecision;
-                int b = typesCountLevel1[(int)DbSimpleType.Numeric].Scale;
-                if (containInteger && typesCountLevel1[(int)DbSimpleType.Integer].LengthOrPrecision + b > a)
-                {
-                    a = typesCountLevel1[(int)DbSimpleType.Integer].LengthOrPrecision + b; // in column : 1,2,5.1,10 then 
-                }
-                if (a < b + 5)
-                {
-                    a = b + 5;
-                }
-                if (a < 10)
-                {
-                    a = 10;
-                }
-                if (containInteger && a < b + 16)
-                {
-                    a = b + 16;
-                }
-                int precision = a > 38 ? 38 : a;
-                int scale = b > ImportEssentials.NumericPrecision ? ImportEssentials.NumericPrecision : b;
-                ColumnTypesBestMatch[i] = new DbTypeWithSize(DbSimpleType.Numeric) { NumericPrecision = precision, NumericScale = scale };
-            }
-            else
-            {
-                ColumnTypesBestMatch[i] = bestChoice.Key switch
-                {
-                    DbSimpleType.Integer => new DbTypeWithSize(DbSimpleType.Integer),
-                    DbSimpleType.Nvarchar => new DbTypeWithSize(DbSimpleType.Nvarchar) { TextLength = bestChoice.Value.LengthOrPrecision },
-                    DbSimpleType.Numeric => new DbTypeWithSize(DbSimpleType.Numeric) { NumericPrecision = bestChoice.Value.LengthOrPrecision, NumericScale = bestChoice.Value.Scale },
-                    DbSimpleType.Date => new DbTypeWithSize(DbSimpleType.Date),
-                    DbSimpleType.TimeStamp => new DbTypeWithSize(DbSimpleType.TimeStamp),
-                    DbSimpleType.Boolean => new DbTypeWithSize(DbSimpleType.Boolean),
-                    _ => new DbTypeWithSize(DbSimpleType.Nvarchar) { TextLength = DEFAULT_NVARCHAR_LENGTH },
-                };
-            }
+            ColumnTypesBestMatch[i] = MapDetected(detected[i]);
         }
+
+        DetectedColumnTypes = ColumnTypesBestMatch.Select(CloneType).ToArray();
     }
+
+    public void ResetSelectedTypesToDetected()
+    {
+        if (DetectedColumnTypes is null)
+            throw new InvalidOperationException("DetectedColumnTypes is null");
+
+        ColumnTypesBestMatch = DetectedColumnTypes.Select(CloneType).ToArray();
+        ValidationErrors.Clear();
+    }
+
+    public void SetValidationErrors(IEnumerable<ImportValidationError> errors)
+    {
+        ValidationErrors.Clear();
+        ValidationErrors.AddRange(errors);
+    }
+
+    private int GetTextLength(int columnNumber)
+    {
+        int rawLength = RawValueLengths is null || columnNumber >= RawValueLengths.Length ? 0 : RawValueLengths[columnNumber];
+        return Math.Max(DEFAULT_NVARCHAR_LENGTH, rawLength);
+    }
+
+    private static DbTypeWithSize CloneType(DbTypeWithSize type) => type with { };
 
     public Type GetNativeType(int i)
     {
@@ -186,88 +118,58 @@ public sealed class DatabaseTypeChooser
         return ColumnTypesBestMatch[i].GetNativeType();
     }
 
-    //XML specific
+    /// <summary>Maps the shared detected kind to the host <see cref="DbTypeWithSize"/>.</summary>
+    private static DbTypeWithSize MapDetected(DetectedImportColumnType type) => type.Kind switch
+    {
+        ImportColumnKind.Integer => new DbTypeWithSize(DbSimpleType.Integer),
+        ImportColumnKind.Numeric => new DbTypeWithSize(DbSimpleType.Numeric) { NumericPrecision = type.LengthOrPrecision, NumericScale = type.Scale },
+        ImportColumnKind.Nvarchar => new DbTypeWithSize(DbSimpleType.Nvarchar) { TextLength = type.LengthOrPrecision },
+        ImportColumnKind.Date => new DbTypeWithSize(DbSimpleType.Date),
+        ImportColumnKind.TimeStamp => new DbTypeWithSize(DbSimpleType.TimeStamp),
+        ImportColumnKind.Boolean => new DbTypeWithSize(DbSimpleType.Boolean),
+        _ => new DbTypeWithSize(DbSimpleType.Nvarchar) { TextLength = DEFAULT_NVARCHAR_LENGTH }
+    };
+
+    private static ImportColumnKind MapSimpleType(DbSimpleType type) => type switch
+    {
+        DbSimpleType.Integer => ImportColumnKind.Integer,
+        DbSimpleType.Numeric => ImportColumnKind.Numeric,
+        DbSimpleType.Nvarchar => ImportColumnKind.Nvarchar,
+        DbSimpleType.Date => ImportColumnKind.Date,
+        DbSimpleType.TimeStamp => ImportColumnKind.TimeStamp,
+        DbSimpleType.Boolean => ImportColumnKind.Boolean,
+        _ => ImportColumnKind.NoInfo
+    };
+
+    /// <summary>XML import path: feeds the caller-classified cell to the shared analyzer.</summary>
     public void HandleValueTextMode(ReadOnlySpan<char> val, int columnNumber, DbSimpleType dbSimpleType)
     {
-        if (_innerTypeArray is null)
-            throw new InvalidOperationException("_innerTypeDictionaryHelper is null");
+        if (_analyzer is null)
+            throw new InvalidOperationException("_analyzer is null");
 
-        var typesCountLevel2 = _innerTypeArray[columnNumber][(int)dbSimpleType];
-        if (dbSimpleType == DbSimpleType.Numeric)
-        {
-            int dotPossition = val.IndexOf('.');
-            if (dotPossition == -1)
-            {
-                dotPossition = val.Length;
-            }
-
-            if (typesCountLevel2.LengthOrPrecision < dotPossition + ImportEssentials.NumericPrecision)
-            {
-                typesCountLevel2.LengthOrPrecision = dotPossition + ImportEssentials.NumericPrecision;
-            }
-
-            typesCountLevel2.Scale = ImportEssentials.NumericPrecision;
-        }
-
-        if ((dbSimpleType == DbSimpleType.Nvarchar || dbSimpleType == DbSimpleType.Integer) && typesCountLevel2.LengthOrPrecision < val.Length)
-        {
-            typesCountLevel2.LengthOrPrecision = val.Length > 0 ? val.Length : 1;
-        }
-
-        typesCountLevel2.HowManyTimes++;
+        _analyzer.AddCell(columnNumber, MapSimpleType(dbSimpleType));
     }
 
+    /// <summary>
+    /// CSV/Excel path: converts the typed cell to a canonical string and feeds the shared
+    /// chooser. CSV cells are fed as their raw token by the caller (leading zeros stay textual).
+    /// </summary>
     private void HandleExcelValue(ref FieldInfo nativeVal, int columnNumber)
     {
-        if (_innerTypeArray is null)
-            throw new InvalidOperationException("_innerTypeDictionaryHelper is null");
+        if (_analyzer is null)
+            throw new InvalidOperationException("_analyzer is null");
 
-        int minimumLength = -1;
-        DbSimpleType dbSimpleTypeTmp;
-        switch (nativeVal.type)
+        string? canonical = nativeVal.type switch
         {
-            case ExcelDataType.Null:
-                dbSimpleTypeTmp = DbSimpleType.NoInfo;
-                break;
-            case ExcelDataType.Int64:
-                minimumLength = (int)Math.Floor(Math.Log10(Math.Abs(nativeVal.int64Value)) + 2); // +2 because of +/-
-                dbSimpleTypeTmp = DbSimpleType.Integer;
-                break;
-            case ExcelDataType.Double:
-                double tempD = nativeVal.doubleValue;
-                minimumLength = (int)Math.Floor(Math.Log10(Math.Abs(tempD)) + 2) + ImportEssentials.NumericPrecision + 1;
-                dbSimpleTypeTmp = DbSimpleType.Numeric;
-                break;
-            case ExcelDataType.DateTime:
-                dbSimpleTypeTmp = DbSimpleType.TimeStamp;
-                break;
-            case ExcelDataType.String:
-                dbSimpleTypeTmp = DbSimpleType.Nvarchar;
-                minimumLength = nativeVal.strValue.Length;
-                break;
-            case ExcelDataType.Boolean:
-                dbSimpleTypeTmp = DbSimpleType.Boolean;
-                break;
-            case ExcelDataType.Error:
-                dbSimpleTypeTmp = DbSimpleType.NoInfo;
-                break;
-            case ExcelDataType.Int32: // ????
-                dbSimpleTypeTmp = DbSimpleType.NoInfo;
-                break;
-            default:
-                dbSimpleTypeTmp = DbSimpleType.NoInfo;
-                break;
-        }
-
-        var typesCountLevel2 = _innerTypeArray[columnNumber][(int)dbSimpleTypeTmp];
-
-        typesCountLevel2.HowManyTimes++;
-
-        if (typesCountLevel2.LengthOrPrecision < minimumLength)
-        {
-            typesCountLevel2.LengthOrPrecision = minimumLength;
-        }
-        typesCountLevel2.Scale = ImportEssentials.NumericPrecision;//after dot
+            ExcelDataType.Int64 => nativeVal.int64Value.ToString(CultureInfo.InvariantCulture),
+            ExcelDataType.Double => nativeVal.doubleValue.ToString("R", CultureInfo.InvariantCulture),
+            ExcelDataType.DateTime => nativeVal.dtValue.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+            ExcelDataType.String => nativeVal.strValue,
+            ExcelDataType.Boolean => nativeVal.boolValue ? "true" : "false",
+            _ => null
+        };
+        if (canonical is not null)
+            _analyzer.AddValue(columnNumber, canonical);
     }
 
     public long RowsCount = -1;
@@ -288,8 +190,8 @@ public sealed class DatabaseTypeChooser
             throw new InvalidOperationException("OriginalColumnHeadersNames is null");
         if (ColumnTypesBestMatch is null)
             throw new InvalidOperationException("ColumnTypesBestMatch is null");
-        if (_innerTypeArray is null)
-            throw new InvalidOperationException("_innerTypeDictionaryHelper is null");
+        if (_analyzer is null)
+            throw new InvalidOperationException("_analyzer is null");
 
         for (int i = 0; i < _fieldCount; i++)
         {
@@ -308,19 +210,12 @@ public sealed class DatabaseTypeChooser
                 RowsCount++;
                 for (int columnIndex = 0; columnIndex < columnCount; columnIndex++)
                 {
-                    var nvarcharColumn = _innerTypeArray[columnIndex][(int)DbSimpleType.Nvarchar];
-                    if (nvarcharColumn.HowManyTimes > 0 && nvarcharColumn.LengthOrPrecision >= 50)
-                    {
-                        int len = csv.GetSpanLength(columnIndex);
-                        nvarcharColumn.HowManyTimes++;
-                        nvarcharColumn.LengthOrPrecision = Math.Max(nvarcharColumn.LengthOrPrecision, len);
-                    }
-                    else
-                    {
-                        csv.TransFromSpanValue(columnIndex);
-                        ref var nativeVal = ref csv.GetNativeValue(columnIndex);
-                        HandleExcelValue(ref nativeVal, columnIndex);
-                    }
+                    if (RawValueLengths is not null)
+                        RawValueLengths[columnIndex] = Math.Max(RawValueLengths[columnIndex], csv.GetSpanLength(columnIndex));
+
+                    csv.TransFromSpanValue(columnIndex);
+                    _analyzer.AddValue(columnIndex, csv.GetString(columnIndex));
+
                     if (RowsCount < 5)
                     {
                         if (columnIndex == 0)
@@ -351,6 +246,8 @@ public sealed class DatabaseTypeChooser
             {
                 for (int columnIndex = 0; columnIndex < columnCount; columnIndex++)
                 {
+                    if (RawValueLengths is not null)
+                        RawValueLengths[columnIndex] = Math.Max(RawValueLengths[columnIndex], excelDataReader.GetString(columnIndex)?.Length ?? 0);
                     ref var nativeVal = ref excelDataReader.GetNativeValue(columnIndex);
                     HandleExcelValue(ref nativeVal, columnIndex);
                 }
@@ -362,10 +259,4 @@ public sealed class DatabaseTypeChooser
         ChooseTypes(analyseIncomplete ? 100 : 5);
         messageAction?.Invoke("--" + string.Join('|', ColumnTypesBestMatch.ToList()));
     }
-}
-internal sealed class Trio
-{
-    public int HowManyTimes;
-    public int LengthOrPrecision;
-    public int Scale;
 }

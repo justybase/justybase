@@ -189,14 +189,65 @@
 					</DataGrid.Columns>
 				</DataGrid>
 			</TabItem>
-				<TabItem Header="Type selection [TODO]">
+				<TabItem Header="Type selection">
 					<Grid RowDefinitions="Auto,*,*">
-						<TextBlock Grid.Row="0" Margin="10 5">TODO</TextBlock>
-						<DataGrid Grid.Row="1" IsReadOnly="False" ItemsSource="{Binding ColumnsInGrid}" AutoGenerateColumns="False">
+						<TextBlock Grid.Row="0" Margin="10 5" Text="{Binding DetectionStatus}"
+								   TextWrapping="Wrap"/>
+						<StackPanel Grid.Row="0" Margin="10 28 10 5">
+							<TextBlock Text="{Binding ValidationSummary}" TextWrapping="Wrap" IsVisible="{Binding !!ValidationSummary}"/>
+							<TextBlock Text="Preview contains source values; selected type is applied only during import." TextWrapping="Wrap" Opacity="0.75"/>
+						</StackPanel>
+						<DataGrid Grid.Row="1" IsReadOnly="False" ItemsSource="{Binding ColumnsInGrid}" AutoGenerateColumns="False"
+								  CanUserSortColumns="False" CanUserReorderColumns="False">
 							<DataGrid.Columns>
 								<DataGridTextColumn Header="Name" IsReadOnly="True" Binding="{Binding ColumnName}"/>
 								<DataGridTextColumn Header="Detected type" IsReadOnly="True" Binding="{Binding DetectedType}"/>
-								<DataGridCheckBoxColumn Header="Force text" IsReadOnly="False" Binding="{Binding DoForceText}"/>
+								<DataGridTemplateColumn Header="Selected type" IsReadOnly="False" Width="*">
+									<DataGridTemplateColumn.CellTemplate>
+										<DataTemplate x:DataType="vm:ColumnInGrid">
+											<StackPanel Orientation="Horizontal" Margin="6 0">
+												<TextBlock Text="{Binding SelectedType}" VerticalAlignment="Center"/>
+												<TextBlock Text=" (changed)" IsVisible="{Binding IsOverridden}" Opacity="0.75"/>
+											</StackPanel>
+										</DataTemplate>
+									</DataGridTemplateColumn.CellTemplate>
+									<DataGridTemplateColumn.CellEditingTemplate>
+										<DataTemplate x:DataType="vm:ColumnInGrid">
+											<ComboBox ItemsSource="{Binding AvailableChoices}" SelectedItem="{Binding SelectedChoice}"
+													  HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MinWidth="140">
+												<ComboBox.ItemTemplate>
+													<DataTemplate x:DataType="vm:TypeChoice">
+														<TextBlock Text="{Binding Label}"/>
+													</DataTemplate>
+												</ComboBox.ItemTemplate>
+											</ComboBox>
+										</DataTemplate>
+									</DataGridTemplateColumn.CellEditingTemplate>
+								</DataGridTemplateColumn>
+								<DataGridTemplateColumn Width="Auto">
+									<DataGridTemplateColumn.CellTemplate>
+										<DataTemplate x:DataType="vm:ColumnInGrid">
+											<Button Content="Reset" Command="{Binding ResetToDetectedCommand}" Padding="8 0" MinHeight="22" Margin="4 0"/>
+										</DataTemplate>
+									</DataGridTemplateColumn.CellTemplate>
+								</DataGridTemplateColumn>
+<DataGridTemplateColumn Header="Validation" Width="2*">
+									<DataGridTemplateColumn.CellTemplate>
+										<DataTemplate x:DataType="vm:ColumnInGrid">
+											<TextBox Text="{Binding ValidationError}"
+													 IsVisible="{Binding HasValidationError}"
+													 TextWrapping="Wrap"
+													 Foreground="IndianRed"
+													 VerticalAlignment="Center"
+													 Margin="4 0"
+													 IsReadOnly="True"
+													 Background="Transparent"
+													 BorderThickness="0"
+													 CaretBrush="Transparent"
+													 SelectionBrush="DodgerBlue"/>
+										</DataTemplate>
+									</DataGridTemplateColumn.CellTemplate>
+								</DataGridTemplateColumn>
 							</DataGrid.Columns>
 						</DataGrid>
 						<DataGrid Name="previewDataGrid" Grid.Row="2" Margin="0 10 0 0" AutoGenerateColumns="False"/>

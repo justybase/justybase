@@ -1,19 +1,14 @@
-using System;
-using System.Linq;
 using JustyBase.Helpers;
-using System.Threading.Tasks;
 using JustyBase.Editor.CompletionProviders;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommons;
-using System.Runtime.CompilerServices;
-using System.Reflection.Emit;
 using JustyBase.NetezzaSqlParser.Completion;
 using JustyBase.NetezzaSqlParser.Caching;
+using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.NetezzaSqlParser.Visitor;
 using JustyBase.NetezzaSqlParser.Authoring;
 using JustyBase.NetezzaSqlParser.Lexer;
 using Superpower.Model;
-using System.Collections.Generic;
 
 
 namespace JustyBase.Editor;
@@ -27,7 +22,7 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
     {
 
         this.TextArea.Caret.PositionChanged += CaretOnPositionChanged;
-#if AVALONIA
+
         this.AddHandler(PointerWheelChangedEvent, (o, e) =>
         {
             if (e.KeyModifiers == KeyModifiers.Control)
@@ -42,28 +37,9 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
                 }
             }
         }, RoutingStrategies.Bubble, true);
-#else
-        this.PreviewMouseWheel += (o, e) =>
-        {
-            if (Keyboard.Modifiers == ModifierKeys.Control)
-            {
-                if (e.Delta > 0 && FontSize < 60)
-                {
-                    FontSize += 1;
-                }
-                else if (FontSize > 3)
-                {
-                    FontSize -= 1;
-                }
-                e.Handled = true;
-            }
-        };
-#endif
-#if AVALONIA
+
         SetupCommandBindings();
-#endif
     }
-#if AVALONIA
     private void SetupCommandBindings()
     {
         //
@@ -95,30 +71,9 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
             }
         }));
 
-        //var duplicateLine = new RoutedCommand("DuplicateLine", new KeyGesture(Key.D, KeyModifiers.Control | KeyModifiers.Shift));
-        //var goToLine = new RoutedCommand("GoToLine", new KeyGesture(Key.G, KeyModifiers.Control));
-
-        //handler.CommandBindings.Add(new RoutedCommandBinding(duplicateLine, (o, e) =>
-        //{
-        //    EditorHelpers.DoubleSelectedLine(this);
-        //}));
-        //handler.CommandBindings.Add(new RoutedCommandBinding(goToLine, async (o, e) =>
-        //{
-        //    if (GoToLineAsyncAction is null)
-        //    {
-        //        return;
-        //    }
-        //    int res = await GoToLineAsyncAction();
-        //    if (res > 0 && TextArea is not null)
-        //    {
-        //        TextArea.Caret.Line = res;
-        //        TextArea.Caret.BringCaretToView();
-        //    }
-        //}));
-
         handler.Attach();
     }
-#endif
+
     protected override async void OnKeyDown(KeyEventArgs e)
     {
         _foldingTimer?.Stop();
@@ -378,13 +333,16 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
     private InMemorySchemaProvider? _parserSchema;
     private DocumentParsingCoordinator? _parsingCoordinator;
     private string? _documentUri;
+    private SqlDialect _documentDialect = SqlDialect.Netezza;
+    private SqlCompletionProvider? _completionProvider;
 
     private bool _editorServicesInitialized;
 
     public void Initialize(ISqlAutocompleteData sqlAutocompleteData, ISomeEditorOptions someEditorOptions,
         NzCompletionEngine? completionEngine = null, InMemorySchemaProvider? parserSchema = null,
         DocumentParsingCoordinator? parsingCoordinator = null, string? documentUri = null,
-        Action<string, string, string>? ensureTableColumns = null)
+        Action<string, string, string>? ensureTableColumns = null,
+        SqlDialect dialect = SqlDialect.Netezza)
     {
         if (_editorServicesInitialized)
         {
@@ -396,18 +354,20 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
         _parserSchema = parserSchema;
         _parsingCoordinator = parsingCoordinator;
         _documentUri = documentUri;
+        _documentDialect = dialect;
         _braceMatcherHighlighter = new BraceMatcherHighlightRenderer(TextArea.TextView);
         AsyncToolTipRequest = OnAsyncToolTipRequest;
         var completionProvider = new SqlCompletionProvider(this, sqlAutocompleteData, _someEditorOptions,
-            completionEngine, parsingCoordinator, documentUri, ensureTableColumns);
+            completionEngine, parsingCoordinator, documentUri, ensureTableColumns, parserSchema, dialect);
+        _completionProvider = completionProvider;
         CompletionProvider = completionProvider;
         _textMarkerService = new TextMarkerService(this);
         TextArea.TextView.BackgroundRenderers.Add(_textMarkerService);
         TextArea.TextView.LineTransformers.Add(_textMarkerService);
         TextArea.TextView.LineTransformers.Add(new SemanticLineColorizer());
-        Document.Changed += (_, _) => SemanticLineColorizer.ScheduleUpdate(Document, documentUri, TextArea.TextView);
-        SemanticLineColorizer.RegisterDocument(Document, documentUri, TextArea.TextView);
-        SemanticLineColorizer.ScheduleUpdate(Document, documentUri, TextArea.TextView);
+        Document.Changed += (_, _) => SemanticLineColorizer.ScheduleUpdate(Document, documentUri, TextArea.TextView, _documentDialect);
+        SemanticLineColorizer.RegisterDocument(Document, documentUri, TextArea.TextView, _documentDialect);
+        SemanticLineColorizer.ScheduleUpdate(Document, documentUri, TextArea.TextView, _documentDialect);
         var truncateLongLines = new TruncateLongLines();
         TextArea.TextView.ElementGenerators.Insert(0, truncateLongLines);
         //TextArea.TextView.ElementGenerators.Add(truncateLongLines);
@@ -445,7 +405,14 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
 
         try
         {
-            var hover = NzHoverService.GetHover(Document.Text, arg.Position, _parserSchema, _parsingCoordinator, _documentUri);
+            var hover = NzHoverService.GetHover(
+                Document.Text,
+                arg.Position,
+                _parserSchema,
+                _parsingCoordinator,
+                _documentUri,
+                catalog: DialectRuntime.AuthoringCatalogOrNull(_documentDialect),
+                dialect: _documentDialect);
             if (hover is not null)
             {
                 arg.SetToolTip(hover.Content);
@@ -454,6 +421,24 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
         catch
         {
             // Hover errors are non-fatal
+        }
+    }
+
+    /// <summary>
+    /// Switches the editor's SQL dialect (e.g. when the document's connection changes).
+    /// Rebuilds the completion/hover authoring catalog and reclassifies semantic tokens.
+    /// </summary>
+    public void SetSqlDialect(SqlDialect dialect)
+    {
+        if (_documentDialect == dialect)
+            return;
+
+        _documentDialect = dialect;
+        _completionProvider?.SetDialect(dialect);
+        if (Document is not null)
+        {
+            SemanticLineColorizer.RegisterDocument(Document, _documentUri, TextArea?.TextView, dialect);
+            SemanticLineColorizer.ScheduleUpdate(Document, _documentUri, TextArea?.TextView, dialect);
         }
     }
 
@@ -1353,15 +1338,14 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
         }
     }
 
-    //public Func<Task> ControlHaction;
-    public Func<Task<int>>? GoToLineAsyncAction;
+    public Func<Task<int>> GoToLineAsyncAction { get; set; } = () => Task.FromResult(0);
 
-    public Func<Task>? ContolShiftvAction;
+    public Func<Task> ContolShiftvAction { get; set; } = () => Task.CompletedTask;
 
-    public Action? ForcedContolftAction;
-    public Action? ForcedContolhtAction;
-    public Action? RenameRequested;
-    public Action? GoToDefinitionRequested;
-    public Action? FindReferencesRequested;
+    public Action ForcedContolftAction { get; set; } = () => { };
+    public Action ForcedContolhtAction { get; set; } = () => { };
+    public Action RenameRequested { get; set; } = () => { };
+    public Action GoToDefinitionRequested { get; set; } = () => { };
+    public Action FindReferencesRequested { get; set; } = () => { };
 
 }

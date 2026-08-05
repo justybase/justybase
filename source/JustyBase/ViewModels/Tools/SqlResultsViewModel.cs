@@ -10,7 +10,6 @@ using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Services;
 using JustyBase.Helpers;
-using JustyBase.Helpers.Interactions;
 using JustyBase.Models;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommons;

@@ -21,6 +21,7 @@ public partial class ImportView : UserControl
     {
         if (this.DataContext is ImportViewModel vm)
         {
+            previewDataGrid.Columns.Clear();
             previewDataGrid.ItemsSource = vm.PreviewRows;
             for (var i = 0; i < headers.Length; ++i)
             {

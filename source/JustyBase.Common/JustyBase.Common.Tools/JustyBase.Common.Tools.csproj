@@ -12,6 +12,13 @@
     <PackageReference Include="SpreadSheetTasks" Version="1.0.0" />
     <PackageReference Include="Sylvan.Data.Csv" Version="1.4.4" />
     <PackageReference Include="ZstdSharp.Port" Version="0.8.8" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' == 'true'">
+    <ProjectReference Include="$(JustyBaseLocalImportExportProject)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' != 'true'">
     <PackageReference Include="JustyBase.ImportExport" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
   </ItemGroup>
 

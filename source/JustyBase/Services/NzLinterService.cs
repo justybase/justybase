@@ -2,6 +2,7 @@ using JustyBase.Common.Contracts;
 using JustyBase.NetezzaSqlParser.Ast;
 using JustyBase.NetezzaSqlParser.Authoring;
 using JustyBase.NetezzaSqlParser.Caching;
+using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.NetezzaSqlParser.Linter;
 using JustyBase.NetezzaSqlParser.Visitor;
 using JustyBase.PluginCommon.Contracts;
@@ -11,8 +12,6 @@ using JustyBase.Editor;
 using JustyBase.Services.Documents;
 using JustyBase.ViewModels.Tools;
 using Microsoft.Extensions.DependencyInjection;
-using System.Threading;
-using Avalonia.Threading;
 
 namespace JustyBase.Services;    /// <summary>
     /// SQL linter service — UI/editor layer that delegates all analysis to LintEngine.
@@ -27,12 +26,16 @@ public sealed class NzLinterService : IDisposable
     private readonly LiveMetadataSchemaProvider? _liveMetadata;
     private readonly InMemorySchemaProvider? _schemaProvider;
     private readonly DocumentParsingCoordinator _parsingCoordinator;
-    private readonly LintEngine _lintEngine;
+    private LintEngine _lintEngine;
     private readonly IDatabaseServiceResolver _databaseServiceResolver;
     private SqlCodeEditor? _attachedEditor;
     private CancellationTokenSource? _currentCts;
     private CancellationTokenSource? _schemaSyncCts;
     private readonly object _lock = new();
+    private volatile SqlDialect _documentDialect = SqlDialect.Netezza;
+    private SqlDialect _engineDialect = SqlDialect.Netezza;
+    private static readonly string[] Db2LintRuleIds =
+        ["DB2001", "DB2002", "DB2003", "DB2004", "DB2005", "DB2006", "DB2007", "DB2008"];
     private readonly object _schemaLock = new();
     private bool _disposed;
     private volatile bool _schemaSynced;
@@ -58,6 +61,27 @@ public sealed class NzLinterService : IDisposable
         _parsingCoordinator = parsingCoordinator ?? new DocumentParsingCoordinator();
         _lintEngine = new LintEngine(_parsingCoordinator.GetOrCreate("lint-default"));
         _databaseServiceResolver.SchemaCacheLoaded += OnSchemaCacheLoaded;
+    }
+
+    /// <summary>
+    /// Recreates the <see cref="LintEngine"/> when the attached document's dialect changes
+    /// (e.g. Db2 documents use the Db2-only rule registry and Db2 parser runtime).
+    /// </summary>
+    private void EnsureEngineForDialect(SqlDialect dialect)
+    {
+        if (_engineDialect == dialect)
+            return;
+
+        lock (_lock)
+        {
+            if (_engineDialect == dialect)
+                return;
+
+            LintEngine? previous = _lintEngine;
+            _lintEngine = new LintEngine(dialect, _parsingCoordinator.GetOrCreate("lint-default", dialect));
+            _engineDialect = dialect;
+            previous?.Dispose();
+        }
     }
 
     /// <summary>
@@ -114,7 +138,7 @@ public sealed class NzLinterService : IDisposable
         _ = ScheduleAnalyzeAsync();
     }
 
-    public void AttachToEditor(SqlCodeEditor editor, string? documentUri = null)
+    public void AttachToEditor(SqlCodeEditor editor, string? documentUri = null, SqlDialect dialect = SqlDialect.Netezza)
     {
         // Cancel any in-flight lint before swapping editors / parse sessions.
         lock (_lock)
@@ -130,7 +154,9 @@ public sealed class NzLinterService : IDisposable
         SqlCodeEditor? oldEditor;
         lock (_lock)
         {
-            if (_attachedEditor == editor
+            bool dialectChanged = _documentDialect != dialect;
+            if (!dialectChanged
+                && _attachedEditor == editor
                 && string.Equals(_documentUri, documentUri ?? _documentUri, StringComparison.Ordinal))
             {
                 return;
@@ -138,6 +164,7 @@ public sealed class NzLinterService : IDisposable
 
             oldEditor = _attachedEditor;
             _attachedEditor = editor;
+            _documentDialect = dialect;
             // Stable per-document URI avoids LRU eviction/dispose of in-use parse sessions
             // when the same document gets a new editor control instance.
             _documentUri = string.IsNullOrWhiteSpace(documentUri)
@@ -148,7 +175,8 @@ public sealed class NzLinterService : IDisposable
             oldEditor.TextChanged -= OnTextChanged;
         editor.TextChanged += OnTextChanged;
         _schemaSynced = false;
-        _parsingCoordinator.GetOrCreate(_documentUri);
+        EnsureEngineForDialect(dialect);
+        _parsingCoordinator.GetOrCreate(_documentUri, dialect);
 
         // Reset metrics for the new editing session
         // (document caches are already isolated via unique _documentUri)
@@ -212,6 +240,15 @@ public sealed class NzLinterService : IDisposable
         options ??= Program.ServiceProvider?.GetService<IGeneralApplicationData>()?.Config;
         if (options is null) return;
 
+        // Db2 documents are analyzed with the Db2-only rule registry (DB2001–DB2008).
+        // The shared NZ severity options map onto the closest Db2 equivalents.
+        bool isDb2 = _documentDialect == SqlDialect.Db2;
+        if (isDb2)
+        {
+            ApplyDb2LintSeveritySettings(options);
+            return;
+        }
+
         if (!options.SqlLinterEnabled)
         {
             Registry.SetSeverity("NZ001", RuleSeverityConfig.Off);
@@ -260,6 +297,27 @@ public sealed class NzLinterService : IDisposable
             _ => RuleSeverityConfig.Warning
         };
         Registry.SetSeverity(ruleId, config);
+    }
+
+    /// <summary>
+    /// Applies the shared linter options to the Db2-only rule registry (DB2001–DB2008).
+    /// The global switch turns every Db2 rule off; otherwise the closest NZ severity
+    /// options are mapped (DB2001/DB2002/DB2003 mirror NZ001/NZ002/NZ003) and the
+    /// remaining rules keep their defaults.
+    /// </summary>
+    private void ApplyDb2LintSeveritySettings(JustyBase.Common.AppOptions options)
+    {
+        if (!options.SqlLinterEnabled)
+        {
+            foreach (string ruleId in Db2LintRuleIds)
+                Registry.SetSeverity(ruleId, RuleSeverityConfig.Off);
+            return;
+        }
+
+        SetRuleSeverity("DB2001", options.LintSeverityNz001); // SELECT *
+        SetRuleSeverity("DB2002", options.LintSeverityNz002); // DELETE without WHERE
+        SetRuleSeverity("DB2003", options.LintSeverityNz003); // UPDATE without WHERE
+        // DB2004–DB2008 stay at their defaults.
     }
 
     /// <summary>
@@ -452,7 +510,7 @@ public sealed class NzLinterService : IDisposable
         if (_schemaProvider is null || string.IsNullOrWhiteSpace(sql)) return;
         try
         {
-            var parse = _parsingCoordinator.GetOrCreate(documentUri).Parse(sql);
+            var parse = _parsingCoordinator.GetOrCreate(documentUri, _documentDialect).Parse(sql);
             foreach (var stmt in parse.Statements)
                 EnsureColumnsForStatement(stmt);
         }
@@ -654,7 +712,7 @@ public sealed class NzLinterService : IDisposable
                         return new LintResult(cheapIssues, _lintEngine.Queue.CheapRules.Count, 0, 0, false);
                     }
 
-                    _parsingCoordinator.GetOrCreate(capturedUri).Parse(capturedSql);
+                    _parsingCoordinator.GetOrCreate(capturedUri, _documentDialect).Parse(capturedSql);
                     return _lintEngine.RunFullLint(config);
                 }
                 catch (OperationCanceledException)
@@ -669,7 +727,7 @@ public sealed class NzLinterService : IDisposable
 
             // Dispatch results to UI thread
             var issues = result.Value.Issues.ToList();
-            issues.AddRange(SqlRiskAnalysisService.Analyze(capturedSql, "NetezzaSQL"));
+            issues.AddRange(SqlRiskAnalysisService.Analyze(capturedSql, DialectRuntime.DiagnosticSource(_documentDialect)));
             var metricsSnapshot = _lintEngine.Metrics;
             await Dispatcher.UIThread.InvokeAsync(() =>
             {

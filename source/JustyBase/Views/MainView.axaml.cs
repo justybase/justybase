@@ -1,7 +1,4 @@
-﻿using Avalonia.Controls;
-using Avalonia.Interactivity;
-using Avalonia.Media;
-using JustyBase.Common.Contracts;
+﻿using JustyBase.Common.Contracts;
 using JustyBase.Editor;
 using JustyBase.Themes;
 using JustyBase.ViewModels;

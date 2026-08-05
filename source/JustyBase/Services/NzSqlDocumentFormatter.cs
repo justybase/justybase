@@ -1,21 +1,28 @@
 using System.Text;
+using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.NetezzaSqlParser.Formatter;
 using JustyBase.NetezzaSqlParser.Lexer;
 using JustyBase.NetezzaSqlParser.Parser;
 
 namespace JustyBase.Services;
 
-/// <summary>Formats SQL documents using the Netezza AST formatter (no third-party formatters).</summary>
+/// <summary>Formats SQL documents using the shared AST formatter (no third-party formatters).</summary>
 public static class NzSqlDocumentFormatter
 {
-    public static string Format(string sql)
+    public static string Format(string sql) => Format(sql, SqlDialect.Netezza);
+
+    /// <summary>
+    /// Formats <paramref name="sql"/> with the tokenizer/parser of the given dialect
+    /// (Db2 documents get the Db2 dialect from JustyBase.NetezzaSql).
+    /// </summary>
+    public static string Format(string sql, SqlDialect dialect)
     {
         if (string.IsNullOrWhiteSpace(sql))
             return sql;
 
         try
         {
-            var tokens = NzLexer.Tokenize(sql).ToArray();
+            var tokens = DialectRuntime.Tokenize(sql, dialect).ToArray();
             if (tokens.Length == 0)
                 return sql;
 
@@ -33,7 +40,7 @@ public static class NzSqlDocumentFormatter
                     break;
 
                 var remaining = tokens.Skip(index).ToArray();
-                var parser = new NzSqlParser(remaining);
+                var parser = DialectRuntime.CreateParser(remaining, dialect);
                 var statement = parser.Parse();
                 if (statement is null || parser.Position <= 0)
                     break;

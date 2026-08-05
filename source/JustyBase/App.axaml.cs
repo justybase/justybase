@@ -1,10 +1,12 @@
 ﻿using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Avalonia.Media;
 using Avalonia.Platform;
 using JustyBase.Common.Contracts;
 using JustyBase.Editor;
 using JustyBase.NetezzaSqlParser.Authoring;
+using JustyBase.NetezzaSqlParser.Caching;
+using JustyBase.NetezzaSqlParser.Dialects;
+using JustyBase.NetezzaSqlParser.Visitor;
 using JustyBase.Helpers.Interactions;
 using JustyBase.Themes;
 using JustyBase.ViewModels;
@@ -66,7 +68,13 @@ public class App : Application
             ApplySemanticColors(dark: false);
         }
 
-        SemanticLineColorizer.Configure(_services.GetRequiredService<NzSemanticTokenClassifier>());
+        // Netezza is the default classifier; Db2 documents get a Db2-dialect classifier.
+        var schema = _services.GetRequiredService<ISchemaProvider>();
+        var coordinator = _services.GetRequiredService<DocumentParsingCoordinator>();
+        var netezzaClassifier = _services.GetRequiredService<NzSemanticTokenClassifier>();
+        SemanticLineColorizer.Configure(dialect => dialect == SqlDialect.Netezza
+            ? netezzaClassifier
+            : new NzSemanticTokenClassifier(schema, coordinator, dialect));
     }
 
     private static void ApplySemanticColors(bool dark)

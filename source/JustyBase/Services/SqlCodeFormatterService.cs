@@ -2,6 +2,7 @@ using JustyBase.Common.Contracts;
 using JustyBase.Editor;
 using JustyBase.Editor.CompletionProviders;
 using JustyBase.Helpers;
+using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.PluginCommon.Contracts;
 
@@ -22,7 +23,7 @@ public class SqlCodeFormatterService : ISqlCodeFormatterService
         _generalApplicationData = generalApplicationData;
     }
 
-    public void FormatSql(SqlCodeEditor editor)
+    public void FormatSql(SqlCodeEditor editor, SqlDialect dialect = SqlDialect.Netezza)
     {
         if (editor is null) return;
         
@@ -37,7 +38,7 @@ public class SqlCodeFormatterService : ISqlCodeFormatterService
             string selectedSql = editor.SelectedText;
             int start = editor.SelectionStart;
             int len = editor.SelectionLength;
-            var res = _generalApplicationData.GetFormatterSql(selectedSql);
+            var res = NzSqlDocumentFormatter.Format(selectedSql, dialect);
             editor.Document.Replace(start, len, res);
         }
         finally

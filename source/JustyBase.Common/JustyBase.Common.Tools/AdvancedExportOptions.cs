@@ -1,6 +1,4 @@
-﻿using System;
-using System.Runtime.Serialization;
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
 using JustyBase.PluginCommon.Enums;
 

@@ -1,13 +1,11 @@
 using Avalonia.Controls.DataGridHierarchical;
 using Avalonia.Data;
 using Avalonia.Data.Core;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
 using JustyBase.Converters;
-using JustyBase.Helpers;
 using JustyBase.NetezzaDdl;
 using JustyBase.Models.Tools;
 using JustyBase.PluginCommon.Contracts;
@@ -15,7 +13,6 @@ using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services;
 using JustyBase.Services.Database;
-using JustyBase.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 

@@ -138,15 +138,15 @@ public sealed class NetezzaImportDetectionTests
     }
 
     [Fact]
-    public async Task DetectSheet_Booleans_DefaultToText()
+    public async Task DetectSheet_Booleans_AreInferredByTheHost()
     {
-        // Boolean inference is opt-in (inferBoolean) and stays off by default to match
-        // the shared chooser, so "true"/"false" resolves to text unless forced.
+        // The host chooser enables boolean inference (inferBoolean) to match the
+        // pre-consolidation app behavior; "true"/"false" columns resolve to BOOLEAN.
         await WithCsvAsync("flag\ntrue\nfalse\ntrue\n", async import =>
         {
             DatabaseTypeChooser chooser = await RequireDetection(import);
 
-            Assert.Equal(DbSimpleType.Nvarchar, chooser.ColumnTypesBestMatch![0].DatabaseTypeSimple);
+            Assert.Equal(DbSimpleType.Boolean, chooser.ColumnTypesBestMatch![0].DatabaseTypeSimple);
         });
     }
 

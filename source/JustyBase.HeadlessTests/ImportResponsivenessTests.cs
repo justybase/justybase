@@ -237,8 +237,11 @@ public sealed class ImportResponsivenessTests : HeadlessSessionTestBase
                 {
                     vm.OpenFileForImportCommand.Execute(null);
 
+                    // StartEnabled is initialized to true before the async open runs, so the
+                    // poll must wait for the columns grid to be populated as well — otherwise a
+                    // slow UI pump (parallel headless suites) can observe the initial true.
                     var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
-                    while (!vm.StartEnabled && DateTime.UtcNow < deadline)
+                    while (!(vm.ColumnsInGrid.Count > 0 && vm.StartEnabled) && DateTime.UtcNow < deadline)
                     {
                         Dispatcher.UIThread.RunJobs();
                         await Task.Delay(20).ConfigureAwait(true);

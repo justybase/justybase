@@ -62,12 +62,18 @@
           <Button Command="{Binding SignInCodexCommand}" Content="Sign in" IsVisible="{Binding !IsCodexSignedIn}" Padding="7 3" FontSize="10" />
           <Button Command="{Binding SignOutCodexCommand}" Content="Sign out" IsVisible="{Binding IsCodexSignedIn}" Padding="7 3" FontSize="10" />
           <Button Command="{Binding NewChatCommand}" Content="＋" ToolTip.Tip="New chat" Padding="5 2" />
-          <Button Content="⋯" ToolTip.Tip="Chat actions" Padding="5 2">
+          <Button x:Name="ChatActionsButton" Content="⋯" ToolTip.Tip="Chat actions" Padding="5 2">
             <Button.Flyout>
-              <MenuFlyout Placement="BottomEdgeAlignedRight">
+              <MenuFlyout Placement="BottomEdgeAlignedRight"
+                          Opening="OnChatActionsFlyoutOpening">
                 <MenuItem Header="New chat" Command="{Binding NewChatCommand}" />
                 <MenuItem Header="Clear chat" Command="{Binding ClearChatCommand}" />
                 <Separator />
+                <MenuItem x:Name="ConversationsSectionHeader"
+                          Header="Conversations"
+                          IsEnabled="False"
+                          IsVisible="{Binding HasSavedSessions}" />
+                <Separator IsVisible="{Binding HasSavedSessions}" />
                 <MenuItem Header="Sign in with ChatGPT" Command="{Binding SignInCodexCommand}" IsVisible="{Binding !IsCodexSignedIn}" />
                 <MenuItem Header="Sign out from Codex" Command="{Binding SignOutCodexCommand}" IsVisible="{Binding IsCodexSignedIn}" />
                 <MenuItem Header="Show/hide ChatGPT email"
@@ -123,25 +129,48 @@
               Padding="10 8">
         <StackPanel Spacing="6">
           <TextBlock Text="Continue previous chat?" FontSize="11" FontWeight="SemiBold" />
-          <TextBlock Text="A previous conversation is available. Choose explicitly how to open the chat."
-                     IsVisible="{Binding HasPreviousSession}"
-                     FontSize="10"
-                     Opacity="0.75"
-                     TextWrapping="Wrap" />
           <TextBlock Text="No saved conversation yet. Start a new chat to begin."
-                     IsVisible="{Binding !HasPreviousSession}"
+                     IsVisible="{Binding !HasSavedSessions}"
                      FontSize="10"
                      Opacity="0.75"
                      TextWrapping="Wrap" />
-          <TextBlock Text="{Binding PreviousSessionSummary}"
-                     IsVisible="{Binding HasPreviousSession}"
-                     FontSize="10"
-                     Opacity="0.65"
-                     TextWrapping="Wrap" />
+          <ListBox ItemsSource="{Binding SavedSessions}"
+                   SelectedItem="{Binding SelectedSavedSession}"
+                   IsVisible="{Binding HasSavedSessions}"
+                   MaxHeight="150"
+                   Background="Transparent"
+                   BorderThickness="0"
+                   Padding="0"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="m:ChatSession" x:DataType="m:ChatSession">
+                <Grid ColumnDefinitions="*,Auto" Margin="0 2">
+                  <StackPanel Grid.Column="0">
+                    <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="Medium" TextTrimming="CharacterEllipsis" />
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                      <TextBlock Text="{Binding Messages.Count, StringFormat={}{0} msgs}" FontSize="9" Opacity="0.6" />
+                      <TextBlock Text="·" FontSize="9" Opacity="0.5" />
+                      <TextBlock Text="{Binding LastActivityAt, StringFormat={}{0:g}}" FontSize="9" Opacity="0.6" />
+                    </StackPanel>
+                  </StackPanel>
+                  <Button Grid.Column="1"
+                          Command="{Binding $parent[ListBox].((vm:AiChatViewModel)DataContext).DeleteSavedSessionCommand}"
+                          CommandParameter="{Binding}"
+                          Content="✕"
+                          Padding="3 0"
+                          FontSize="9"
+                          VerticalAlignment="Center"
+                          ToolTip.Tip="Delete conversation" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
           <StackPanel Orientation="Horizontal" Spacing="6">
-            <Button Content="Restore previous"
-                    Command="{Binding RestorePreviousChatCommand}"
-                    IsVisible="{Binding HasPreviousSession}"
+            <Button Content="Continue selected"
+                    Command="{Binding OpenSavedSessionCommand}"
+                    CommandParameter="{Binding SelectedSavedSession}"
+                    IsVisible="{Binding HasSavedSessions}"
+                    IsEnabled="{Binding HasSelectedSavedSession}"
                     Padding="9 4" />
             <Button Content="Start new"
                     Command="{Binding StartNewChatCommand}"

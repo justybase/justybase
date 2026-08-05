@@ -5,14 +5,12 @@ using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Models;
 using JustyBase.Helpers;
-using JustyBase.Models;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.Services;
 using JustyBase.Services.Documents;
 using JustyBase.ViewModels.Tools.Converters;
 using System.Collections.ObjectModel;
-using System.Text;
 
 namespace JustyBase.ViewModels.Tools;
 
@@ -41,6 +39,7 @@ public sealed partial class AiChatViewModel : Tool
     private CancellationTokenSource? _backendSwitchCts;
     private readonly SemaphoreSlim _backendSwitchGate = new(1, 1);
     private bool _synchronizingBackendSelection;
+    private bool _synchronizingSessionSelection;
     private ChatMessage? _activeAssistantMessage;
 
     [ObservableProperty]
@@ -59,12 +58,20 @@ public sealed partial class AiChatViewModel : Tool
     public partial bool IsSessionChoicePending { get; set; } = true;
 
     [ObservableProperty]
-    public partial bool HasPreviousSession { get; set; }
+    public partial ObservableCollection<ChatSession> SavedSessions { get; set; } = [];
 
     [ObservableProperty]
-    public partial string PreviousSessionSummary { get; set; } = string.Empty;
+    public partial ChatSession? SelectedSavedSession { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasSavedSessions { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasSelectedSavedSession { get; set; }
 
     public bool CanCompose => !IsStreaming && !IsSessionChoicePending;
+
+    public bool CanSwitchSession => !IsStreaming && !IsSessionChoicePending;
 
     [ObservableProperty]
     public partial string StatusMessage { get; set; } = "Initializing...";
@@ -443,10 +450,26 @@ public sealed partial class AiChatViewModel : Tool
     }
 
     partial void OnIsStreamingChanged(bool value)
-        => OnPropertyChanged(nameof(CanCompose));
+    {
+        OnPropertyChanged(nameof(CanCompose));
+        OnPropertyChanged(nameof(CanSwitchSession));
+    }
 
     partial void OnIsSessionChoicePendingChanged(bool value)
-        => OnPropertyChanged(nameof(CanCompose));
+    {
+        OnPropertyChanged(nameof(CanCompose));
+        OnPropertyChanged(nameof(CanSwitchSession));
+    }
+
+    partial void OnSelectedSavedSessionChanged(ChatSession? value)
+    {
+        HasSelectedSavedSession = value is not null;
+        if (_synchronizingSessionSelection)
+            return;
+        if (value is null || value.SessionId == CurrentSession.SessionId || IsStreaming)
+            return;
+        OpenSavedSession(value);
+    }
 
     private void PersistAiChatSelection()
     {
@@ -937,6 +960,10 @@ public sealed partial class AiChatViewModel : Tool
         Messages.Add(userMessage);
         CurrentSession.Messages.Add(userMessage);
         CurrentSession.LastActivityAt = DateTime.Now;
+        if (string.IsNullOrWhiteSpace(CurrentSession.Title) || CurrentSession.Title == "New Chat")
+        {
+            CurrentSession.Title = GenerateSessionTitle(normalizedPrompt);
+        }
         _chatService.SetCodexThreadId(CurrentSession.CodexThreadId);
         PendingAttachments.Clear();
         HasPendingAttachments = false;
@@ -1013,41 +1040,22 @@ public sealed partial class AiChatViewModel : Tool
     [RelayCommand]
     private void NewChat()
     {
+        if (IsStreaming)
+            return;
+
         if (Messages.Count > 0)
         {
             SaveChatHistory();
         }
 
-        CurrentSession = new ChatSession
-        {
-            Title = Messages.FirstOrDefault(m => m.Role == "user")?.Content[..Math.Min(50, Messages.FirstOrDefault(m => m.Role == "user")?.Content.Length ?? 0)] ?? "New Chat"
-        };
+        CurrentSession = new ChatSession();
         _chatService.SetCodexThreadId(null);
         Messages.Clear();
         PendingAttachments.Clear();
         HasPendingAttachments = false;
         IsSessionChoicePending = false;
+        LoadSavedSessions(preselectMostRecent: false);
         StatusMessage = "New chat — ready";
-    }
-
-    [RelayCommand]
-    private void RestorePreviousChat()
-    {
-        var previousSession = FindLastSavedSession();
-        if (previousSession is null)
-        {
-            NewChat();
-            return;
-        }
-
-        Messages.Clear();
-        CurrentSession = previousSession;
-        foreach (var message in previousSession.Messages)
-            Messages.Add(message);
-
-        _chatService.SetCodexThreadId(previousSession.CodexThreadId);
-        IsSessionChoicePending = false;
-        StatusMessage = "Previous chat restored — ready";
     }
 
     [RelayCommand]
@@ -1055,13 +1063,80 @@ public sealed partial class AiChatViewModel : Tool
         => NewChat();
 
     [RelayCommand]
-    private void ClearChat()
+    private void OpenSavedSession(ChatSession? session)
     {
-        _generalApplicationData.Config.ChatSessions.RemoveAll(s => s.SessionId == CurrentSession.SessionId);
+        if (session is null || IsStreaming)
+            return;
+        if (session.SessionId == CurrentSession.SessionId && Messages.Count > 0)
+            return;
+
+        if (Messages.Count > 0 && session.SessionId != CurrentSession.SessionId)
+        {
+            SaveChatHistory();
+        }
+
         Messages.Clear();
-        CurrentSession.Messages.Clear();
+        CurrentSession = session;
+        foreach (var message in session.Messages)
+            Messages.Add(message);
+
         PendingAttachments.Clear();
         HasPendingAttachments = false;
+        _chatService.SetCodexThreadId(session.CodexThreadId);
+        IsSessionChoicePending = false;
+        LoadSavedSessions(preselectMostRecent: false);
+        StatusMessage = "Conversation restored — ready";
+    }
+
+    [RelayCommand]
+    private void DeleteSavedSession(ChatSession? session)
+    {
+        if (session is null || IsStreaming)
+            return;
+
+        var wasActive = session.SessionId == CurrentSession.SessionId;
+        _generalApplicationData.Config.ChatSessions.RemoveAll(s => s.SessionId == session.SessionId);
+
+        _synchronizingSessionSelection = true;
+        try
+        {
+            SavedSessions.Remove(session);
+            HasSavedSessions = SavedSessions.Count > 0;
+            if (SelectedSavedSession?.SessionId == session.SessionId)
+            {
+                SelectedSavedSession = null;
+            }
+        }
+        finally
+        {
+            _synchronizingSessionSelection = false;
+        }
+
+        if (wasActive)
+        {
+            Messages.Clear();
+            CurrentSession = new ChatSession();
+            _chatService.SetCodexThreadId(null);
+            IsSessionChoicePending = false;
+            StatusMessage = "Current conversation deleted — new chat ready";
+        }
+
+        _generalApplicationData.SaveConfig();
+    }
+
+    [RelayCommand]
+    private void ClearChat()
+    {
+        if (IsStreaming)
+            return;
+
+        _generalApplicationData.Config.ChatSessions.RemoveAll(s => s.SessionId == CurrentSession.SessionId);
+        Messages.Clear();
+        CurrentSession = new ChatSession();
+        _chatService.SetCodexThreadId(null);
+        PendingAttachments.Clear();
+        HasPendingAttachments = false;
+        LoadSavedSessions(preselectMostRecent: false);
         _generalApplicationData.SaveConfig();
         StatusMessage = "Chat cleared";
     }
@@ -1207,28 +1282,76 @@ public sealed partial class AiChatViewModel : Tool
     {
         try
         {
-            var lastSession = FindLastSavedSession();
-            HasPreviousSession = lastSession is not null;
-            PreviousSessionSummary = lastSession is null
-                ? "No saved conversation yet."
-                : $"{lastSession.Title} · {lastSession.Messages.Count} messages · {lastSession.LastActivityAt:g}";
+            LoadSavedSessions(preselectMostRecent: true);
             IsSessionChoicePending = true;
         }
         catch (Exception ex)
         {
             _logger.TrackError(ex, isCrash: false);
-            HasPreviousSession = false;
-            PreviousSessionSummary = "No saved conversation yet.";
             IsSessionChoicePending = true;
         }
     }
 
-    private ChatSession? FindLastSavedSession()
+    private void LoadSavedSessions(bool preselectMostRecent)
     {
-        var sessions = _generalApplicationData.Config.ChatSessions;
-        return sessions?.Count > 0
-            ? sessions.OrderByDescending(s => s.LastActivityAt).FirstOrDefault()
-            : null;
+        var sessions = _generalApplicationData.Config.ChatSessions?
+            .OrderByDescending(s => s.LastActivityAt)
+            .ToList() ?? [];
+
+        var unchanged = sessions.Count == SavedSessions.Count;
+        if (unchanged)
+        {
+            for (var i = 0; i < sessions.Count; i++)
+            {
+                if (!ReferenceEquals(sessions[i], SavedSessions[i]))
+                {
+                    unchanged = false;
+                    break;
+                }
+            }
+        }
+
+        _synchronizingSessionSelection = true;
+        try
+        {
+            if (!unchanged)
+            {
+                SavedSessions.Clear();
+                foreach (var session in sessions)
+                {
+                    SavedSessions.Add(session);
+                }
+            }
+
+            HasSavedSessions = SavedSessions.Count > 0;
+            SelectedSavedSession = SavedSessions.FirstOrDefault(s => s.SessionId == CurrentSession.SessionId)
+                ?? (preselectMostRecent ? SavedSessions.FirstOrDefault() : null);
+        }
+        finally
+        {
+            _synchronizingSessionSelection = false;
+        }
+    }
+
+    private static string GenerateSessionTitle(string? firstUserMessage)
+    {
+        if (string.IsNullOrWhiteSpace(firstUserMessage))
+            return "New Chat";
+
+        var text = firstUserMessage.Replace('\r', ' ').Replace('\n', ' ');
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"[`*_#>|\[\]()]|^[-=]{2,}", " ");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
+        if (text.Length == 0)
+            return "New Chat";
+
+        var sentenceEnd = text.IndexOfAny(['.', '?', '!']);
+        if (sentenceEnd > 0)
+            text = text[..sentenceEnd].Trim();
+        if (text.Length == 0)
+            return "New Chat";
+
+        const int maxTitleLength = 50;
+        return text.Length <= maxTitleLength ? text : text[..maxTitleLength].TrimEnd() + "…";
     }
 
     private void SaveChatHistory()
@@ -1261,6 +1384,8 @@ public sealed partial class AiChatViewModel : Tool
 
                 _generalApplicationData.SaveConfig();
             }
+
+            LoadSavedSessions(preselectMostRecent: false);
         }
         catch (Exception ex)
         {

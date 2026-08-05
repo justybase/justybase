@@ -10,6 +10,9 @@ public partial class AiChatView : UserControl
     private ListBox? _mentionListBox;
     private int _slashCommandSelectedIndex = -1;
     private int _mentionSelectedIndex = -1;
+    private MenuFlyout? _chatActionsMenuFlyout;
+    private MenuItem? _conversationsSectionHeader;
+    private readonly List<MenuItem> _flyoutSessionItems = [];
 
     public AiChatView()
     {
@@ -21,6 +24,43 @@ public partial class AiChatView : UserControl
         AvaloniaXamlLoader.Load(this);
         _slashCommandListBox = this.FindControl<ListBox>("SlashCommandListBox");
         _mentionListBox = this.FindControl<ListBox>("MentionListBox");
+        _chatActionsMenuFlyout = this.FindControl<Button>("ChatActionsButton")?.Flyout as MenuFlyout;
+        _conversationsSectionHeader = this.FindControl<MenuItem>("ConversationsSectionHeader");
+    }
+
+    private void OnChatActionsFlyoutOpening(object? sender, EventArgs e)
+    {
+        if (DataContext is not AiChatViewModel vm
+            || _chatActionsMenuFlyout is not { } flyout
+            || _conversationsSectionHeader is not { } header)
+        {
+            return;
+        }
+
+        foreach (var item in _flyoutSessionItems)
+        {
+            flyout.Items.Remove(item);
+        }
+        _flyoutSessionItems.Clear();
+
+        var index = flyout.Items.IndexOf(header);
+        if (index < 0)
+        {
+            return;
+        }
+
+        foreach (var session in vm.SavedSessions)
+        {
+            var item = new MenuItem
+            {
+                Header = session.Title,
+                Command = vm.OpenSavedSessionCommand,
+                CommandParameter = session,
+                IsEnabled = vm.CanSwitchSession,
+            };
+            flyout.Items.Insert(++index, item);
+            _flyoutSessionItems.Add(item);
+        }
     }
 
     private void InputTextBox_OnKeyDown(object? sender, KeyEventArgs e)

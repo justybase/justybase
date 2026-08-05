@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -249,7 +247,8 @@ public sealed class ToolCallInfo : INotifyPropertyChanged
 
         try
         {
-            var json = JsonSerializer.Deserialize<JsonElement>(args);
+            using var document = JsonDocument.Parse(args);
+            var json = document.RootElement.Clone();
             var formatted = new System.Text.StringBuilder();
             FormatJsonElement(json, formatted, 0);
             return formatted.ToString().TrimEnd();

@@ -1,7 +1,7 @@
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace JustyBase.Common.Models;
 
@@ -195,7 +195,7 @@ public sealed class TodoList : INotifyPropertyChanged
 
         try
         {
-            var parsed = System.Text.Json.JsonSerializer.Deserialize<List<TodoItemDto>>(todosJson);
+            var parsed = JsonSerializer.Deserialize(todosJson, TodoJsonContext.Default.ListTodoItemDto);
             if (parsed is null || parsed.Count == 0)
             {
                 return;
@@ -240,12 +240,26 @@ public sealed class TodoList : INotifyPropertyChanged
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
+}
 
-    private sealed class TodoItemDto
-    {
-        public string? Id { get; set; }
-        public string? Content { get; set; }
-        public string? Status { get; set; }
-        public int? Priority { get; set; }
-    }
+// This DTO is kept separate from the UI model because it represents the external
+// JSON payload accepted by TodoList.UpdateFromJson.
+internal sealed class TodoItemDto
+{
+    [JsonPropertyName("Id")]
+    public string? Id { get; set; }
+
+    [JsonPropertyName("Content")]
+    public string? Content { get; set; }
+
+    [JsonPropertyName("Status")]
+    public string? Status { get; set; }
+
+    [JsonPropertyName("Priority")]
+    public int? Priority { get; set; }
+}
+
+[JsonSerializable(typeof(List<TodoItemDto>))]
+internal sealed partial class TodoJsonContext : JsonSerializerContext
+{
 }

@@ -21,8 +21,8 @@ public sealed class CodexChatIntegrationTests
     public void ChatSession_PersistsCodexThreadId()
     {
         var session = new ChatSession { CodexThreadId = "thread-123" };
-        var json = JsonSerializer.Serialize(session);
-        var restored = JsonSerializer.Deserialize<ChatSession>(json);
+        var json = JsonSerializer.Serialize(session, MyJsonContextAppOptions.Default.ChatSession);
+        var restored = JsonSerializer.Deserialize(json, MyJsonContextAppOptions.Default.ChatSession);
 
         Assert.Equal("thread-123", restored?.CodexThreadId);
     }

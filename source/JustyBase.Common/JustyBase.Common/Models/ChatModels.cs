@@ -1,10 +1,7 @@
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace JustyBase.Common.Models;
 
@@ -153,7 +150,8 @@ public sealed class ChatMessage : INotifyPropertyChanged
 
         try
         {
-            var json = JsonSerializer.Deserialize<JsonElement>(args);
+            using var document = JsonDocument.Parse(args);
+            var json = document.RootElement.Clone();
             var sb = new StringBuilder();
             FormatJsonElement(json, sb, 0);
             return sb.ToString().TrimEnd();

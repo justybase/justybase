@@ -11,13 +11,11 @@ using JustyBase.Ai.Fim.Download;
 using JustyBase.Ai.Fim.Prompting;
 using JustyBase.Services.Fim;
 #endif
-using JustyBase.ViewModels;
 using JustyBase.Editor.InlineCompletion;
 using JustyBase.PluginCommon.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 using System.Text.Json;
-using Avalonia.Controls;
 
 namespace JustyBase.ViewModels.Documents;
 
@@ -343,7 +341,9 @@ public partial class SettingsViewModel : DocumentBaseVM
     {
         try
         {
-            _generalApplicationData.Config = JsonSerializer.Deserialize<AppOptions>(FullSettingsJsonString);
+            _generalApplicationData.Config = JsonSerializer.Deserialize(
+                FullSettingsJsonString,
+                MyJsonContextAppOptions.Default.AppOptions);
             ErrorInfo = "Success";
         }
         catch (Exception ex)

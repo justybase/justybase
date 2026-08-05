@@ -2,6 +2,7 @@ using Microsoft.Extensions.AI;
 using OpenAI;
 using System.ClientModel;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 
 namespace JustyBase.Services.Chat;
 
@@ -32,7 +33,10 @@ public sealed class LmStudioChatBackend : ILocalChatBackend
         try
         {
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            var resp = await http.GetFromJsonAsync<OpenAiModelsResponse>(ModelsUri, ct);
+            var resp = await http.GetFromJsonAsync(
+                ModelsUri,
+                LmStudioJsonContext.Default.OpenAiModelsResponse,
+                ct);
             return resp?.Data?.Select(m => m.Id).Where(n => !string.IsNullOrWhiteSpace(n)).ToList() ?? [];
         }
         catch
@@ -63,14 +67,21 @@ public sealed class LmStudioChatBackend : ILocalChatBackend
         var http = new HttpClient { BaseAddress = Endpoint };
         return new ThinkSuppressingChatClient(inner, http, Endpoint, modelId);
     }
+}
 
-    private sealed class OpenAiModelsResponse
-    {
-        public List<OpenAiModelEntry>? Data { get; set; }
-    }
+internal sealed class OpenAiModelsResponse
+{
+    [JsonPropertyName("data")]
+    public List<OpenAiModelEntry>? Data { get; set; }
+}
 
-    private sealed class OpenAiModelEntry
-    {
-        public string Id { get; set; } = string.Empty;
-    }
+internal sealed class OpenAiModelEntry
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+}
+
+[JsonSerializable(typeof(OpenAiModelsResponse))]
+internal sealed partial class LmStudioJsonContext : JsonSerializerContext
+{
 }

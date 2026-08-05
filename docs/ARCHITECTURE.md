@@ -16,7 +16,7 @@ JustyBase (UI host: Views, ViewModels, app services)
 
 External:
 
-- **ProDataGrid** — sibling repo for DataGrid / hierarchical schema tree
+- **ProDataGrid** — NuGet dependency for DataGrid / hierarchical schema tree
 - **JustyBase.NetezzaSql** packages (or local sibling) — parser, DDL, catalog SQL
 
 ## UI composition

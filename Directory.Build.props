@@ -4,7 +4,6 @@
     <Nullable>enable</Nullable>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <!-- Keep the default .NET analyzer set readable. Critical rules below remain explicit. -->
-    <AnalysisLevel>latest</AnalysisLevel>
     <AnalysisMode>Recommended</AnalysisMode>
     <!-- CS warnings for nullability -->
     <WarningsAsErrors>$(WarningsAsErrors);CS8600;CS8602;CS8603;CS8625</WarningsAsErrors>
@@ -15,7 +14,7 @@
       Local sibling checkout (../JustyBase.NetezzaSql):
       Prefer ProjectReference when all local projects exist; otherwise NuGet.
       Override: -p:UseLocalJustyBaseLibraries=true|false
-      Projects are also listed in JustyBase.slnx (like ProDataGrid) so VS restore
+      Projects are also listed in JustyBase.slnx so VS restore
       does not hit NU1105 for out-of-solution refs.
     -->
     <JustyBaseLibrariesRoot Condition="'$(JustyBaseLibrariesRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</JustyBaseLibrariesRoot>
@@ -37,19 +36,5 @@
     <!-- NuGet fallback: latest published incl. prerelease. Pin e.g. 0.3.0-preview.6 -->
     <JustyBaseNetezzaLibsPackageVersion Condition="'$(JustyBaseNetezzaLibsPackageVersion)' == ''">*-*</JustyBaseNetezzaLibsPackageVersion>
 
-    <!--
-      Local sibling ProDataGrid (../ProDataGrid relative to this repo).
-      Required for hierarchical DataGrid features. Override:
-        -p:UseLocalProDataGrid=true|false
-        -p:ProDataGridProject=path\to\Avalonia.Controls.DataGrid.csproj
-    -->
-    <ProDataGridRoot Condition="'$(ProDataGridRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\ProDataGrid\'))</ProDataGridRoot>
-    <ProDataGridProject Condition="'$(ProDataGridProject)' == ''">$(ProDataGridRoot)src\Avalonia.Controls.DataGrid\Avalonia.Controls.DataGrid.csproj</ProDataGridProject>
-    <UseLocalProDataGrid Condition="'$(UseLocalProDataGrid)' == '' and Exists('$(ProDataGridProject)')">true</UseLocalProDataGrid>
-    <UseLocalProDataGrid Condition="'$(UseLocalProDataGrid)' == ''">false</UseLocalProDataGrid>
   </PropertyGroup>
-
-  <Target Name="EnsureProDataGridAvailable" BeforeTargets="CollectPackageReferences;ResolveProjectReferences" Condition="'$(MSBuildProjectName)' == 'JustyBase' and '$(UseLocalProDataGrid)' != 'true'">
-    <Error Text="ProDataGrid was not found at '$(ProDataGridProject)'. Clone it as a sibling of this repository (see CONTRIBUTING.md), or pass -p:ProDataGridProject=... / -p:UseLocalProDataGrid=true." />
-  </Target>
 </Project>

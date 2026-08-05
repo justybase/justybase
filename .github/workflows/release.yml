@@ -48,9 +48,19 @@ jobs:
       contents: read
 
   windows:
-    name: Windows x64 AOT packages
+    name: Windows x64 ${{ matrix.variant.name }} packages
     needs: [prepare, quality]
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: aot-netezza
+            enableAot: true
+            enableDb2: false
+          - name: self-contained-netezza-db2
+            enableAot: false
+            enableDb2: true
     defaults:
       run:
         working-directory: JustyBase
@@ -59,18 +69,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: JustyBase
-      - name: Checkout ProDataGrid
-        uses: actions/checkout@v4
-        with:
-          repository: KrzysztofDusko/ProDataGrid
-          ref: fix/recycled-row-cell-content
-          path: ProDataGrid
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
       - name: Restore
-        run: dotnet restore .\source\JustyBase\JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=false
+        run: >
+          dotnet restore .\source\JustyBase\JustyBase.csproj --force-evaluate
+          -p:UseLocalJustyBaseLibraries=false
+          -p:EnableAOT=${{ matrix.variant.enableAot }}
+          -p:EnableDb2Plugin=${{ matrix.variant.enableDb2 }}
       - name: Install Velopack CLI
         shell: pwsh
         run: |
@@ -80,20 +88,31 @@ jobs:
         shell: pwsh
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
-        run: .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts
+          VARIANT: ${{ matrix.variant.name }}
+        run: .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts -Variant $env:VARIANT
       - name: Upload Windows packages
         uses: actions/upload-artifact@v4
         with:
-          name: release-windows
+          name: release-windows-${{ matrix.variant.name }}
           path: |
-            JustyBase/artifacts/*.zip
-            JustyBase/artifacts/*-Setup.exe
+            JustyBase/artifacts/*-${{ matrix.variant.name }}.zip
+            JustyBase/artifacts/*-${{ matrix.variant.name }}-Setup.exe
           if-no-files-found: error
 
   linux:
-    name: Linux x64 AOT package
+    name: Linux x64 ${{ matrix.variant.name }} package
     needs: [prepare, quality]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: aot-netezza
+            enableAot: true
+            enableDb2: false
+          - name: self-contained-netezza-db2
+            enableAot: false
+            enableDb2: true
     defaults:
       run:
         working-directory: JustyBase
@@ -102,29 +121,31 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: JustyBase
-      - name: Checkout ProDataGrid
-        uses: actions/checkout@v4
-        with:
-          repository: KrzysztofDusko/ProDataGrid
-          ref: fix/recycled-row-cell-content
-          path: ProDataGrid
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      - name: Install packaging dependencies
+        run: sudo apt-get update && sudo apt-get install -y zip
       - name: Install NativeAOT dependencies
-        run: sudo apt-get update && sudo apt-get install -y clang lld zlib1g-dev zip
+        if: matrix.variant.enableAot
+        run: sudo apt-get install -y clang lld zlib1g-dev
       - name: Restore
-        run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=false
+        run: >
+          dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate
+          -p:UseLocalJustyBaseLibraries=false
+          -p:EnableAOT=${{ matrix.variant.enableAot }}
+          -p:EnableDb2Plugin=${{ matrix.variant.enableDb2 }}
       - name: Build Linux package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
-        run: bash ./publishLinux.sh "$VERSION" ./artifacts
+          VARIANT: ${{ matrix.variant.name }}
+        run: bash ./publishLinux.sh "$VERSION" ./artifacts "$VARIANT"
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
         with:
-          name: release-linux
-          path: JustyBase/artifacts/*
+          name: release-linux-${{ matrix.variant.name }}
+          path: JustyBase/artifacts/*.zip
           if-no-files-found: error
 
   macos:
@@ -143,18 +164,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: JustyBase
-      - name: Checkout ProDataGrid
-        uses: actions/checkout@v4
-        with:
-          repository: KrzysztofDusko/ProDataGrid
-          ref: fix/recycled-row-cell-content
-          path: ProDataGrid
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
       - name: Restore
-        run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=false
+        run: >
+          dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate
+          -p:UseLocalJustyBaseLibraries=false -p:EnableAOT=false -p:EnableDb2Plugin=true
       - name: Build macOS self-contained package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
@@ -163,7 +180,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.rid }}
-          path: JustyBase/artifacts/*
+          path: JustyBase/artifacts/*.zip
           if-no-files-found: error
 
   release:
@@ -188,10 +205,13 @@ jobs:
         run: |
           set -euo pipefail
           expected=(
-            "JustyBase-${VERSION}-win-x64-Setup.exe"
-            "JustyBase-${VERSION}-win-x64.zip"
-            "JustyBase-${VERSION}-linux-x64.zip"
-            "JustyBase-${VERSION}-macos-arm64.zip"
+            "JustyBase-${VERSION}-win-x64-aot-netezza-Setup.exe"
+            "JustyBase-${VERSION}-win-x64-aot-netezza.zip"
+            "JustyBase-${VERSION}-win-x64-self-contained-netezza-db2-Setup.exe"
+            "JustyBase-${VERSION}-win-x64-self-contained-netezza-db2.zip"
+            "JustyBase-${VERSION}-linux-x64-aot-netezza.zip"
+            "JustyBase-${VERSION}-linux-x64-self-contained-netezza-db2.zip"
+            "JustyBase-${VERSION}-macos-arm64-self-contained-netezza-db2.zip"
           )
           for file in "${expected[@]}"; do
             test -s "dist/$file" || { echo "Missing release asset: $file" >&2; exit 1; }
@@ -200,7 +220,13 @@ jobs:
             echo 'Debug/log files found in release assets' >&2
             exit 1
           fi
-          for archive in dist/*.zip; do unzip -tqq "$archive"; done
+          for archive in dist/*.zip; do
+            unzip -tqq "$archive"
+            if unzip -Z1 "$archive" | grep -Eiq '(^|/)[^/]+\.(pdb|dbg|log)$'; then
+              echo "Debug/log file found inside $archive" >&2
+              exit 1
+            fi
+          done
       - name: Create or update prerelease with gh
         shell: bash
         env:

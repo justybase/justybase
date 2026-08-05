@@ -19,7 +19,7 @@ command -v zip >/dev/null || { echo "zip is required" >&2; exit 1; }
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT="$ROOT/source/JustyBase/JustyBase.csproj"
 PUBLISH_DIR="$ROOT/$OUTPUT_ROOT/work/$RID"
-ZIP_PATH="$ROOT/$OUTPUT_ROOT/JustyBase-${VERSION}-macos-${ARCH}.zip"
+ZIP_PATH="$ROOT/$OUTPUT_ROOT/JustyBase-${VERSION}-macos-${ARCH}-self-contained-netezza-db2.zip"
 
 rm -rf "$PUBLISH_DIR"
 mkdir -p "$PUBLISH_DIR" "$(dirname "$ZIP_PATH")"
@@ -27,10 +27,15 @@ mkdir -p "$PUBLISH_DIR" "$(dirname "$ZIP_PATH")"
 # NativeAOT currently requires Swift shim symbols that are not consistently
 # available on hosted runners, so keep this target reliable and portable.
 dotnet publish "$PROJECT" -r "$RID" -c Release -f net10.0 \
-  -p:EnableAOT=false --self-contained true -p:DebugType=None -p:DebugSymbols=false \
+  -p:EnableAOT=false -p:EnableDb2Plugin=true -p:PublishAot=false \
+  --self-contained true -p:DebugType=None -p:DebugSymbols=false \
   -p:UseSharedCompilation=false \
   -p:UseLocalJustyBaseLibraries=false \
   -p:Version="$VERSION" -o "$PUBLISH_DIR"
+RUNTIMES_DIR="$PUBLISH_DIR/runtimes"
+if [[ -d "$RUNTIMES_DIR" ]]; then
+  find "$RUNTIMES_DIR" -mindepth 1 -maxdepth 1 -type d ! -name "$RID" -exec rm -rf {} +
+fi
 find "$PUBLISH_DIR" -type f \( -name '*.pdb' -o -name '*.dbg' \) -delete
 (cd "$PUBLISH_DIR" && zip -q -r "$ZIP_PATH" .)
 test -s "$ZIP_PATH"

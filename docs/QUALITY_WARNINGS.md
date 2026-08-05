@@ -11,7 +11,7 @@ The desktop application currently uses `Nullable=annotations` while its
 nullability flow analysis is migrated in batches; shared libraries use full
 nullable analysis.
 
-The report excludes warnings emitted by the sibling `ProDataGrid` solution. It
+The report excludes warnings emitted by the external `ProDataGrid` package. It
 also reports MSBuild/infrastructure warnings separately from local code
 warnings, so file-lock and build-environment problems cannot obscure analyzer
 findings. It does not change that project and it does not change GitHub Actions.

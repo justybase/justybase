@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Root MIT `LICENSE` (+ EN/PL copies), restored `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`
 - `docs/ARCHITECTURE.md` — public layering and SQL run overview
-- ProDataGrid sibling detection via `Directory.Build.props` + CI checkout of `wieslawsoltes/ProDataGrid`
+- ProDataGrid 12.0.5 NuGet dependency; CI no longer requires a sibling repository checkout
 - Removed the configurable update feed path from the app configuration surface
 - ISP split: `IDatabaseConnectionInfo`, `IDatabaseSchemaQueryService`, `IDatabaseDdlTextService` under umbrella `IDatabaseService`
 - Portfolio tests: product Avalonia headless smokes, `SqlResultsViewModel` / `SqlFoldingStrategy` / Sqlite smoke, formatter/linter goldens

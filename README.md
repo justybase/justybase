@@ -61,10 +61,10 @@ It is especially useful for:
 - **Data grid** with grouping, filtering, and export to Excel, CSV, and Parquet
 - **Multi-connection management** for multiple database sessions
 - **Netezza-first database support** for IBM Netezza Performance Server
-- **Other database engines** (Postgres, DB2, Snowflake, Oracle, DuckDB, MySQL, SQLite) are **coming soon / work in progress** and should not yet be considered generally supported
+- **Other database engines** (Postgres, DB2, Oracle, DuckDB, MySQL, SQLite) are **coming soon / work in progress** and should not yet be considered generally supported
 - **Native AOT** support for faster startup with `PublishAot` (Windows/Linux; macOS ARM64 release is self-contained)
 
-> **Temporary dependency note:** the hierarchical DataGrid currently uses the author's `ProDataGrid` sibling checkout when it is available. This keeps development aligned with the active upstream work. The sibling is currently required for a full build; if it is absent, the build stops with an actionable error rather than silently selecting a different implementation. The arrangement is intentional but temporary and may be replaced by a stable package dependency in a future release.
+> The hierarchical DataGrid is provided by the official `ProDataGrid` NuGet package and is restored automatically during the normal build.
 
 ## Screenshots
 
@@ -96,7 +96,7 @@ Dark theme screenshots are shown below for a consistent presentation.
 
 * [Avalonia](https://avaloniaui.net/) — cross-platform .NET UI
 * [Dock](https://github.com/wieslawsoltes/Dock) — docking layout
-* [ProDataGrid](https://github.com/wieslawsoltes/ProDataGrid) — high-performance DataGrid (sibling checkout)
+* [ProDataGrid](https://github.com/wieslawsoltes/ProDataGrid) — high-performance DataGrid (NuGet 12.0.5)
 * [AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit) — Avalonia-based text editor (port of AvalonEdit)
 * [SpreadSheetTasks](https://github.com/justybase/SpreadSheetTasks) — Excel I/O
 * [Sylvan CSV](https://github.com/MarkPflug/Sylvan) — fast CSV
@@ -107,7 +107,7 @@ Dark theme screenshots are shown below for a consistent presentation.
 
 - **.NET 10.0 SDK**
 - **Windows x64**, **Linux x64**, **macOS ARM64**
-- Sibling **ProDataGrid** checkout (see below)
+- NuGet access to restore **ProDataGrid 12.0.5**
 
 ## Quick start
 
@@ -116,10 +116,7 @@ Dark theme screenshots are shown below for a consistent presentation.
 git clone https://github.com/justybase/justybase.git
 cd justybase
 
-# 2) Clone ProDataGrid next to this repository (required)
-git clone https://github.com/wieslawsoltes/ProDataGrid.git ../ProDataGrid
-
-# 3) Restore, build, and run
+# 2) Restore, build, and run
 dotnet restore JustyBase.slnx
 dotnet build JustyBase.slnx -c Debug
 cd source/JustyBase
@@ -132,7 +129,7 @@ On first launch, add an IBM Netezza connection from the schema or connections UI
 
 | Dependency | How it is resolved |
 |------------|--------------------|
-| **ProDataGrid** | Local sibling `../ProDataGrid` (required). See [CONTRIBUTING.md](CONTRIBUTING.md). |
+| **ProDataGrid** | NuGet package `ProDataGrid` version `12.0.5`. |
 | **JustyBase.Netezza\*** | Local `../JustyBase.NetezzaSql` when present (also in `JustyBase.slnx`); otherwise latest NuGet (`*-*`). Pin with `-p:JustyBaseNetezzaLibsPackageVersion=...` or force NuGet with `-p:UseLocalJustyBaseLibraries=false`. |
 
 ### AI and data privacy
@@ -160,10 +157,22 @@ cd source/JustyBase
 dotnet publish -r win-x64 -c Release -f net10.0 -p:EnableAOT=true
 ```
 
-Release packaging:
+Release packaging generates separate database/runtime variants:
 
-- Windows: `publishWindows.bat <version>` via Velopack
-- Linux: `publishLinux.sh` (Native AOT); macOS ARM64: `publishMacOS.sh` (self-contained)
+- `aot-netezza`: Native AOT for Windows x64 and Linux x64, Netezza only.
+- `self-contained-netezza-db2`: self-contained for Windows x64, Linux x64 and macOS ARM64, with Netezza and DB2.
+
+Examples:
+
+```text
+publishWindows.bat <version> aot-netezza
+publishWindows.bat <version> self-contained-netezza-db2
+./publishLinux.sh <version> artifacts aot-netezza
+./publishLinux.sh <version> artifacts self-contained-netezza-db2
+./publishMacOS.sh <version> osx-arm64 artifacts
+```
+
+The GitHub Actions release workflow builds and uploads all variants automatically. macOS is always self-contained because Native AOT is not supported reliably there, while DB2 is excluded from AOT because its provider is not AOT-compatible.
 
 ## Quick verification
 

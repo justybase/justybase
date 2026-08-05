@@ -36,7 +36,7 @@ $warnings = foreach ($line in $buildOutput) {
         continue
     }
 
-    # ProDataGrid is an intentionally external sibling checkout. Its warnings
+    # ProDataGrid is an intentionally external package. Its warnings
     # are not part of this repository's quality gate.
     if ($text -match '(?i)ProDataGrid|Avalonia\.Controls\.DataGrid') { continue }
 

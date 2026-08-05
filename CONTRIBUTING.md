@@ -22,24 +22,9 @@ Be respectful and inclusive. We welcome contributions from everyone.
 - IDE: Visual Studio 2022, Rider, or VS Code with C# extension
 - Git
 
-### Sibling dependencies
+### Dependencies
 
-JustyBase expects a **ProDataGrid** checkout as a sibling of this repository (same parent folder):
-
-```text
-parent/
-  JustyBase/          # this repo
-  ProDataGrid/        # required for DataGrid + hierarchical schema tree
-  JustyBase.NetezzaSql/  # optional; without it NuGet packages are used
-```
-
-Clone ProDataGrid next to this repo (upstream or your fork):
-
-```bash
-git clone https://github.com/wieslawsoltes/ProDataGrid.git ../ProDataGrid
-```
-
-Override the path with `-p:ProDataGridProject=...` or `-p:UseLocalProDataGrid=true|false` if needed.
+The DataGrid and hierarchical schema tree are restored from the official `ProDataGrid` NuGet package, version `12.0.5`. No sibling checkout or special CI checkout is required.
 
 Optional Netezza SQL libraries: when `../JustyBase.NetezzaSql` exists, MSBuild uses local `ProjectReference`s (projects are listed under `/JustyBase.NetezzaSql/` in `JustyBase.slnx` so Visual Studio restore works). Without the sibling, the latest NuGet packages are used (`*-*`, including prerelease). Override with `-p:UseLocalJustyBaseLibraries=false` or pin `-p:JustyBaseNetezzaLibsPackageVersion=0.3.0-preview.6`.
 

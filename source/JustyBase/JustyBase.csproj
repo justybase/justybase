@@ -1,7 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<DefineConstants>AVALONIA;ORACLE;POSTGRES;MYSQL;SNOWFLAKE</DefineConstants>
-		<!--<DefineConstants>AVALONIA;ORACLE;NZODBC</DefineConstants>-->
+		<!-- <DefineConstants>ORACLE;POSTGRES;MYSQL</DefineConstants> -->
+		<!-- Static plugin wiring (NativeAOT publishes cannot load plugins dynamically).
+		     EnableDb2Plugin=true adds the DB2 define + DB2Plugin project reference.
+		     Debug builds (F5 in Visual Studio) enable DB2 automatically; release scripts
+		     select the required AOT or self-contained database variant explicitly. -->
+		<EnableDb2Plugin Condition="'$(EnableDb2Plugin)' == '' and '$(Configuration)' == 'Debug'">true</EnableDb2Plugin>
+		<EnableDb2Plugin Condition="'$(EnableDb2Plugin)' == '' and '$(Configuration)' != 'Debug'">false</EnableDb2Plugin>
+		<DefineConstants Condition="'$(EnableDb2Plugin)' == 'true'">$(DefineConstants);DB2</DefineConstants>
 		<OutputType>WinExe</OutputType>
 		<PlatformTarget>AnyCPU</PlatformTarget>
 		<TargetFramework>net10.0</TargetFramework>
@@ -10,12 +16,9 @@
 		<SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
 		<!-- Migrate the UI application to flow analysis in batches; annotations keep this build usable meanwhile. -->
 		<Nullable>annotations</Nullable>
-		<LangVersion>preview</LangVersion>
 		<WarningsAsErrors>$(WarningsAsErrors);CA2200</WarningsAsErrors>
 		<!-- Views are constructed through DI with parameterized constructors; Avalonia's runtime-loader check is not applicable. -->
 		<NoWarn>$(NoWarn);AVLN3001</NoWarn>
-		<!-- The sibling grid is an external checkout; keep its known warnings local to this project reference. -->
-		<ProDataGridNoWarn>CS8632;CS8622;CS8600;CS8625;CS8618;CS8603;CA1815;AVP1012;CS0618;CS8602;CS1587;CS8604;CS8620;CS8601;CS1573;CS8769;CA1847;CS0067;CS1572;CS8629;CS8765</ProDataGridNoWarn>
 		<ApplicationIcon>Assets\Icon2.ico</ApplicationIcon>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -24,7 +27,6 @@
 		<ServerGarbageCollection>true</ServerGarbageCollection>
 		<!--<PublishReadyToRun>false</PublishReadyToRun>
 		<SelfContained>false</SelfContained>-->
-		<PublishRuntimeIdentifier>win-x64</PublishRuntimeIdentifier>
 	</PropertyGroup>
 	<!--
 	  Embedded FIM (LLamaSharp): included in all builds by default — including AOT publish.
@@ -46,17 +48,19 @@
     <UseSystemResourceKeys>true</UseSystemResourceKeys>
     <InvariantGlobalization>false</InvariantGlobalization>
     <SelfContained>true</SelfContained>
-    <!-- .NET 10 ILC: granular ISAs (popcnt/bmi/fma/etc.) were folded into profiles -->
-    <!-- x86 ISA profiles are invalid for the ARM64 macOS build. Keep the
-         optimization for x64 artifacts and let ARM64 use the native default. -->
-    <IlcInstructionSet Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'linux-x64'">x86-64-v3,aes</IlcInstructionSet>
-  </PropertyGroup>
+	</PropertyGroup>
+	<Target Name="ValidateJustyBasePublishConfiguration" BeforeTargets="Publish">
+		<Error Condition="'$(EnableAOT)' == 'true' and '$(EnableDb2Plugin)' == 'true'"
+		       Text="DB2Plugin is not compatible with NativeAOT. Use the self-contained DB2 variant with EnableAOT=false." />
+		<Error Condition="'$(EnableAOT)' == 'true' and ('$(RuntimeIdentifier)' == 'osx-arm64' or '$(RuntimeIdentifier)' == 'osx-x64')"
+		       Text="NativeAOT is not supported for macOS release artifacts. Use the self-contained macOS variant." />
+	</Target>
 	<ItemGroup>
 		<TrimmerRootAssembly Include="JustyBase" />
 		<TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
 
 		<!--<TrimmerRootAssembly Include="Avalonia.Themes.Default" />-->
-		
+
 		<!--<TrimmerRootAssembly Include="Avalonia.MarkupExtension" />
 		<TrimmerRootAssembly Include="Dock.Model" />
 		<TrimmerRootAssembly Include="Dock.Model.Mvvm" />
@@ -64,7 +68,11 @@
 		
 
 		<TrimmerRootAssembly Include="Avalonia.Controls.DataGrid" />
-		
+
+		<!-- The IBM DB2 provider relies on reflection for provider type maps; keep it whole under AOT. -->
+		<TrimmerRootAssembly Include="DB2Plugin" Condition="'$(Configuration)' == 'Release' and '$(EnableAOT)' == 'true' and '$(EnableDb2Plugin)' == 'true'" />
+		<TrimmerRootAssembly Include="IBM.Data.Db2" Condition="'$(Configuration)' == 'Release' and '$(EnableAOT)' == 'true' and '$(EnableDb2Plugin)' == 'true'" />
+
 		<!--<TrimmerRootAssembly Include="JustyBase.Common"/>-->
 		<!--<<assembly fullname="Dock.ProportionalStackPanel" preserve="All" />
 		<assembly fullname="AvaloniaEdit" preserve="All" />
@@ -102,8 +110,7 @@
 		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.8.3" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
 		<PackageReference Include="OllamaSharp" Version="5.4.30" />
-		<!-- Prefer sibling ProDataGrid (hierarchical grid). Path from Directory.Build.props. -->
-		<ProjectReference Include="$(ProDataGridProject)" Condition="'$(UseLocalProDataGrid)' == 'true'" AdditionalProperties="NoWarn=$(ProDataGridNoWarn)" />
+		<PackageReference Include="ProDataGrid" Version="12.0.5" />
 		<PackageReference Include="Velopack" Version="1.2.0" />
 		<PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
@@ -184,13 +191,13 @@
 	<ItemGroup Condition="$(DefineConstants.Contains('POSTGRES'))">
 		<ProjectReference Include="..\Plugins\PostgresPlugin\PostgresPlugin.csproj" />
 	</ItemGroup>
-	<ItemGroup Condition="$(DefineConstants.Contains('SNOWFLAKE'))">
-		<ProjectReference Include="..\Plugins\SnowflakePlugin\SnowflakePlugin.csproj" />
-	</ItemGroup>
 	<ItemGroup Condition="$(DefineConstants.Contains('NZODBC'))">
 		<ProjectReference Include="..\Plugins\NetezzaOdbcPlugin\NetezzaOdbcPlugin.csproj" />
 	</ItemGroup>
 	<ItemGroup Condition="$(DefineConstants.Contains('ORACLE'))">
 		<ProjectReference Include="..\Plugins\OraclePlugin\OraclePlugin.csproj" />
+	</ItemGroup>
+	<ItemGroup Condition="$(DefineConstants.Contains('DB2'))">
+		<ProjectReference Include="..\Plugins\DB2Plugin\DB2Plugin.csproj" />
 	</ItemGroup>
 </Project>

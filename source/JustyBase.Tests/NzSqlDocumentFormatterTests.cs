@@ -1,3 +1,4 @@
+using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.Services;
 
 namespace JustyBase.Tests;
@@ -52,6 +53,25 @@ public sealed class NzSqlDocumentFormatterTests
         Assert.Equal(
             NormalizeNewlines(expected.TrimEnd()),
             NormalizeNewlines(result.TrimEnd()));
+    }
+
+    [Fact]
+    public void Format_Db2Dialect_KeepsDb2FetchFirstSyntax()
+    {
+        const string sql = "SELECT id FROM t FETCH FIRST 10 ROWS ONLY";
+        var result = NzSqlDocumentFormatter.Format(sql, SqlDialect.Db2);
+
+        Assert.Contains("SELECT", result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("FETCH FIRST 10 ROWS ONLY", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Format_Db2Dialect_RejectsNetezzaOnlySyntaxWithoutThrowing()
+    {
+        const string sql = "SELECT * FROM t LIMIT 10";
+        var result = NzSqlDocumentFormatter.Format(sql, SqlDialect.Db2);
+
+        Assert.False(string.IsNullOrWhiteSpace(result));
     }
 
     private static string NormalizeNewlines(string value) =>

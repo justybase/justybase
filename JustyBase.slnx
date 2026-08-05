@@ -15,7 +15,7 @@
     <Project Path="source/Plugins/NetezzaOdbcPlugin/NetezzaOdbcPlugin.csproj" />
     <Project Path="source/Plugins/OraclePlugin/OraclePlugin.csproj" />
     <Project Path="source/Plugins/PostgresPlugin/PostgresPlugin.csproj" />
-    <Project Path="source/Plugins/SnowflakePlugin/SnowflakePlugin.csproj" />
+
     <Project Path="source/Plugins/SqlitePlugin/SqlitePlugin.csproj" />
   </Folder>
   <Folder Name="/Plugins/Helpers/">
@@ -29,19 +29,13 @@
     <Project Path="source/JustyBase.Tests/JustyBase.Tests.csproj" />
   </Folder>
   <Folder Name="/JustyBase.NetezzaSql/">
-    <!-- Sibling checkout; Prefer ProjectReference when present (Directory.Build.props UseLocalJustyBaseLibraries). Listed here so VS restore avoids NU1105. -->
+    <!-- Prefer local ProjectReferences when the optional sibling checkout is present. -->
     <Project Path="../JustyBase.NetezzaSql/JustyBase.NetezzaSqlParser.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.Netezza/JustyBase.Netezza.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.NetezzaDdl/JustyBase.NetezzaDdl.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.NetezzaCatalogSql/JustyBase.NetezzaCatalogSql.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.Core/JustyBase.Core.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.ImportExport/JustyBase.ImportExport.csproj" />
-  </Folder>
-  <Folder Name="/ProDataGrid/">
-    <!-- Sibling checkout; see CONTRIBUTING.md / Directory.Build.props UseLocalProDataGrid -->
-    <Project Path="../ProDataGrid/src/Avalonia.Controls.DataGrid/Avalonia.Controls.DataGrid.csproj" />
-    <Project Path="../ProDataGrid/src/ProDataGrid.FormulaEngine/ProDataGrid.FormulaEngine.csproj" />
-    <Project Path="../ProDataGrid/src/ProDataGrid.FormulaEngine.Excel/ProDataGrid.FormulaEngine.Excel.csproj" />
   </Folder>
   <Project Path="source/JustyBase.Ai.Fim/JustyBase.Ai.Fim.csproj" />
   <Project Path="source/JustyBase.PluginBase/JustyBase.PluginBase.csproj" />

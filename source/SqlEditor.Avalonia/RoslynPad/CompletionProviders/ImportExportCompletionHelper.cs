@@ -1,5 +1,3 @@
-using JustyBase.PluginCommons;
-
 namespace JustyBase.Editor.CompletionProviders;
 
 /// <summary>

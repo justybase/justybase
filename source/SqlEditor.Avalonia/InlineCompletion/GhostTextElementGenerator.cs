@@ -1,6 +1,4 @@
-using Avalonia.Media;
 using Avalonia.Media.TextFormatting;
-using AvaloniaEdit.Rendering;
 
 namespace JustyBase.Editor.InlineCompletion;
 

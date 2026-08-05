@@ -1,7 +1,4 @@
-﻿using Avalonia;
-using System;
-
-namespace JustyBase.Editor;
+﻿namespace JustyBase.Editor;
 
 #pragma warning disable AVP1001 // The same AvaloniaProperty should not be registered twice
 

@@ -1,4 +1,3 @@
-using Avalonia.Media;
 using Avalonia.Themes.Fluent;
 using JustyBase.Common.Contracts;
 using System.Text.Json;

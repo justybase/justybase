@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 namespace JustyBase.Common.Models;
 
 public sealed class SlashCommand

@@ -1,15 +1,7 @@
-using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Avalonia.Xaml.Interactivity;
-using JustyBase.PluginCommon.Contracts;
-using JustyBase.Services;
 using JustyBase.Services.DataGrid;
-using JustyBase.ViewModels;
-using JustyBase.ViewModels.Tools;
-using System.Linq;
 
 namespace JustyBase.Behaviors;
 

@@ -1,9 +1,7 @@
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Models;
 using ChatMessage = JustyBase.Common.Models.ChatMessage;
-using JustyBase.Common.Services;
 using JustyBase.PluginCommon.Contracts;
-using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services.Chat;
 using JustyBase.Services.Documents;
 using JustyBase.ViewModels.Tools;

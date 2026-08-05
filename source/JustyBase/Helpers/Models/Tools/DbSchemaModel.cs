@@ -1,4 +1,3 @@
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using JustyBase.Common.Contracts;
 using JustyBase.PluginCommon.Enums;

@@ -1,5 +1,3 @@
-using Microsoft.Extensions.AI;
-
 namespace JustyBase.Services.Chat;
 
 public sealed class LocalChatClientFactory

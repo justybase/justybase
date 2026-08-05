@@ -1,4 +1,3 @@
-using Avalonia.Controls;
 using Avalonia.VisualTree;
 using AvaloniaEdit;
 using AvaloniaEdit.Highlighting;

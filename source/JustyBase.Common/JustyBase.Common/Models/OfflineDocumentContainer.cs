@@ -1,5 +1,4 @@
-﻿using JustyBase.PluginCommon.Contracts;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace JustyBase.Common.Models;
 

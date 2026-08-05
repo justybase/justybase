@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace JustyBase.Editor;
+﻿namespace JustyBase.Editor;
 
 public interface ISqlAutocompleteData
 {

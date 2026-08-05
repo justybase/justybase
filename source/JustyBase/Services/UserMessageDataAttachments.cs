@@ -1,5 +1,3 @@
-using System;
-
 namespace JustyBase.Services;
 
 public abstract class UserMessageDataAttachmentsItem

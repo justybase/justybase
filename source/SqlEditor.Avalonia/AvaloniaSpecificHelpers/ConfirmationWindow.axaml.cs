@@ -1,6 +1,3 @@
-using Avalonia.Controls;
-using System.Threading.Tasks;
-
 namespace JustyBase.Views
 {
     public partial class ConfirmationWindow : Window

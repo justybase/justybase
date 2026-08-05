@@ -16,8 +16,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
-
 namespace JustyBase.Editor;
 
 public class BraceMatcherHighlightRenderer : IBackgroundRenderer
@@ -66,9 +64,6 @@ public class BraceMatcherHighlightRenderer : IBackgroundRenderer
         var builder = new BackgroundGeometryBuilder
         {
             CornerRadius = 1,
-#if !AVALONIA
-            AlignToWholePixels = true
-#endif
         };
 
         if (RightOfPosition != null)

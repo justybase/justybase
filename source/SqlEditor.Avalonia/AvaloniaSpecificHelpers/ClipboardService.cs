@@ -1,8 +1,6 @@
 using Avalonia.Input.Platform;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.Services;
-using System.Data;
-using System.Threading.Tasks;
 
 namespace SqlEditor.Avalonia.AvaloniaSpecificHelpers;
 

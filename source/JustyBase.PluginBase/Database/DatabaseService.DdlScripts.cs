@@ -1,7 +1,5 @@
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
-using JustyBase.PluginCommons;
-using JustyBase.PluginDatabaseBase.Models;
 using System.Globalization;
 using System.Text;
 

@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
 using Avalonia.Controls;
-using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Dock.Avalonia.Controls;

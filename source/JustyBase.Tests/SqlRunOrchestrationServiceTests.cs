@@ -1,5 +1,4 @@
 using JustyBase.Common.Contracts;
-using JustyBase.Common.Models;
 using JustyBase.Helpers.Shared;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.Services;

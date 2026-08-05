@@ -1,6 +1,5 @@
 using JustyBase.Models;
 using JustyBase.Themes;
-using Avalonia;
 
 namespace JustyBase.Views.Tools;
 

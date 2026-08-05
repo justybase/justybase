@@ -4,8 +4,6 @@ using Avalonia.Data;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Dock.Model.Core;
-using JustyBase.Common.Contracts;
-using JustyBase.Editor;
 using JustyBase.Models.Tools;
 using JustyBase.Services;
 using JustyBase.ViewModels.Documents;

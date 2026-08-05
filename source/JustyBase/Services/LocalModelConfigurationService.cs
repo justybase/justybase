@@ -1,5 +1,4 @@
 using JustyBase.Services.Chat;
-using JustyBase.PluginCommon.Contracts;
 
 namespace JustyBase.Services;
 

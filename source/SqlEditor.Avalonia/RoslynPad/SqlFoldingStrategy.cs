@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-
-namespace JustyBase.Editor.Folding;
+﻿namespace JustyBase.Editor.Folding;
 
 public sealed class SqlFoldingStrategy
 {

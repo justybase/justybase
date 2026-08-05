@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace JustyBase.Common.Models;
 
 public enum ChatMode

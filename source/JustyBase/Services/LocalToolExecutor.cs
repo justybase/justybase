@@ -1,8 +1,6 @@
 using JustyBase.Common.Contracts;
-using JustyBase.Common.Models;
 using JustyBase.Common.Services;
 using JustyBase.Helpers;
-using JustyBase.Models.Tools;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
@@ -12,12 +10,9 @@ using JustyBase.ViewModels.Tools;
 using Microsoft.Extensions.AI;
 using System.ComponentModel;
 using System.Globalization;
-using System.Data.Common;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
-using Avalonia.Threading;
 
 namespace JustyBase.Services;
 

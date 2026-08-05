@@ -1,10 +1,7 @@
 using Avalonia.Input.Platform;
-using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 using JustyBase.Common.Contracts;
 using JustyBase.Editor;
 using JustyBase.Helpers;
-using JustyBase.Helpers.Interactions;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.Themes;
 using JustyBase.ViewModels.Documents;

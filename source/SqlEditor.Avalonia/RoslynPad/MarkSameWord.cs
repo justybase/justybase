@@ -1,5 +1,3 @@
-using System;
-
 namespace JustyBase.Editor;
 
 public sealed class MarkSameWord : DocumentColorizingTransformer

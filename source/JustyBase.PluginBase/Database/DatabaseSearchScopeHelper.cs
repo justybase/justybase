@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace JustyBase.PluginDatabaseBase.Database;
 
 public static class DatabaseSearchScopeHelper

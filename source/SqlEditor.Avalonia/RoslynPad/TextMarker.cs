@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace JustyBase.Editor;
 
 public sealed class TextMarker : TextSegment

@@ -1,10 +1,8 @@
-using Dock.Avalonia.Controls;
 using Dock.Model.Controls;
 using Dock.Model.Core;
 using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
 using JustyBase.Helpers;
-using JustyBase.ViewModels;
 using JustyBase.ViewModels.Docks;
 using JustyBase.ViewModels.Documents;
 using JustyBase.ViewModels.Tools;

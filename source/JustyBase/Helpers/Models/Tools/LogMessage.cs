@@ -2,7 +2,6 @@ using Avalonia.Collections;
 using CommunityToolkit.Mvvm.ComponentModel;
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Models;
-using JustyBase.Helpers.Interactions;
 using System.Collections.ObjectModel;
 
 namespace JustyBase.Models.Tools;

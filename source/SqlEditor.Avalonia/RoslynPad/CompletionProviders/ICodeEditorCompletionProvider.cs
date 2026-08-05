@@ -1,6 +1,4 @@
-﻿using System.Threading.Tasks;
-
-namespace JustyBase.Editor.CompletionProviders;
+﻿namespace JustyBase.Editor.CompletionProviders;
 
 public interface ICodeEditorCompletionProvider
 {

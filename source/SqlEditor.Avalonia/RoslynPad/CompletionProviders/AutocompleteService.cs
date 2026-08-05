@@ -3,8 +3,6 @@ using JustyBase.Editor.CompletionProviders;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommons;
-using System;
-using System.Collections.Generic;
 using System.Text;
 
 namespace JustyBase.Helpers;

@@ -1,6 +1,5 @@
 using Avalonia.Media;
 using JustyBase.Services;
-using System.Linq;
 
 namespace JustyBase.Tests;
 

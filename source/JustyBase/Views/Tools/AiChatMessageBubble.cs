@@ -1,6 +1,3 @@
-using Avalonia;
-using Avalonia.Controls;
-
 namespace JustyBase.Views.Tools;
 
 /// <summary>

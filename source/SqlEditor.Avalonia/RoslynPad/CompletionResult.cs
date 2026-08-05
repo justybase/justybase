@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace JustyBase.Editor;
+﻿namespace JustyBase.Editor;
 
 public sealed class CompletionResult(IList<ICompletionDataEx>? completionData, IOverloadProviderEx? overloadProvider, bool useHardSelection)
 {

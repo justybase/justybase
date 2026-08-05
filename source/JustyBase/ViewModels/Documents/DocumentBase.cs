@@ -4,7 +4,6 @@ using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
 using JustyBase.Helpers;
 using JustyBase.Services;
-using System.Windows.Input;
 
 namespace JustyBase.ViewModels.Documents;
 

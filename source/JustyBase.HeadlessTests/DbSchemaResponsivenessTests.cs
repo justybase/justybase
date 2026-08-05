@@ -1,9 +1,7 @@
 using Avalonia.Threading;
 using JustyBase.Models.Tools;
-using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginDatabaseBase.Database;
-using Moq;
 using Xunit.Abstractions;
 
 namespace JustyBase.HeadlessTests;

@@ -1,4 +1,3 @@
-using System.Data.Common;
 using JustyBase.Common.Contracts;
 using JustyBase.NetezzaCatalogSql;
 using JustyBase.PluginCommon.Contracts;

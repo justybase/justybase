@@ -1,7 +1,5 @@
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using JustyBase.Common.Contracts;
-using JustyBase.Helpers.Interactions;
 using JustyBase.PluginCommon.Contracts;
 using System.Collections.ObjectModel;
 using System.Globalization;

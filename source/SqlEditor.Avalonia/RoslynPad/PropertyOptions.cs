@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace JustyBase.Editor;
+﻿namespace JustyBase.Editor;
 
 [Flags]
 public enum PropertyOptions

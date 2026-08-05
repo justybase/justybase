@@ -1,7 +1,6 @@
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Mvvm.Controls;
 using JustyBase.ViewModels.Documents;
-using JustyBase.Services;
 using JustyBase.Services.Docking;
 
 namespace JustyBase.ViewModels.Docks;

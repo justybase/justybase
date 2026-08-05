@@ -1,7 +1,6 @@
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
-using Avalonia.Threading;
 using JustyBase.Models;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.Services.Results;

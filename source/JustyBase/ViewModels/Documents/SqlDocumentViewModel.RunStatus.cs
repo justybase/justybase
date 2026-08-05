@@ -1,7 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustyBase.Common.Models;
-using JustyBase.Editor;
 using JustyBase.Helpers;
 using JustyBase.Models.Tools;
 using JustyBase.Services.Documents;

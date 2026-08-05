@@ -1,4 +1,3 @@
-using Dock.Model.Core;
 using Dock.Model.Mvvm.Controls;
 using JustyBase.Helpers;
 

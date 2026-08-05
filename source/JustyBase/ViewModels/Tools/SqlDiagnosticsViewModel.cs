@@ -1,8 +1,6 @@
 using Avalonia.Collections;
-using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Dock.Model.Core;
 using Dock.Model.Mvvm.Controls;
 using JustyBase.NetezzaSqlParser.Authoring;
 using JustyBase.NetezzaSqlParser.Linter;

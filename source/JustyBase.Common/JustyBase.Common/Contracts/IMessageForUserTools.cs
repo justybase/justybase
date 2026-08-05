@@ -1,5 +1,3 @@
-using System;
-
 namespace JustyBase.Common.Contracts;
 
 public interface IMessageForUserTools

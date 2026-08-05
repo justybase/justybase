@@ -1,10 +1,3 @@
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Threading;
-using AvaloniaEdit;
-using AvaloniaEdit.Document;
-using AvaloniaEdit.Editing;
-
 namespace JustyBase.Editor.InlineCompletion;
 
 /// <summary>

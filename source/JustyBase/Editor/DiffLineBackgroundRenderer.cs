@@ -1,5 +1,4 @@
 using DiffPlex.DiffBuilder.Model;
-using AvaloniaEdit.Document;
 using AvaloniaEdit.Rendering;
 
 namespace JustyBase.Editor;

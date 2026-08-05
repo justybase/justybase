@@ -1,5 +1,3 @@
-using Avalonia.Threading;
-
 namespace JustyBase.Helpers;
 
 /// <summary>

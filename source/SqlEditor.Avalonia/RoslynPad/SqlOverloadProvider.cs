@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using JustyBase.NetezzaSqlParser.Authoring;
 
 namespace JustyBase.Editor;

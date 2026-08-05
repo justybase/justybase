@@ -1,12 +1,5 @@
-﻿using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
-using Avalonia.Input;
-using Avalonia.Media;
-using Avalonia.Threading;
+﻿using Avalonia.Controls.Primitives;
 using Avalonia.VisualTree;
-using System;
-using System.Collections.Generic;
 
 namespace JustyBase.Editor;
 

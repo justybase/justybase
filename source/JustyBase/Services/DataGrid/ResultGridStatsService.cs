@@ -1,7 +1,4 @@
-using Avalonia.Controls;
-using Avalonia.Threading;
 using JustyBase.Models;
-using System.Collections.ObjectModel;
 
 namespace JustyBase.Services.DataGrid;
 

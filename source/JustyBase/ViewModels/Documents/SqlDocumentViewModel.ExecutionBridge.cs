@@ -1,11 +1,7 @@
-using System;
 using System.Data.Common;
 using JustyBase.Common.Models;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.Services.Documents;
-using System.Linq;
-using Avalonia.Threading;
-using System.Diagnostics;
 using JustyBase.Models.Tools;
 
 namespace JustyBase.ViewModels.Documents;

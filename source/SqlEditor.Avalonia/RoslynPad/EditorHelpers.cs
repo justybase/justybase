@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using JustyBase.Editor;
+﻿using JustyBase.Editor;
 using System.Text.RegularExpressions;
-using System.Linq;
 using JustyBase.PluginCommons;
 
 namespace JustyBase.Helpers;

@@ -9,7 +9,6 @@ using JustyBase.NetezzaCatalogSql;
 using JustyBase.NetezzaDdl;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
-using JustyBase.PluginCommons;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.PluginDatabaseBase.Models;
 

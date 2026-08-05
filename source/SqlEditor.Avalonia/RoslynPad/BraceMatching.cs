@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace JustyBase.Editor;
+﻿namespace JustyBase.Editor;
 
 public readonly struct BraceMatchingResult : IEquatable<BraceMatchingResult>
 {

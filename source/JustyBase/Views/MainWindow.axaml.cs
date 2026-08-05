@@ -1,5 +1,3 @@
-using Avalonia.Input;
-using Avalonia.Interactivity;
 using JustyBase.Common.Contracts;
 using JustyBase.Helpers.Interactions;
 using JustyBase.ViewModels;

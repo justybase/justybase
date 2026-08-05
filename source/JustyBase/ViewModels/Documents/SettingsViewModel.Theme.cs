@@ -1,6 +1,4 @@
-using Avalonia.Media;
 using Avalonia.Themes.Fluent;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustyBase.Common.Contracts;

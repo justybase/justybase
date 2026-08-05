@@ -1,5 +1,3 @@
-using Avalonia.Controls;
-
 namespace JustyBase.Views
 {
     public partial class MessageWindow : Window

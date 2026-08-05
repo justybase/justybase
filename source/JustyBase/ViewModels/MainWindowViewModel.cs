@@ -1,10 +1,6 @@
-﻿using Avalonia.Controls;
-using Avalonia.Threading;
-using AvaloniaEdit.Document;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Controls;
-using Dock.Model.Core;
 using Dock.Model.Core.Events;
 using JustyBase.Common.Contracts;
 using JustyBase.Public.Lib.Services;

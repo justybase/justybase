@@ -1,4 +1,3 @@
-using Avalonia.Input;
 using Avalonia.Xaml.Interactivity;
 
 namespace JustyBase.Behaviors;

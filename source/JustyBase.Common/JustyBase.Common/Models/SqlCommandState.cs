@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace JustyBase.Common.Models;
+﻿namespace JustyBase.Common.Models;
 public enum SqlCommandState
 {
     created,

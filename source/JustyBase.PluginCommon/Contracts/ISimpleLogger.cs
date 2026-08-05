@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace JustyBase.PluginCommon.Contracts;
+﻿namespace JustyBase.PluginCommon.Contracts;
 
 public interface ISimpleLogger
 {

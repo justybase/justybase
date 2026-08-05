@@ -1,5 +1,3 @@
-using System;
-
 namespace JustyBase.PluginDatabaseBase.Database;
 
 public static class DatabaseFilterHelper

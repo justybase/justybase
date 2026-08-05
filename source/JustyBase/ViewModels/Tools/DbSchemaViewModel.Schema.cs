@@ -1,7 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustyBase.Common.Contracts;
-using JustyBase.Helpers;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.Services;
@@ -248,9 +247,7 @@ public sealed partial class DbSchemaViewModel
 
         MenuItemsForConnections = [];
         _connectedMenuItem = new MenuItem() { Header = "Show connected only", Command = ShowConnectedOnlyCommand };
-#if AVALONIA
         MenuItemsForConnections.Add(new MenuItem() { Header = "Show/hide header", Command = ShowHideHeadersCommand });
-#endif
         MenuItemsForConnections.Add(_connectedMenuItem);
 
         MenuItemsForTableGroup =

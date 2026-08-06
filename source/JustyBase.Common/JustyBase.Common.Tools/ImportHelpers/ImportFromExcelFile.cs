@@ -288,8 +288,8 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
         }
     }
 
-    /// <summary>Shortcut method for first Excel sheet to database (all settings default).</summary>
-    public async Task PerformFastImportFromFileAsync(DatabaseTypeEnum databaseType, IDatabaseWithSpecificImportService databaseWithSpecificImportService)
+    /// <summary>Shortcut method for first Excel sheet to database (all settings default). Returns the imported table name or null.</summary>
+    public async Task<string?> PerformFastImportFromFileAsync(DatabaseTypeEnum databaseType, IDatabaseWithSpecificImportService databaseWithSpecificImportService)
     {
         try
         {
@@ -304,16 +304,17 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
                 await ImportFromFileAllSteps(databaseType, databaseWithSpecificImportService, null, randomName);
 
                 StandardMessageAction?.Invoke($"FINISHED ** {randomName} **");
+                return randomName;
             }
-            else
-            {
-                StandardMessageAction?.Invoke("\n" + "import failed");
-            }
+
+            StandardMessageAction?.Invoke("\n" + "import failed");
+            return null;
         }
         catch (Exception ex)
         {
             _logger?.TrackError(ex, isCrash: false);
             _exceptionMessageAction?.Invoke(ex.Message);
+            return null;
         }
     }
 }

@@ -117,7 +117,10 @@ public sealed class SqlImportService : ISqlImportService
                 }
             }
             addLogMessage($"imported to {res}", LogMessageType.ok, DateTime.Now, "");
-            insertTextAction.Invoke(res, false);
+            if (!string.IsNullOrWhiteSpace(res))
+            {
+                insertTextAction.Invoke($"SELECT * FROM {res};\n", true);
+            }
         }
         else if (formats.Contains("File"))
         {
@@ -185,7 +188,11 @@ public sealed class SqlImportService : ISqlImportService
                 return;
             }
 
-            await importFrom.PerformFastImportFromFileAsync(service.DatabaseType, service);
+            string? tableName = await importFrom.PerformFastImportFromFileAsync(service.DatabaseType, service);
+            if (!string.IsNullOrWhiteSpace(tableName))
+            {
+                insertTextAction.Invoke($"SELECT * FROM {tableName};\n", true);
+            }
         }
         catch (Exception ex)
         {

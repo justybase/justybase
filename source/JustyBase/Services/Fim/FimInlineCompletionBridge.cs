@@ -29,7 +29,15 @@ public sealed class FimInlineCompletionBridge
 
     public void NotifyModelReady() => ModelReady?.Invoke(this, EventArgs.Empty);
 
-    public async Task<string?> CompleteAsync(InlineCompletionContext context, CancellationToken cancellationToken)
+    /// <summary>
+    /// Completes inline; <paramref name="schemaHintProvider"/> (per document) may return a
+    /// schema-context block (e.g. columns/types of tables near the caret) that is prepended
+    /// to the FIM prefix and charged against the prefix budget.
+    /// </summary>
+    public async Task<string?> CompleteAsync(
+        InlineCompletionContext context,
+        CancellationToken cancellationToken,
+        Func<string, int, string?>? schemaHintProvider = null)
     {
         if (!IsEnabled())
         {
@@ -40,12 +48,14 @@ public sealed class FimInlineCompletionBridge
         {
             var budget = _getBudget();
             var (promptText, promptCaret) = BuildPromptDocument(context);
-            var (prefix, suffix) = FimContextExtractor.Extract(
+
+            var schemaHint = schemaHintProvider?.Invoke(promptText, promptCaret);
+
+            var (prefix, suffix) = ExtractWithSchemaHint(
                 promptText,
                 promptCaret,
-                budget.MaxPromptTokens,
-                budget.PrefixPercentage,
-                budget.SuffixPercentage);
+                budget,
+                schemaHint);
             if (string.IsNullOrWhiteSpace(prefix) && string.IsNullOrWhiteSpace(suffix))
             {
                 return null;
@@ -72,6 +82,33 @@ public sealed class FimInlineCompletionBridge
             System.Diagnostics.Debug.WriteLine($"[FIM] CompleteAsync failed: {ex}");
             return null;
         }
+    }
+
+    private static (string Prefix, string Suffix) ExtractWithSchemaHint(
+        string documentText,
+        int caretOffset,
+        FimPromptBudget budget,
+        string? schemaHint)
+    {
+        if (string.IsNullOrWhiteSpace(schemaHint))
+        {
+            return FimContextExtractor.Extract(
+                documentText,
+                caretOffset,
+                budget.MaxPromptTokens,
+                budget.PrefixPercentage,
+                budget.SuffixPercentage);
+        }
+
+        var reserved = schemaHint.Length + 1;
+        var (prefix, suffix) = FimContextExtractor.Extract(
+            documentText,
+            caretOffset,
+            budget.MaxPromptTokens,
+            budget.PrefixPercentage,
+            budget.SuffixPercentage,
+            reserved);
+        return (schemaHint + "\n" + prefix, suffix);
     }
 
     private static (string Text, int CaretOffset) BuildPromptDocument(InlineCompletionContext context)

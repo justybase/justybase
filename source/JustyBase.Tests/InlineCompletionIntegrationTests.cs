@@ -40,6 +40,60 @@ public sealed class InlineCompletionIntegrationTests
         Assert.Equal(45, selection.ReplacementEndOffset);
     }
 
+    [Fact]
+    public async Task FimBridge_WithSchemaHintProvider_PrependsHintAndKeepsCodePrefix()
+    {
+        var provider = new RecordingCompletionProvider(";");
+        var bridge = new FimInlineCompletionBridge(provider, () => true);
+        const string document = "SELECT * FROM ORDERS WHERE ST";
+        Func<string, int, string?> hintProvider = (_, _) => "-- table: PUBLIC.ORDERS(id:int)";
+
+        var context = new InlineCompletionContext(document, document.Length);
+        await bridge.CompleteAsync(context, CancellationToken.None, hintProvider);
+
+        Assert.NotNull(provider.Request);
+        Assert.StartsWith("-- table: PUBLIC.ORDERS(id:int)", provider.Request!.Prefix, StringComparison.Ordinal);
+        Assert.Contains("SELECT * FROM ORDERS", provider.Request.Prefix, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task FimBridge_SchemaHint_IsChargedAgainstPrefixBudget()
+    {
+        var provider = new RecordingCompletionProvider(";");
+        var bridge = new FimInlineCompletionBridge(
+            provider,
+            () => true,
+            () => new FimPromptBudget(MaxPromptTokens: 128, 0.65, 0.35, 50));
+        const string document = "SELECT * FROM ORDERS WHERE STATUS = 'A'";
+        var hint = new string('x', 400);
+        Func<string, int, string?> hintProvider = (_, _) => hint;
+
+        var context = new InlineCompletionContext(document, document.Length);
+        await bridge.CompleteAsync(context, CancellationToken.None, hintProvider);
+
+        Assert.NotNull(provider.Request);
+        var prefix = provider.Request!.Prefix;
+        Assert.StartsWith(hint, prefix, StringComparison.Ordinal);
+        var codePart = prefix[(hint.Length + 1)..];
+        Assert.NotEmpty(codePart);
+        // 128 tokens * 4 chars * 65% prefix ≈ 333 chars; code keeps the 25% floor (≈83).
+        Assert.True(codePart.Length <= 83, $"code window too large: {codePart.Length}");
+    }
+
+    [Fact]
+    public async Task FimBridge_NoHint_DoesNotChangePrompt()
+    {
+        var provider = new RecordingCompletionProvider(";");
+        var bridge = new FimInlineCompletionBridge(provider, () => true);
+        const string document = "SELECT * FROM ORDERS";
+
+        var context = new InlineCompletionContext(document, document.Length);
+        await bridge.CompleteAsync(context, CancellationToken.None, (_, _) => null);
+
+        Assert.NotNull(provider.Request);
+        Assert.Equal(document, provider.Request!.Prefix);
+    }
+
     private sealed class RecordingCompletionProvider(string response) : ICompletionProvider
     {
         public string Id => "test";

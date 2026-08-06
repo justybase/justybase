@@ -19,7 +19,11 @@ public sealed class FimEditorAttachment : IDisposable
         }
     }
 
-    public void Attach(TextEditor editor, Func<bool> isEnabled, Func<int>? getDebounceMs = null)
+    public void Attach(
+        TextEditor editor,
+        Func<bool> isEnabled,
+        Func<int>? getDebounceMs = null,
+        Func<string, int, string?>? schemaHintProvider = null)
     {
         ArgumentNullException.ThrowIfNull(editor);
         ArgumentNullException.ThrowIfNull(isEnabled);
@@ -31,7 +35,7 @@ public sealed class FimEditorAttachment : IDisposable
 
         _controller = new InlineCompletionController(
             editor,
-            (ctx, ct) => _bridge.CompleteAsync(ctx, ct),
+            (ctx, ct) => _bridge.CompleteAsync(ctx, ct, schemaHintProvider),
             getDebounceMs: getDebounceMs,
             getIsEnabled: isEnabled,
             completionHost: editor as CodeTextEditor);

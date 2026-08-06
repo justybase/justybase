@@ -111,6 +111,19 @@ public sealed class AppOptions
     /// <summary>Share of prompt budget used after the caret (0–1).</summary>
     public double FimSuffixPercentage { get; set; } = 0.35;
 
+    /// <summary>
+    /// When true, FIM prompts are prefixed with a compact comment block listing the
+    /// columns/types of tables referenced by the statement near the caret (resolved from
+    /// the in-memory schema snapshot — no database round-trip). Default off.
+    /// </summary>
+    public bool FimSchemaContext { get; set; }
+
+    /// <summary>
+    /// Max prompt tokens reserved for the FIM schema-context comment block (64–1024, default 256).
+    /// The block is charged against the prefix budget; the code window keeps at least 25%.
+    /// </summary>
+    public int FimSchemaContextMaxTokens { get; set; } = 256;
+
     /// <summary>Named preset: Small / Medium / Large / Custom. Individual knobs may diverge → Custom.</summary>
     public string FimPreset { get; set; } = "Medium";
 

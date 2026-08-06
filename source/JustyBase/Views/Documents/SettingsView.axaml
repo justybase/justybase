@@ -584,6 +584,29 @@
 									<Separator Classes="settings-sep" />
 									<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
 										<StackPanel Grid.Column="0">
+											<TextBlock Classes="row-title" Text="Schema context hints" />
+											<TextBlock Classes="row-desc" Text="Prepend a comment block with columns/types of tables referenced near the caret (from the cached schema — no DB round-trip)." TextWrapping="Wrap" />
+										</StackPanel>
+										<ToggleSwitch Grid.Column="1" Classes="settings-control"
+													  IsChecked="{Binding EmbeddedFimSchemaContext}" />
+									</Grid>
+									<Separator Classes="settings-sep" />
+									<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+										<StackPanel Grid.Column="0">
+											<TextBlock Classes="row-title" Text="Schema context tokens" />
+											<TextBlock Classes="row-desc" Text="Prompt budget reserved for the schema comment block (64–1024). The code window keeps at least 25% of the prefix budget." />
+										</StackPanel>
+										<StackPanel Grid.Column="1" Classes="settings-control" Width="240" Spacing="4">
+											<Slider Minimum="64" Maximum="1024" TickFrequency="64"
+													IsSnapToTickEnabled="True"
+													Value="{Binding EmbeddedFimSchemaContextMaxTokens}" />
+											<TextBlock HorizontalAlignment="Right" Opacity="0.8"
+													   Text="{Binding EmbeddedFimSchemaContextMaxTokensLabel}" />
+										</StackPanel>
+									</Grid>
+									<Separator Classes="settings-sep" />
+									<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+										<StackPanel Grid.Column="0">
 											<TextBlock Classes="row-title" Text="Prefix %" />
 											<TextBlock Classes="row-desc" Text="Share of prompt budget before the caret." />
 										</StackPanel>

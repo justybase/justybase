@@ -254,7 +254,8 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             () => InlineCompletionController.SnapDebounceMs(
                 _generalApplicationData.Config.FimDebounceMs > 0
                     ? _generalApplicationData.Config.FimDebounceMs
-                    : InlineCompletionController.DefaultDebounceMs));
+                    : InlineCompletionController.DefaultDebounceMs),
+            BuildFimSchemaHintProvider(documentUri));
         _completionEngine?.SetDocumentUri(documentUri);
         _linterService?.AttachToEditor(value, documentUri, _documentDialect);
         if (contentWasSet)
@@ -276,6 +277,38 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         ResetFontStyle = () => _messageForUserTools.DispatcherActionInstance(
             () => _uiServices.ResetFontInView(SqlEditor, _generalApplicationData.Config.DocumentFontName));
         ResetFontStyle.Invoke();
+    }
+
+    /// <summary>
+    /// Builds the per-document FIM schema-context hook: resolved from the in-memory schema
+    /// snapshot + shared parse runtime for this document's URI/dialect, gated by the
+    /// FimSchemaContext setting (no database round-trips in the completion hot path).
+    /// </summary>
+    private Func<string, int, string?>? BuildFimSchemaHintProvider(string documentUri)
+    {
+        if (_parsingCoordinator is null || _parserSchema is null)
+        {
+            return null;
+        }
+
+        return (text, caret) =>
+        {
+            var config = _generalApplicationData.Config;
+            if (!config.FimSchemaContext)
+            {
+                return null;
+            }
+
+            var maxTokens = Math.Clamp(config.FimSchemaContextMaxTokens <= 0 ? 256 : config.FimSchemaContextMaxTokens, 64, 1024);
+            return FimSchemaHintBuilder.Build(
+                _parsingCoordinator,
+                _parserSchema,
+                documentUri,
+                _documentDialect,
+                text,
+                caret,
+                maxTokens * JustyBase.Ai.Embedded.Prompting.FimPresets.ApproxCharsPerToken);
+        };
     }
 
     private static void TransferEditorContent(

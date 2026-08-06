@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using JustyBase.Ai.Embedded.Abstractions;
 using JustyBase.Ai.Embedded.Download;
 using JustyBase.Ai.Embedded.Prompting;
+using JustyBase.Ai.Embedded.Server;
 using JustyBase.Common;
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Models;
@@ -27,6 +28,7 @@ public partial class SettingsViewModel : DocumentBaseVM
     private readonly FimModelCatalog _fimCatalog;
     private readonly EmbeddedChatModelCatalog _embeddedChatCatalog;
     private readonly IModelStore _embeddedChatStore;
+    private readonly JustyBase.Ai.Embedded.Server.LlamaServerManager? _llamaServerManager;
     private bool _fimPrepareInFlight;
     private bool _chatPrepareInFlight;
     private bool _suppressFimSideEffects;
@@ -48,7 +50,8 @@ public partial class SettingsViewModel : DocumentBaseVM
         IFimModelBootstrapService fimBootstrap,
         FimModelCatalog fimCatalog,
         EmbeddedChatModelCatalog embeddedChatCatalog,
-        [FromKeyedServices(EmbeddedAiServiceCollectionExtensions.ChatStoreKey)] IModelStore embeddedChatStore)
+        [FromKeyedServices(EmbeddedAiServiceCollectionExtensions.ChatStoreKey)] IModelStore embeddedChatStore,
+        JustyBase.Ai.Embedded.Server.LlamaServerManager? llamaServerManager = null)
         : base(generalApplicationData, messageForUserTools, documentCloseDecisionService, activeDocumentManager)
     {
         _generalApplicationData = generalApplicationData;
@@ -60,6 +63,7 @@ public partial class SettingsViewModel : DocumentBaseVM
         _fimCatalog = fimCatalog ?? throw new ArgumentNullException(nameof(fimCatalog));
         _embeddedChatCatalog = embeddedChatCatalog ?? throw new ArgumentNullException(nameof(embeddedChatCatalog));
         _embeddedChatStore = embeddedChatStore ?? throw new ArgumentNullException(nameof(embeddedChatStore));
+        _llamaServerManager = llamaServerManager;
         FimModelChoices = _fimCatalog.Models
             .Select(static m => new FimModelChoiceItem(
                 Id: m.Id,
@@ -191,6 +195,9 @@ public partial class SettingsViewModel : DocumentBaseVM
                 _generalApplicationData.Config.FimSuffixPercentage,
                 0.35);
             EmbeddedFimMaxTokens = ClampEmbeddedFimMaxTokens(_generalApplicationData.Config.FimMaxTokens);
+            EmbeddedFimSchemaContext = _generalApplicationData.Config.FimSchemaContext;
+            EmbeddedFimSchemaContextMaxTokens = ClampEmbeddedFimSchemaContextMaxTokens(
+                _generalApplicationData.Config.FimSchemaContextMaxTokens);
             SelectedEmbeddedFimModel = FimModelChoices.FirstOrDefault(m =>
                 string.Equals(m.Id, _generalApplicationData.Config.FimModelId, StringComparison.OrdinalIgnoreCase))
                 ?? FimModelChoices[0];
@@ -736,6 +743,38 @@ public partial class SettingsViewModel : DocumentBaseVM
         }
     }
 
+    public bool EmbeddedFimSchemaContext
+    {
+        get;
+        set
+        {
+            if (!SetProperty(ref field, value))
+            {
+                return;
+            }
+
+            _generalApplicationData.Config.FimSchemaContext = value;
+        }
+    }
+
+    public int EmbeddedFimSchemaContextMaxTokens
+    {
+        get;
+        set
+        {
+            var clamped = ClampEmbeddedFimSchemaContextMaxTokens(value);
+            if (!SetProperty(ref field, clamped))
+            {
+                return;
+            }
+
+            _generalApplicationData.Config.FimSchemaContextMaxTokens = clamped;
+            OnPropertyChanged(nameof(EmbeddedFimSchemaContextMaxTokensLabel));
+        }
+    }
+
+    public string EmbeddedFimSchemaContextMaxTokensLabel => $"{EmbeddedFimSchemaContextMaxTokens} tokens";
+
     public IReadOnlyList<FimPresetChoiceItem> EmbeddedFimPresetChoices { get; } =
     [
         new("Small", "Small", "Fast / low VRAM — 1.5B, short context"),
@@ -853,6 +892,9 @@ public partial class SettingsViewModel : DocumentBaseVM
 
     private static int ClampEmbeddedFimMaxPromptTokens(int value) =>
         Math.Clamp(value <= 0 ? 1536 : value, 128, 8192);
+
+    private static int ClampEmbeddedFimSchemaContextMaxTokens(int value) =>
+        Math.Clamp(value <= 0 ? 256 : value, 64, 1024);
 
     private static double ClampEmbeddedFimPercentage(double value, double fallback)
     {
@@ -1679,7 +1721,19 @@ public partial class SettingsViewModel : DocumentBaseVM
 
         try
         {
-            _embeddedChatStore.TryDeleteCurrentModel();
+            // The llama-server keeps the GGUF open — stop it first or File.Delete will fail.
+            if (_llamaServerManager is not null)
+            {
+                await _llamaServerManager.StopServerAsync(LlamaServerRole.Chat).ConfigureAwait(true);
+            }
+
+            if (!_embeddedChatStore.TryDeleteCurrentModel())
+            {
+                ChatPrepareStatusMessage = "Model file could not be deleted (it may be in use). Close the AI Chat panel and try again.";
+                RefreshEmbeddedChatDiskStatus();
+                return;
+            }
+
             ChatPrepareStatusMessage = "Model deleted from disk.";
             ChatPrepareProgressValue = 0;
             ChatPrepareProgressPercentText = "";

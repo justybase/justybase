@@ -460,7 +460,7 @@ public sealed partial class DbSchemaViewModel : Tool
     }
     //private Control DbEditItemTemplate(DbSchemaModel node, INameScope ns)
     //{
-    //    if (node.ActualTypeInDatabase != TypeInDatabaseEnum.ColumnComment || node.DatabaseTypeEnumValue != DatabaseTypeEnum.NetezzaSQL || node.DatabaseTypeEnumValue != DatabaseTypeEnum.NetezzaSQLOdbc)
+    //    if (node.ActualTypeInDatabase != TypeInDatabaseEnum.ColumnComment || node.DatabaseTypeEnumValue != DatabaseTypeEnum.NetezzaSQL)
     //    {
     //        return DbItemTemplate(node, ns);
     //    }

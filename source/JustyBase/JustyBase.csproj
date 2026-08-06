@@ -177,9 +177,6 @@
 	<ItemGroup Condition="$(DefineConstants.Contains('POSTGRES'))">
 		<ProjectReference Include="..\Plugins\PostgresPlugin\PostgresPlugin.csproj" />
 	</ItemGroup>
-	<ItemGroup Condition="$(DefineConstants.Contains('NZODBC'))">
-		<ProjectReference Include="..\Plugins\NetezzaOdbcPlugin\NetezzaOdbcPlugin.csproj" />
-	</ItemGroup>
 	<ItemGroup Condition="$(DefineConstants.Contains('ORACLE'))">
 		<ProjectReference Include="..\Plugins\OraclePlugin\OraclePlugin.csproj" />
 	</ItemGroup>

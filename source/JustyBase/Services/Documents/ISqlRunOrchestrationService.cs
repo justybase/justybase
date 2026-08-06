@@ -180,7 +180,7 @@ public sealed class SqlRunOrchestrationService : ISqlRunOrchestrationService
     }
 
     private static bool IsNetezza(IDatabaseService service)
-        => service.DatabaseType is DatabaseTypeEnum.NetezzaSQL or DatabaseTypeEnum.NetezzaSQLOdbc
+        => service.DatabaseType is DatabaseTypeEnum.NetezzaSQL
            || service.GetType().Name.Contains("Netezza", StringComparison.OrdinalIgnoreCase);
 
     private void SyncDatabaseList(IDatabaseService actualDatabaseService, SqlRunOrchestrationRequest request, Action<string> updateSelectedDatabase)

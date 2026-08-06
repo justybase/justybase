@@ -77,12 +77,11 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                     ("Fluid Query Data Sources","fluids",TypeInDatabaseEnum.baseFluides),//8
                     ("Others","others", TypeInDatabaseEnum.otherNoneGroup)//9
                 };
-                if (databaseTypeEnum != DatabaseTypeEnum.NetezzaSQL && databaseTypeEnum != DatabaseTypeEnum.NetezzaSQLOdbc)
+                if (databaseTypeEnum != DatabaseTypeEnum.NetezzaSQL)
                 {
                     itemsCollection.RemoveAt(8); //fluids
                 }
-                if (databaseTypeEnum != DatabaseTypeEnum.NetezzaSQL
-                    && databaseTypeEnum != DatabaseTypeEnum.NetezzaSQLOdbc)
+                if (databaseTypeEnum != DatabaseTypeEnum.NetezzaSQL)
                 {
                     itemsCollection.RemoveAt(1); //external
                 }
@@ -170,7 +169,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                     AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.baseIndexes, "Indexes", "indexes", parentObjectName: Name);
                     AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.basePartitions, "Partitions", "partitions", parentObjectName: Name);
                 }
-                if (databaseTypeEnum == DatabaseTypeEnum.NetezzaSQL || databaseTypeEnum == DatabaseTypeEnum.NetezzaSQLOdbc)
+                if (databaseTypeEnum == DatabaseTypeEnum.NetezzaSQL)
                 {
                     AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.distributionColumns, "Distributed On", "distribution");
                     AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.organizeColumns, "Organized On", "organization");

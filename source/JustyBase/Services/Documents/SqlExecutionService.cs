@@ -495,7 +495,7 @@ public class SqlExecutionService : ISqlExecutionService
                     _messageForUserTools.ShowSimpleMessageBoxInstance(exx1);
                 }
 
-                if ((actualDatabaseService.DatabaseType == DatabaseTypeEnum.NetezzaSQL || actualDatabaseService.DatabaseType == DatabaseTypeEnum.NetezzaSQLOdbc)
+                if (actualDatabaseService.DatabaseType == DatabaseTypeEnum.NetezzaSQL
                 && con is not null && exx1.Message.StartsWith("A timeout has occured. If you were establishing a connection", StringComparison.Ordinal))
                 {
                     _messageForUserTools.ShowSimpleMessageBoxInstance("Due to NPS driver limitation connection have to be reopened", "Error");
@@ -538,7 +538,7 @@ public class SqlExecutionService : ISqlExecutionService
 
     private void SetTimeoutForCommand(ISqlExecutionBridge bridge, string localTitle, IDatabaseService service, DbCommand cmd, int? forcedTimeout = null)
     {
-        if ((service.DatabaseType == DatabaseTypeEnum.NetezzaSQL || service.DatabaseType == DatabaseTypeEnum.NetezzaSQLOdbc) && !OperatingSystem.IsWindows())
+        if (service.DatabaseType == DatabaseTypeEnum.NetezzaSQL && !OperatingSystem.IsWindows())
         {
             bridge.AddLogMessage("TO DO CommandTimeout on nonWindows", LogMessageType.ok, System.DateTime.Now, localTitle);
         }
@@ -548,7 +548,7 @@ public class SqlExecutionService : ISqlExecutionService
             {
                 cmd.CommandTimeout = (int)forcedTimeout;
             }
-            else if (service.DatabaseType == DatabaseTypeEnum.NetezzaSQL || service.DatabaseType == DatabaseTypeEnum.NetezzaSQLOdbc)
+            else if (service.DatabaseType == DatabaseTypeEnum.NetezzaSQL)
             {
 #pragma warning disable CA5394 // Timeout jitter is a scheduling detail, not security randomness.
                 int random = Random.Shared.Next(0, (int)(_generalApplicationData.Config.CommandTimeout * 0.05));

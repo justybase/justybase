@@ -1,4 +1,4 @@
-﻿using JustyBase.PluginCommon.Contracts;
+using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 
 namespace JustyBase.PluginDatabaseBase.Database;
@@ -83,7 +83,6 @@ public static class DatabaseServiceHelpers
     private static readonly Dictionary<string, DatabaseTypeEnum> _textToDatabaseTypeEnumDict = new()
     {
         {"NetezzaSQL", DatabaseTypeEnum.NetezzaSQL},
-        {"NetezzaSQLOdbc", DatabaseTypeEnum.NetezzaSQLOdbc},
         {"DB2", DatabaseTypeEnum.DB2},
         {"MsSqlTrusted", DatabaseTypeEnum.MsSqlTrusted},
         {"Postgres", DatabaseTypeEnum.PostgreSql},

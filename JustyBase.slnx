@@ -12,7 +12,6 @@
     <Project Path="source/Plugins/MySqlPlugin/MySqlPlugin.csproj" />
     <Project Path="source/Plugins/NetezzaBase/NetezzaBase.csproj" />
     <Project Path="source/Plugins/NetezzaDotnetPlugin/NetezzaDotnetPlugin.csproj" />
-    <Project Path="source/Plugins/NetezzaOdbcPlugin/NetezzaOdbcPlugin.csproj" />
     <Project Path="source/Plugins/OraclePlugin/OraclePlugin.csproj" />
     <Project Path="source/Plugins/PostgresPlugin/PostgresPlugin.csproj" />
 

@@ -8,7 +8,6 @@ public static class DatabaseKindMapping
     public static DatabaseKind ToDatabaseKind(this DatabaseTypeEnum databaseType) => databaseType switch
     {
         DatabaseTypeEnum.NetezzaSQL => DatabaseKind.Netezza,
-        DatabaseTypeEnum.NetezzaSQLOdbc => DatabaseKind.NetezzaOdbc,
         DatabaseTypeEnum.DB2 => DatabaseKind.Db2,
         DatabaseTypeEnum.MsSqlTrusted => DatabaseKind.MsSql,
         DatabaseTypeEnum.Oracle => DatabaseKind.Oracle,
@@ -22,7 +21,6 @@ public static class DatabaseKindMapping
     public static DatabaseTypeEnum ToDatabaseTypeEnum(this DatabaseKind databaseKind) => databaseKind switch
     {
         DatabaseKind.Netezza => DatabaseTypeEnum.NetezzaSQL,
-        DatabaseKind.NetezzaOdbc => DatabaseTypeEnum.NetezzaSQLOdbc,
         DatabaseKind.Db2 => DatabaseTypeEnum.DB2,
         DatabaseKind.MsSql => DatabaseTypeEnum.MsSqlTrusted,
         DatabaseKind.Oracle => DatabaseTypeEnum.Oracle,

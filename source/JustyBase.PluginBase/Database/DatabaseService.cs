@@ -118,7 +118,7 @@ public abstract partial class DatabaseService : IDatabaseService, IDatabaseWithS
     }
     public string ChangeDatabaseIfNeeded(DbConnection con, string selectedDatabaseName)
     {
-        if (this.DatabaseType == DatabaseTypeEnum.NetezzaSQL || this.DatabaseType == DatabaseTypeEnum.NetezzaSQLOdbc || this.DatabaseType == DatabaseTypeEnum.PostgreSql)
+        if (this.DatabaseType == DatabaseTypeEnum.NetezzaSQL || this.DatabaseType == DatabaseTypeEnum.PostgreSql)
         {
             if (string.IsNullOrWhiteSpace(selectedDatabaseName))
             {

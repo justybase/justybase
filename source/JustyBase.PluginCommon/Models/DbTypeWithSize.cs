@@ -1,4 +1,4 @@
-﻿using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Enums;
 
 namespace JustyBase.PluginCommon.Models;
 
@@ -40,7 +40,6 @@ public record DbTypeWithSize(DbSimpleType DatabaseTypeSimple)
     private static string GetTextTypeName(DatabaseTypeEnum databaseType) => databaseType switch
     {
         DatabaseTypeEnum.NetezzaSQL => "NVARCHAR",
-        DatabaseTypeEnum.NetezzaSQLOdbc => "NVARCHAR",
         DatabaseTypeEnum.DB2 => "VARCHAR",
         DatabaseTypeEnum.MsSqlTrusted => "NVARCHAR",
         DatabaseTypeEnum.Oracle => "VARCHAR2",

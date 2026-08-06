@@ -1,4 +1,4 @@
-﻿using Avalonia.Media.Imaging;
+using Avalonia.Media.Imaging;
 using JustyBase.Editor.CompletionProviders;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginDatabaseBase.Database;
@@ -99,8 +99,7 @@ public sealed class DatabaseIconConverter : IValueConverter
         return databaseTypeEnum switch
         {
             DatabaseTypeEnum.NetezzaSQL => _netezzaIcon16,
-            DatabaseTypeEnum.NetezzaSQLOdbc => _netezzaIcon16,
-            DatabaseTypeEnum.DB2 => _db2Icon16,
+                DatabaseTypeEnum.DB2 => _db2Icon16,
             DatabaseTypeEnum.Sqlite => _sqliteIcon16,
             DatabaseTypeEnum.DuckDB => _duckDbIcon,
             DatabaseTypeEnum.MySql => _mySqlIcon,

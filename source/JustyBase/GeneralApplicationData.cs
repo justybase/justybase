@@ -1,4 +1,4 @@
-﻿using JustyBase.Common;
+using JustyBase.Common;
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Helpers;
 using JustyBase.Common.Models;
@@ -8,9 +8,6 @@ using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services;
-#if NZODBC
-using NetezzaOdbcPlugin;
-#endif
 using System.Diagnostics;
 using System.Text.Json;
 
@@ -295,9 +292,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
 
         //register implementations
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.NetezzaSQL, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new NetezzaDotnetPlugin.Netezza(userName, password, "5480", ip, db, connectionTimeout));
-#if NZODBC
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.NetezzaSQLOdbc, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new NetezzaOdbc(userName, password, "5480", ip, db, connectionTimeout));
-#endif
+
 #if ORACLE
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Oracle, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new OraclePlugin.Oracle(userName, password, "", ip, db, connectionTimeout));
 #endif

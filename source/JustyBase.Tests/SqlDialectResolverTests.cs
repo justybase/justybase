@@ -9,7 +9,6 @@ public sealed class SqlDialectResolverTests
     [Theory]
     [InlineData(DatabaseTypeEnum.DB2, SqlDialect.Db2)]
     [InlineData(DatabaseTypeEnum.NetezzaSQL, SqlDialect.Netezza)]
-    [InlineData(DatabaseTypeEnum.NetezzaSQLOdbc, SqlDialect.Netezza)]
     [InlineData(DatabaseTypeEnum.Oracle, SqlDialect.Netezza)]
     [InlineData(DatabaseTypeEnum.PostgreSql, SqlDialect.Netezza)]
     [InlineData(DatabaseTypeEnum.MySql, SqlDialect.Netezza)]

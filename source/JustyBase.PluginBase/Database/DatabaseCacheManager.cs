@@ -83,17 +83,12 @@ internal sealed class DatabaseCacheManager
                     loadDatabaseObject(database, con);
                     setConnectedLevel(DatabaseConnectedLevel.ConnectedDatabaseObjects);
 
-                    if (databaseType == DatabaseTypeEnum.PostgreSql || databaseType == DatabaseTypeEnum.NetezzaSQLOdbc)
+                    if (databaseType == DatabaseTypeEnum.PostgreSql)
                     {
                         con = ResetConnection(database, con, getConnection);
                     }
 
                     loadColumns(database, con);
-
-                    if (databaseType == DatabaseTypeEnum.NetezzaSQLOdbc)
-                    {
-                        con = ResetConnection(database, con, getConnection);
-                    }
 
                     if (netezza is not null)
                     {

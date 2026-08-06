@@ -23,7 +23,7 @@ public sealed class DefineConstantsConsistencyTests
         {
             ["MYSQL"] = @"..\Plugins\MySqlPlugin\MySqlPlugin.csproj",
             ["POSTGRES"] = @"..\Plugins\PostgresPlugin\PostgresPlugin.csproj",
-                ["ORACLE"] = @"..\Plugins\OraclePlugin\OraclePlugin.csproj",
+            ["ORACLE"] = @"..\Plugins\OraclePlugin\OraclePlugin.csproj",
             ["DB2"] = @"..\Plugins\DB2Plugin\DB2Plugin.csproj"
         };
 

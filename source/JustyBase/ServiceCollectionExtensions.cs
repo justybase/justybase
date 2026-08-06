@@ -97,7 +97,6 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<LiveMetadataSchemaProvider>(sp => new LiveMetadataSchemaProvider(
             sp.GetRequiredService<NetezzaMetadataCache>(),
             sp.GetRequiredService<InMemorySchemaProvider>()));
-        collection.AddSingleton<JustyBase.Netezza.Schema.NetezzaSchemaCache>();
         collection.AddSingleton<NetezzaSessionMonitorService>();
         collection.AddSingleton<NetezzaSessionMonitorViewModel>();
         collection.AddSingleton<SqlResultSessionStore>();

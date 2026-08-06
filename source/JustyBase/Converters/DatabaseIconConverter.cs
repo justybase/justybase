@@ -99,7 +99,7 @@ public sealed class DatabaseIconConverter : IValueConverter
         return databaseTypeEnum switch
         {
             DatabaseTypeEnum.NetezzaSQL => _netezzaIcon16,
-                DatabaseTypeEnum.DB2 => _db2Icon16,
+            DatabaseTypeEnum.DB2 => _db2Icon16,
             DatabaseTypeEnum.Sqlite => _sqliteIcon16,
             DatabaseTypeEnum.DuckDB => _duckDbIcon,
             DatabaseTypeEnum.MySql => _mySqlIcon,

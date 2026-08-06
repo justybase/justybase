@@ -209,7 +209,8 @@ public sealed class AppOptions
 
     /// <summary>
     /// Auto-connect to the configured backend when the AI Chat panel is first shown (rather than the
-    /// default lazy connect on first message send). Default off — preserves current behavior.
+    /// default lazy connect on first message send). Default off — the backend is not spawned at
+    /// startup unless the user enables this.
     /// </summary>
     public bool AiChatAutoConnect { get; set; }
 

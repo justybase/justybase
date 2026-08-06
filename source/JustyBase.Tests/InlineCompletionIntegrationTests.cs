@@ -73,11 +73,52 @@ public sealed class InlineCompletionIntegrationTests
 
         Assert.NotNull(provider.Request);
         var prefix = provider.Request!.Prefix;
-        Assert.StartsWith(hint, prefix, StringComparison.Ordinal);
-        var codePart = prefix[(hint.Length + 1)..];
-        Assert.NotEmpty(codePart);
-        // 128 tokens * 4 chars * 65% prefix ≈ 333 chars; code keeps the 25% floor (≈83).
-        Assert.True(codePart.Length <= 83, $"code window too large: {codePart.Length}");
+        Assert.StartsWith("xxx", prefix, StringComparison.Ordinal);
+        // 128 tokens * 4 chars * 65% ≈ 333 char prefix budget. The hint is capped to
+        // prefixLimit - codeFloor - 1 = 333 - 83 - 1 = 249 chars and the code keeps the
+        // 83-char floor, so the total prefix never exceeds the budget.
+        Assert.True(prefix.Length <= 333, $"prefix over budget: {prefix.Length}");
+        Assert.Contains("SELECT * FROM ORDERS", prefix, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task FimBridge_WhenServerDownAndModelPresent_StartsServerOnDemand()
+    {
+        var provider = new FakeCompletionProvider { IsAvailable = true, IsReady = false };
+        var bridge = new FimInlineCompletionBridge(provider, () => true);
+        var context = new InlineCompletionContext("SELECT * FROM ORDERS", 20);
+
+        var result = await bridge.CompleteAsync(context, CancellationToken.None);
+
+        Assert.Equal("ok", result);
+        Assert.Equal(1, provider.EnsureReadyCalls);
+        Assert.True(provider.CompletedAfterEnsure);
+    }
+
+    [Fact]
+    public async Task FimBridge_WhenModelAbsent_DoesNotStartServer()
+    {
+        var provider = new FakeCompletionProvider { IsAvailable = false, IsReady = false };
+        var bridge = new FimInlineCompletionBridge(provider, () => true);
+        var context = new InlineCompletionContext("SELECT * FROM ORDERS", 20);
+
+        var result = await bridge.CompleteAsync(context, CancellationToken.None);
+
+        Assert.Null(result);
+        Assert.Equal(0, provider.EnsureReadyCalls);
+    }
+
+    [Fact]
+    public async Task FimBridge_WhenServerReady_DoesNotStartAgain()
+    {
+        var provider = new FakeCompletionProvider { IsAvailable = true, IsReady = true };
+        var bridge = new FimInlineCompletionBridge(provider, () => true);
+        var context = new InlineCompletionContext("SELECT * FROM ORDERS", 20);
+
+        var result = await bridge.CompleteAsync(context, CancellationToken.None);
+
+        Assert.Equal("ok", result);
+        Assert.Equal(0, provider.EnsureReadyCalls);
     }
 
     [Fact]
@@ -99,6 +140,7 @@ public sealed class InlineCompletionIntegrationTests
         public string Id => "test";
         public string DisplayName => "Test";
         public bool IsAvailable => true;
+        public bool IsReady => true;
         public CompletionRequest? Request { get; private set; }
 
         public Task EnsureReadyAsync(IProgress<FimModelProgress>? progress = null, CancellationToken cancellationToken = default) =>
@@ -110,6 +152,31 @@ public sealed class InlineCompletionIntegrationTests
         {
             Request = request;
             return Task.FromResult<CompletionSuggestion?>(new CompletionSuggestion(response));
+        }
+    }
+
+    private sealed class FakeCompletionProvider : ICompletionProvider
+    {
+        public string Id => "fake";
+        public string DisplayName => "Fake";
+        public bool IsAvailable { get; init; }
+        public bool IsReady { get; set; }
+        public int EnsureReadyCalls { get; private set; }
+        public bool CompletedAfterEnsure { get; private set; }
+
+        public Task EnsureReadyAsync(IProgress<FimModelProgress>? progress = null, CancellationToken cancellationToken = default)
+        {
+            EnsureReadyCalls++;
+            IsReady = true;
+            return Task.CompletedTask;
+        }
+
+        public Task<CompletionSuggestion?> CompleteAsync(
+            CompletionRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            CompletedAfterEnsure = IsReady;
+            return Task.FromResult<CompletionSuggestion?>(new CompletionSuggestion("ok"));
         }
     }
 }

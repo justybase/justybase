@@ -9,7 +9,7 @@ namespace JustyBase.Ai.Embedded.Server;
 /// <summary>
 /// One llama.cpp <c>llama-server</c> subprocess hosting a single GGUF model on 127.0.0.1.
 /// </summary>
-public sealed class LlamaServerInstance : IAsyncDisposable
+public sealed class LlamaServerInstance : ILlamaServerInstance
 {
     private readonly string _binaryPath;
     private readonly string _modelPath;
@@ -106,6 +106,7 @@ public sealed class LlamaServerInstance : IAsyncDisposable
                 startCts.Token.ThrowIfCancellationRequested();
                 if (_process is not { HasExited: false })
                 {
+                    LastError = $"llama-server exited early (port {Port}). See {LogFilePath}.";
                     return false;
                 }
 
@@ -128,7 +129,9 @@ public sealed class LlamaServerInstance : IAsyncDisposable
         }
         catch (OperationCanceledException)
         {
-            return false;
+            // Caller cancelled the start (shutdown / model switch). Never mask a user
+            // cancellation as "llama-server failed to start".
+            throw;
         }
         finally
         {

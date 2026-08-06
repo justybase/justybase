@@ -206,6 +206,11 @@ public sealed class InlineCompletionController : IDisposable
         {
             ClearGhostText();
         }
+
+        // Programmatic edits (snippet insert, undo/redo) raise Document.Changed without
+        // TextEntered, so the in-flight request must be cancelled here or a stale
+        // suggestion can be rendered after an edit that leaves the caret offset unchanged.
+        CancelPending();
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
@@ -274,10 +279,10 @@ public sealed class InlineCompletionController : IDisposable
 
     private void OnCompletionWindowClosed(object? sender, EventArgs e)
     {
-        if (_completionAcceptancePending)
-        {
-            return;
-        }
+        // A Tab swallowed by the completion window sets _completionAcceptancePending;
+        // if the window closes WITHOUT committing a change (Esc/click), that flag must
+        // be reset or FIM stops responding to typing until the window reopens.
+        _completionAcceptancePending = false;
 
         if (_completionContinuationActive)
         {
@@ -308,7 +313,9 @@ public sealed class InlineCompletionController : IDisposable
     {
         var start = Math.Clamp(selection.ReplacementStartOffset, 0, _editor.Document.TextLength);
         var end = Math.Clamp(selection.ReplacementEndOffset, start, _editor.Document.TextLength);
-        var typed = _editor.Document.GetText(start, Math.Min(end, _editor.CaretOffset) - start);
+        // Guard against the caret having moved before the replacement start (negative length).
+        var typedLength = Math.Max(0, Math.Min(end, _editor.CaretOffset) - start);
+        var typed = _editor.Document.GetText(start, typedLength);
         if (selection.InsertText.StartsWith(typed, StringComparison.OrdinalIgnoreCase))
         {
             return selection.InsertText[typed.Length..];
@@ -345,11 +352,13 @@ public sealed class InlineCompletionController : IDisposable
             string documentText = string.Empty;
             int caret = 0;
             CompletionSelectionSnapshot? completionSelection = null;
+            ITextSourceVersion? documentVersion = null;
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 documentText = _editor.Document.Text;
                 caret = _editor.CaretOffset;
                 completionSelection = _completionSelection;
+                documentVersion = _editor.Document.Version;
             }).GetTask().ConfigureAwait(false);
 
             if (token.IsCancellationRequested || string.IsNullOrWhiteSpace(documentText))
@@ -375,6 +384,7 @@ public sealed class InlineCompletionController : IDisposable
             {
                 if (token.IsCancellationRequested
                     || _editor.CaretOffset != caret
+                    || !ReferenceEquals(_editor.Document.Version, documentVersion)
                     || !Equals(_completionSelection, completionSelection))
                 {
                     return;

@@ -84,7 +84,7 @@ public sealed class EmbeddedChatBackend : ILocalChatBackend
         }
     }
 
-    private static async Task<bool> PingServerAsync(LlamaServerInstance server, CancellationToken ct)
+    private static async Task<bool> PingServerAsync(ILlamaServerInstance server, CancellationToken ct)
     {
         try
         {

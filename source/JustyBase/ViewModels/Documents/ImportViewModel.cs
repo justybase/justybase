@@ -158,6 +158,7 @@ public sealed partial class ImportViewModel : DocumentBaseVM
             SchemaItems.Clear();
             TableItems.Clear();
             TableItems.Add(_createNewTxt);
+            InvalidateExistingTargetColumns();
             if (SelectedConnectionTyped is null)
             {
                 return;
@@ -182,6 +183,7 @@ public sealed partial class ImportViewModel : DocumentBaseVM
             SchemaItems.Clear();
             TableItems.Clear();
             TableItems.Add(_createNewTxt);
+            InvalidateExistingTargetColumns();
             if (SelectedConnectionTyped is null || string.IsNullOrWhiteSpace(SelectedDatabase))
             {
                 return;
@@ -205,6 +207,7 @@ public sealed partial class ImportViewModel : DocumentBaseVM
             SetProperty(ref field, value);
             TableItems.Clear();
             TableItems.Add(_createNewTxt);
+            InvalidateExistingTargetColumns();
             if (SelectedConnectionTyped is null
                 || string.IsNullOrWhiteSpace(SelectedDatabase)
                 || string.IsNullOrWhiteSpace(SelectedSchema))
@@ -257,11 +260,22 @@ public sealed partial class ImportViewModel : DocumentBaseVM
 
     partial void OnDestinationModeChanged(ImportDestinationMode value)
     {
+        InvalidateExistingTargetColumns();
+    }
+
+    /// <summary>
+    /// Drops a previously computed existing-table column mapping whenever the destination
+    /// or the source changes — otherwise Import would reuse table A's mapping for table B.
+    /// </summary>
+    private void InvalidateExistingTargetColumns()
+    {
         CompatibilitySummary = "";
         HasCompatibilityErrors = false;
         _existingTargetColumnNames = null;
         UpdateStartEnabled();
     }
+
+    partial void OnSelectedTableTextChanged(string value) => InvalidateExistingTargetColumns();
 
     [ObservableProperty]
     public partial bool IsCheckingCompatibility { get; set; }

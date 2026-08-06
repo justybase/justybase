@@ -57,6 +57,9 @@ public sealed partial class ImportViewModel
 
     partial void OnSelectedTabChanged(TabItem value)
     {
+        // A different source sheet means a different column set — the existing-table
+        // compatibility report no longer applies.
+        InvalidateExistingTargetColumns();
         CancelCurrentValidation();
         Interlocked.Increment(ref _validationGeneration);
         int generation = Interlocked.Increment(ref _sheetDetectionGeneration);
@@ -76,6 +79,8 @@ public sealed partial class ImportViewModel
 
     partial void OnAllColumnsAsTextChanged(bool value)
     {
+        // Type changes can invalidate the source-vs-target compatibility report.
+        InvalidateExistingTargetColumns();
         if (_currentImportFromExcelFile is not null)
         {
             CancelCurrentValidation();
@@ -343,6 +348,7 @@ public sealed partial class ImportViewModel
     {
         ImportFilepath = filePath;
         IsSourceEmpty = false;
+        InvalidateExistingTargetColumns();
 
         var curentImportFromFile = new ImportFromExcelFile(x => _messageForUserTools.ShowSimpleMessageBoxInstance(x), _generalApplicationData.GlobalLoggerObject)
         {
@@ -715,11 +721,13 @@ public sealed partial class ImportViewModel
         _messageForUserTools.DispatcherActionInstance(() =>
         {
             ImportLog.Clear();
+            PreviewRows.Clear();
             ProgressValue = 0;
             IsProgressIndeterminate = true;
             ProgressStatus = "";
             ResultSql = "";
             IsProgressVisible = true;
+            ActionFromView?.Invoke([]);
         });
     }
 
@@ -754,6 +762,17 @@ public sealed partial class ImportViewModel
                 ? ImportSelectSqlBuilder.BuildAliasedColumnSelect(tableName, headers)
                 : $"SELECT * FROM {tableName} LIMIT 100";
             IsProgressVisible = true;
+        });
+    }
+
+    private void SetFailed(string message)
+    {
+        _messageForUserTools.DispatcherActionInstance(() =>
+        {
+            IsProgressIndeterminate = false;
+            ProgressStatus = "Failed";
+            IsProgressVisible = true;
+            ImportLog.Add(new ImportLogRow(DateTime.Now, message));
         });
     }
 
@@ -1041,7 +1060,21 @@ public sealed partial class ImportViewModel
                 return;
             }
 
-            if (SelectedTableText == _createNewTxt || string.IsNullOrWhiteSpace(SelectedTableText))
+            if (DestinationMode == ImportDestinationMode.CreateNew)
+            {
+                string nme = StringExtension.RandomSuffix("IMPORTED_");
+                if (TableItems.Count >= 2)
+                {
+                    TableItems.Insert(1, nme);
+                }
+                else
+                {
+                    TableItems.Add(nme);
+                }
+
+                SelectedTableText = nme;
+            }
+            else if (SelectedTableText == _createNewTxt || string.IsNullOrWhiteSpace(SelectedTableText))
             {
                 string nme = StringExtension.RandomSuffix("IMPORTED_");
                 if (TableItems.Count >= 2)
@@ -1149,6 +1182,7 @@ public sealed partial class ImportViewModel
             {
                 ValidationErrorCount = ex.Errors.Count;
                 ValidationSummary = $"Import blocked: {ex.Errors.Count:N0} invalid value(s). {ex.Errors[0]}";
+                SetFailed($"Import failed: {ex.Errors.Count:N0} invalid value(s).");
                 curentImportFromFile.DoFileDispose();
                 _generalApplicationData.GlobalLoggerObject.LogAndShowError(ex, _messageForUserTools);
                 return;
@@ -1156,15 +1190,20 @@ public sealed partial class ImportViewModel
             catch (Exception ex)
             {
                 TabsWarningMessage = ex.Message;
+                SetFailed($"Import failed: {ex.Message}");
                 curentImportFromFile?.DoFileDispose();
                 _generalApplicationData.GlobalLoggerObject.LogAndShowError(ex, _messageForUserTools);
-                AddProgressLine($"FAILED: {ex.Message}");
                 return;
             }
             finally
             {
                 _importActive = false;
                 IsImportRunning = false;
+                // Release the source reader (file handle / temp file) on every exit path —
+                // success included; the old code disposed the reader right after reading.
+                // The wizard cannot re-run the same import after this point: the source is
+                // removed below and must be re-opened (OpenMethod) first.
+                curentImportFromFile?.DoFileDispose();
                 _currentImportFromExcelFile = null;
                 _importFromExcelFilesClasses.Remove(importFilePath);
                 ContinueEnabled = false;

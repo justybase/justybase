@@ -244,10 +244,13 @@ public sealed partial class AiChatViewModel : Tool
         StatusMessage = "AI idle — choose a provider or send a message";
         IsConnected = false;
 
-        // The selected provider is part of the chat's startup state. Connect in
-        // the background immediately so the panel is usable without a dummy
-        // first message or a provider round-trip.
-        _ = InitializeAsync();
+        // The selected provider is part of the chat's startup state. Connect in the
+        // background when AiChatAutoConnect is on so the panel is usable without a dummy
+        // first message; otherwise connect lazily on first send (EnsureConnectedAsync).
+        if (_generalApplicationData.Config.AiChatAutoConnect)
+        {
+            _ = InitializeAsync();
+        }
     }
 
     private ChatMessage? _pendingConfirmationMessage;
@@ -524,8 +527,7 @@ public sealed partial class AiChatViewModel : Tool
             if (switchCts.IsCancellationRequested)
                 return;
 
-            IsCodexBackend = string.Equals(_chatService.ActiveBackendId, "codex", StringComparison.OrdinalIgnoreCase)
-                && _chatService.IsConnected;
+            IsCodexBackend = success && string.Equals(backendId, "codex", StringComparison.OrdinalIgnoreCase);
             if (success)
             {
                 await RefreshModelsAsync();
@@ -539,11 +541,17 @@ public sealed partial class AiChatViewModel : Tool
                 SelectedModelIndex = -1;
                 AvailableReasoningEfforts.Clear();
                 SelectedReasoningEffortIndex = -1;
-                SynchronizeSelectedBackendIndex(_chatService.ActiveBackendId);
+                // Keep the dropdown on the backend the user actually picked (the failure
+                // reason is in the status line). IsConnected must be false so a send retries
+                // the configured backend instead of silently using the previous provider.
+                IsConnected = false;
             }
 
             StatusMessage = success ? "Connected" : $"Failed: {_chatService.ConnectionError}";
-            IsConnected = _chatService.IsConnected;
+            if (success)
+            {
+                IsConnected = _chatService.IsConnected;
+            }
             RefreshCodexAccountState();
             // No modal — status line is enough for optional AI backends.
         }
@@ -720,7 +728,8 @@ public sealed partial class AiChatViewModel : Tool
                 ? "Connected"
                 : $"Not connected: {_chatService.ConnectionError}";
             RefreshCodexAccountState();
-            IsCodexBackend = string.Equals(_chatService.ActiveBackendId, "codex", StringComparison.OrdinalIgnoreCase);
+            IsCodexBackend = IsConnected
+                && string.Equals(_chatService.ActiveBackendId, "codex", StringComparison.OrdinalIgnoreCase);
 
             // match active backend index
             if (IsConnected && _chatService.ActiveBackendId is not null)
@@ -776,8 +785,15 @@ public sealed partial class AiChatViewModel : Tool
                 
                 if (modelIndex < 0 && AvailableModels.Count > 0)
                 {
-                    modelIndex = 0;
-                    modelToSelect = AvailableModels[0];
+                    // The configured model may belong to a different backend — never select a
+                    // foreign model. Prefer the built-in codex default when it is present.
+                    modelIndex = Enumerable.Range(0, AvailableModels.Count)
+                        .FirstOrDefault(i => AvailableModels[i].Equals(DefaultAiChatModel, StringComparison.OrdinalIgnoreCase), -1);
+                    if (modelIndex < 0)
+                    {
+                        modelIndex = 0;
+                    }
+                    modelToSelect = AvailableModels[modelIndex];
                 }
                 
                 System.Diagnostics.Debug.WriteLine($"[AiChat] Selecting model index {modelIndex}: {modelToSelect}");
@@ -807,7 +823,13 @@ public sealed partial class AiChatViewModel : Tool
         if (!IsCodexBackend)
             return;
 
+        // The configured default can be a local/embedded model (e.g. "qwen3.5-4b") left over
+        // from a previous backend switch. Only ever inject the built-in codex default so the
+        // codex model list can never show another backend's models.
         var configuredModel = ResolveConfiguredModel(_generalApplicationData.Config);
+        if (!string.Equals(configuredModel, DefaultAiChatModel, StringComparison.OrdinalIgnoreCase))
+            return;
+
         if (!AvailableModels.Any(model => model.Equals(configuredModel, StringComparison.OrdinalIgnoreCase)))
         {
             AvailableModels.Insert(0, configuredModel);
@@ -820,7 +842,15 @@ public sealed partial class AiChatViewModel : Tool
         var preferredIndex = Enumerable.Range(0, AvailableModels.Count)
             .FirstOrDefault(i => AvailableModels[i].Equals(configuredModel, StringComparison.OrdinalIgnoreCase), -1);
         if (preferredIndex < 0)
-            preferredIndex = 0;
+        {
+            // The configured model belongs to a different backend (e.g. an embedded GGUF id
+            // persisted while using Embedded) — never select a foreign model. Prefer the
+            // built-in codex default when it is present in this backend's list.
+            preferredIndex = Enumerable.Range(0, AvailableModels.Count)
+                .FirstOrDefault(i => AvailableModels[i].Equals(DefaultAiChatModel, StringComparison.OrdinalIgnoreCase), -1);
+            if (preferredIndex < 0)
+                preferredIndex = 0;
+        }
 
         SelectedModelIndex = preferredIndex;
         SelectedModel = AvailableModels[preferredIndex];
@@ -941,8 +971,10 @@ public sealed partial class AiChatViewModel : Tool
 
         if (!await EnsureConnectedAsync())
         {
-            _messageForUserTools.ShowSimpleMessageBoxInstance(
-                "The selected AI provider is not connected. Sign in with ChatGPT for Codex, or start Ollama/LM Studio.");
+            var reason = string.IsNullOrWhiteSpace(_chatService.ConnectionError)
+                ? "The selected AI provider is not connected."
+                : $"The selected AI provider is not connected.\n\n{_chatService.ConnectionError}";
+            _messageForUserTools.ShowSimpleMessageBoxInstance(reason, "AI provider not connected");
             return;
         }
 
@@ -1009,8 +1041,6 @@ public sealed partial class AiChatViewModel : Tool
             assistantMessage.GenerationTimeMs = stopwatch.ElapsedMilliseconds;
             CurrentSession.Messages.Add(assistantMessage);
             CurrentSession.LastActivityAt = DateTime.Now;
-
-            SaveChatHistory();
         }
         catch (OperationCanceledException)
         {
@@ -1028,6 +1058,12 @@ public sealed partial class AiChatViewModel : Tool
             _activeAssistantMessage = null;
             _currentStreamingCts?.Dispose();
             _currentStreamingCts = null;
+            // Persist even when the turn failed or was cancelled so the user message is
+            // not lost when the app closes (SaveChatHistory was previously success-only).
+            if (CurrentSession.Messages.Count > 0)
+            {
+                SaveChatHistory();
+            }
         }
     }
 

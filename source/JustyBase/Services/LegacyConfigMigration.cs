@@ -98,14 +98,21 @@ public static class LegacyConfigMigration
         });
 
         // Backend consolidation: legacy "ollama" / "lmstudio" ids → "openai-compatible".
+        // The endpoint must be taken from the raw JSON: the new schema has a non-empty
+        // default endpoint, so the deserialized value can never tell "not migrated" apart
+        // from "user set it" — checking the in-memory value would send ollama users to
+        // the LM Studio default port instead of Ollama's.
         if (root.TryGetProperty("AiChatBackendId", out var backendId)
             && backendId.ValueKind == JsonValueKind.String)
         {
             var id = backendId.GetString();
+            bool hasExplicitEndpoint = root.TryGetProperty("AiChatOpenAiCompatibleEndpoint", out var endpointElement)
+                && endpointElement.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(endpointElement.GetString());
             if (string.Equals(id, "ollama", StringComparison.OrdinalIgnoreCase))
             {
                 config.AiChatBackendId = "openai-compatible";
-                if (string.IsNullOrWhiteSpace(config.AiChatOpenAiCompatibleEndpoint))
+                if (!hasExplicitEndpoint)
                 {
                     config.AiChatOpenAiCompatibleEndpoint = "http://localhost:11434/v1";
                 }
@@ -113,7 +120,7 @@ public static class LegacyConfigMigration
             else if (string.Equals(id, "lmstudio", StringComparison.OrdinalIgnoreCase))
             {
                 config.AiChatBackendId = "openai-compatible";
-                if (string.IsNullOrWhiteSpace(config.AiChatOpenAiCompatibleEndpoint))
+                if (!hasExplicitEndpoint)
                 {
                     config.AiChatOpenAiCompatibleEndpoint = "http://localhost:1234/v1";
                 }

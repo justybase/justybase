@@ -198,6 +198,12 @@ public partial class SettingsViewModel : DocumentBaseVM
             EmbeddedFimSchemaContext = _generalApplicationData.Config.FimSchemaContext;
             EmbeddedFimSchemaContextMaxTokens = ClampEmbeddedFimSchemaContextMaxTokens(
                 _generalApplicationData.Config.FimSchemaContextMaxTokens);
+            EmbeddedFimCtxSize = Math.Clamp(
+                _generalApplicationData.Config.FimCtxSize < 512
+                    ? 4096
+                    : _generalApplicationData.Config.FimCtxSize,
+                512,
+                131_072);
             SelectedEmbeddedFimModel = FimModelChoices.FirstOrDefault(m =>
                 string.Equals(m.Id, _generalApplicationData.Config.FimModelId, StringComparison.OrdinalIgnoreCase))
                 ?? FimModelChoices[0];
@@ -673,6 +679,25 @@ public partial class SettingsViewModel : DocumentBaseVM
                         "FIM model required");
                 }
             }
+            else if (!value && !_suppressFimSideEffects)
+            {
+                // Release the model + GPU memory when FIM is switched off.
+                _ = StopFimServerOnDisableAsync();
+            }
+        }
+    }
+
+    private async Task StopFimServerOnDisableAsync()
+    {
+        try
+        {
+            await _fimBootstrap.StopServerAsync().ConfigureAwait(true);
+            RefreshEmbeddedFimDiskStatus();
+            FimPrepareStatusMessage = "FIM server stopped.";
+        }
+        catch (Exception ex)
+        {
+            FimPrepareStatusMessage = ex.Message;
         }
     }
 
@@ -774,6 +799,21 @@ public partial class SettingsViewModel : DocumentBaseVM
     }
 
     public string EmbeddedFimSchemaContextMaxTokensLabel => $"{EmbeddedFimSchemaContextMaxTokens} tokens";
+
+    public int EmbeddedFimCtxSize
+    {
+        get;
+        set
+        {
+            var clamped = Math.Clamp(value < 512 ? 4096 : value, 512, 131_072);
+            if (!SetProperty(ref field, clamped))
+            {
+                return;
+            }
+
+            _generalApplicationData.Config.FimCtxSize = clamped;
+        }
+    }
 
     public IReadOnlyList<FimPresetChoiceItem> EmbeddedFimPresetChoices { get; } =
     [

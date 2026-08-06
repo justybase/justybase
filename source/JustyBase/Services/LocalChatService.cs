@@ -731,13 +731,54 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
 
         var systemMessage = BuildSystemPrompt(_currentMode);
 
-        var aiMessages = new List<Microsoft.Extensions.AI.ChatMessage>
+        // Local backends keep no server-side thread history — replay the last turns so
+        // follow-up questions still have context (mirrors Simple/SqlFix behaviour).
+        // Only real user/assistant turns with content are sent; the empty streaming
+        // placeholder and tool-confirmation UI bubbles are UI plumbing, not model output.
+        // Consecutive same-role turns are collapsed (a failed/resubmitted user message
+        // yields back-to-back User roles, which strict OpenAI-compatible servers reject).
+        var history = new List<(ChatRole Role, string Content)>();
+        foreach (var msg in messages
+                     .Where(m => m != lastUserMessage
+                         && !string.IsNullOrWhiteSpace(m.Content)
+                         && (m.Role.Equals("user", StringComparison.OrdinalIgnoreCase)
+                             || m.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase)))
+                     .TakeLast(10))
         {
-            new(ChatRole.System, systemMessage),
-            new(ChatRole.User, combinedPrompt.ToString())
-        };
+            var role = msg.Role.Equals("user", StringComparison.OrdinalIgnoreCase)
+                ? ChatRole.User
+                : ChatRole.Assistant;
+            if (history.Count > 0 && history[^1].Role == role)
+            {
+                continue;
+            }
 
-        return (aiMessages, combinedPrompt.ToString());
+            history.Add((role, msg.Content));
+        }
+
+        // The current turn must not duplicate the role of the last replayed turn (a strict
+        // OpenAI-compatible server rejects back-to-back User messages). Merge with the
+        // previous unanswered user turn instead of dropping it.
+        string currentPrompt = combinedPrompt.ToString();
+        if (history.Count > 0 && history[^1].Role == ChatRole.User)
+        {
+            history[^1] = (ChatRole.User, history[^1].Content + "\n" + currentPrompt);
+        }
+        else
+        {
+            history.Add((ChatRole.User, currentPrompt));
+        }
+
+        var aiMessages = new List<Microsoft.Extensions.AI.ChatMessage>(history.Count + 1)
+        {
+            new(ChatRole.System, systemMessage)
+        };
+        foreach (var (role, content) in history)
+        {
+            aiMessages.Add(new(role, content));
+        }
+
+        return (aiMessages, currentPrompt);
     }
 
     private async Task<string> BuildCodexContextAsync(ChatMode mode)
@@ -1011,19 +1052,53 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var config = _generalApplicationData.Config;
-        var retryCount = Math.Clamp(config.AiChatMaxRetries, 0, 5);
-        var timeout = config.AiChatRequestTimeoutMs > 0
+        var timeoutSeconds = config.AiChatRequestTimeoutMs > 0
             ? (int)Math.Ceiling(config.AiChatRequestTimeoutMs / 1000.0)
             : 120;
+
+        await foreach (var chunk in StreamWithRetryCoreAsync(
+            toolsEnabled: options.Tools is { Count: > 0 },
+            timeoutSeconds: timeoutSeconds,
+            maxRetries: config.AiChatMaxRetries,
+            produce: ct => InnerStreamAsync(client, messages, options, ct),
+            trackError: ex => _logger.TrackError(ex, isCrash: false),
+            cancellationToken))
+        {
+            yield return chunk;
+        }
+    }
+
+    /// <summary>
+    /// Retry/stream pipeline shared by the local backends.
+    /// - Never retries once content has been yielded (a retry would replay already-visible text).
+    /// - Never retries tool-enabled requests: the agent loop restarts from the original messages,
+    ///   so a retry would re-execute tools that already ran (e.g. a DML execute_sql) — single attempt.
+    /// - Links the caller's cancellation token into the HTTP request so "Stop" actually aborts
+    ///   the stream instead of letting the model run to the timeout.
+    /// </summary>
+    internal static async IAsyncEnumerable<string> StreamWithRetryCoreAsync(
+        bool toolsEnabled,
+        int timeoutSeconds,
+        int maxRetries,
+        Func<CancellationToken, IAsyncEnumerable<string>> produce,
+        Action<Exception>? trackError = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var retryCount = toolsEnabled ? 0 : Math.Clamp(maxRetries, 0, 5);
+        // Tool rounds include database execution — give them a much longer budget than plain chat.
+        var timeout = toolsEnabled
+            ? Math.Max(timeoutSeconds, 300)
+            : (timeoutSeconds > 0 ? timeoutSeconds : 120);
         var yieldedAny = false;
 
         for (int attempt = 1; attempt <= retryCount + 1; attempt++)
         {
             using var timeoutCts = new CancellationTokenSource();
             timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeout));
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
-            var inner = InnerStreamAsync(client, messages, options, timeoutCts.Token);
-            await using var enumerator = inner.GetAsyncEnumerator(CancellationToken.None);
+            var inner = produce(linked.Token);
+            await using var enumerator = inner.GetAsyncEnumerator(linked.Token);
 
             bool shouldRetry = false;
             string? errorMessage = null;
@@ -1037,37 +1112,41 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
-                    if (attempt <= retryCount)
+                    // Request timeout (not a user Stop). Only retry when nothing was yielded yet.
+                    if (attempt <= retryCount && !yieldedAny)
                     {
                         timeout += 30;
                         await Task.Delay(1000 * attempt, CancellationToken.None);
                         shouldRetry = true;
                     }
-                    else
+                    else if (!yieldedAny)
                     {
                         errorMessage = $"\n[Response timeout - no response within {timeout} seconds]";
                     }
+
                     break;
                 }
                 catch (OperationCanceledException)
                 {
+                    // User cancelled — stop immediately.
                     yield break;
                 }
                 catch (Exception ex)
                 {
-                    if (attempt <= retryCount)
+                    if (attempt <= retryCount && !yieldedAny)
                     {
                         await Task.Delay(1000 * attempt, CancellationToken.None);
                         shouldRetry = true;
                     }
                     else
                     {
-                        _logger.TrackError(ex, isCrash: false);
+                        trackError?.Invoke(ex);
                         if (!yieldedAny)
                         {
                             errorMessage = $"\n[Error: {ex.Message}]";
                         }
                     }
+
                     break;
                 }
 

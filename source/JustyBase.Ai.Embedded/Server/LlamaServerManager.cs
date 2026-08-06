@@ -15,10 +15,11 @@ public enum LlamaServerRole
 /// </summary>
 public sealed class LlamaServerManager : IAsyncDisposable
 {
-    private readonly LlamaServerBinaryManager _binary;
+    private readonly ILlamaServerBinary _binary;
+    private readonly Func<string, string, int, uint, ILlamaServerInstance> _instanceFactory;
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private LlamaServerInstance? _chatServer;
-    private LlamaServerInstance? _fimServer;
+    private ILlamaServerInstance? _chatServer;
+    private ILlamaServerInstance? _fimServer;
     private string? _chatModelPath;
     private string? _fimModelPath;
     private int _chatGpuLayers;
@@ -29,15 +30,24 @@ public sealed class LlamaServerManager : IAsyncDisposable
     private string? _fimBinaryVariant;
 
     public LlamaServerManager(LlamaServerBinaryManager binary)
+        : this(binary, static (path, model, gpu, ctx) => new LlamaServerInstance(path, model, gpu, ctx))
     {
-        _binary = binary ?? throw new ArgumentNullException(nameof(binary));
     }
 
-    public LlamaServerInstance? ChatServer => _chatServer;
-    public LlamaServerInstance? FimServer => _fimServer;
+    /// <summary>Test seam: injects a binary provider and an instance factory (no real processes).</summary>
+    internal LlamaServerManager(
+        ILlamaServerBinary binary,
+        Func<string, string, int, uint, ILlamaServerInstance> instanceFactory)
+    {
+        _binary = binary ?? throw new ArgumentNullException(nameof(binary));
+        _instanceFactory = instanceFactory ?? throw new ArgumentNullException(nameof(instanceFactory));
+    }
+
+    public ILlamaServerInstance? ChatServer => _chatServer;
+    public ILlamaServerInstance? FimServer => _fimServer;
 
     /// <summary>Gets (or starts) the server for the given role, downloading the binary first.</summary>
-    public async Task<LlamaServerInstance> GetOrStartServerAsync(
+    public async Task<ILlamaServerInstance> GetOrStartServerAsync(
         LlamaServerRole role,
         string modelPath,
         int gpuLayers,
@@ -66,18 +76,29 @@ public sealed class LlamaServerManager : IAsyncDisposable
                 return current;
             }
 
-            await StopServerCoreAsync(role).ConfigureAwait(false);
-
             if (!_binary.IsBinaryPresent)
             {
                 await _binary.EnsureBinaryAsync(progress, cancellationToken).ConfigureAwait(false);
             }
 
-            LlamaServerInstance? instance = null;
+            // When the replacement also uses GPU layers, the old server must be stopped
+            // BEFORE the new model is loaded: two models cannot share VRAM, and a start
+            // that fails on "out of GPU memory" would otherwise keep the old model loaded
+            // and make the switch impossible. CPU-only replacements start first (no
+            // resource contention) so a failed start keeps the old server running.
+            if (gpuLayers > 0 && current is { IsRunning: true })
+            {
+                await StopServerCoreAsync(role).ConfigureAwait(false);
+            }
+
+            // Start the replacement on a fresh instance (it picks its own free port) BEFORE
+            // stopping the old one. A failed start disposes only the new instance and leaves
+            // the previous (possibly healthy) server running — no rollback needed.
+            ILlamaServerInstance? instance = null;
             try
             {
 #pragma warning disable CA2000 // Ownership transfers to _chatServer/_fimServer (disposed in StopServerCoreAsync/DisposeAsync).
-                instance = new LlamaServerInstance(_binary.BinaryPath, modelPath, gpuLayers, contextSize);
+                instance = _instanceFactory(_binary.BinaryPath, modelPath, gpuLayers, contextSize);
 #pragma warning restore CA2000
                 var started = await instance.StartAsync(progress, cancellationToken).ConfigureAwait(false);
                 if (!started)
@@ -85,34 +106,53 @@ public sealed class LlamaServerManager : IAsyncDisposable
                     throw new InvalidOperationException(
                         $"llama-server failed to start: {instance.LastError ?? "unknown error"}");
                 }
-
-                if (role == LlamaServerRole.Chat)
-                {
-                    _chatServer = instance;
-                    _chatModelPath = modelPath;
-                    _chatGpuLayers = gpuLayers;
-                    _chatContextSize = contextSize;
-                    _chatBinaryVariant = binaryVariant;
-                }
-                else
-                {
-                    _fimServer = instance;
-                    _fimModelPath = modelPath;
-                    _fimGpuLayers = gpuLayers;
-                    _fimContextSize = contextSize;
-                    _fimBinaryVariant = binaryVariant;
-                }
-
-                instance = null;
-                return role == LlamaServerRole.Chat ? _chatServer! : _fimServer!;
             }
-            finally
+            catch
             {
                 if (instance is not null)
                 {
                     await instance.DisposeAsync().ConfigureAwait(false);
                 }
+
+                throw;
             }
+
+            // Replacement is healthy — now the old instance (if any) can be disposed. If
+            // disposing it throws, never leak the new (running) instance.
+            try
+            {
+                await StopServerCoreAsync(role).ConfigureAwait(false);
+            }
+            catch
+            {
+                if (instance is not null)
+                {
+                    await instance.DisposeAsync().ConfigureAwait(false);
+                }
+
+                throw;
+            }
+
+            if (role == LlamaServerRole.Chat)
+            {
+                _chatServer = instance;
+                _chatModelPath = modelPath;
+                _chatGpuLayers = gpuLayers;
+                _chatContextSize = contextSize;
+                _chatBinaryVariant = binaryVariant;
+            }
+            else
+            {
+                _fimServer = instance;
+                _fimModelPath = modelPath;
+                _fimGpuLayers = gpuLayers;
+                _fimContextSize = contextSize;
+                _fimBinaryVariant = binaryVariant;
+            }
+
+            var running = role == LlamaServerRole.Chat ? _chatServer! : _fimServer!;
+            instance = null;
+            return running;
         }
         finally
         {

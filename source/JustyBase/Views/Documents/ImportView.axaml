@@ -14,7 +14,7 @@
 			<Setter Property="MaxWidth" Value="230"/>
 		</Style>
 		<Style Selector="TextBox">
-			<Setter Property="Padding" Value="0 3 0 0"/>
+			<Setter Property="Padding" Value="6 3 0 0"/>
 			<Setter Property="Height" Value="30"/>
 			<Setter Property="MinHeight" Value="26"/>
 			<Setter Property="MaxWidth" Value="230"/>
@@ -52,25 +52,25 @@
 
 					<StackPanel Spacing="4">
 						<TextBlock Text="Options" FontWeight="Bold"/>
-						<Grid ColumnDefinitions="140,*">
-							<TextBlock Grid.Column="0" Text="All columns as text" VerticalAlignment="Center"
+						<Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto">
+							<TextBlock Grid.Row="0" Grid.Column="0" Text="All columns as text" VerticalAlignment="Center"
 									ToolTip.Tip="Treat every column as text (original raw value, no type parsing)."/>
-							<ToggleSwitch Grid.Column="1" IsChecked="{Binding AllColumnsAsText}"/>
-							<TextBlock Grid.Column="0" Text="Delimiter (USING)" VerticalAlignment="Center" Margin="0 2 0 0"
+							<ToggleSwitch Grid.Row="0" Grid.Column="1" IsChecked="{Binding AllColumnsAsText}"/>
+							<TextBlock Grid.Row="1" Grid.Column="0" Text="Delimiter (USING)" VerticalAlignment="Center" Margin="0 2 0 0"
 									ToolTip.Tip="EXTERNAL USING delimiter for Netezza named-pipe import. Use \t for tab."/>
-							<TextBox Grid.Column="1" Text="{Binding UsingDelimiter}" PlaceholderText="\t" MinWidth="160"/>
-							<TextBlock Grid.Column="0" Text="Encoding" VerticalAlignment="Center" Margin="0 2 0 0"/>
-							<TextBox Grid.Column="1" Text="{Binding UsingEncoding}" PlaceholderText="utf-8" MinWidth="160"/>
-							<TextBlock Grid.Column="0" Text="MAXROWS" VerticalAlignment="Center" Margin="0 2 0 0"/>
-							<TextBox Grid.Column="1" Text="{Binding UsingMaxRows}" PlaceholderText="(optional)" MinWidth="160"/>
+							<TextBox Grid.Row="1" Grid.Column="1" Text="{Binding UsingDelimiter}" PlaceholderText="\t" MinWidth="160"/>
+							<TextBlock Grid.Row="2" Grid.Column="0" Text="Encoding" VerticalAlignment="Center" Margin="0 2 0 0"/>
+							<TextBox Grid.Row="2" Grid.Column="1" Text="{Binding UsingEncoding}" PlaceholderText="utf-8" MinWidth="160"/>
+							<TextBlock Grid.Row="3" Grid.Column="0" Text="MAXROWS" VerticalAlignment="Center" Margin="0 2 0 0"/>
+							<TextBox Grid.Row="3" Grid.Column="1" Text="{Binding UsingMaxRows}" PlaceholderText="(optional)" MinWidth="160"/>
 						</Grid>
 					</StackPanel>
 
 					<StackPanel Spacing="4">
 						<TextBlock Text="2. Destination" FontWeight="Bold"/>
-						<Grid ColumnDefinitions="90,*">
-							<TextBlock Grid.Column="0" Text="Connection" VerticalAlignment="Center"/>
-							<ComboBox Grid.Column="1" ItemsSource="{Binding ConnectionsList}" SelectedItem="{Binding SelectedConnection}">
+						<Grid ColumnDefinitions="90,*" RowDefinitions="Auto,Auto,Auto">
+							<TextBlock Grid.Row="0" Grid.Column="0" Text="Connection" VerticalAlignment="Center"/>
+							<ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding ConnectionsList}" SelectedItem="{Binding SelectedConnection}">
 								<ComboBox.ItemTemplate>
 									<DataTemplate x:DataType="m2:ConnectionItem">
 										<StackPanel Orientation="Horizontal">
@@ -80,10 +80,10 @@
 									</DataTemplate>
 								</ComboBox.ItemTemplate>
 							</ComboBox>
-							<TextBlock Grid.Column="0" Text="Database" VerticalAlignment="Center"/>
-							<ComboBox Grid.Column="1" ItemsSource="{Binding DatabaseItems}" SelectedItem="{Binding SelectedDatabase}"/>
-							<TextBlock Grid.Column="0" Text="Schema" VerticalAlignment="Center"/>
-							<ComboBox Grid.Column="1" ItemsSource="{Binding SchemaItems}" SelectedItem="{Binding SelectedSchema}"/>
+							<TextBlock Grid.Row="1" Grid.Column="0" Text="Database" VerticalAlignment="Center"/>
+							<ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding DatabaseItems}" SelectedItem="{Binding SelectedDatabase}"/>
+							<TextBlock Grid.Row="2" Grid.Column="0" Text="Schema" VerticalAlignment="Center"/>
+							<ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding SchemaItems}" SelectedItem="{Binding SelectedSchema}"/>
 						</Grid>
 
 						<StackPanel Orientation="Horizontal" Spacing="12">
@@ -182,38 +182,41 @@
 				</DataGrid.Columns>
 			</DataGrid>
 
-			<TextBlock Grid.Row="3" Text="Preview" Margin="8 8 8 2" Opacity="0.8"/>
-			<DataGrid Name="previewDataGrid" Grid.Row="4" Margin="8 0 8 8" AutoGenerateColumns="False" MaxHeight="160"/>
+		<Border Grid.Row="3" BorderThickness="1" BorderBrush="{DynamicResource TextControlForegroundDisabled}"
+				Margin="8 8 8 0" CornerRadius="4" Padding="8 4">
+			<TextBlock Text="Preview" FontWeight="SemiBold" Opacity="0.8"/>
+		</Border>
+		<DataGrid Name="previewDataGrid" Grid.Row="4" Margin="8 0 8 8" AutoGenerateColumns="False"
+				  MinHeight="80" MaxHeight="160" BorderThickness="1"
+				  BorderBrush="{DynamicResource TextControlForegroundDisabled}"/>
 
-			<!-- Progress section -->
-			<Border Grid.Row="5" IsVisible="{Binding IsProgressVisible}"
-					BorderThickness="1" BorderBrush="{DynamicResource TextControlForegroundDisabled}" Margin="8 8"
-					Padding="8" CornerRadius="4">
-				<StackPanel Spacing="6">
-					<StackPanel Orientation="Horizontal" Spacing="8">
-						<TextBlock Text="Import progress" FontWeight="Bold" VerticalAlignment="Center"/>
-						<ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressValue}" Width="180"
-									 IsIndeterminate="{Binding IsProgressIndeterminate}"/>
-						<TextBlock Text="{Binding ProgressStatus}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-					</StackPanel>
-					<ListBox ItemsSource="{Binding ImportLog}" MaxHeight="120" MinHeight="60">
-						<ListBox.ItemTemplate>
-							<DataTemplate x:DataType="vm:ImportLogRow">
-								<StackPanel Orientation="Horizontal" Spacing="8">
-									<TextBlock Text="{Binding Time, StringFormat='{}{0:HH:mm:ss}'}" Opacity="0.7"/>
-									<TextBlock Text="{Binding Message}" TextWrapping="Wrap"/>
-								</StackPanel>
-							</DataTemplate>
-						</ListBox.ItemTemplate>
-					</ListBox>
-					<TextBox Text="{Binding ResultSql}" IsReadOnly="True" MinWidth="360" TextWrapping="Wrap"
-							 IsVisible="{Binding !!ResultSql}" FontFamily="Consolas, monospace"/>
-					<StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !!ResultSql}">
-						<Button Command="{Binding CopySelectCommand}" Padding="10 3">Copy SELECT</Button>
-						<Button Command="{Binding InsertSelectIntoEditorCommand}" Padding="10 3">Insert SELECT into editor</Button>
-					</StackPanel>
+		<!-- Progress section -->
+		<Border Grid.Row="5" IsVisible="{Binding IsProgressVisible}"
+				BorderThickness="1" BorderBrush="{DynamicResource TextControlForegroundDisabled}" Margin="8 0 8 8"
+				Padding="8" CornerRadius="4">
+			<StackPanel Spacing="8">
+				<TextBlock Text="Import progress" FontWeight="SemiBold"/>
+				<ProgressBar Minimum="0" Maximum="100" Value="{Binding ProgressValue}"
+							 IsIndeterminate="{Binding IsProgressIndeterminate}"/>
+				<TextBlock Text="{Binding ProgressStatus}" TextWrapping="Wrap" Opacity="0.8"/>
+				<ListBox ItemsSource="{Binding ImportLog}" MaxHeight="120" MinHeight="60">
+					<ListBox.ItemTemplate>
+						<DataTemplate x:DataType="vm:ImportLogRow">
+							<StackPanel Orientation="Horizontal" Spacing="8">
+								<TextBlock Text="{Binding Time, StringFormat='{}{0:HH:mm:ss}'}" Opacity="0.7"/>
+								<TextBlock Text="{Binding Message}" TextWrapping="Wrap"/>
+							</StackPanel>
+						</DataTemplate>
+					</ListBox.ItemTemplate>
+				</ListBox>
+				<TextBox Text="{Binding ResultSql}" IsReadOnly="True" TextWrapping="Wrap"
+						 IsVisible="{Binding !!ResultSql}" FontFamily="Consolas, monospace"/>
+				<StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !!ResultSql}">
+					<Button Command="{Binding CopySelectCommand}" Padding="10 3">Copy SELECT</Button>
+					<Button Command="{Binding InsertSelectIntoEditorCommand}" Padding="10 3">Insert SELECT into editor</Button>
 				</StackPanel>
-			</Border>
+			</StackPanel>
+		</Border>
 		</Grid>
 	</Grid>
 </UserControl>

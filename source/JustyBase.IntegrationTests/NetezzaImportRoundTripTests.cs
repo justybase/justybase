@@ -1,6 +1,7 @@
 using JustyBase.Common.Tools.ImportHelpers;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
+using System.Data;
 
 namespace JustyBase.IntegrationTests;
 
@@ -167,6 +168,199 @@ public sealed class NetezzaImportRoundTripTests
             ["AMOUNT"] = f => f.StartsWith("NUMERIC", StringComparison.OrdinalIgnoreCase),
             ["LABEL"] = f => IsNvarchar(f)
         });
+    }
+
+    [Fact]
+    public async Task Xlsx_BasicTypes_ImportAndSelectBack_AllCellsMatch()
+    {
+        var dt = new DataTable();
+        dt.Columns.Add("id", typeof(long));
+        dt.Columns.Add("price", typeof(double));
+        dt.Columns.Add("name", typeof(string));
+        dt.Columns.Add("d", typeof(DateTime));
+        dt.Columns.Add("flag", typeof(bool));
+        dt.Rows.Add(1L, 10.5, "alpha", new DateTime(2024, 1, 15, 10, 30, 0), true);
+        dt.Rows.Add(2L, 20.75, "beta", new DateTime(2024, 2, 20, 8, 5, 30), false);
+        dt.Rows.Add(3L, 1.25, "gamma", new DateTime(2024, 3, 1, 23, 59, 59), true);
+
+        await using RoundTripContext ctx = await NetezzaImportRoundTripRunner.ImportXlsxAsync(dt);
+        dt.Dispose();
+
+        Assert.Equal(DbSimpleType.Integer, ctx.Types[0].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Numeric, ctx.Types[1].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Nvarchar, ctx.Types[2].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.TimeStamp, ctx.Types[3].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Boolean, ctx.Types[4].DatabaseTypeSimple);
+
+        object?[][] expected =
+        [
+            [1L, 10.5m, "alpha", new DateTime(2024, 1, 15, 10, 30, 0), true],
+            [2L, 20.75m, "beta", new DateTime(2024, 2, 20, 8, 5, 30), false],
+            [3L, 1.25m, "gamma", new DateTime(2024, 3, 1, 23, 59, 59), true]
+        ];
+        NetezzaImportRoundTripRunner.VerifyRows(ctx, expected, "XlsxBasicTypes");
+    }
+
+    [Fact]
+    public async Task Xlsx_MidnightDateColumn_ImportsAllRows()
+    {
+        // Regression for the "date but no time" rejection: an Excel date column whose values are
+        // all at midnight must stream the full timestamp form into the TIMESTAMP column.
+        var dt = new DataTable();
+        dt.Columns.Add("id", typeof(long));
+        dt.Columns.Add("d", typeof(DateTime));
+        dt.Rows.Add(1L, new DateTime(2024, 1, 15));
+        dt.Rows.Add(2L, new DateTime(2024, 2, 20));
+        dt.Rows.Add(3L, new DateTime(2024, 3, 1));
+
+        await using RoundTripContext ctx = await NetezzaImportRoundTripRunner.ImportXlsxAsync(dt);
+        dt.Dispose();
+
+        Assert.Equal(DbSimpleType.TimeStamp, ctx.Types[1].DatabaseTypeSimple);
+
+        object?[][] expected =
+        [
+            [1L, new DateTime(2024, 1, 15)],
+            [2L, new DateTime(2024, 2, 20)],
+            [3L, new DateTime(2024, 3, 1)]
+        ];
+        NetezzaImportRoundTripRunner.VerifyRows(ctx, expected, "XlsxMidnightDate");
+    }
+
+    [Fact]
+    public async Task Csv_MidnightTimeStamp_ImportsAllRows()
+    {
+        // A timestamp column with midnight values must keep the time part on the pipe.
+        const string csv = "d\n2024-01-15 00:00:00\n2024-02-20 00:00:00\n2024-03-01 00:00:00\n";
+        await using RoundTripContext ctx = await NetezzaImportRoundTripRunner.ImportCsvAsync(csv);
+
+        Assert.Equal(DbSimpleType.TimeStamp, ctx.Types[0].DatabaseTypeSimple);
+
+        object?[][] expected =
+        [
+            [new DateTime(2024, 1, 15)],
+            [new DateTime(2024, 2, 20)],
+            [new DateTime(2024, 3, 1)]
+        ];
+        NetezzaImportRoundTripRunner.VerifyRows(ctx, expected, "CsvMidnightTimestamp");
+    }
+
+    [Fact]
+    public async Task Xlsx_DiverseTypes_ImportAndSelectBack_AllCellsMatch()
+        => await DiverseTypesRoundTripAsync(writeXlsb: false, "XlsxDiverse");
+
+    [Fact]
+    public async Task Xlsb_DiverseTypes_ImportAndSelectBack_AllCellsMatch()
+        => await DiverseTypesRoundTripAsync(writeXlsb: true, "XlsbDiverse");
+
+    private static async Task DiverseTypesRoundTripAsync(bool writeXlsb, string caseName)
+    {
+        string longTextX = new('x', 400);
+        string longTextUnicode = new('ą', 400);
+        var dt = new DataTable();
+        dt.Columns.Add("id", typeof(long));
+        dt.Columns.Add("amount", typeof(decimal));
+        dt.Columns.Add("name", typeof(string));
+        dt.Columns.Add("d", typeof(DateTime)); // date-only (midnight) values
+        dt.Columns.Add("ts", typeof(DateTime)); // timestamps incl. one midnight value
+        dt.Columns.Add("flag", typeof(bool));
+        dt.Columns.Add("note", typeof(string)); // nulls and text
+        dt.Columns.Add("longtext", typeof(string));
+        dt.Rows.Add(1L, 10.50m, "alpha", new DateTime(2024, 1, 15), new DateTime(2024, 1, 15, 10, 30, 0), true, "hello", longTextX);
+        dt.Rows.Add(2L, 20.75m, "żółć 中文 ✓", new DateTime(2024, 2, 20), new DateTime(2024, 2, 20, 8, 5, 30), false, null, longTextUnicode);
+        dt.Rows.Add(3L, 1.25m, "tab\there \"q\"", new DateTime(2024, 3, 1), new DateTime(2024, 3, 1, 23, 59, 59), true, "a,b", "long");
+        dt.Rows.Add(4L, 0.0m, "beta", new DateTime(2024, 4, 5), new DateTime(2024, 4, 5, 0, 0, 0), false, "x", new string('z', 400));
+
+        await using RoundTripContext ctx = writeXlsb
+            ? await NetezzaImportRoundTripRunner.ImportXlsbAsync(dt)
+            : await NetezzaImportRoundTripRunner.ImportXlsxAsync(dt);
+        dt.Dispose();
+
+        Assert.Equal(DbSimpleType.Integer, ctx.Types[0].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Numeric, ctx.Types[1].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Nvarchar, ctx.Types[2].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.TimeStamp, ctx.Types[3].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.TimeStamp, ctx.Types[4].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Boolean, ctx.Types[5].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Nvarchar, ctx.Types[6].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Nvarchar, ctx.Types[7].DatabaseTypeSimple);
+
+        object?[][] expected =
+        [
+            [1L, 10.5m, "alpha", new DateTime(2024, 1, 15), new DateTime(2024, 1, 15, 10, 30, 0), true, "hello", longTextX],
+            [2L, 20.75m, "żółć 中文 ✓", new DateTime(2024, 2, 20), new DateTime(2024, 2, 20, 8, 5, 30), false, null, longTextUnicode],
+            [3L, 1.25m, "tab\there \"q\"", new DateTime(2024, 3, 1), new DateTime(2024, 3, 1, 23, 59, 59), true, "a,b", "long"],
+            [4L, 0.0m, "beta", new DateTime(2024, 4, 5), new DateTime(2024, 4, 5, 0, 0, 0), false, "x", new string('z', 400)]
+        ];
+        NetezzaImportRoundTripRunner.VerifyRows(ctx, expected, caseName);
+    }
+
+    [Fact]
+    public async Task Xlsx_LargeImport_AllRowsLoad()
+        => await LargeImportRoundTripAsync(writeXlsb: false, "XlsxLarge");
+
+    [Fact]
+    public async Task Xlsb_LargeImport_AllRowsLoad()
+        => await LargeImportRoundTripAsync(writeXlsb: true, "XlsbLarge");
+
+    private static async Task LargeImportRoundTripAsync(bool writeXlsb, string caseName)
+    {
+        const int rowCount = 20_000;
+        var dt = new DataTable();
+        dt.Columns.Add("id", typeof(long));
+        dt.Columns.Add("amount", typeof(decimal));
+        dt.Columns.Add("name", typeof(string));
+        dt.Columns.Add("ts", typeof(DateTime));
+        for (int i = 0; i < rowCount; i++)
+        {
+            dt.Rows.Add(i + 1L, (i % 100) / 10.0m, $"row-{i}", new DateTime(2024, 1, 1).AddMinutes(i));
+        }
+
+        await using RoundTripContext ctx = writeXlsb
+            ? await NetezzaImportRoundTripRunner.ImportXlsbAsync(dt)
+            : await NetezzaImportRoundTripRunner.ImportXlsxAsync(dt);
+        dt.Dispose();
+
+        long actual = Convert.ToInt64(NetezzaLiveTestHost.ExecuteScalar(
+            ctx.Connection,
+            $"SELECT COUNT(*) FROM {ctx.TableName}"),
+            System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(rowCount, (int)actual);
+
+        object? first = NetezzaLiveTestHost.ExecuteScalar(ctx.Connection, $"SELECT MIN({ctx.Columns[0]}) FROM {ctx.TableName}");
+        object? last = NetezzaLiveTestHost.ExecuteScalar(ctx.Connection, $"SELECT MAX({ctx.Columns[0]}) FROM {ctx.TableName}");
+        Assert.Equal(1L, Convert.ToInt64(first, System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(rowCount, (int)Convert.ToInt64(last, System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public async Task Xlsx_RealWorld200kFile_ImportsAllRows()
+    {
+        // The exact file that originally imported "successfully" with 0 rows: a 200k-row sheet whose
+        // date column holds midnight values (Netezza rejected "date but no time" for the TIMESTAMP
+        // column). Skipped when the sample file is not present on the machine.
+        const string samplePath = @"C:\DEV\DEV\Others\sqls\fileLowMemory.xlsx";
+        if (!File.Exists(samplePath))
+        {
+            return;
+        }
+
+        await using RoundTripContext ctx = await NetezzaImportRoundTripRunner.ImportExistingFileAsync(samplePath);
+
+        Assert.Equal(4, ctx.Columns.Length);
+        Assert.Equal(DbSimpleType.TimeStamp, ctx.Types[2].DatabaseTypeSimple);
+
+        long actual = Convert.ToInt64(NetezzaLiveTestHost.ExecuteScalar(
+            ctx.Connection,
+            $"SELECT COUNT(*) FROM {ctx.TableName}"),
+            System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(200_000, (int)actual);
+
+        long nonNullDates = Convert.ToInt64(NetezzaLiveTestHost.ExecuteScalar(
+            ctx.Connection,
+            $"SELECT COUNT({ctx.Columns[2]}) FROM {ctx.TableName}"),
+            System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(200_000, (int)nonNullDates);
     }
 
     [Fact]

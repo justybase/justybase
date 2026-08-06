@@ -9,6 +9,9 @@ public interface ICompletionProvider
     string DisplayName { get; }
     bool IsAvailable { get; }
 
+    /// <summary>True when the backend is running and can serve a completion right now.</summary>
+    bool IsReady { get; }
+
     /// <summary>Ensure model/backend is ready (download + start server). Safe to call repeatedly.</summary>
     Task EnsureReadyAsync(IProgress<FimModelProgress>? progress = null, CancellationToken cancellationToken = default);
 

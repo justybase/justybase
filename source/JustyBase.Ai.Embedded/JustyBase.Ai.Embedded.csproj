@@ -8,4 +8,7 @@
     <!-- Pure managed code (HttpClient, Process, System.Text.Json source-gen). No native packages. -->
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="JustyBase.Tests" />
+  </ItemGroup>
 </Project>

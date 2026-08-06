@@ -183,4 +183,7 @@
 	<ItemGroup Condition="$(DefineConstants.Contains('DB2'))">
 		<ProjectReference Include="..\Plugins\DB2Plugin\DB2Plugin.csproj" />
 	</ItemGroup>
+	<ItemGroup>
+		<InternalsVisibleTo Include="JustyBase.Tests" />
+	</ItemGroup>
 </Project>

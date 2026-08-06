@@ -11,9 +11,14 @@ namespace JustyBase.Ai.Embedded.Server;
 /// distribution off GitHub; the URL template below is best-effort. Override the tag with the
 /// <c>JUSTYBASE_LLAMA_TAG</c> environment variable if a different release is required.
 /// </summary>
-public sealed class LlamaServerBinaryManager
+public sealed class LlamaServerBinaryManager : ILlamaServerBinary
 {
-    private const string DefaultTag = "b4796";
+    /// <summary>
+    /// llama.cpp release tag. Must support the model architectures in the embedded catalogs
+    /// (qwen35 / gemma4 / devstral2) — b4796 is too old and cannot load Qwen 3.5. The CPU
+    /// build's zip asset was also renamed from "avx2" to "cpu" in the b10xxx-era releases.
+    /// </summary>
+    private const string DefaultTag = "b10295";
 
     private readonly Func<bool> _preferVulkan;
     private readonly HttpClient _httpClient;
@@ -33,7 +38,15 @@ public sealed class LlamaServerBinaryManager
     /// <summary>llama-server.exe for the currently selected variant (vulkan or avx2).</summary>
     public string BinaryPath => Path.Combine(BinaryDirectory, BinaryVariant, "llama-server.exe");
 
-    public bool IsBinaryPresent => File.Exists(BinaryPath) && new FileInfo(BinaryPath).Length > 1_000_000;
+    // Since the b10xxx-era releases llama-server.exe is a small launcher stub — the real
+    // implementation ships in llama-server-impl.dll — so presence alone is not enough to
+    // prove a complete extraction. Require the implementation DLL (and the ggml-base.dll
+    // it depends on) to be on disk so partial/broken installs are repaired automatically.
+    public bool IsBinaryPresent =>
+        File.Exists(BinaryPath)
+        && File.Exists(Path.Combine(VariantDirectory, "ggml-base.dll"))
+        && File.Exists(Path.Combine(VariantDirectory, "llama-server-impl.dll"))
+        && new FileInfo(Path.Combine(VariantDirectory, "llama-server-impl.dll")).Length > 1_000_000;
 
     public string BinaryVariant => _preferVulkan() ? "vulkan" : "avx2";
 
@@ -78,10 +91,11 @@ public sealed class LlamaServerBinaryManager
         }
 
         var variant = BinaryVariant;
+        var zipVariant = variant.Equals("vulkan", StringComparison.OrdinalIgnoreCase) ? "vulkan" : "cpu";
         var zipUri = new Uri(
-            $"https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-{variant}-x64.zip");
+            $"https://github.com/ggml-org/llama.cpp/releases/download/{tag}/llama-{tag}-bin-win-{zipVariant}-x64.zip");
 
-        var zipPath = Path.Combine(BinaryDirectory, $"llama-{tag}-bin-win-{variant}-x64.zip");
+        var zipPath = Path.Combine(BinaryDirectory, $"llama-{tag}-bin-win-{zipVariant}-x64.zip");
         progress?.Report(new FimModelProgress(0, $"Downloading llama-server ({variant})…"));
 
         try
@@ -133,11 +147,24 @@ public sealed class LlamaServerBinaryManager
             progress?.Report(new FimModelProgress(0.95, "Extracting llama-server…"));
             using (var archive = ZipFile.OpenRead(zipPath))
             {
-                var entry = archive.Entries.FirstOrDefault(e =>
+                var exeEntry = archive.Entries.FirstOrDefault(e =>
                     e.FullName.EndsWith("llama-server.exe", StringComparison.OrdinalIgnoreCase))
                     ?? throw new InvalidOperationException("llama-server.exe not found in the downloaded archive.");
 
-                entry.ExtractToFile(BinaryPath, overwrite: true);
+                exeEntry.ExtractToFile(BinaryPath, overwrite: true);
+
+                foreach (var entry in archive.Entries)
+                {
+                    if (entry.FullName.EndsWith("/", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(entry.FullName, exeEntry.FullName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    entry.ExtractToFile(
+                        Path.Combine(VariantDirectory, Path.GetFileName(entry.FullName)),
+                        overwrite: true);
+                }
             }
 
             if (!IsBinaryPresent)

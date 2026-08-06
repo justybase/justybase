@@ -36,6 +36,7 @@ public sealed class LlamaServerFimProvider : ICompletionProvider, IDisposable
     public string Id => "llamaserver-fim";
     public string DisplayName => "Embedded FIM (llama-server)";
     public bool IsAvailable => _modelStore.IsModelPresent;
+    public bool IsReady => _serverManager.FimServer is { IsRunning: true };
 
     public async Task EnsureReadyAsync(IProgress<FimModelProgress>? progress = null, CancellationToken cancellationToken = default)
     {

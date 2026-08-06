@@ -68,11 +68,24 @@ public static class EmbeddedAiServiceCollectionExtensions
             return new FimInlineCompletionBridge(
                 provider,
                 () => appData.Config.EnableFimServer,
-                () => new FimPromptBudget(
-                    appData.Config.FimMaxPromptTokens,
-                    appData.Config.FimPrefixPercentage,
-                    appData.Config.FimSuffixPercentage,
-                    appData.Config.FimMaxTokens));
+                () =>
+                {
+                    // The prompt budget must never exceed the llama-server context window,
+                    // otherwise llama.cpp rejects the request ("prompt too long") and FIM
+                    // silently produces nothing.
+                    var ctxTokens = (int)Math.Clamp(
+                        (uint)(appData.Config.FimCtxSize > 0 ? appData.Config.FimCtxSize : 4096),
+                        512,
+                        131_072);
+                    var promptTokens = appData.Config.FimMaxPromptTokens > 0
+                        ? appData.Config.FimMaxPromptTokens
+                        : 1536;
+                    return new FimPromptBudget(
+                        Math.Min(promptTokens, ctxTokens),
+                        appData.Config.FimPrefixPercentage,
+                        appData.Config.FimSuffixPercentage,
+                        appData.Config.FimMaxTokens);
+                });
         });
         collection.AddSingleton<IFimModelBootstrapService>(sp =>
         {

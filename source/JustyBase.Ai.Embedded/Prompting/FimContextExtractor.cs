@@ -64,32 +64,4 @@ public static class FimContextExtractor
             suffixPercentage);
         return Extract(documentText, caretOffset, prefixLimit, suffixLimit);
     }
-
-    /// <summary>
-    /// Like <see cref="Extract(string,int,int,double,double)"/> but reserves
-    /// <paramref name="reservedPrefixChars"/> of the prefix budget (e.g. for an injected
-    /// schema-context block). The code window always keeps at least 25% of the prefix budget.
-    /// </summary>
-    public static (string Prefix, string Suffix) Extract(
-        string documentText,
-        int caretOffset,
-        int maxPromptTokens,
-        double prefixPercentage,
-        double suffixPercentage,
-        int reservedPrefixChars)
-    {
-        if (reservedPrefixChars <= 0)
-        {
-            return Extract(documentText, caretOffset, maxPromptTokens, prefixPercentage, suffixPercentage);
-        }
-
-        var (prefixLimit, suffixLimit) = FimPresets.ResolveCharBudgets(
-            maxPromptTokens,
-            prefixPercentage,
-            suffixPercentage);
-        var codeFloor = Math.Max(32, prefixLimit / 4);
-        var codeLimit = Math.Max(codeFloor, prefixLimit - reservedPrefixChars);
-        var (prefix, suffix) = Extract(documentText, caretOffset, codeLimit, suffixLimit);
-        return (prefix, suffix);
-    }
 }

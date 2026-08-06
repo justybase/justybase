@@ -149,71 +149,82 @@ partial class SqlResultsViewModel
         bool spillActivated = false;
         int previewRows = i1;
 
-        // Keep preview rows visible and bound. Do not mutate FilteredRows while reading —
-        // only detach briefly at the end for the bulk append (same idea as leaving the Results tab).
-        // Sync Invoke: background reader must barrier on UI before continuing the DB loop.
-        Dispatcher.UIThread.Invoke(() =>
-        {
-            DataLoadingInProgress = true;
-            LoadingPlaceholderMessage = "";
-            RowsLoadingMessage = $"Preview {previewRows:N0} rows · loading more…";
-        }, DispatcherPriority.Background);
-
         try
         {
             var drr = dbService.GetDatabaseRowReader(reader);
             long startTime = Stopwatch.GetTimestamp();
 
-            while (reader.Read() && queryNum >= abortUbound)
+            // Peek the first remaining row so "loading more…" is only shown when more rows
+            // actually exist (e.g. SELECT … LIMIT 1 must not advertise rows that do not come).
+            // Sync Invoke: background reader must barrier on UI before continuing the DB loop.
+            if (reader.Read() && queryNum >= abortUbound)
             {
-                var fields = drr.ReadOneRow();
+                rowsTemp.Add(new TableRow { Fields = drr.ReadOneRow() });
                 i1++;
-
-                if (!spillActivated && i1 > spillThreshold)
-                {
-#pragma warning disable CA2000 // Ownership is transferred to _spillStore in the finally block.
-                    spill = new ResultSpillStore();
-#pragma warning restore CA2000
-                    spill.PageSize = pageSize;
-                    spill.BeginWriteBatch();
-                    foreach (var existing in CurrentResultsTable.Rows)
-                    {
-                        spill.WriteRow(existing.Fields);
-                    }
-                    foreach (var pending in rowsTemp)
-                    {
-                        spill.WriteRow(pending.Fields);
-                    }
-                    rowsTemp.Clear();
-                    spillActivated = true;
-                }
-
-                if (spillActivated)
-                {
-                    spill!.WriteRow(fields);
-                }
-                else
-                {
-                    rowsTemp.Add(new TableRow { Fields = fields });
-                }
-
                 if (i1 == effectiveResultRowsLimit)
                 {
                     command.Cancel();
                     abortUbound = queryNum + 1;
-                    break;
                 }
-                if (i1 % 10_000 == 0 && Stopwatch.GetElapsedTime(startTime).TotalSeconds >= 1)
+                int previewShown = previewRows;
+                Dispatcher.UIThread.Invoke(() =>
                 {
-                    startTime = Stopwatch.GetTimestamp();
-                    int localI = i1;
-                    int localPreview = previewRows;
-                    _messageForUserTools.DispatcherActionInstance(() =>
+                    DataLoadingInProgress = true;
+                    LoadingPlaceholderMessage = "";
+                    RowsLoadingMessage = $"Preview {previewShown:N0} rows · loading more…";
+                }, DispatcherPriority.Background);
+
+                while (reader.Read() && queryNum >= abortUbound)
+                {
+                    var fields = drr.ReadOneRow();
+                    i1++;
+
+                    if (!spillActivated && i1 > spillThreshold)
                     {
-                        RowsLoadingMessage = spillActivated
-                            ? $"{localI:N0} rows (spilling…)"
-                            : $"Preview {localPreview:N0} rows · loaded {localI:N0}…";
-                    }, DispatcherPriority.Background);
+#pragma warning disable CA2000 // Ownership is transferred to _spillStore in the finally block.
+                        spill = new ResultSpillStore();
+#pragma warning restore CA2000
+                        spill.PageSize = pageSize;
+                        spill.BeginWriteBatch();
+                        foreach (var existing in CurrentResultsTable.Rows)
+                        {
+                            spill.WriteRow(existing.Fields);
+                        }
+                        foreach (var pending in rowsTemp)
+                        {
+                            spill.WriteRow(pending.Fields);
+                        }
+                        rowsTemp.Clear();
+                        spillActivated = true;
+                    }
+
+                    if (spillActivated)
+                    {
+                        spill!.WriteRow(fields);
+                    }
+                    else
+                    {
+                        rowsTemp.Add(new TableRow { Fields = fields });
+                    }
+
+                    if (i1 == effectiveResultRowsLimit)
+                    {
+                        command.Cancel();
+                        abortUbound = queryNum + 1;
+                        break;
+                    }
+                    if (i1 % 10_000 == 0 && Stopwatch.GetElapsedTime(startTime).TotalSeconds >= 1)
+                    {
+                        startTime = Stopwatch.GetTimestamp();
+                        int localI = i1;
+                        int localPreview = previewRows;
+                        _messageForUserTools.DispatcherActionInstance(() =>
+                        {
+                            RowsLoadingMessage = spillActivated
+                                ? $"{localI:N0} rows (spilling…)"
+                                : $"Preview {localPreview:N0} rows · loaded {localI:N0}…";
+                        }, DispatcherPriority.Background);
+                    }
                 }
             }
         }

@@ -21,6 +21,7 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
     private readonly Dictionary<string, DatabaseTypeChooser> _typeChoosers = [];
     private readonly object _typeCacheLock = new();
     private readonly SemaphoreSlim _detectionGate = new(1, 1);
+    private int _typeCacheGeneration;
 
     public Action<string>? StandardMessageAction
     {
@@ -64,6 +65,7 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
         lock (_typeCacheLock)
         {
             _typeChoosers.Clear();
+            Interlocked.Increment(ref _typeCacheGeneration);
         }
     }
 
@@ -118,6 +120,11 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
                 }
             }
 
+            // Snapshot the generation before the scan: a TreatAllColumnsAsText toggle (or any
+            // other invalidation) mid-scan must not let this scan repopulate the cache with
+            // results computed under the OLD setting.
+            int generation = Volatile.Read(ref _typeCacheGeneration);
+
             SheetScanResult? scan = await _scanner.ScanSheetAsync(sheetName, messageAction, cancellationToken).ConfigureAwait(false);
             if (scan is null)
             {
@@ -128,6 +135,13 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
             chooser.ApplyScan(scan);
             lock (_typeCacheLock)
             {
+                if (generation != Volatile.Read(ref _typeCacheGeneration))
+                {
+                    // Stale — the cache was invalidated while this scan was running; the
+                    // newer detection owns the cache (and this result is not cached).
+                    return null;
+                }
+
                 _typeChoosers[sheetName] = chooser;
             }
 

@@ -1,3 +1,4 @@
+using Avalonia.Threading;
 using AvaloniaEdit;
 using JustyBase.Editor;
 using JustyBase.Editor.InlineCompletion;
@@ -9,6 +10,7 @@ public sealed class FimEditorAttachment : IDisposable
 {
     private readonly FimInlineCompletionBridge? _bridge;
     private InlineCompletionController? _controller;
+    private TextEditor? _editor;
 
     public FimEditorAttachment(FimInlineCompletionBridge? bridge)
     {
@@ -33,6 +35,7 @@ public sealed class FimEditorAttachment : IDisposable
             return;
         }
 
+        _editor = editor;
         _controller = new InlineCompletionController(
             editor,
             (ctx, ct) => _bridge.CompleteAsync(ctx, ct, schemaHintProvider),
@@ -54,9 +57,30 @@ public sealed class FimEditorAttachment : IDisposable
     {
         _controller?.Dispose();
         _controller = null;
+        _editor = null;
     }
 
-    private void OnModelReady(object? sender, EventArgs e) => _controller?.RequestCompletion();
+    private void OnModelReady(object? sender, EventArgs e)
+    {
+        // ModelReady is raised from a background continuation (EnsureReadyAsync), so the
+        // editor (an Avalonia control) must only be touched on the UI thread. Also only
+        // nudge the focused editor — do not fan a completion request into every open
+        // SQL document (unfocused editors stay quiet).
+        if (_controller is null || _editor is null)
+        {
+            return;
+        }
+
+        _ = Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (_controller is null || _editor?.TextArea?.IsFocused != true)
+            {
+                return;
+            }
+
+            _controller.RequestCompletion();
+        });
+    }
 
     public void Dispose()
     {

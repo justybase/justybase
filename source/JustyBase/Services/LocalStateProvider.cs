@@ -187,7 +187,7 @@ public sealed class LocalStateProvider : ILocalStateProvider
 
         var sb = new StringBuilder();
         sb.AppendLine("[ATTACHED_REFERENCES]");
-        sb.AppendLine("The user has attached the following references. Use the read_file tool to read their contents:");
+        sb.AppendLine("The user attached the following references (metadata only — file contents are not sent):");
         sb.AppendLine();
 
         foreach (var attachment in attachments)

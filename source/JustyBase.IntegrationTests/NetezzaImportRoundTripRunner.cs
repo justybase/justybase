@@ -102,6 +102,100 @@ internal static class NetezzaImportRoundTripRunner
         }
     }
 
+    /// <summary>
+    /// Imports a real .xlsx through the same pipeline as <see cref="ImportCsvAsync"/> (exercises the
+    /// non-CSV scanner branch: preview population + fresh per-sheet reader reuse for import).
+    /// </summary>
+    public static async Task<RoundTripContext> ImportXlsxAsync(
+        System.Data.DataTable dataTable,
+        Action<DatabaseTypeChooser>? configure = null)
+    {
+        string xlsxPath = Path.Combine(Path.GetTempPath(), $"jbt_rt_{Guid.NewGuid():N}.xlsx");
+        using (var writer = new SpreadSheetTasks.XlsxWriter(xlsxPath))
+        {
+            writer.AddSheet("Sheet1");
+            writer.WriteSheet(dataTable);
+        }
+
+        return await ImportExistingFileAsync(xlsxPath, configure);
+    }
+
+    /// <summary>
+    /// Imports a real .xlsb through the same pipeline as <see cref="ImportXlsxAsync"/> (exercises the
+    /// exclusive-open reader choreography: scan → validation-reopen → fresh per-sheet import reader).
+    /// </summary>
+    public static async Task<RoundTripContext> ImportXlsbAsync(
+        System.Data.DataTable dataTable,
+        Action<DatabaseTypeChooser>? configure = null)
+    {
+        string xlsbPath = Path.Combine(Path.GetTempPath(), $"jbt_rt_{Guid.NewGuid():N}.xlsb");
+        using (var writer = new SpreadSheetTasks.XlsbWriter(xlsbPath))
+        {
+            writer.AddSheet("Sheet1");
+            writer.WriteSheet(dataTable);
+        }
+
+        return await ImportExistingFileAsync(xlsbPath, configure);
+    }
+
+    /// <summary>
+    /// Imports a pre-existing spreadsheet (xlsx/xlsb/csv) through the real app pipeline, exercising
+    /// the exact wizard path used by <see cref="NetezzaImportRoundTripTests"/>.
+    /// </summary>
+    public static async Task<RoundTripContext> ImportExistingFileAsync(
+        string filePath,
+        Action<DatabaseTypeChooser>? configure = null)
+    {
+        string logDir = NetezzaLiveTestHost.CreateLogDirectory();
+        NetezzaDotnetPlugin.Netezza service = NetezzaLiveTestHost.CreateService();
+        service.TempDataDirectory = logDir;
+        string table = NetezzaLiveTestHost.CreateTableName();
+        ImportUsingOptionsContext.Current = ImportUsingOptions.Default;
+        var progress = new List<string>();
+
+        var import = new ImportFromExcelFile(msg => progress.Add(msg), logger: null)
+        {
+            FilePath = filePath,
+            StandardMessageAction = msg => progress.Add(msg)
+        };
+        try
+        {
+            Assert.True(import.InitImport(), $"InitImport failed for test file '{filePath}'.");
+            string sheet = import.SheetNamesToImport![0];
+            DatabaseTypeChooser? chooser = await import.DetectSheetAsync(sheet, msg => progress.Add(msg));
+            Assert.NotNull(chooser);
+            Assert.True(chooser.PreviewRows.Count > 0, "Excel scan must populate the preview rows.");
+            Assert.True(chooser.RowsCount > 0, "Excel scan must report a positive row count.");
+            configure?.Invoke(chooser);
+
+            await foreach (DbImportJob job in import.ReadFileAndReturnSingleImportJobs())
+            {
+                Assert.NotNull(job.ColumnHeadersNames);
+                await service.DbSpecificImportPart(job, table, msg => progress.Add(msg));
+                AssertNoImportErrors(table, progress);
+
+                NzConnection connection = NetezzaLiveTestHost.OpenConnection();
+                return new RoundTripContext
+                {
+                    Connection = connection,
+                    Service = service,
+                    TableName = table,
+                    Columns = job.ColumnHeadersNames.ToArray(),
+                    Types = job.ColumnTypesBestMatch,
+                    CsvPath = filePath,
+                    LogDir = logDir,
+                    Progress = progress
+                };
+            }
+
+            throw new XunitException($"No import job was produced for '{filePath}'.");
+        }
+        finally
+        {
+            import.DoFileDispose();
+        }
+    }
+
     public static void AssertNoImportErrors(string table, IReadOnlyList<string> progress)
     {
         var errors = progress.Where(p => p.StartsWith("[ERROR]", StringComparison.Ordinal)).ToList();

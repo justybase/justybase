@@ -18,6 +18,7 @@ public interface IFimModelBootstrapService
     Task EnsureReadyAsync(IProgress<FimModelProgress>? progress = null, CancellationToken cancellationToken = default);
     Task DeleteSelectedModelAsync(CancellationToken cancellationToken = default);
     Task ReloadModelAsync(CancellationToken cancellationToken = default);
+    Task StopServerAsync(CancellationToken cancellationToken = default);
     Task<FimSpeedTestReport> RunSpeedTestAsync(
         int maxTokens,
         int maxPromptTokens,
@@ -149,6 +150,11 @@ public sealed class LlamaServerFimBootstrapService : IFimModelBootstrapService
         {
             Interlocked.Exchange(ref _busy, 0);
         }
+    }
+
+    public async Task StopServerAsync(CancellationToken cancellationToken = default)
+    {
+        await _serverManager.StopServerAsync(LlamaServerRole.Fim, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<FimSpeedTestReport> RunSpeedTestAsync(

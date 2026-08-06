@@ -642,6 +642,17 @@
 													   Text="{Binding EmbeddedFimMaxTokensLabel}" />
 										</StackPanel>
 									</Grid>
+									<Separator Classes="settings-sep" />
+									<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+										<StackPanel Grid.Column="0">
+											<TextBlock Classes="row-title" Text="Context size (tokens)" />
+											<TextBlock Classes="row-desc" Text="llama.cpp context window. The max prompt budget is clamped to this value so requests are never rejected as too long." />
+										</StackPanel>
+										<NumericUpDown Grid.Column="1" Classes="settings-control"
+													   Value="{Binding EmbeddedFimCtxSize}"
+													   Increment="1024" Minimum="512" Maximum="131072"
+													   AllowSpin="True" ShowButtonSpinner="False" />
+									</Grid>
 								</StackPanel>
 							</Expander>
 							<Separator Classes="settings-sep" />

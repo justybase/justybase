@@ -214,7 +214,16 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
 
     public int GetOrdinal(string name)
     {
-        return Array.IndexOf(_normalizedHeaders.ToArray(), name);
+        // Manual scan — the previous per-call ToArray() allocated on every lookup.
+        for (int i = 0; i < _normalizedHeaders.Count; i++)
+        {
+            if (string.Equals(_normalizedHeaders[i], name, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     public DataTable? GetSchemaTable()

@@ -236,7 +236,14 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         {
             try
             {
-                Config = JsonSerializer.Deserialize(_encryptionHelper.GetEncodedContentOfTextFile(IGeneralApplicationData.ConfigEvoFile), context.AppOptions);
+                // The source-generated deserializer drops unknown legacy keys, so the raw text is
+                // captured first and LegacyConfigMigration maps EmbeddedFim*/ollama/lmstudio values.
+                var rawConfig = _encryptionHelper.GetEncodedContentOfTextFile(IGeneralApplicationData.ConfigEvoFile);
+                Config = JsonSerializer.Deserialize(rawConfig, context.AppOptions);
+                if (Config is not null)
+                {
+                    LegacyConfigMigration.Migrate(Config, rawConfig);
+                }
             }
             catch (Exception ex)
             {

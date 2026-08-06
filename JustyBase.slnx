@@ -20,7 +20,6 @@
   </Folder>
   <Folder Name="/Plugins/Helpers/">
     <Project Path="source/Plugins/Helpers/JustyBase.Helpers.Importers/JustyBase.Helpers.Importers.csproj" />
-    <Project Path="source/Plugins/Helpers/NetezzaImporter/JustyBase.Helpers.NetezzaImporter.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="source/JustyBase.HeadlessTests/JustyBase.HeadlessTests.csproj" />

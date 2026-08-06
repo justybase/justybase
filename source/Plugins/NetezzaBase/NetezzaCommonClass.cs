@@ -2,7 +2,6 @@ using System.Data;
 using System.Data.Common;
 using System.Runtime.InteropServices;
 using System.Text;
-using JustyBase.Helpers.NetezzaImporter;
 using JustyBase.Netezza.Ddl;
 using JustyBase.Netezza.Models;
 using JustyBase.NetezzaCatalogSql;
@@ -457,6 +456,9 @@ public class NetezzaCommonClass : DatabaseService, INetezza
     }
 
     protected virtual string DriverName => "dotnet";
+
+    private static readonly NetezzaExternalTableImportEngine ImportEngine = new();
+
     public override async Task DbSpecificImportPart(IImportJob importJob, string randName, Action<string>? progress, bool tableExists = false)
     {
         try
@@ -465,7 +467,16 @@ public class NetezzaCommonClass : DatabaseService, INetezza
             if (conn is not null)
             {
                 await Task.Run(() => conn.Open());
-                await NetezzaImportHelper.NetezzaImportExecute(conn, TempDataDirectory, importJob, randName, progress, DriverName);
+                await ImportEngine.ExecuteAsync(
+                    conn,
+                    importJob,
+                    randName,
+                    new ImportEngineOptions
+                    {
+                        TempLogDirectory = TempDataDirectory,
+                        RemoteSource = DriverName
+                    },
+                    progress);
                 var t = Task.Run(() => conn.Close());
                 Task.WaitAny(t, Task.Delay(2_000));
                 _ = t.ContinueWith(static x => _ = x.Exception, TaskContinuationOptions.OnlyOnFaulted);

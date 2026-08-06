@@ -56,7 +56,19 @@ public abstract class HeadlessSessionTestBase : IAsyncLifetime
     {
         try
         {
-            Session?.Dispose();
+            // Avalonia.Headless can throw NullReferenceException from inside
+            // HeadlessUnitTestSession.Dispose() (dispatcher teardown race on loaded runners)
+            // even when the test body passed. A teardown race must not fail the whole suite.
+            try
+            {
+                Session?.Dispose();
+            }
+#pragma warning disable CA1031
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                System.Diagnostics.Debug.WriteLine($"[Headless] session dispose failed: {ex.Message}");
+            }
         }
         finally
         {

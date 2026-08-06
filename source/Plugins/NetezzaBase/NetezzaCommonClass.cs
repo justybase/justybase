@@ -4,11 +4,13 @@ using System.Runtime.InteropServices;
 using System.Text;
 using JustyBase.Netezza.Ddl;
 using JustyBase.Netezza.Models;
+using JustyBase.Netezza.Schema;
 using JustyBase.NetezzaCatalogSql;
 using JustyBase.NetezzaDdl;
 using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.PluginDatabaseBase.Models;
 
@@ -92,6 +94,88 @@ public class NetezzaCommonClass : DatabaseService, INetezza
     protected override string GetSqlOfColumns(string dbName)
     {
         return NetezzaCatalogSql.GetSqlOfColumns(dbName);
+    }
+
+    private readonly Dictionary<string, NetezzaSchemaSnapshot> _loaderSnapshots = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override void LoadDatabaseObject(string database, DbConnection con)
+    {
+        var snapshot = NetezzaSchemaLoader.LoadCatalogAsync(
+                con,
+                database,
+                new NetezzaCatalogLoadOptions
+                {
+                    LazyColumnThreshold = int.MaxValue,
+                    LoadProcedures = false,
+                },
+                CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+
+        lock (_loaderSnapshots)
+        {
+            _loaderSnapshots[database] = snapshot;
+        }
+
+        var acualDb = _databaseSchemaTable[database];
+        foreach (var table in snapshot.Tables)
+        {
+            string textType = table.TextType ?? string.Empty;
+            string schema = table.Schema ?? string.Empty;
+            TypeInDatabaseEnum dbType = textType.GetTypeInDatabaseEnumFromDbName();
+
+            _ = acualDb.TryAdd(schema, []);
+            acualDb[schema][table.Name] = new DatabaseObject(
+                table.CatalogId,
+                table.Name,
+                table.Description,
+                dbType,
+                textType,
+                table.Owner ?? string.Empty,
+                table.Created);
+        }
+    }
+
+    protected override void LoadColumns(string database, DbConnection con)
+    {
+        NetezzaSchemaSnapshot snapshot;
+        lock (_loaderSnapshots)
+        {
+            snapshot = _loaderSnapshots.TryGetValue(database, out var cached)
+                ? cached
+                : new NetezzaSchemaSnapshot([]);
+        }
+
+        var currentDic = new Dictionary<int, ColumnInterval>();
+        var tempCols = new List<DatabaseColumn>();
+
+        foreach (var table in snapshot.Tables
+                     .Where(t => t.Columns is { Count: > 0 })
+                     .OrderBy(t => t.CatalogId))
+        {
+            int firstIndex = tempCols.Count;
+            foreach (var column in table.Columns!)
+            {
+                tempCols.Add(new DatabaseColumn(
+                    column.Name,
+                    column.Description,
+                    column.DataType ?? string.Empty,
+                    !column.Nullable,
+                    column.DefaultValue));
+            }
+
+            currentDic[table.CatalogId] = new ColumnInterval
+            {
+                FirstIndex = firstIndex,
+                LastIndex = tempCols.Count,
+            };
+        }
+
+        lock (_lock2)
+        {
+            DatabaseTableIdColumnIntervalSpan[database] = currentDic;
+            DatabaseColumnsList[database] = tempCols.ToArray();
+        }
     }
 
     protected override string? GetProceduresSql(string database, string objectFilterName)

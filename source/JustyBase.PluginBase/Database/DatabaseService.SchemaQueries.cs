@@ -14,9 +14,9 @@ public abstract partial class DatabaseService
 
     //DatabaseSchemaTableColumn[database][schema][objectName][column]
 
-    private readonly Dictionary<string, Dictionary<int, ColumnInterval>> DatabaseTableIdColumnIntervalSpan = new(StringComparer.OrdinalIgnoreCase);
+    protected readonly Dictionary<string, Dictionary<int, ColumnInterval>> DatabaseTableIdColumnIntervalSpan = new(StringComparer.OrdinalIgnoreCase);
 
-    private readonly Dictionary<string, DatabaseColumn[]> DatabaseColumnsList = new Dictionary<string, DatabaseColumn[]>(StringComparer.OrdinalIgnoreCase);
+    protected readonly Dictionary<string, DatabaseColumn[]> DatabaseColumnsList = new Dictionary<string, DatabaseColumn[]>(StringComparer.OrdinalIgnoreCase);
 
     public IEnumerable<string> GetDatabases(string filter)
     {
@@ -315,7 +315,7 @@ public abstract partial class DatabaseService
     protected abstract string GetSqlTablesAndOtherObjects(string dbName);
     protected abstract string GetSqlOfColumns(string dbName);
 
-    private void LoadDatabaseObject(string database, DbConnection con)
+    protected virtual void LoadDatabaseObject(string database, DbConnection con)
     {
         var cmd = CreateCommandFromConnection(con);
         cmd.CommandText = GetSqlTablesAndOtherObjects(database);
@@ -345,7 +345,7 @@ public abstract partial class DatabaseService
         }
     }
 
-    private void LoadColumns(string database, DbConnection con)
+    protected virtual void LoadColumns(string database, DbConnection con)
     {
         var currentDic = new Dictionary<int, ColumnInterval>();
 

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -30,6 +30,7 @@
     <ProjectReference Include="..\JustyBase.Common\JustyBase.Common\JustyBase.Common.csproj" />
     <ProjectReference Include="..\JustyBase.PluginCommon\JustyBase.PluginCommon.csproj" />
     <ProjectReference Include="..\JustyBase.PluginBase\JustyBase.PluginBase.csproj" />
+<ProjectReference Include="..\Plugins\NetezzaBase\NetezzaBase.csproj" />
     <ProjectReference Include="..\JustyBase\JustyBase.csproj" />
     <ProjectReference Include="..\SqlEditor.Avalonia\SqlEditor.Avalonia.csproj" />
   </ItemGroup>

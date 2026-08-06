@@ -42,16 +42,7 @@ public class DbImportJob : IImportJob
         {
             var headers = ColumnHeadersNames;
             var types = ColumnTypesBestMatch;
-            var result = new IImportColumn[Math.Max(headers.Count, types.Length)];
-            for (int i = 0; i < result.Length; i++)
-            {
-                string name = i < headers.Count ? headers[i] : $"COL{i}";
-                result[i] = i < types.Length
-                    ? ToImportColumn(name, types[i])
-                    : new ImportColumn(name, ImportColumnKind.Nvarchar, DatabaseTypeChooser.DEFAULT_NVARCHAR_LENGTH);
-            }
-
-            return result;
+            return DatabaseTypeChooser.ToImportColumns(headers, types);
         }
     }
 
@@ -69,21 +60,4 @@ public class DbImportJob : IImportJob
 
         return res;
     }
-
-    internal static ImportColumnKind MapKind(DbSimpleType simpleType) => simpleType switch
-    {
-        DbSimpleType.Integer => ImportColumnKind.Integer,
-        DbSimpleType.Numeric => ImportColumnKind.Numeric,
-        DbSimpleType.Date => ImportColumnKind.Date,
-        DbSimpleType.TimeStamp => ImportColumnKind.TimeStamp,
-        DbSimpleType.Boolean => ImportColumnKind.Boolean,
-        _ => ImportColumnKind.Nvarchar
-    };
-
-    private static ImportColumn ToImportColumn(string name, DbTypeWithSize type) => new(
-        name,
-        MapKind(type.DatabaseTypeSimple),
-        type.DatabaseTypeSimple == DbSimpleType.Numeric ? type.NumericPrecision : type.TextLength,
-        type.NumericScale,
-        IsNullable: true);
 }

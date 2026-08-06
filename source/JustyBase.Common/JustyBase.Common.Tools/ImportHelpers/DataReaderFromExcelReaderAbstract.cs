@@ -1,4 +1,4 @@
-using JustyBase.PluginCommon.Enums;
+using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using SpreadSheetTasks;
 using System.Data;
@@ -9,20 +9,26 @@ namespace JustyBase.Common.Tools.ImportHelpers;
 public sealed class DataReaderFromExcelReaderAbstract : IDataReader
 {
     private readonly ExcelReaderAbstract _excelAbstractReader;
-    private readonly DatabaseTypeChooser _databaseTypeChooser;
+    private readonly IReadOnlyList<ImportColumnKind> _kinds;
+    private readonly IReadOnlyList<string> _normalizedHeaders;
     private readonly bool _isCsvReader;
     private readonly CsvReader? _csvReader;//special case becouse of that excel cannot store decimals but Csv can..
-    public DataReaderFromExcelReaderAbstract(ExcelReaderAbstract excelReader, DatabaseTypeChooser databaseTypeChooser)
+    public DataReaderFromExcelReaderAbstract(
+        ExcelReaderAbstract excelReader,
+        IReadOnlyList<ImportColumnKind> kinds,
+        IReadOnlyList<string> normalizedHeaders)
     {
         ArgumentNullException.ThrowIfNull(excelReader, nameof(excelReader));
-        ArgumentNullException.ThrowIfNull(databaseTypeChooser, nameof(databaseTypeChooser));
+        ArgumentNullException.ThrowIfNull(kinds, nameof(kinds));
+        ArgumentNullException.ThrowIfNull(normalizedHeaders, nameof(normalizedHeaders));
         _excelAbstractReader = excelReader;
+        _kinds = kinds;
+        _normalizedHeaders = normalizedHeaders;
         _isCsvReader = _excelAbstractReader is CsvReader;
         if (_isCsvReader)
         {
             _csvReader = _excelAbstractReader as CsvReader;
         }
-        _databaseTypeChooser = databaseTypeChooser;
     }
 
     public object this[int i] => _excelAbstractReader.GetValue(i);
@@ -108,7 +114,7 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
 
     public string GetDataTypeName(int i)
     {
-        return _databaseTypeChooser.GetNativeType(i).ToString();
+        return ImportColumnKindExtensions.GetNativeType(_kinds[i]).ToString();
     }
 
     public DateTime GetDateTime(int i)
@@ -120,7 +126,7 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
 
         // A Date-overridden column must feed date-only values to the pipe;
         // Netezza DATE columns reject a timestamp string.
-        return _databaseTypeChooser.ColumnTypesBestMatch![i].DatabaseTypeSimple == DbSimpleType.Date
+        return _kinds[i] == ImportColumnKind.Date
             ? parsed.Date
             : parsed;
     }
@@ -163,7 +169,7 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
 
     public Type GetFieldType(int i)
     {
-        return _databaseTypeChooser.GetNativeType(i);
+        return ImportColumnKindExtensions.GetNativeType(_kinds[i]);
     }
 
     public float GetFloat(int i)
@@ -203,12 +209,12 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
 
     public string GetName(int i)
     {
-        return _databaseTypeChooser!.NormalizedColumnHeaderNames![i];
+        return _normalizedHeaders[i];
     }
 
     public int GetOrdinal(string name)
     {
-        return Array.IndexOf(_databaseTypeChooser!.NormalizedColumnHeaderNames!, name);
+        return Array.IndexOf(_normalizedHeaders.ToArray(), name);
     }
 
     public DataTable? GetSchemaTable()
@@ -226,15 +232,14 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
         if (IsDBNull(i))
             return DBNull.Value;
 
-        return _databaseTypeChooser!.ColumnTypesBestMatch![i].DatabaseTypeSimple switch
+        return _kinds[i] switch
         {
-            DbSimpleType.Integer => GetInt64(i),
-            DbSimpleType.Numeric => GetDecimal(i),
-            DbSimpleType.Nvarchar => GetString(i),
-            DbSimpleType.Date => GetDateTime(i).Date,
-            DbSimpleType.TimeStamp => GetDateTime(i),
-            DbSimpleType.NoInfo => GetString(i),
-            DbSimpleType.Boolean => GetBoolean(i),
+            ImportColumnKind.Integer => GetInt64(i),
+            ImportColumnKind.Numeric => GetDecimal(i),
+            ImportColumnKind.Nvarchar => GetString(i),
+            ImportColumnKind.Date => GetDateTime(i).Date,
+            ImportColumnKind.TimeStamp => GetDateTime(i),
+            ImportColumnKind.Boolean => GetBoolean(i),
             _ => GetString(i),
         };
     }

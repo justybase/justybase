@@ -27,7 +27,6 @@ public sealed partial class ImportViewModel
     private readonly Dictionary<string, ImportFromExcelFile> _importFromExcelFilesClasses = [];
     private ImportFromExcelFile? _currentImportFromExcelFile;
     private bool _importActive;
-    private bool _isQuickImport;
     private string[]? _existingTargetColumnNames;
 
     private int _sheetDetectionGeneration;
@@ -934,7 +933,6 @@ public sealed partial class ImportViewModel
     /// <summary>Opens the wizard for a quick import and runs it immediately.</summary>
     public async Task StartQuickImportAsync(string sourcePath, string? connectionName, string? database)
     {
-        _isQuickImport = true;
         if (!string.IsNullOrWhiteSpace(connectionName))
         {
             var conn = ConnectionsList?.FirstOrDefault(c =>

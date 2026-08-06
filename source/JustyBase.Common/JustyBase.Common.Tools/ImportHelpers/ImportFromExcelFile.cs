@@ -1,7 +1,6 @@
 using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
-using JustyBase.PluginCommons;
 using System.Text;
 
 namespace JustyBase.Common.Tools.ImportHelpers;
@@ -285,36 +284,6 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
             _logger?.TrackError(ex, isCrash: false);
             _exceptionMessageAction?.Invoke(ex.Message);
             _exceptionMessageAction?.Invoke(ex.StackTrace ?? "no stack trace");
-        }
-    }
-
-    /// <summary>Shortcut method for first Excel sheet to database (all settings default). Returns the imported table name or null.</summary>
-    public async Task<string?> PerformFastImportFromFileAsync(DatabaseTypeEnum databaseType, IDatabaseWithSpecificImportService databaseWithSpecificImportService)
-    {
-        try
-        {
-            if (InitImport() && SheetNamesToImport is { Count: > 0 })
-            {
-                string sheetName = SheetNamesToImport[0];
-                StandardMessageAction?.Invoke("\n" + sheetName);
-                SheetNamesToImport.Clear();
-                SheetNamesToImport.Add(sheetName);
-
-                string randomName = StringExtension.RandomSuffix("IMP_D_");
-                await ImportFromFileAllSteps(databaseType, databaseWithSpecificImportService, null, randomName);
-
-                StandardMessageAction?.Invoke($"FINISHED ** {randomName} **");
-                return randomName;
-            }
-
-            StandardMessageAction?.Invoke("\n" + "import failed");
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger?.TrackError(ex, isCrash: false);
-            _exceptionMessageAction?.Invoke(ex.Message);
-            return null;
         }
     }
 }

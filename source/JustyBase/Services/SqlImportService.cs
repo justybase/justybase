@@ -132,9 +132,7 @@ public sealed class SqlImportService : ISqlImportService
 
     public async Task ImportFromFilePathAsync(
         string path,
-        IGeneralApplicationData generalApplicationData,
         string connectionName,
-        Func<string, LogMessageType, DateTime, string, LogMessage?> addLogMessage,
         Action<object, bool> insertTextAction)
     {
         if (SqlDocumentViewModelHelper.NotSupportedFileExtension(path))

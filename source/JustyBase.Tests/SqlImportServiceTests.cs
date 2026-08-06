@@ -29,9 +29,7 @@ public sealed class SqlImportServiceTests
 
         await _sut.ImportFromFilePathAsync(
             @"C:\temp\notes.txt",
-            _appData.Object,
             "conn",
-            static (_, _, _, _) => null,
             (text, isAppend) =>
             {
                 inserted = text?.ToString();
@@ -55,9 +53,7 @@ public sealed class SqlImportServiceTests
     {
         await _sut.ImportFromFilePathAsync(
             @"C:\temp\data.csv",
-            _appData.Object,
             connectionName: "",
-            static (_, _, _, _) => null,
             static (_, _) => { });
 
         _resolver.Verify(
@@ -75,9 +71,7 @@ public sealed class SqlImportServiceTests
     {
         await _sut.ImportFromFilePathAsync(
             @"C:\temp\data.csv",
-            _appData.Object,
             "conn",
-            static (_, _, _, _) => null,
             static (_, _) => { });
 
         _activeDocumentManager.Verify(

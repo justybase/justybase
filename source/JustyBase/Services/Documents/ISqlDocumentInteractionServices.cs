@@ -32,9 +32,7 @@ public interface ISqlDocumentInteractionServices : IDisposable
         Action<object, bool> insertTextAction);
     Task ImportFromFilePathAsync(
         string path,
-        IGeneralApplicationData generalApplicationData,
         string connectionName,
-        Func<string, LogMessageType, DateTime, string, LogMessage?> addLogMessage,
         Action<object, bool> insertTextAction);
     Task<string> GetClipboardTextAsync();
     string BuildPasteAsIn(string pasteType, string clipboardText);
@@ -180,16 +178,12 @@ public sealed class SqlDocumentInteractionServices : ISqlDocumentInteractionServ
 
     public Task ImportFromFilePathAsync(
         string path,
-        IGeneralApplicationData generalApplicationData,
         string connectionName,
-        Func<string, LogMessageType, DateTime, string, LogMessage?> addLogMessage,
         Action<object, bool> insertTextAction)
     {
         return _sqlImportService.ImportFromFilePathAsync(
             path,
-            generalApplicationData,
             connectionName,
-            addLogMessage,
             insertTextAction);
     }
 

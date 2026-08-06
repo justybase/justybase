@@ -423,4 +423,68 @@ public sealed class ImportTypeSelectionTests
             }
         }
     }
+
+    [Fact]
+    public async Task ImportFromExcelFile_AllColumnsAsText_ForcesNvarchar()
+    {
+        string csv = Path.Combine(Path.GetTempPath(), $"jbt_text_{Guid.NewGuid():N}.csv");
+        try
+        {
+            await File.WriteAllTextAsync(csv, "id,amount,when\n1,10.5,2024-01-15\n2,20.75,2024-02-01\n");
+
+            var import = new ImportFromExcelFile(null, null)
+            {
+                FilePath = csv,
+                TreatAllColumnsAsText = true
+            };
+            Assert.True(import.InitImport());
+            string sheet = import.SheetNamesToImport![0];
+
+            DatabaseTypeChooser chooser = (await import.DetectSheetAsync(sheet))!;
+
+            Assert.All(chooser.ColumnTypesBestMatch!, t => Assert.Equal(DbSimpleType.Nvarchar, t.DatabaseTypeSimple));
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(csv);
+            }
+            catch (IOException)
+            {
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ImportFromExcelFile_TextForcedColumnName_PeselStaysNvarchar()
+    {
+        string csv = Path.Combine(Path.GetTempPath(), $"jbt_pesel_{Guid.NewGuid():N}.csv");
+        try
+        {
+            await File.WriteAllTextAsync(csv, "pesel,amount\n85122312345,10.5\n92010112345,20.75\n");
+
+            var import = new ImportFromExcelFile(null, null)
+            {
+                FilePath = csv
+            };
+            Assert.True(import.InitImport());
+            string sheet = import.SheetNamesToImport![0];
+
+            DatabaseTypeChooser chooser = (await import.DetectSheetAsync(sheet))!;
+
+            Assert.Equal(DbSimpleType.Nvarchar, chooser.ColumnTypesBestMatch![0].DatabaseTypeSimple);
+            Assert.Equal(DbSimpleType.Numeric, chooser.ColumnTypesBestMatch[1].DatabaseTypeSimple);
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(csv);
+            }
+            catch (IOException)
+            {
+            }
+        }
+    }
 }

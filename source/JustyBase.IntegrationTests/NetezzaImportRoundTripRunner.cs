@@ -109,6 +109,80 @@ internal static class NetezzaImportRoundTripRunner
             $"Import into '{table}' reported errors: {string.Join(" | ", errors)}");
     }
 
+    /// <summary>
+    /// Imports a CSV into a pre-created table through the existing-table engine path
+    /// (<see cref="ImportTargetContext.TargetColumnNames"/> → no CREATE, INSERT INTO columns).
+    /// <paramref name="createTableSql"/> is formatted with <c>{0}</c> = the generated table name.
+    /// </summary>
+    public static async Task<RoundTripContext> ImportCsvIntoExistingAsync(
+        string csv,
+        string createTableSql,
+        string[] targetColumnNames,
+        Action<DatabaseTypeChooser>? configure = null)
+    {
+        string csvPath = Path.Combine(Path.GetTempPath(), $"jbt_rt_ex_{Guid.NewGuid():N}.csv");
+        await File.WriteAllTextAsync(csvPath, csv);
+        string logDir = NetezzaLiveTestHost.CreateLogDirectory();
+        NetezzaDotnetPlugin.Netezza service = NetezzaLiveTestHost.CreateService();
+        service.TempDataDirectory = logDir;
+        string table = NetezzaLiveTestHost.CreateTableName();
+        ImportUsingOptionsContext.Current = ImportUsingOptions.Default;
+        var progress = new List<string>();
+
+        using (var setup = NetezzaLiveTestHost.OpenConnection())
+        {
+            NetezzaLiveTestHost.Execute(setup, string.Format(CultureInfo.InvariantCulture, createTableSql, table));
+        }
+
+        var import = new ImportFromExcelFile(msg => progress.Add(msg), logger: null)
+        {
+            FilePath = csvPath,
+            StandardMessageAction = msg => progress.Add(msg)
+        };
+        try
+        {
+            Assert.True(import.InitImport(), $"InitImport failed for test CSV '{csvPath}'.");
+            string sheet = import.SheetNamesToImport![0];
+            DatabaseTypeChooser? chooser = await import.DetectSheetAsync(sheet, msg => progress.Add(msg));
+            Assert.NotNull(chooser);
+            configure?.Invoke(chooser);
+
+            ImportTargetContext.TargetColumnNames = targetColumnNames;
+            try
+            {
+                await foreach (DbImportJob job in import.ReadFileAndReturnSingleImportJobs())
+                {
+                    Assert.NotNull(job.ColumnHeadersNames);
+                    await service.DbSpecificImportPart(job, table, msg => progress.Add(msg));
+                    AssertNoImportErrors(table, progress);
+
+                    NzConnection connection = NetezzaLiveTestHost.OpenConnection();
+                    return new RoundTripContext
+                    {
+                        Connection = connection,
+                        Service = service,
+                        TableName = table,
+                        Columns = targetColumnNames.ToArray(),
+                        Types = job.ColumnTypesBestMatch,
+                        CsvPath = csvPath,
+                        LogDir = logDir,
+                        Progress = progress
+                    };
+                }
+
+                throw new XunitException($"No import job was produced for '{csvPath}'.");
+            }
+            finally
+            {
+                ImportTargetContext.TargetColumnNames = null;
+            }
+        }
+        finally
+        {
+            import.DoFileDispose();
+        }
+    }
+
     /// <summary>Projects each column to a canonical string in SQL so verification is driver-type agnostic.</summary>
     public static string ProjectColumn(DbTypeWithSize type, string quotedColumn)
         => type.DatabaseTypeSimple switch

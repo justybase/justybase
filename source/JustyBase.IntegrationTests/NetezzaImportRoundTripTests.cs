@@ -146,6 +146,30 @@ public sealed class NetezzaImportRoundTripTests
     }
 
     [Fact]
+    public async Task ExistingTable_ImportIntoPreexistingColumns_RoundTrips()
+    {
+        const string csv = "id,amount,label\n1,10.5,alpha\n2,20.75,beta\n3,1.25,gamma\n";
+
+        await using RoundTripContext ctx = await NetezzaImportRoundTripRunner.ImportCsvIntoExistingAsync(
+            csv,
+            "CREATE TABLE {0} (ID BIGINT, AMOUNT NUMERIC(16,2), LABEL NVARCHAR(50)) DISTRIBUTE ON RANDOM",
+            ["ID", "AMOUNT", "LABEL"]);
+
+        Assert.Equal(DbSimpleType.Integer, ctx.Types[0].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Numeric, ctx.Types[1].DatabaseTypeSimple);
+        Assert.Equal(DbSimpleType.Nvarchar, ctx.Types[2].DatabaseTypeSimple);
+
+        object?[][] expected = [[1L, 10.5m, "alpha"], [2L, 20.75m, "beta"], [3L, 1.25m, "gamma"]];
+        NetezzaImportRoundTripRunner.VerifyRows(ctx, expected, "ExistingTable");
+        NetezzaImportRoundTripRunner.VerifyColumnFormats(ctx, new Dictionary<string, Func<string, bool>>
+        {
+            ["ID"] = f => f.Equals("BIGINT", StringComparison.OrdinalIgnoreCase),
+            ["AMOUNT"] = f => f.StartsWith("NUMERIC", StringComparison.OrdinalIgnoreCase),
+            ["LABEL"] = f => IsNvarchar(f)
+        });
+    }
+
+    [Fact]
     public async Task ConcurrentImports_MultipleParallelRoundTrips_AllProduceCorrectData()
     {
         string[] csvs =

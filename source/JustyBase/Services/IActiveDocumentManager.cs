@@ -24,6 +24,12 @@ public interface IActiveDocumentManager
     /// </summary>
     void OpenImportDocument(string? connectionName = null, string? database = null, string? schema = null, string? table = null);
 
+    /// <summary>
+    /// Opens the Import document in quick-import mode for the given source and runs it to
+    /// completion; completes when the import finishes.
+    /// </summary>
+    Task StartQuickImportAsync(string sourcePath, string? connectionName, string? database);
+
     Action<string>? AtCharAction { get; set; }
     Action<string>? SelectedDataGridAction { get; set; }
 }

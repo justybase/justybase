@@ -642,6 +642,38 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
             importViewModel.ApplyImportContext(connectionName, database, schema, table);
         }
     }
+
+    public Task StartQuickImportAsync(string sourcePath, string? connectionName, string? database)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            return RunQuickImportAsync(sourcePath, connectionName, database);
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try
+            {
+                await RunQuickImportAsync(sourcePath, connectionName, database);
+                completion.SetResult();
+            }
+            catch (Exception ex)
+            {
+                completion.SetException(ex);
+            }
+        });
+        return completion.Task;
+    }
+
+    private async Task RunQuickImportAsync(string sourcePath, string? connectionName, string? database)
+    {
+        ImportViewModel importViewModel = _dockDocumentActivationService.EnsureDocument(
+            MainDocumentDock.VisibleDockables,
+            _viewModelFactory.CreateImportViewModel);
+        MainDocumentDock.ActiveDockable = importViewModel;
+        await importViewModel.StartQuickImportAsync(sourcePath, connectionName, database);
+    }
     public void AddEtlDocument()
     {
         EtlViewModel etlViewModel = _dockDocumentActivationService.EnsureDocument(

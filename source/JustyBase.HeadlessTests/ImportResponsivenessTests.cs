@@ -52,7 +52,8 @@ public sealed class ImportResponsivenessTests : HeadlessSessionTestBase
             Mock.Of<IMessageForUserTools>(),
             Mock.Of<IDocumentCloseDecisionService>(),
             Mock.Of<IActiveDocumentManager>(),
-            resolver.Object);
+            resolver.Object,
+            Mock.Of<IClipboardService>());
 
         var connection = new ConnectionItem(connectionName, DatabaseTypeEnum.Sqlite)
         {
@@ -138,7 +139,8 @@ public sealed class ImportResponsivenessTests : HeadlessSessionTestBase
             Mock.Of<IMessageForUserTools>(),
             Mock.Of<IDocumentCloseDecisionService>(),
             Mock.Of<IActiveDocumentManager>(),
-            resolver.Object);
+            resolver.Object,
+            Mock.Of<IClipboardService>());
 
         var connection = new ConnectionItem(connectionName, DatabaseTypeEnum.Sqlite)
         {
@@ -228,7 +230,8 @@ public sealed class ImportResponsivenessTests : HeadlessSessionTestBase
                 messageForUserTools.Object,
                 Mock.Of<IDocumentCloseDecisionService>(),
                 Mock.Of<IActiveDocumentManager>(),
-                resolver.Object);
+                resolver.Object,
+                Mock.Of<IClipboardService>());
 
             var probe = new UiResponsivenessProbe(_output);
             var snapshot = probe.RunDuring(
@@ -307,7 +310,8 @@ public sealed class ImportResponsivenessTests : HeadlessSessionTestBase
                 messageForUserTools.Object,
                 Mock.Of<IDocumentCloseDecisionService>(),
                 Mock.Of<IActiveDocumentManager>(),
-                resolver.Object);
+                resolver.Object,
+                Mock.Of<IClipboardService>());
 
             var probe = new UiResponsivenessProbe(_output);
             var snapshot = probe.RunDuring(

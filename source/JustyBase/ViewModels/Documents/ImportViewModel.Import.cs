@@ -12,7 +12,6 @@ using JustyBase.Helpers.Shared;
 using JustyBase.Helpers;
 using JustyBase.ImportExport.Import;
 using JustyBase.Services.Documents;
-using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Text;
 using DatabaseTypeChooser = JustyBase.Common.Tools.ImportHelpers.DatabaseTypeChooser;
@@ -25,18 +24,11 @@ public sealed partial class ImportViewModel
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly IDatabaseServiceResolver _databaseServiceResolver;
 
-    public ObservableCollection<ColumnInGrid> ColumnsInGrid { get; set; } = [];
-    public ObservableCollection<string[]> PreviewRows { get; set; } = [];
-
     private readonly Dictionary<string, ImportFromExcelFile> _importFromExcelFilesClasses = [];
     private ImportFromExcelFile? _currentImportFromExcelFile;
     private bool _importActive;
-    public ICommand OpenFileForImportCommand { get; set; }
-    public ObservableCollection<TabItem> ExcelTabsNames { get; set; } = [];
-    public ObservableCollection<ConnectionItem> ConnectionsList => SqlDocumentViewModelHelper.ConnectionsList;
-
-    [ObservableProperty]
-    public partial TabItem SelectedTab { get; set; }
+    private bool _isQuickImport;
+    private string[]? _existingTargetColumnNames;
 
     private int _sheetDetectionGeneration;
     private int _validationGeneration;
@@ -64,18 +56,6 @@ public sealed partial class ImportViewModel
             && ReferenceEquals(importFile, _currentImportFromExcelFile)
             && string.Equals(SelectedTab?.TabName, sheetName, StringComparison.Ordinal);
 
-    [ObservableProperty]
-    public partial bool IsDetecting { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsValidating { get; set; }
-
-    [ObservableProperty]
-    public partial int ValidationErrorCount { get; set; }
-
-    [ObservableProperty]
-    public partial string ValidationSummary { get; set; } = "";
-
     partial void OnSelectedTabChanged(TabItem value)
     {
         CancelCurrentValidation();
@@ -94,11 +74,6 @@ public sealed partial class ImportViewModel
             UpdateStartEnabled();
         }
     }
-
-    private readonly string _createNewTxt = "[CREATE NEW TABLE]";
-
-    [ObservableProperty]
-    public partial bool AllColumnsAsText { get; set; }
 
     partial void OnAllColumnsAsTextChanged(bool value)
     {
@@ -126,75 +101,20 @@ public sealed partial class ImportViewModel
             return;
         }
 
+        bool existingReady = DestinationMode != ImportDestinationMode.Existing
+            || (!string.IsNullOrWhiteSpace(SelectedTableText)
+                && SelectedTableText != _createNewTxt
+                && !HasCompatibilityErrors);
         StartEnabled = !_importActive
             && !IsDetecting
             && !IsValidating
             && ColumnsInGrid.Count > 0
-            && ValidationErrorCount == 0;
-    }
-
-    [ObservableProperty]
-    public partial string DetectionStatus { get; set; } = "";
-
-    private readonly ConcurrentBag<ImportItem> _importsInProgress = [];
-
-    [ObservableProperty]
-    public partial string TabsWarningMessage { get; set; }
-
-    [ObservableProperty]
-    public partial bool StartEnabled { get; set; }
-
-    [ObservableProperty]
-    public partial string ImportFilepath { get; set; }
-    [ObservableProperty]
-    public partial bool ContinueEnabled { get; set; }
-
-    /// <summary>EXTERNAL USING column delimiter (default tab). Applied on the Netezza pipe path.</summary>
-    [ObservableProperty]
-    public partial string UsingDelimiter { get; set; } = "\\t";
-
-    /// <summary>Source-file and EXTERNAL USING encoding name.</summary>
-    [ObservableProperty]
-    public partial string UsingEncoding { get; set; } = "utf-8";
-
-    /// <summary>Optional EXTERNAL USING MAXROWS; empty or &lt;= 0 omits the clause.</summary>
-    [ObservableProperty]
-    public partial string UsingMaxRows { get; set; } = "";
-
-    private int _databaseListLoadGeneration;
-    private int _schemaListLoadGeneration;
-    private int _tableListLoadGeneration;
-
-    public object SelectedConnection
-    {
-        get;
-        set
-        {
-            SetProperty(ref field, value);
-            DatabaseItems.Clear();
-            SchemaItems.Clear();
-            TableItems.Clear();
-            TableItems.Add(_createNewTxt);
-            if (SelectedConnectionTyped is null)
-            {
-                return;
-            }
-
-            Interlocked.Increment(ref _schemaListLoadGeneration);
-            Interlocked.Increment(ref _tableListLoadGeneration);
-            var generation = Interlocked.Increment(ref _databaseListLoadGeneration);
-            var connectionName = SelectedConnectionTyped.Name;
-            _ = LoadDatabasesForSelectedConnectionAsync(generation, connectionName);
-        }
+            && ValidationErrorCount == 0
+            && existingReady;
     }
 
     private async Task LoadDatabasesForSelectedConnectionAsync(int generation, string connectionName)
     {
-        if (string.IsNullOrWhiteSpace(connectionName))
-        {
-            return;
-        }
-
         List<string> databases;
         try
         {
@@ -224,38 +144,8 @@ public sealed partial class ImportViewModel
         }
     }
 
-    public ObservableCollection<string> DatabaseItems { get; set; }
-    public ConnectionItem? SelectedConnectionTyped => SelectedConnection as ConnectionItem;
-
-    public string SelectedDatabase
-    {
-        get;
-        set
-        {
-            SetProperty(ref field, value);
-            SchemaItems.Clear();
-            TableItems.Clear();
-            TableItems.Add(_createNewTxt);
-            if (SelectedConnectionTyped is null || string.IsNullOrWhiteSpace(SelectedDatabase))
-            {
-                return;
-            }
-
-            Interlocked.Increment(ref _tableListLoadGeneration);
-            var generation = Interlocked.Increment(ref _schemaListLoadGeneration);
-            var connectionName = SelectedConnectionTyped.Name;
-            var database = SelectedDatabase;
-            _ = LoadSchemasForSelectedDatabaseAsync(generation, connectionName, database);
-        }
-    }
-
     private async Task LoadSchemasForSelectedDatabaseAsync(int generation, string connectionName, string database)
     {
-        if (string.IsNullOrWhiteSpace(connectionName) || string.IsNullOrWhiteSpace(database))
-        {
-            return;
-        }
-
         List<string> schemas;
         try
         {
@@ -286,40 +176,8 @@ public sealed partial class ImportViewModel
         }
     }
 
-    public ObservableCollection<string> SchemaItems { get; set; }
-
-    public string SelectedSchema
-    {
-        get;
-        set
-        {
-            SetProperty(ref field, value);
-            TableItems.Clear();
-            TableItems.Add(_createNewTxt);
-            if (SelectedConnectionTyped is null
-                || string.IsNullOrWhiteSpace(SelectedDatabase)
-                || string.IsNullOrWhiteSpace(SelectedSchema))
-            {
-                return;
-            }
-
-            var generation = Interlocked.Increment(ref _tableListLoadGeneration);
-            var connectionName = SelectedConnectionTyped.Name;
-            var database = SelectedDatabase;
-            var schema = SelectedSchema;
-            _ = LoadTablesForSelectedSchemaAsync(generation, connectionName, database, schema);
-        }
-    }
-
     private async Task LoadTablesForSelectedSchemaAsync(int generation, string connectionName, string database, string schema)
     {
-        if (string.IsNullOrWhiteSpace(connectionName)
-            || string.IsNullOrWhiteSpace(database)
-            || string.IsNullOrWhiteSpace(schema))
-        {
-            return;
-        }
-
         List<string> tables;
         try
         {
@@ -358,12 +216,6 @@ public sealed partial class ImportViewModel
         }
     }
 
-    /// <summary>
-    /// Loads a destination-list value, forcing one schema-cache refresh when the result is empty
-    /// because the cache was never populated (e.g. Import was opened before the schema explorer
-    /// refreshed the connection). Mirrors the schema explorer's "Refresh table list" behaviour:
-    /// it re-resolves the connection (full schema re-scan) and repopulates the shared cache.
-    /// </summary>
     private List<string> LoadHierarchyWithSchemaRefreshFallback(
         string connectionName,
         Func<IDatabaseService?, List<string>> query)
@@ -371,9 +223,6 @@ public sealed partial class ImportViewModel
         var service = _databaseServiceResolver.GetDatabaseService(_generalApplicationData, connectionName);
         List<string> result = query(service);
 
-        // Only force a refresh when the list is empty and the cache genuinely never loaded
-        // (ConnectedLevel stays below ConnectedDatabaseObjects until at least one database
-        // finishes loading its objects). Avoids repeating the refresh for populated caches.
         if (result.Count == 0
             && (service?.ConnectedLevel ?? DatabaseConnectedLevel.NotConnected) < DatabaseConnectedLevel.ConnectedDatabaseObjects)
         {
@@ -395,16 +244,11 @@ public sealed partial class ImportViewModel
         _messageForUserTools.DispatcherActionInstance(() =>
             _messageForUserTools.ShowSimpleMessageBoxInstance($"{title}\n\n{ex.Message}", "Import"));
     }
-    public ObservableCollection<string> TableItems { get; set; }
 
-    public ObservableCollection<ImportItem> ImportItemCollections { get; set; }
+    private int _databaseListLoadGeneration;
+    private int _schemaListLoadGeneration;
+    private int _tableListLoadGeneration;
 
-    [ObservableProperty]
-    public partial string SelectedTableText { get; set; }
-
-    /// <summary>
-    /// Pre-fills destination controls when opening Import from the schema explorer.
-    /// </summary>
     public void ApplyImportContext(string? connectionName, string? database, string? schema, string? table)
     {
         if (!string.IsNullOrWhiteSpace(connectionName))
@@ -499,6 +343,7 @@ public sealed partial class ImportViewModel
     private async Task OpenMethod(string filePath)
     {
         ImportFilepath = filePath;
+        IsSourceEmpty = false;
 
         var curentImportFromFile = new ImportFromExcelFile(x => _messageForUserTools.ShowSimpleMessageBoxInstance(x), _generalApplicationData.GlobalLoggerObject)
         {
@@ -563,7 +408,6 @@ public sealed partial class ImportViewModel
         }
     }
 
-    /// <summary>Detects (or reuses the cached detection for) the currently selected sheet and fills the type grid + preview.</summary>
     private async Task DetectAndShowCurrentSheetAsync(int generation = -1)
     {
         var importFile = _currentImportFromExcelFile;
@@ -614,7 +458,6 @@ public sealed partial class ImportViewModel
             || generation != Volatile.Read(ref _sheetDetectionGeneration)
             || (validationGeneration != 0 && validationGeneration != Volatile.Read(ref _validationGeneration)))
         {
-            // A newer sheet/type selection owns the UI now. Its cancellation is expected.
         }
         catch (Exception ex)
         {
@@ -770,9 +613,6 @@ public sealed partial class ImportViewModel
 
     private void OnGridTypeChanged()
     {
-        // While the type grid is being populated the rows re-apply their current selection. That
-        // must not be treated as a user change: it would cancel the sheet validation and leave
-        // IsValidating/IsDetecting stuck, which keeps the Start buttons disabled forever.
         if (_currentImportFromExcelFile is null || _importActive || _isPopulatingColumns)
             return;
 
@@ -813,7 +653,6 @@ public sealed partial class ImportViewModel
             || generation != Volatile.Read(ref _validationGeneration)
             || !ReferenceEquals(importFile, _currentImportFromExcelFile))
         {
-            // Ignore cancelled work belonging to an older type or sheet selection.
         }
         catch (Exception ex)
         {
@@ -870,8 +709,270 @@ public sealed partial class ImportViewModel
         }
     }
 
-    public Action<string[]>? ActionFromView { get; set; }
-    private readonly Lock _lock = new();
+    #region Progress (in-document)
+
+    private void ResetProgress()
+    {
+        _messageForUserTools.DispatcherActionInstance(() =>
+        {
+            ImportLog.Clear();
+            ProgressValue = 0;
+            IsProgressIndeterminate = true;
+            ProgressStatus = "";
+            ResultSql = "";
+            IsProgressVisible = true;
+        });
+    }
+
+    private void AddProgressLine(string message)
+    {
+        _messageForUserTools.DispatcherActionInstance(() =>
+        {
+            ImportLog.Add(new ImportLogRow(DateTime.Now, message));
+            ProgressStatus = message;
+            IsProgressVisible = true;
+        });
+    }
+
+    private void SetProgress(int value, bool indeterminate)
+    {
+        _messageForUserTools.DispatcherActionInstance(() =>
+        {
+            ProgressValue = value;
+            IsProgressIndeterminate = indeterminate;
+        });
+    }
+
+    private void SetCompleted(string tableName, IReadOnlyList<string>? headers)
+    {
+        _messageForUserTools.DispatcherActionInstance(() =>
+        {
+            ProgressValue = 100;
+            IsProgressIndeterminate = false;
+            ProgressStatus = "Completed";
+            ImportLog.Add(new ImportLogRow(DateTime.Now, "Completed."));
+            ResultSql = headers is { Count: > 0 }
+                ? ImportSelectSqlBuilder.BuildAliasedColumnSelect(tableName, headers)
+                : $"SELECT * FROM {tableName} LIMIT 100";
+            IsProgressVisible = true;
+        });
+    }
+
+    #endregion
+
+    #region Existing-table compatibility
+
+    [RelayCommand]
+    private async Task CheckCompatibilityAsync()
+    {
+        if (SelectedConnectionTyped is null
+            || string.IsNullOrWhiteSpace(SelectedDatabase)
+            || string.IsNullOrWhiteSpace(SelectedSchema)
+            || string.IsNullOrWhiteSpace(SelectedTableText)
+            || SelectedTableText == _createNewTxt)
+        {
+            CompatibilitySummary = "Select a connection, database, schema and an existing table first.";
+            HasCompatibilityErrors = true;
+            _existingTargetColumnNames = null;
+            UpdateStartEnabled();
+            return;
+        }
+
+        var importFile = _currentImportFromExcelFile;
+        var chooser = SelectedTab is null ? null : importFile?.GetTypeChooser(SelectedTab.TabName);
+        if (chooser?.NormalizedColumnHeaderNames is null || chooser.ColumnTypesBestMatch is null)
+        {
+            CompatibilitySummary = "Detect the source sheet first (open the source file and select the sheet).";
+            HasCompatibilityErrors = true;
+            _existingTargetColumnNames = null;
+            UpdateStartEnabled();
+            return;
+        }
+
+        IsCheckingCompatibility = true;
+        CompatibilitySummary = "";
+        try
+        {
+            var service = await Task.Run(() =>
+                _databaseServiceResolver.GetDatabaseService(_generalApplicationData, SelectedConnectionTyped.Name, delayCache: false));
+            if (service is null)
+            {
+                CompatibilitySummary = "Could not resolve the database service.";
+                HasCompatibilityErrors = true;
+                _existingTargetColumnNames = null;
+                UpdateStartEnabled();
+                return;
+            }
+
+            var targetColumns = await Task.Run(() =>
+                service.GetColumns(SelectedDatabase, SelectedSchema, SelectedTableText, "").ToList());
+
+            var sourceHeaders = chooser.NormalizedColumnHeaderNames;
+            var sourceKinds = chooser.ColumnTypesBestMatch.Select(static t => DatabaseTypeChooser.MapKind(t.DatabaseTypeSimple)).ToArray();
+
+            var (summary, targetNames, hasErrors) = BuildCompatibilityReport(
+                sourceHeaders,
+                sourceKinds,
+                targetColumns.Select(static c => (c.Name, c.FullTypeName)).ToArray());
+
+            _messageForUserTools.DispatcherActionInstance(() =>
+            {
+                CompatibilitySummary = summary;
+                HasCompatibilityErrors = hasErrors;
+                _existingTargetColumnNames = targetNames;
+                AddProgressLine(hasErrors ? "Compatibility check found blocking issues." : "Compatibility check passed.");
+                UpdateStartEnabled();
+            });
+        }
+        catch (Exception ex)
+        {
+            _generalApplicationData.GlobalLoggerObject.TrackError(ex, isCrash: false);
+            CompatibilitySummary = $"Compatibility check failed: {ex.Message}";
+            HasCompatibilityErrors = true;
+            _existingTargetColumnNames = null;
+            UpdateStartEnabled();
+        }
+        finally
+        {
+            IsCheckingCompatibility = false;
+        }
+    }
+
+    /// <summary>
+    /// Pure source-vs-target compatibility audit. Returns the report text, the ordered target
+    /// column names aligned 1:1 with the source columns (null on blocking errors), and whether
+    /// blocking errors exist.
+    /// </summary>
+    public static (string Summary, string[]? TargetColumnNames, bool HasErrors) BuildCompatibilityReport(
+        IReadOnlyList<string> sourceHeaders,
+        IReadOnlyList<ImportColumnKind> sourceKinds,
+        IReadOnlyList<(string Name, string FullTypeName)> targetColumns)
+    {
+        var sb = new StringBuilder();
+        var targetByUpper = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, type) in targetColumns)
+        {
+            targetByUpper[name] = type;
+        }
+
+        var mapping = new string[sourceHeaders.Count];
+        var errors = new List<string>();
+        var warnings = new List<string>();
+
+        for (int i = 0; i < sourceHeaders.Count; i++)
+        {
+            string sourceName = sourceHeaders[i];
+            ImportColumnKind kind = i < sourceKinds.Count ? sourceKinds[i] : ImportColumnKind.Nvarchar;
+
+            if (!targetByUpper.TryGetValue(sourceName, out string? targetType))
+            {
+                errors.Add($"Source column '{sourceName}' has no matching column in the target table.");
+                mapping[i] = string.Empty;
+                continue;
+            }
+
+            if (!IsTypeCompatible(kind, targetType))
+            {
+                errors.Add($"Type conflict for '{sourceName}': source {kind} vs target {targetType}.");
+                mapping[i] = string.Empty;
+                continue;
+            }
+
+            mapping[i] = sourceName;
+        }
+
+        sb.AppendLine(errors.Count == 0 ? "Compatibility OK." : $"{errors.Count} blocking issue(s):");
+        foreach (string error in errors)
+        {
+            sb.AppendLine("  " + error);
+        }
+
+        if (targetByUpper.Count > sourceHeaders.Count && errors.Count == 0)
+        {
+            warnings.Add($"Target has {targetByUpper.Count - sourceHeaders.Count} extra column(s); they will keep their defaults.");
+        }
+
+        foreach (string warning in warnings)
+        {
+            sb.AppendLine("  ! " + warning);
+        }
+
+        string[]? result = errors.Count == 0 ? mapping : null;
+        return (sb.ToString().TrimEnd(), result, errors.Count > 0);
+    }
+
+    public static bool IsTypeCompatible(ImportColumnKind source, string targetFullType)
+    {
+        string t = targetFullType.ToUpperInvariant();
+        return source switch
+        {
+            ImportColumnKind.Integer => t.Contains("INT", StringComparison.Ordinal),
+            ImportColumnKind.Numeric => t.Contains("NUMERIC", StringComparison.Ordinal)
+                || t.Contains("DECIMAL", StringComparison.Ordinal)
+                || t.Contains("NUMBER", StringComparison.Ordinal)
+                || t.Contains("FLOAT", StringComparison.Ordinal)
+                || t.Contains("DOUBLE", StringComparison.Ordinal)
+                || t.Contains("REAL", StringComparison.Ordinal),
+            ImportColumnKind.Nvarchar => t.Contains("CHAR", StringComparison.Ordinal)
+                || t.Contains("VARCHAR", StringComparison.Ordinal)
+                || t.Contains("TEXT", StringComparison.Ordinal)
+                || t.Contains("STRING", StringComparison.Ordinal),
+            ImportColumnKind.Date => t.Contains("DATE", StringComparison.Ordinal)
+                && !t.Contains("TIME", StringComparison.Ordinal),
+            ImportColumnKind.TimeStamp => t.Contains("TIMESTAMP", StringComparison.Ordinal)
+                || t.Contains("DATETIME", StringComparison.Ordinal)
+                || t.Contains("DATE", StringComparison.Ordinal),
+            ImportColumnKind.Boolean => t.Contains("BOOL", StringComparison.Ordinal),
+            _ => t.Contains("CHAR", StringComparison.Ordinal)
+        };
+    }
+
+    #endregion
+
+    #region Quick import (clipboard / dropped files)
+
+    /// <summary>Opens the wizard for a quick import and runs it immediately.</summary>
+    public async Task StartQuickImportAsync(string sourcePath, string? connectionName, string? database)
+    {
+        _isQuickImport = true;
+        if (!string.IsNullOrWhiteSpace(connectionName))
+        {
+            var conn = ConnectionsList?.FirstOrDefault(c =>
+                string.Equals(c.Name, connectionName, StringComparison.OrdinalIgnoreCase));
+            if (conn is not null)
+            {
+                SelectedConnection = conn;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(database))
+        {
+            if (!DatabaseItems.Contains(database))
+            {
+                DatabaseItems.Add(database);
+            }
+
+            SelectedDatabase = database;
+        }
+
+        try
+        {
+            await OpenMethod(sourcePath);
+            if (_currentImportFromExcelFile is null)
+            {
+                AddProgressLine($"IMPORT FAILED to {sourcePath}");
+                return;
+            }
+
+            await ImportStart("Fast");
+        }
+        catch (Exception ex)
+        {
+            _generalApplicationData.GlobalLoggerObject.LogAndShowError(ex, _messageForUserTools);
+        }
+    }
+
+    #endregion
 
     [RelayCommand(AllowConcurrentExecutions = false)]
     private async Task ImportStart(string option)
@@ -895,6 +996,14 @@ public sealed partial class ImportViewModel
             if (SelectedConnectionTyped is null)
             {
                 _messageForUserTools.ShowSimpleMessageBoxInstance("Select a connection first");
+                return;
+            }
+
+            if (DestinationMode == ImportDestinationMode.Existing
+                && (string.IsNullOrWhiteSpace(SelectedTableText) || SelectedTableText == _createNewTxt))
+            {
+                ValidationSummary = "Select an existing destination table.";
+                ValidationErrorCount = 1;
                 return;
             }
 
@@ -927,6 +1036,13 @@ public sealed partial class ImportViewModel
                 return;
             }
 
+            if (DestinationMode == ImportDestinationMode.Existing && _existingTargetColumnNames is null)
+            {
+                ValidationSummary = "Run the compatibility check for the existing table first.";
+                ValidationErrorCount = 1;
+                return;
+            }
+
             if (SelectedTableText == _createNewTxt || string.IsNullOrWhiteSpace(SelectedTableText))
             {
                 string nme = StringExtension.RandomSuffix("IMPORTED_");
@@ -942,80 +1058,47 @@ public sealed partial class ImportViewModel
                 SelectedTableText = nme;
             }
 
-            var importItem = new ImportItem(_messageForUserTools)
-            {
-                SourcePath = Path.GetDirectoryName(importFilePath),
-                SourceName = Path.GetFileName(importFilePath),
-                StartTime = DateTime.Now,
-                Elapsed = "",
-                Estimated = " - ",
-                Info = "started",
-                Connection = SelectedConnectionTyped?.Name,
-                Destination = $"{SelectedDatabase}.{SelectedSchema}.{SelectedTableText}"
-            };
-            lock (_lock)
-            {
-                _importsInProgress.Add(importItem);
-            }
-
-            ImportItemCollections.Insert(0, importItem);
-            ImportItems.Refresh();
-            await Task.Delay(20);
-            importItem.Bck = "Yellow";
-
             IDatabaseService service = await Task.Run(() =>
                 _databaseServiceResolver.GetDatabaseService(_generalApplicationData, SelectedConnectionTyped.Name));
 
-            if (!_dispatcherTimer.IsEnabled)
-            {
-                _dispatcherTimer.Start();
-            }
-            if (curentImportFromFile is null)
-            {
-                _messageForUserTools.ShowSimpleMessageBoxInstance("_currentImport is null");
-                return;
-            }
-
-            curentImportFromFile.StandardMessageAction = (s) => _messageForUserTools.DispatcherActionInstance(
-                () =>
-                {
-                    importItem.Info = s;
-                }
-            );
-
             string tableNameMask = SelectedTableText?.Trim();
-            // Ensure only the bare table name is used (strip any schema qualification and surrounding quotes)
             if (!string.IsNullOrEmpty(tableNameMask))
             {
-                // Remove surrounding quotes if present
                 if ((tableNameMask.StartsWith("\"") && tableNameMask.EndsWith("\""))
                     || (tableNameMask.StartsWith("'") && tableNameMask.EndsWith("'")))
                 {
                     tableNameMask = tableNameMask[1..^1];
                 }
-                // Take the last segment after the last dot
+
                 int lastDot = tableNameMask.LastIndexOf('.');
                 if (lastDot >= 0 && lastDot < tableNameMask.Length - 1)
                 {
                     tableNameMask = tableNameMask[(lastDot + 1)..];
                 }
             }
+
             List<string> sheets = curentImportFromFile.SheetNamesToImport.ToList();
             var usingOptions = BuildUsingOptions();
             ImportUsingOptionsContext.Current = usingOptions;
+            ImportTargetContext.TargetColumnNames = DestinationMode == ImportDestinationMode.Existing
+                ? _existingTargetColumnNames
+                : null;
 
-            // For Netezza the import helper builds the fully‑qualified name itself,
-            // so we must not prefix the schema here – otherwise we get DB.SCHEMA."SCHEMA.TABLE".
+            // For Netezza the import helper builds the fully-qualified name itself.
             string schemaForImport = service.DatabaseType == DatabaseTypeEnum.NetezzaSQL ? null : SelectedSchema;
+
+            ResetProgress();
+            AddProgressLine($"Import started: {sheets.Count:N0} sheet(s) -> {SelectedDatabase}.{SelectedSchema}.{tableNameMask}");
+            curentImportFromFile.StandardMessageAction = AddProgressLine;
 
             try
             {
                 _importActive = true;
+                IsImportRunning = true;
                 StartEnabled = false;
                 if (option == "Fast")
                 {
-                    var fastImportTask = curentImportFromFile.ImportFromFileAllSteps(service.DatabaseType, service, schemaForImport, tableNameMask);
-                    await fastImportTask;
+                    await curentImportFromFile.ImportFromFileAllSteps(service.DatabaseType, service, schemaForImport, tableNameMask);
                 }
                 else if (option == "WithSteps")
                 {
@@ -1057,15 +1140,12 @@ public sealed partial class ImportViewModel
                     TabsWarningMessage = $"{SelectedDatabase}.{SelectedSchema}.{tableNameMask}";
                 }
 
-                importItem.Info = "completed !";
-                importItem.Elapsed = (DateTime.Now - importItem.StartTime).ToString(@"hh\:mm\:ss", System.Globalization.CultureInfo.CurrentCulture);
-                importItem.Bck = "LightGreen";
-                ImportItems.Refresh();
-                lock (_lock)
-                {
-                    _importsInProgress.TryTake(out importItem);
-                    _dispatcherTimer.Stop();
-                }
+                var resultHeaders = SelectedTab is not null
+                    ? curentImportFromFile.GetTypeChooser(SelectedTab.TabName)?.NormalizedColumnHeaderNames
+                    : null;
+                SetCompleted(tableNameMask, resultHeaders);
+                AddProgressLine($"FINISHED ** {tableNameMask} **");
+                ActiveDocumentManager.InsertTextToActiveDocument($"SELECT * FROM {tableNameMask};\n", true);
             }
             catch (ImportValidationException ex)
             {
@@ -1073,11 +1153,6 @@ public sealed partial class ImportViewModel
                 ValidationSummary = $"Import blocked: {ex.Errors.Count:N0} invalid value(s). {ex.Errors[0]}";
                 curentImportFromFile.DoFileDispose();
                 _generalApplicationData.GlobalLoggerObject.LogAndShowError(ex, _messageForUserTools);
-                lock (_lock)
-                {
-                    _importsInProgress.TryTake(out importItem);
-                    _dispatcherTimer.Stop();
-                }
                 return;
             }
             catch (Exception ex)
@@ -1085,57 +1160,26 @@ public sealed partial class ImportViewModel
                 TabsWarningMessage = ex.Message;
                 curentImportFromFile?.DoFileDispose();
                 _generalApplicationData.GlobalLoggerObject.LogAndShowError(ex, _messageForUserTools);
-                importItem.Info = "failed: " + ex.Message;
-                importItem.Bck = "LightCoral";
-                lock (_lock)
-                {
-                    _importsInProgress.TryTake(out importItem);
-                    _dispatcherTimer.Stop();
-                }
+                AddProgressLine($"FAILED: {ex.Message}");
                 return;
             }
             finally
             {
                 _importActive = false;
+                IsImportRunning = false;
                 _currentImportFromExcelFile = null;
                 _importFromExcelFilesClasses.Remove(importFilePath);
                 ContinueEnabled = false;
                 ImportUsingOptionsContext.Current = null;
+                ImportTargetContext.TargetColumnNames = null;
                 IsValidating = false;
                 IsDetecting = false;
                 UpdateStartEnabled();
             }
         }
     }
-}
 
-public sealed partial class ImportItem : ObservableObject
-{
-    [ObservableProperty]
-    public partial string Info { get; set; }
-    public string SourceName { get; set; }
-    public string SourcePath { get; set; }
-    public string Connection { get; set; }
-    public string Destination { get; set; }
-    public DateTime StartTime { get; set; }
-
-    [ObservableProperty]
-    public partial string Elapsed { get; set; }
-
-    [ObservableProperty]
-    public partial string Estimated { get; set; }
-
-    [ObservableProperty]
-    public partial string Bck { get; set; }
-    public ICommand StopCommand { get; set; }
-    public ImportItem(IMessageForUserTools messageForUserTools)
-    {
-        StopCommand = new RelayCommand(() =>
-        {
-            messageForUserTools.ShowSimpleMessageBoxInstance($"to do {Info} {StartTime}");
-        });
-        Bck = "Transparent";
-    }
+    public ObservableCollection<ConnectionItem> ConnectionsList => SqlDocumentViewModelHelper.ConnectionsList;
 }
 
 public sealed partial class TabItem : ObservableObject
@@ -1244,10 +1288,6 @@ public sealed partial class ColumnInGrid : ObservableObject
             ? _detected
             : TypeChoice.ToDbTypeWithSize(SelectedChoice.Value, _detected, _detectedTextLength);
 
-        // The initial selection is applied while the grid row is being constructed and equals the
-        // detected type. It must not be treated as a user change: firing OnGridTypeChanged here
-        // would cancel the sheet validation and leave IsValidating/IsDetecting stuck, which keeps
-        // the Start buttons disabled forever.
         if (next.Equals(_target[_index]))
         {
             return;
@@ -1261,7 +1301,7 @@ public sealed partial class ColumnInGrid : ObservableObject
         _typeChanged?.Invoke();
     }
 
-    private void ResetToDetected()
+    public void ResetToDetected()
     {
         SelectedChoice = ChoiceFor(_detected.DatabaseTypeSimple);
         _target[_index] = _detected;
@@ -1269,6 +1309,26 @@ public sealed partial class ColumnInGrid : ObservableObject
         if (_legacyMutableDetectedType)
             DetectedType = SelectedType;
         IsOverridden = false;
+        _typeChanged?.Invoke();
+    }
+
+    /// <summary>Bulk-action entry: applies the given type (used by "all as text" etc.).</summary>
+    public void ApplyType(DbSimpleType type)
+    {
+        DbTypeWithSize next = type == _detected.DatabaseTypeSimple
+            ? _detected
+            : TypeChoice.ToDbTypeWithSize(type, _detected, _detectedTextLength);
+        if (next.Equals(_target[_index]))
+        {
+            return;
+        }
+
+        _target[_index] = next;
+        SelectedChoice = ChoiceFor(type);
+        SelectedType = FormatApplied(next);
+        if (_legacyMutableDetectedType)
+            DetectedType = SelectedType;
+        IsOverridden = type != _detected.DatabaseTypeSimple;
         _typeChanged?.Invoke();
     }
 

@@ -474,7 +474,8 @@ public class NetezzaCommonClass : DatabaseService, INetezza
                     new ImportEngineOptions
                     {
                         TempLogDirectory = TempDataDirectory,
-                        RemoteSource = DriverName
+                        RemoteSource = DriverName,
+                        TargetColumnNames = ImportTargetContext.TargetColumnNames
                     },
                     progress);
                 var t = Task.Run(() => conn.Close());

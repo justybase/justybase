@@ -18,15 +18,18 @@ public sealed class SqlImportService : ISqlImportService
     private readonly IDatabaseServiceResolver _databaseServiceResolver;
     private readonly ISimpleLogger _simpleLogger;
     private readonly IMessageForUserTools _messageForUserTools;
+    private readonly IActiveDocumentManager _activeDocumentManager;
 
     public SqlImportService(
         IDatabaseServiceResolver databaseServiceResolver,
         ISimpleLogger simpleLogger,
-        IMessageForUserTools messageForUserTools)
+        IMessageForUserTools messageForUserTools,
+        IActiveDocumentManager activeDocumentManager)
     {
         _databaseServiceResolver = databaseServiceResolver;
         _simpleLogger = simpleLogger;
         _messageForUserTools = messageForUserTools;
+        _activeDocumentManager = activeDocumentManager;
     }
 
     public async Task ImportFromClipboardAsync(
@@ -56,11 +59,11 @@ public sealed class SqlImportService : ISqlImportService
                 service.ChangeDatabaseSpecial(service.Connection, selectedDatabase);
             }
 
-            addLogMessage("import in progress", LogMessageType.ok, DateTime.Now, "");
-            string res = "";
-            addLogMessage("gathering data from clipboard", LogMessageType.ok, DateTime.Now, "");
             if (formats.Contains("XML Spreadsheet"))
             {
+                addLogMessage("import in progress", LogMessageType.ok, DateTime.Now, "");
+                string res = "";
+                addLogMessage("gathering data from clipboard", LogMessageType.ok, DateTime.Now, "");
                 object xmlData = await clipboardService.GetDataAsync("XML Spreadsheet");
                 if (xmlData is byte[] xmlBytes)
                 {
@@ -73,53 +76,35 @@ public sealed class SqlImportService : ISqlImportService
                             );
                         });
                 }
+
+                addLogMessage($"imported to {res}", LogMessageType.ok, DateTime.Now, "");
+                if (!string.IsNullOrWhiteSpace(res))
+                {
+                    insertTextAction.Invoke($"SELECT * FROM {res};\n", true);
+                }
             }
             else
             {
                 string textData = await clipboardService.GetTextAsync();
                 string path = Path.GetTempFileName();
-                File.WriteAllText(path, textData);
-                var importFrom = new ImportFromExcelFile(x => _messageForUserTools.ShowSimpleMessageBoxInstance(x), _simpleLogger)
-                {
-                    FilePath = path
-                };
-
-                if (!importFrom.InitImport(encoding: System.Text.Encoding.UTF8))
-                {
-                    addLogMessage($"IMPORT FAILED to {res}", LogMessageType.error, DateTime.Now, "");
-                    return;
-                }
-
-                string randomName = StringExtension.RandomSuffix("IMP_");
+                await File.WriteAllTextAsync(path, textData);
                 try
                 {
-                    await importFrom.ImportFromFileAllSteps(service.DatabaseType, service, "", randomName);
-                    res = randomName;
+                    await _activeDocumentManager.StartQuickImportAsync(path, connectionName, selectedDatabase);
                 }
-                catch (Exception ex)
+                finally
                 {
-                    _simpleLogger.LogAndShowError(ex, _messageForUserTools);
+                    try
+                    {
+                        File.Delete(path);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                    }
                 }
-
-                try
-                {
-                    File.Delete(path);
-                }
-                catch (IOException)
-                {
-                    importFrom.DoFileDispose();
-                    File.Delete(path);
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    importFrom.DoFileDispose();
-                    File.Delete(path);
-                }
-            }
-            addLogMessage($"imported to {res}", LogMessageType.ok, DateTime.Now, "");
-            if (!string.IsNullOrWhiteSpace(res))
-            {
-                insertTextAction.Invoke($"SELECT * FROM {res};\n", true);
             }
         }
         else if (formats.Contains("File"))
@@ -131,12 +116,10 @@ public sealed class SqlImportService : ISqlImportService
                 {
                     try
                     {
-                        await ImportFromFilePathAsync(
+                        await _activeDocumentManager.StartQuickImportAsync(
                             filenameX.Path.LocalPath,
-                            generalApplicationData,
                             connectionName,
-                            addLogMessage,
-                            insertTextAction);
+                            selectedDatabase);
                     }
                     catch (Exception ex)
                     {
@@ -166,33 +149,8 @@ public sealed class SqlImportService : ISqlImportService
             {
                 return;
             }
-            ImportFromExcelFile importFrom = new(x => _messageForUserTools.ShowSimpleMessageBoxInstance(x), _simpleLogger)
-            {
-                StandardMessageAction = (msg) =>
-                {
-                    try
-                    {
-                        _messageForUserTools.DispatcherActionInstance(() => insertTextAction.Invoke("\n" + DateTime.Now + ": " + msg, true));
-                    }
-                    catch (Exception ex)
-                    {
-                        _simpleLogger.LogAndShowError(ex, _messageForUserTools);
-                    }
-                },
-                FilePath = path
-            };
 
-            IDatabaseService? service = _databaseServiceResolver.GetDatabaseService(generalApplicationData, connectionName, delayCache: true);
-            if (service is null)
-            {
-                return;
-            }
-
-            string? tableName = await importFrom.PerformFastImportFromFileAsync(service.DatabaseType, service);
-            if (!string.IsNullOrWhiteSpace(tableName))
-            {
-                insertTextAction.Invoke($"SELECT * FROM {tableName};\n", true);
-            }
+            await _activeDocumentManager.StartQuickImportAsync(path, connectionName, null);
         }
         catch (Exception ex)
         {

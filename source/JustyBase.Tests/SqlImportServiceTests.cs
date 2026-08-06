@@ -13,11 +13,12 @@ public sealed class SqlImportServiceTests
     private readonly Mock<ISimpleLogger> _logger = new();
     private readonly Mock<IMessageForUserTools> _messages = new();
     private readonly Mock<IGeneralApplicationData> _appData = new();
+    private readonly Mock<IActiveDocumentManager> _activeDocumentManager = new();
     private readonly SqlImportService _sut;
 
     public SqlImportServiceTests()
     {
-        _sut = new SqlImportService(_resolver.Object, _logger.Object, _messages.Object);
+        _sut = new SqlImportService(_resolver.Object, _logger.Object, _messages.Object, _activeDocumentManager.Object);
     }
 
     [Fact]
@@ -70,17 +71,8 @@ public sealed class SqlImportServiceTests
     }
 
     [Fact]
-    public async Task ImportFromFilePathAsync_ResolverReturnsNull_ReturnsWithoutImport()
+    public async Task ImportFromFilePathAsync_DelegatesToQuickImportWizard()
     {
-        _resolver
-            .Setup(r => r.GetDatabaseService(
-                _appData.Object,
-                "conn",
-                true,
-                It.IsAny<bool>(),
-                It.IsAny<Action<string>?>()))
-            .Returns((IDatabaseService?)null);
-
         await _sut.ImportFromFilePathAsync(
             @"C:\temp\data.csv",
             _appData.Object,
@@ -88,14 +80,17 @@ public sealed class SqlImportServiceTests
             static (_, _, _, _) => null,
             static (_, _) => { });
 
+        _activeDocumentManager.Verify(
+            m => m.StartQuickImportAsync(@"C:\temp\data.csv", "conn", null),
+            Times.Once);
         _resolver.Verify(
             r => r.GetDatabaseService(
-                _appData.Object,
-                "conn",
-                true,
+                It.IsAny<IGeneralApplicationData>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
                 It.IsAny<bool>(),
                 It.IsAny<Action<string>?>()),
-            Times.Once);
+            Times.Never);
     }
 
     [Fact]

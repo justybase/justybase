@@ -24,20 +24,22 @@ downloaded GGUF **chat** model. It is a third provider option in AI Chat, next t
 
 ## Model catalog (download list)
 
-| Id | Model | Approx. size | Notes |
-|----|-------|--------------|-------|
-| `qwen3.5-4b` | Qwen 3.5 4B (Q4_K_M) | ~2.7 GB | **Default** — best starting point on iGPU/CPU |
-| `qwen3.5-9b` | Qwen 3.5 9B (Q4_K_M) | ~6 GB | Balanced quality/speed |
-| `gemma4-12b-it` | Gemma 4 12B Instruct (q4_K_M) | ~9 GB | Gemma Terms acceptance required |
-| `devstral-2-22b` | Devstral 2 22B (Q4_K_M) | ~14 GB | Mistral license acceptance required |
-| `qwen3.6-27b` | Qwen 3.6 27B (q4) | ~18 GB | Needs 24+ GB VRAM or fast CPU |
-| `gemma4-26b-a4b` | Gemma 4 26B-A4B (MoE, Q4_K_M) | ~17 GB | MoE — faster than dense 26B. Gemma license |
-| `qwen3.6-35b-a3b` | Qwen 3.6 35B-A3B (MoE, Q4_K_M) | ~20 GB | Large MoE capability |
-| `gemma4-31b` | Gemma 4 31B (Q4_K_M) | ~21 GB | Largest dense Gemma. Gemma license |
+> **Source policy:** the official model provider's own Q4 GGUF is used when available (Google
+> Gemma QAT q4_0); otherwise the trusted unsloth Q4_K_M community builds are used.
 
-> **Note:** exact Hugging Face GGUF repo/file names for the newest releases must be verified when
-> they publish; the catalog URLs are best-effort. Large models (22B–35B) require substantial
-> VRAM/RAM — prefer the small models for the agent (tool-calling) modes.
+| Id | Model | Approx. size | Source |
+|----|-------|--------------|--------|
+| `qwen3.5-4b` | Qwen 3.5 4B (Q4_K_M) | ~2.7 GB | unsloth — **default** |
+| `qwen3.5-9b` | Qwen 3.5 9B (Q4_K_M) | ~5.7 GB | unsloth |
+| `gemma4-12b-it` | Gemma 4 12B Instruct (QAT q4_0) | ~8.5 GB | Google official. Gemma Terms required |
+| `devstral-2-22b` | Devstral Small 2 24B Instruct (Q4_K_M) | ~14 GB | unsloth. Mistral license required |
+| `qwen3.6-27b` | Qwen 3.6 27B (Q4_K_M) | ~18 GB | unsloth |
+| `gemma4-26b-a4b` | Gemma 4 26B-A4B (MoE, QAT q4_0) | ~16 GB | Google official. Gemma license |
+| `qwen3.6-35b-a3b` | Qwen 3.6 35B-A3B (MoE, Q4_K_M) | ~20 GB | unsloth (UD dynamic) |
+| `gemma4-31b` | Gemma 4 31B (QAT q4_0) | ~21 GB | Google official. Gemma license |
+
+> **Note:** large models (24B–35B) require substantial VRAM/RAM — prefer the small models for the
+> agent (tool-calling) modes.
 
 ## Agent / tool calling
 

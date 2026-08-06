@@ -49,11 +49,11 @@ public sealed class FimModelCatalog : IModelCatalog
         new(
             Id: FimModelIds.Qwen25Coder7B,
             DisplayName: "Qwen2.5-Coder 7B (Q4_K_M) — Medium/Large default",
-            FileName: "qwen2.5-coder-7b-q4_k_m.gguf",
-            DownloadUri: new Uri("https://huggingface.co/Qwen/Qwen2.5-Coder-7B-GGUF/resolve/main/qwen2.5-coder-7b-q4_k_m.gguf?download=true"),
+            FileName: "Qwen2.5-Coder-7B.Q4_K_M.gguf",
+            DownloadUri: new Uri("https://huggingface.co/QuantFactory/Qwen2.5-Coder-7B-GGUF/resolve/main/Qwen2.5-Coder-7B.Q4_K_M.gguf?download=true"),
             ApproxSizeLabel: "~4.7 GB",
-            SourceModelUrl: new Uri("https://huggingface.co/Qwen/Qwen2.5-Coder-7B"),
-            Notes: "Base FIM model from official Qwen GGUF. Default for Medium/Large.",
+            SourceModelUrl: new Uri("https://huggingface.co/QuantFactory/Qwen2.5-Coder-7B-GGUF"),
+            Notes: "Base FIM model from QuantFactory. Default for Medium/Large.",
             ApproxBytes: 4_680_000_000),
         new(
             Id: FimModelIds.Qwen25Coder14B,

@@ -53,6 +53,8 @@ public sealed class FimPromptBuilderTests
         Assert.Equal(FimModelIds.Qwen25Coder7B, catalog.Resolve(FimModelIds.Qwen25Coder7B).Id);
         Assert.Contains("1.5B", catalog.Resolve(FimModelIds.Qwen25Coder15B).FileName, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("3B", catalog.Resolve(FimModelIds.Qwen25Coder3B).FileName, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Qwen2.5-Coder-7B.Q4_K_M.gguf", catalog.Resolve(FimModelIds.Qwen25Coder7B).FileName);
+        Assert.StartsWith("https://huggingface.co/QuantFactory/", catalog.Resolve(FimModelIds.Qwen25Coder7B).DownloadUri.AbsoluteUri, StringComparison.OrdinalIgnoreCase);
 
         var codestral = catalog.Resolve(FimModelIds.Codestral22B);
         Assert.True(codestral.RequiresLicenseAcceptance);
@@ -77,6 +79,26 @@ public sealed class FimPromptBuilderTests
         Assert.Contains(EmbeddedChatModelIds.Gemma4_26BA4B, ids);
         Assert.Contains(EmbeddedChatModelIds.Gemma4_31B, ids);
         Assert.Contains(EmbeddedChatModelIds.Devstral2_22B, ids);
+    }
+
+    [Fact]
+    public void EmbeddedChatCatalog_AllLinksAreTrustedQ4Sources()
+    {
+        var catalog = new EmbeddedChatModelCatalog();
+        Assert.NotEmpty(catalog.Models);
+
+        foreach (var model in catalog.Models)
+        {
+            Assert.True(model.DownloadUri.IsAbsoluteUri, $"{model.Id}: DownloadUri must be absolute");
+            Assert.Equal("huggingface.co", model.DownloadUri.Host);
+            var path = model.DownloadUri.AbsolutePath;
+            Assert.True(
+                path.Contains("/unsloth/", StringComparison.OrdinalIgnoreCase)
+                || path.Contains("/google/", StringComparison.OrdinalIgnoreCase),
+                $"{model.Id}: DownloadUri must point at unsloth or the official provider (got {path})");
+            Assert.EndsWith(".gguf", model.FileName, StringComparison.OrdinalIgnoreCase);
+            Assert.EndsWith(model.FileName, model.DownloadUri.AbsolutePath, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     [Fact]

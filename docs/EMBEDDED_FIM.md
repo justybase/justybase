@@ -1,13 +1,14 @@
 # Embedded AI — Fill-in-the-Middle (FIM)
 
-JustyBase can suggest SQL **inline** (gray ghost text) using a **local** GGUF model via [LLamaSharp](https://github.com/SciSharp/LLamaSharp) — no cloud API key, works offline after the model is downloaded.
-
-The same in-process model is also used (in **plain completion** mode, not FIM tokens) to draft **Git commit messages** from the working-tree summary.
+JustyBase can suggest SQL **inline** (gray ghost text) using a **local** GGUF model served by the
+**bundled llama.cpp `llama-server`** subprocess — no cloud API key, works offline after the model
+is downloaded. The same FIM server is also used (in **plain completion** mode, not FIM tokens) to
+draft **Git commit messages** from the working-tree summary.
 
 ## Why it matters
 
 - Completions respect **prefix and suffix** (Fill-in-the-Middle), so suggestions fit mid-statement edits, not only end-of-line autocomplete.
-- Runs **in-process** on your machine; SQL never leaves the workstation for this feature.
+- Runs **locally** on your machine; SQL never leaves the workstation for this feature.
 - **Tab** accepts the suggestion; **Esc** dismisses it.
 - Tunable idle delay so heavy local inference does not interrupt fast typing.
 - Git panel **sparkles** button can propose a commit subject/body from staged (preferred) or unstaged changes — no cloud call.
@@ -18,9 +19,13 @@ The same in-process model is also used (in **plain completion** mode, not FIM to
 
 1. Open **Preferences → Embedded AI (FIM)**.
 2. Turn on **Enable Fill-in-the-Middle**.
-3. Pick a **preset** (or keep the auto-suggested one) and/or a model.
-4. Click **Download / prepare** and wait until the status shows the model on disk / ready.
+3. Pick a **preset** and/or a model.
+4. Click **Download / prepare** and wait until the status shows the model on disk / server ready.
 5. Open a SQL document, pause typing for the configured delay — ghost text appears at the caret.
+
+The first request also downloads the `llama-server.exe` binary (CPU `avx2` or `vulkan` variant)
+into `%LOCALAPPDATA%\JustyBase\llama-server\` and starts a dedicated FIM server on a free
+`127.0.0.1` port (separate from the embedded chat server — FIM and chat use different models).
 
 ### Git commit message
 
@@ -34,36 +39,31 @@ The button is hidden when Embedded FIM is disabled. Generation prefers staged di
 | Preference | Meaning |
 |------------|---------|
 | Enable Fill-in-the-Middle | Master switch for SQL editor ghost text |
-| Suggestion delay | Seconds to wait after you stop typing (1–15, default **3**) |
+| Suggestion delay | Delay after you stop typing (default **600 ms**) |
 | Preset | **Small** / **Medium** (default) / **Large** / **Custom** — sets prompt budget, prefix/suffix split, max generation tokens, and recommended model |
-| Hardware suggestion | One-shot GPU class detection (`vulkaninfo`) suggests Small (CPU), Medium (iGPU), or Large (dGPU). **Apply suggested** re-applies it |
 | Fine-tune | Max prompt tokens, prefix %, suffix %, max generation tokens (20–200). Editing any knob marks preset **Custom** |
-| Prefer Vulkan GPU | Use `LLamaSharp.Backend.Vulkan` (AMD/Intel iGPU). Default **on** |
+| Prefer Vulkan GPU | Download the **vulkan** llama-server binary (AMD/Intel iGPU). Off = CPU (`avx2`) build. Reload the model after changing |
 | GPU layers | `gpu_layers` offload (0 = CPU, **99** = max). Reloads model on change |
 | Model | Catalog of Qwen / CodeGemma / StarCoder2 / Codestral GGUFs. License-gated models prompt for acceptance once |
-| Download / prepare | Ensures GGUF under `%LOCALAPPDATA%\JustyBase\models\` and loads it |
-| Speed test (CPU vs GPU) | E2E ghost-text latency + tiny-prompt decode tok/s for `gpu_layers=0` and configured offload |
-| Delete model | Removes the selected GGUF from disk (unloads first) |
+| Download / prepare | Ensures GGUF under `%LOCALAPPDATA%\JustyBase\models\` and starts the FIM server |
+| Speed test | End-to-end ghost-text latency + approx tokens/s |
+| Delete model | Stops the FIM server and removes the selected GGUF from disk |
 
 ### Presets
 
 | Preset | Prompt tokens | Prefix / suffix | Max gen | Default model |
 |--------|---------------|-----------------|---------|---------------|
 | Small | 512 | 60% / 40% | 30 | `qwen2.5-coder-1.5b` |
-| Medium | 1536 | 65% / 35% | 50 | `qwen2.5-coder-7b` |
+| Medium | 1536 | 65% / 35% | 50 | `qwen2.5-coder-3b` |
 | Large | 4096 | 70% / 30% | 80 | `qwen2.5-coder-7b` (pick 14B manually if VRAM allows) |
 
-Char windows ≈ `maxPromptTokens × 4 × percentage`. Legacy `EmbeddedFimContextWindow` migrates into `EmbeddedFimPreset` when the preset is empty/unknown.
+Char windows ≈ `maxPromptTokens × 4 × percentage`.
 
 ### License acceptance
 
-CodeGemma and Codestral require an explicit confirmation (license summary + URL) before the model stays selected. Accepted ids are stored in `EmbeddedFimAcceptedLicenseModelIds` and are not re-prompted.
+CodeGemma and Codestral require an explicit confirmation (license summary + URL) before the model stays selected. Accepted ids are stored in `FimAcceptedLicenseModelIds` and are not re-prompted.
 
-### Auto GPU suggestion
-
-On first Preferences load (`EmbeddedFimAutoPresetApplied == false`), JustyBase detects GPU class and applies the matching preset once, then sets the flag so user choices are not overwritten again.
-
-Persisted options: `EnableEmbeddedFimAi`, `EmbeddedFimModelId`, `EmbeddedFimDebounceSeconds`, `EmbeddedFimMaxTokens`, `EmbeddedFimPreset`, `EmbeddedFimMaxPromptTokens`, `EmbeddedFimPrefixPercentage`, `EmbeddedFimSuffixPercentage`, `EmbeddedFimPreferVulkan`, `EmbeddedFimGpuLayers`, `EmbeddedFimAcceptedLicenseModelIds`, `EmbeddedFimAutoPresetApplied` (plus legacy `EmbeddedFimContextWindow`).
+Persisted options: `EnableFimServer`, `FimModelId`, `FimDebounceMs`, `FimMaxTokens`, `FimPreset`, `FimMaxPromptTokens`, `FimPrefixPercentage`, `FimSuffixPercentage`, `LlamaServerPreferVulkan`, `FimGpuLayers`, `FimCtxSize`, `FimAcceptedLicenseModelIds`.
 
 ## Models
 
@@ -79,23 +79,26 @@ Base **Qwen2.5-Coder** checkpoints (not Instruct) are recommended defaults; alte
 | `starcoder2-3b` / `7b` / `15b` | BigCode FIM | ~1.8 / ~4.4 / ~9.1 GB |
 | `codestral-22b` | MNPL acceptance required | ~13 GB |
 
-Models are **not** shipped in the installer; download on demand.
+Models are **not** shipped in the installer; download on demand. llama.cpp has built-in FIM
+templates for all of these families (`/completion` with `input_prefix` / `input_suffix`).
 
 ## Architecture (short)
 
 | Piece | Role |
 |-------|------|
-| `JustyBase.Ai.Fim` | `ICompletionProvider`, presets, prompt builders, Hugging Face store, shared `LlamaSharpModelHost` |
+| `JustyBase.Ai.Embedded` | `ICompletionProvider`, presets, Hugging Face store, `LlamaServerBinaryManager` / `LlamaServerInstance` / `LlamaServerManager`, `LlamaServerFimProvider` |
+| `JustyBase.Ai.Embedded.Download` | FIM + embedded-chat GGUF catalogs and resumable downloader |
 | `SqlEditor.Avalonia` / `InlineCompletion` | Debounced FIM ghost text + Tab accept |
-| `EmbeddedFimGitCommitMessageAiService` | Plain (non-FIM) completion for commit messages via the same host |
+| `LlamaServerGitCommitMessageAiService` | Plain (non-FIM) completion for commit messages via the FIM server |
 | Git tool / Diff document | Status, stage/commit, history; side-by-side Diff tab (`CanFloat` off) |
 | Preferences UI | Enable, delay, presets / fine-tune, model, license gate, download/delete |
 
-All builds include FIM by default (`EnableEmbeddedFim=true`, including AOT publish). Opt-out is runtime only: leave **Enable Fill-in-the-Middle** off in Preferences. See [internal/llamasharp-fim-aot.md](internal/llamasharp-fim-aot.md) for AOT caveats.
+The engine is a separate native process (`llama-server.exe`), so there is **no AOT impact** on the
+JustyBase binary itself.
 
 ## Tips
 
-- First suggestion after prepare may take longer (model load into RAM).
+- First suggestion after prepare may take longer (model load + server start).
 - Increase **Suggestion delay** on slower CPUs; decrease it when you want snappier hints.
 - Prefer **Small** on CPU-only machines; **Medium** on Vulkan iGPU; **Large** when you have a discrete GPU.
 - Use **Delete model** to free disk space when switching sizes or uninstalling the feature.

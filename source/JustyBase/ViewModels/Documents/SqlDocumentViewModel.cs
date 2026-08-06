@@ -23,10 +23,8 @@ using JustyBase.NetezzaSqlParser.Caching;
 using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.NetezzaSqlParser.Visitor;
 using JustyBase.NetezzaSqlParser.Authoring;
-#if EMBEDDED_FIM
 using JustyBase.Editor.InlineCompletion;
 using JustyBase.Services.Fim;
-#endif
 
 namespace JustyBase.ViewModels.Documents;
 
@@ -57,9 +55,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private readonly NzCompletionEngine? _completionEngine;
     private readonly InMemorySchemaProvider? _parserSchema;
     private readonly DocumentParsingCoordinator? _parsingCoordinator;
-#if EMBEDDED_FIM
     private readonly FimEditorAttachment _fimAttachment;
-#endif
     private readonly Queue<string> _pendingSnippetTexts = [];
     private IReadOnlyList<SymbolOccurrence> _lastReferenceOccurrences = [];
     private int _referenceNavigateIndex;
@@ -80,10 +76,8 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
           NzLinterService? linterService = null,
           NzCompletionEngine? completionEngine = null,
           InMemorySchemaProvider? parserSchema = null,
-          DocumentParsingCoordinator? parsingCoordinator = null
-#if EMBEDDED_FIM
-          , FimInlineCompletionBridge? fimBridge = null
-#endif
+          DocumentParsingCoordinator? parsingCoordinator = null,
+          FimInlineCompletionBridge? fimBridge = null
            )
         : base(generalApplicationData, messageForUserTools, documentCloseDecisionService, activeDocumentManager)
     {
@@ -105,9 +99,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         _completionEngine = completionEngine;
         _parserSchema = parserSchema;
         _parsingCoordinator = parsingCoordinator;
-#if EMBEDDED_FIM
         _fimAttachment = new FimEditorAttachment(fimBridge);
-#endif
         this.Factory = factory;
         _sqlVariableProcessor = sqlVariableProcessor;
         _logToolViewModel = logToolViewModel;
@@ -202,9 +194,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         editor.RenameRequested = null;
         editor.GoToDefinitionRequested = null;
         editor.FindReferencesRequested = null;
-#if EMBEDDED_FIM
         _fimAttachment.Detach();
-#endif
     }
 
     partial void OnSqlEditorChanged(SqlCodeEditor value)
@@ -258,17 +248,13 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         value.Initialize(this, _generalApplicationData, _completionEngine, _parserSchema, _parsingCoordinator, documentUri,
             ensureTableColumns: (database, schema, table) => _linterService?.EnsureTableColumns(database, schema, table),
             dialect: _documentDialect);
-#if EMBEDDED_FIM
         _fimAttachment.Attach(
             value,
-            () => _generalApplicationData.Config.EnableEmbeddedFimAi,
+            () => _generalApplicationData.Config.EnableFimServer,
             () => InlineCompletionController.SnapDebounceMs(
-                _generalApplicationData.Config.EmbeddedFimDebounceMs > 0
-                    ? _generalApplicationData.Config.EmbeddedFimDebounceMs
-                    : (_generalApplicationData.Config.EmbeddedFimDebounceSeconds > 0
-                        ? _generalApplicationData.Config.EmbeddedFimDebounceSeconds * 1000
-                        : InlineCompletionController.DefaultDebounceMs)));
-#endif
+                _generalApplicationData.Config.FimDebounceMs > 0
+                    ? _generalApplicationData.Config.FimDebounceMs
+                    : InlineCompletionController.DefaultDebounceMs));
         _completionEngine?.SetDocumentUri(documentUri);
         _linterService?.AttachToEditor(value, documentUri, _documentDialect);
         if (contentWasSet)
@@ -912,9 +898,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     {
         await _interactionServices.ImportFromFilePathAsync(
             path,
-            _generalApplicationData,
             SelectedConnectionName,
-            AddLogMessage,
             InsertTextRequest);
     }
 
@@ -1303,9 +1287,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         _generalApplicationData.RemoveDocumentById(Id);
         _interactionServices.EnableRaisingEvents = false;
         _interactionServices.Dispose();
-#if EMBEDDED_FIM
         _fimAttachment.Dispose();
-#endif
 
         _executionServices.ConnectionManager.EmergencyCleanup(async () => await AbortSqlAsync());
     }

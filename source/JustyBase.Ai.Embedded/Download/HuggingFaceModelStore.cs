@@ -1,11 +1,11 @@
-using JustyBase.Ai.Fim.Abstractions;
+using JustyBase.Ai.Embedded.Abstractions;
 using System.Net.Http.Headers;
 
-namespace JustyBase.Ai.Fim.Download;
+namespace JustyBase.Ai.Embedded.Download;
 
-public interface IFimModelStore
+public interface IModelStore
 {
-    FimModelDescriptor CurrentModel { get; }
+    ModelDescriptor CurrentModel { get; }
     string ModelsDirectory { get; }
     string ModelFileName { get; }
     string LocalModelPath { get; }
@@ -21,19 +21,19 @@ public interface IFimModelStore
 
 /// <summary>
 /// Downloads the currently selected GGUF into %LOCALAPPDATA%/JustyBase/models/.
-/// Selection is resolved on each call so preferences can switch 3B ↔ 7B.
+/// Selection is resolved on each call so preferences can switch models without restarts.
 /// </summary>
-public sealed class HuggingFaceFimModelStore : IFimModelStore, IDisposable
+public sealed class HuggingFaceModelStore : IModelStore, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
-    private readonly IFimModelCatalog _catalog;
+    private readonly IModelCatalog _catalog;
     private readonly Func<string?> _getSelectedModelId;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private bool _disposed;
 
-    public HuggingFaceFimModelStore(
-        IFimModelCatalog catalog,
+    public HuggingFaceModelStore(
+        IModelCatalog catalog,
         Func<string?> getSelectedModelId,
         HttpClient? httpClient = null,
         string? modelsDirectory = null)
@@ -48,7 +48,7 @@ public sealed class HuggingFaceFimModelStore : IFimModelStore, IDisposable
 
     public string ModelsDirectory { get; }
 
-    public FimModelDescriptor CurrentModel => _catalog.Resolve(_getSelectedModelId());
+    public ModelDescriptor CurrentModel => _catalog.Resolve(_getSelectedModelId());
 
     public string ModelFileName => CurrentModel.FileName;
 
@@ -247,7 +247,7 @@ public sealed class HuggingFaceFimModelStore : IFimModelStore, IDisposable
 
     private static void ReportDownloadProgress(
         IProgress<FimModelProgress>? progress,
-        FimModelDescriptor model,
+        ModelDescriptor model,
         long copied,
         long total)
     {

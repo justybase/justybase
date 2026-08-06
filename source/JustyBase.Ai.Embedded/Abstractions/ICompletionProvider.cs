@@ -1,7 +1,7 @@
-namespace JustyBase.Ai.Fim.Abstractions;
+namespace JustyBase.Ai.Embedded.Abstractions;
 
 /// <summary>
-/// Shared contract for inline AI completions (embedded LLamaSharp FIM, future remote providers).
+/// Shared contract for inline AI completions (embedded llama-server FIM, future remote providers).
 /// </summary>
 public interface ICompletionProvider
 {
@@ -9,7 +9,7 @@ public interface ICompletionProvider
     string DisplayName { get; }
     bool IsAvailable { get; }
 
-    /// <summary>Ensure model/backend is ready (download + load). Safe to call repeatedly.</summary>
+    /// <summary>Ensure model/backend is ready (download + start server). Safe to call repeatedly.</summary>
     Task EnsureReadyAsync(IProgress<FimModelProgress>? progress = null, CancellationToken cancellationToken = default);
 
     Task<CompletionSuggestion?> CompleteAsync(CompletionRequest request, CancellationToken cancellationToken = default);

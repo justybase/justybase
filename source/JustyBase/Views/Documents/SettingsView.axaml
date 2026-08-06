@@ -215,6 +215,14 @@
 						</StackPanel>
 					</TreeViewItem.Header>
 				</TreeViewItem>
+				<TreeViewItem Tag="EmbeddedAiChat">
+					<TreeViewItem.Header>
+						<StackPanel Orientation="Horizontal">
+							<PathIcon Classes="settings-nav-icon" Data="{StaticResource FormaterIconPath}" />
+							<TextBlock Classes="settings-nav-label" Text="Embedded AI (Chat)" />
+						</StackPanel>
+					</TreeViewItem.Header>
+				</TreeViewItem>
 				<TreeViewItem Tag="AiChat">
 					<TreeViewItem.Header>
 						<StackPanel Orientation="Horizontal">
@@ -523,7 +531,7 @@
 							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
 								<StackPanel Grid.Column="0">
 									<TextBlock Classes="row-title" Text="Enable Fill-in-the-Middle" />
-									<TextBlock Classes="row-desc" Text="Ghost-text SQL completions from a local GGUF model (LLamaSharp). Tab accepts. Offline after download." />
+									<TextBlock Classes="row-desc" Text="Ghost-text SQL completions from a local GGUF model served by the bundled llama.cpp llama-server. Tab accepts. Offline after download." />
 								</StackPanel>
 								<ToggleSwitch Grid.Column="1" Classes="settings-control"
 											  IsChecked="{Binding EnableEmbeddedFimAi}" />
@@ -559,16 +567,6 @@
 										</DataTemplate>
 									</ComboBox.ItemTemplate>
 								</ComboBox>
-							</Grid>
-							<Separator Classes="settings-sep" />
-							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
-								<StackPanel Grid.Column="0">
-									<TextBlock Classes="row-title" Text="Hardware suggestion" />
-									<TextBlock Classes="row-desc" Text="{Binding EmbeddedFimHardwareSuggestion}" TextWrapping="Wrap" />
-								</StackPanel>
-								<Button Grid.Column="1" Classes="settings-action"
-										Content="Apply suggested"
-										Command="{Binding ApplySuggestedFimPresetCommand}" />
 							</Grid>
 							<Separator Classes="settings-sep" />
 							<Expander Classes="settings-advanced" Header="Fine-tune" IsExpanded="False">
@@ -627,7 +625,7 @@
 							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
 								<StackPanel Grid.Column="0">
 									<TextBlock Classes="row-title" Text="Prefer Vulkan GPU" />
-									<TextBlock Classes="row-desc" Text="Use LLamaSharp Vulkan (AMD Radeon 780M etc.). Off = CPU-only native backend. Change may need app restart if the library already loaded." TextWrapping="Wrap" />
+									<TextBlock Classes="row-desc" Text="Download the Vulkan variant of llama-server (AMD Radeon 780M etc.). Off = CPU (avx2) binary. Reload the model after changing." TextWrapping="Wrap" />
 								</StackPanel>
 								<ToggleSwitch Grid.Column="1" Classes="settings-control"
 											  IsChecked="{Binding EmbeddedFimPreferVulkan}" />
@@ -655,7 +653,7 @@
 								</StackPanel>
 								<ComboBox Grid.Column="1" Classes="settings-control" MinWidth="280"
 										  SelectedItem="{Binding SelectedEmbeddedFimModel}"
-										  ItemsSource="{Binding EmbeddedFimModelChoices}">
+										  ItemsSource="{Binding FimModelChoices}">
 									<ComboBox.ItemTemplate>
 										<DataTemplate x:DataType="vm:FimModelChoiceItem">
 											<StackPanel Spacing="2">
@@ -696,9 +694,9 @@
 									<Button Classes="settings-action"
 											Content="Download / prepare"
 											Command="{Binding PrepareEmbeddedFimModelCommand}" />
-									<Button Classes="settings-action"
-											Content="Speed test (CPU/GPU × contexts)"
-											Command="{Binding RunEmbeddedFimBenchmarkCommand}" />
+								<Button Classes="settings-action"
+										Content="Speed test"
+										Command="{Binding RunEmbeddedFimBenchmarkCommand}" />
 									<Button Classes="settings-action"
 											Content="Cancel"
 											Command="{Binding CancelEmbeddedFimPrepareCommand}"
@@ -737,6 +735,113 @@
 			</Border>
 		</StackPanel>
 
+		<!-- Embedded AI (Chat) -->
+		<StackPanel Name="EmbeddedAiChat" Spacing="4" IsVisible="False">
+			<TextBlock Classes="page-title" Text="Embedded AI (Chat)" />
+			<TextBlock Classes="section-caption" Text="EMBEDDED CHAT MODEL" />
+			<Border Classes="settings-card">
+				<StackPanel>
+					<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+						<StackPanel Grid.Column="0">
+							<TextBlock Classes="row-title" Text="Enable Embedded Chat" />
+							<TextBlock Classes="row-desc" Text="Offer the 'Embedded (local)' backend in AI Chat: a bundled llama.cpp llama-server hosting the selected GGUF chat model. Offline after download." />
+						</StackPanel>
+						<ToggleSwitch Grid.Column="1" Classes="settings-control"
+									  IsChecked="{Binding EnableEmbeddedChatAi}" />
+					</Grid>
+					<Separator Classes="settings-sep" />
+					<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+						<StackPanel Grid.Column="0">
+							<TextBlock Classes="row-title" Text="Model" />
+							<TextBlock Classes="row-desc" Text="Choose a chat GGUF model. Gemma 4 / Devstral 2 require license acceptance. Qwen 3.5 4B is the recommended starting point (iGPU/CPU friendly)." TextWrapping="Wrap" />
+						</StackPanel>
+						<ComboBox Grid.Column="1" Classes="settings-control" MinWidth="280"
+								  SelectedItem="{Binding SelectedEmbeddedChatModel}"
+								  ItemsSource="{Binding EmbeddedChatModelChoices}">
+							<ComboBox.ItemTemplate>
+								<DataTemplate x:DataType="vm:FimModelChoiceItem">
+									<StackPanel Spacing="2">
+										<TextBlock Text="{Binding DisplayName}" />
+										<TextBlock Opacity="0.7" FontSize="11" Text="{Binding Family}" />
+										<TextBlock Opacity="0.7" FontSize="11" Text="{Binding SizeLabel}" />
+									</StackPanel>
+								</DataTemplate>
+							</ComboBox.ItemTemplate>
+						</ComboBox>
+					</Grid>
+					<Separator Classes="settings-sep" />
+					<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+						<StackPanel Grid.Column="0">
+							<TextBlock Classes="row-title" Text="Selected model card" />
+							<TextBlock Classes="row-desc" Text="{Binding SelectedEmbeddedChatModelNotes}" TextWrapping="Wrap" />
+						</StackPanel>
+						<Button Grid.Column="1" Classes="settings-action"
+								Content="Open on Hugging Face"
+								Command="{Binding OpenSelectedEmbeddedChatModelPageCommand}" />
+					</Grid>
+					<Separator Classes="settings-sep" />
+					<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+						<StackPanel Grid.Column="0">
+							<TextBlock Classes="row-title" Text="GPU layers" />
+							<TextBlock Classes="row-desc" Text="llama.cpp offload count. 0 = CPU compute; 99 = as many layers as fit in VRAM." TextWrapping="Wrap" />
+						</StackPanel>
+						<StackPanel Grid.Column="1" Classes="settings-control" Width="200" Spacing="4"
+									IsEnabled="{Binding EmbeddedChatGpuLayersEnabled}">
+							<NumericUpDown Value="{Binding EmbeddedChatGpuLayers}"
+										   Increment="1" Minimum="0" Maximum="999"
+										   AllowSpin="True" ShowButtonSpinner="False" />
+							<TextBlock HorizontalAlignment="Right" Opacity="0.8"
+									   Text="{Binding EmbeddedChatGpuLayersLabel}" />
+						</StackPanel>
+					</Grid>
+					<Separator Classes="settings-sep" />
+					<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+						<StackPanel Grid.Column="0">
+							<TextBlock Classes="row-title" Text="Context size" />
+							<TextBlock Classes="row-desc" Text="Token context window for the chat server (larger = more memory)." />
+						</StackPanel>
+						<NumericUpDown Grid.Column="1" Classes="settings-control"
+									   Value="{Binding EmbeddedChatCtxSize}"
+									   Increment="512" Minimum="512" Maximum="131072"
+									   AllowSpin="True" ShowButtonSpinner="False" />
+					</Grid>
+					<Separator Classes="settings-sep" />
+					<StackPanel Spacing="8">
+						<TextBlock Classes="row-title" Text="Model files" />
+						<TextBlock Classes="row-desc" Text="{Binding ChatModelDiskStatus}" TextWrapping="Wrap" />
+						<TextBlock Opacity="0.65" FontSize="11" TextWrapping="Wrap"
+								   Text="{Binding ChatModelsDirectory, StringFormat='Folder: {0}'}" />
+						<ProgressBar Minimum="0" Maximum="1"
+									 Value="{Binding ChatPrepareProgressValue}"
+									 IsIndeterminate="{Binding ChatPrepareIsIndeterminate}"
+									 Height="8" />
+						<Grid ColumnDefinitions="*,Auto">
+							<TextBlock Grid.Column="0" Text="{Binding ChatPrepareStatusMessage}" TextWrapping="Wrap" />
+							<TextBlock Grid.Column="1" Margin="12,0,0,0"
+									   Text="{Binding ChatPrepareProgressPercentText}" />
+						</Grid>
+						<StackPanel Orientation="Horizontal" Spacing="8">
+							<Button Classes="settings-action"
+									Content="Download / prepare"
+									Command="{Binding PrepareEmbeddedChatModelCommand}" />
+							<Button Classes="settings-action"
+									Content="Cancel"
+									Command="{Binding CancelEmbeddedChatPrepareCommand}"
+									IsVisible="{Binding ChatPrepareInProgress}" />
+						</StackPanel>
+						<StackPanel Orientation="Horizontal" Spacing="12">
+							<Button Classes="settings-action" Padding="0"
+									Content="Show in folder"
+									Command="{Binding ShowEmbeddedChatModelInFolderCommand}" />
+							<Button Classes="settings-action" Padding="0"
+									Content="Delete model"
+									Command="{Binding DeleteEmbeddedChatModelCommand}" />
+						</StackPanel>
+					</StackPanel>
+				</StackPanel>
+			</Border>
+		</StackPanel>
+
 		<!-- AI Chat -->
 		<StackPanel Name="AiChat" Spacing="4" IsVisible="False">
 			<TextBlock Classes="page-title" Text="AI Chat" />
@@ -746,7 +851,7 @@
 					<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
 						<StackPanel Grid.Column="0">
 							<TextBlock Classes="row-title" Text="Enable AI Chat" />
-							<TextBlock Classes="row-desc" Text='Enable the AI Chat dock panel and "Fix in AI Chat" actions. Supports Codex/ChatGPT, Ollama and LM Studio. Off by default.' />
+							<TextBlock Classes="row-desc" Text='Enable the AI Chat dock panel and "Fix in AI Chat" actions. Supports Codex/ChatGPT, any OpenAI-compatible server and the Embedded backend. Off by default.' />
 						</StackPanel>
 						<ToggleSwitch Grid.Column="1" Classes="settings-control"
 									  IsChecked="{Binding EnableAiChat}" />
@@ -794,6 +899,30 @@
 									</DataTemplate>
 								</ComboBox.ItemTemplate>
 							</ComboBox>
+						</Grid>
+						<Separator Classes="settings-sep" />
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="OpenAI Compatible endpoint" />
+								<TextBlock Classes="row-desc" Text="Base URL of the OpenAI-compatible server (LM Studio http://localhost:1234/v1, Ollama http://localhost:11434/v1, llama.cpp, vLLM, …)." TextWrapping="Wrap" />
+							</StackPanel>
+							<TextBox Grid.Column="1" Classes="settings-control"
+									 Text="{Binding AiChatOpenAiCompatibleEndpoint}"
+									 MinWidth="220"
+									 HorizontalAlignment="Right"
+									 VerticalAlignment="Center" />
+						</Grid>
+						<Separator Classes="settings-sep" />
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="API key (optional)" />
+								<TextBlock Classes="row-desc" Text="Bearer token for hosted OpenAI-compatible services. Leave empty for local servers (LM Studio, Ollama, llama.cpp)." />
+							</StackPanel>
+							<TextBox Grid.Column="1" Classes="settings-control"
+									 Text="{Binding AiChatOpenAiCompatibleApiKey}"
+									 MinWidth="180"
+									 HorizontalAlignment="Right"
+									 VerticalAlignment="Center" />
 						</Grid>
 						<Separator Classes="settings-sep" />
 						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">

@@ -7,7 +7,7 @@ JustyBase is an Avalonia desktop SQL IDE with a plugin-based database layer.
 ```text
 JustyBase (UI host: Views, ViewModels, app services)
   ├─ SqlEditor.Avalonia          # SQL editor control (+ optional FIM ghost text)
-  ├─ JustyBase.Ai.Fim            # Embedded LLamaSharp Fill-in-the-Middle (opt-in)
+  ├─ JustyBase.Ai.Embedded       # Embedded llama.cpp (llama-server) models & subprocesses
   ├─ JustyBase.Common            # config, contracts, shared models
   ├─ JustyBase.PluginCommon      # IDatabaseService and plugin contracts
   ├─ JustyBase.PluginBase        # DatabaseService base + plugin loader
@@ -25,16 +25,16 @@ External:
 - **DI** via `Microsoft.Extensions.DependencyInjection` (`ServiceCollectionExtensions`)
 - Views are resolved by `ViewLocator` (constructor injection preferred over service locator)
 
-## Embedded FIM (optional)
+## Embedded AI (optional)
 
-Local **Fill-in-the-Middle** SQL ghost text — and the same GGUF host for **Git commit message** drafts (plain completion, not FIM tokens).
+Local **Fill-in-the-Middle** SQL ghost text — served by a bundled llama.cpp `llama-server` subprocess — and the same FIM server for **Git commit message** drafts (plain completion, not FIM tokens). A second llama-server subprocess hosts the **Embedded (local)** AI chat backend with tool calling.
 
 - User guide: [EMBEDDED_FIM.md](EMBEDDED_FIM.md)
-- Interface: `ICompletionProvider` in `JustyBase.Ai.Fim`; commit messages via `IGitCommitMessageAiService`
+- Interface: `ICompletionProvider` in `JustyBase.Ai.Embedded`; commit messages via `IGitCommitMessageAiService`
 - Editor: `InlineCompletionController` (configurable debounce, Tab accept)
-- Settings (`AppOptions`): `EnableEmbeddedFimAi` (default off), model id / presets / delay / GPU knobs (see EMBEDDED_FIM.md)
-- Models downloaded to `%LOCALAPPDATA%/JustyBase/models/`
-- Native AOT: FIM stays in the binary; leave `EnableEmbeddedFimAi` off if unused — see [llamasharp-fim-aot.md](internal/llamasharp-fim-aot.md)
+- Settings (`AppOptions`): `EnableFimServer` / `EnableEmbeddedChatAi` (default off), model ids / presets / delay / GPU knobs (see EMBEDDED_FIM.md)
+- Models downloaded to `%LOCALAPPDATA%/JustyBase/models/`; llama-server binary to `%LOCALAPPDATA%/JustyBase/llama-server/`
+- Native AOT: the engine is an external native process, so there is no AOT impact on the JustyBase binary
 
 ## Git tool
 

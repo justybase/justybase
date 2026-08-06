@@ -28,16 +28,6 @@
 		<!--<PublishReadyToRun>false</PublishReadyToRun>
 		<SelfContained>false</SelfContained>-->
 	</PropertyGroup>
-	<!--
-	  Embedded FIM (LLamaSharp): included in all builds by default — including AOT publish.
-	  Users who do not want it leave EnableEmbeddedFimAi off in Preferences (default).
-	  Escape hatch only: -p:EnableEmbeddedFim=false
-	  AOT notes: docs/internal/llamasharp-fim-aot.md
-	-->
-	<PropertyGroup>
-		<EnableEmbeddedFim Condition="'$(EnableEmbeddedFim)' == ''">true</EnableEmbeddedFim>
-		<DefineConstants Condition="'$(EnableEmbeddedFim)' == 'true'">$(DefineConstants);EMBEDDED_FIM</DefineConstants>
-	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(EnableAOT)' == 'true'">
     <PublishAot>true</PublishAot>
     <TrimMode>link</TrimMode>
@@ -79,9 +69,6 @@
 		<assembly fullname="Avalonia.Controls.DataGrid" preserve="All" />
 		-->
 	</ItemGroup>
-	<ItemGroup Condition="'$(EnableEmbeddedFim)' != 'true'">
-		<Compile Remove="Services\Fim\**\*" />
-	</ItemGroup>
 	<ItemGroup>
 		<AvaloniaResource Include="Assets\**" />
 	</ItemGroup>
@@ -109,7 +96,6 @@
 		<PackageReference Include="Microsoft.Extensions.AI" Version="10.8.3" />
 		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.8.3" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
-		<PackageReference Include="OllamaSharp" Version="5.4.30" />
 		<PackageReference Include="ProDataGrid" Version="12.0.5" />
 		<PackageReference Include="Velopack" Version="1.2.0" />
 		<PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.1" />
@@ -167,7 +153,7 @@
 		
 		<ProjectReference Include="..\Plugins\NetezzaDotnetPlugin\NetezzaDotnetPlugin.csproj" />
 		<ProjectReference Include="..\SqlEditor.Avalonia\SqlEditor.Avalonia.csproj" />
-		<ProjectReference Include="..\JustyBase.Ai.Fim\JustyBase.Ai.Fim.csproj" Condition="'$(EnableEmbeddedFim)' == 'true'" />
+		<ProjectReference Include="..\JustyBase.Ai.Embedded\JustyBase.Ai.Embedded.csproj" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' == 'true'">
 		<ProjectReference Include="$(JustyBaseLocalNetezzaSqlParserProject)" />

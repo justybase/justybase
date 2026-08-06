@@ -1,28 +1,10 @@
-using JustyBase.Ai.Fim.Benchmark;
-using JustyBase.Ai.Fim.Download;
-using JustyBase.Ai.Fim.Prompting;
+using JustyBase.Ai.Embedded.Download;
+using JustyBase.Ai.Embedded.Prompting;
 
 namespace JustyBase.Tests;
 
 public sealed class FimPromptBuilderTests
 {
-    [Fact]
-    public void Qwen_Build_UsesOfficialFimTokens()
-    {
-        var builder = new QwenFimPromptBuilder();
-        var prompt = builder.Build("SELECT ", " FROM t");
-        Assert.Equal("<|fim_prefix|>SELECT <|fim_suffix|> FROM t<|fim_middle|>", prompt);
-        Assert.Contains("<|endoftext|>", builder.StopSequences);
-    }
-
-    [Fact]
-    public void DeepSeek_Build_UsesOfficialFimTokens()
-    {
-        var builder = new DeepSeekFimPromptBuilder();
-        var prompt = builder.Build("SELECT ", " FROM t");
-        Assert.Equal("<｜fim▁begin｜>SELECT <｜fim▁hole｜> FROM t<｜fim▁end｜>", prompt);
-    }
-
     [Fact]
     public void ContextExtractor_RespectsLimitsAndCaret()
     {
@@ -33,18 +15,6 @@ public sealed class FimPromptBuilderTests
         Assert.Equal(50, suffix.Length);
         Assert.Equal(new string('a', 100), prefix);
         Assert.Equal("|" + new string('b', 49), suffix);
-    }
-
-    [Theory]
-    [InlineData("Small", 1229, 819)]
-    [InlineData("medium", 3994, 2150)]
-    [InlineData("LARGE", 11469, 4915)]
-    [InlineData(null, 3994, 2150)]
-    public void ContextExtractor_ResolveWindowLimits(string? window, int prefix, int suffix)
-    {
-        var (p, s) = FimContextExtractor.ResolveWindowLimits(window);
-        Assert.Equal(prefix, p);
-        Assert.Equal(suffix, s);
     }
 
     [Theory]
@@ -64,15 +34,6 @@ public sealed class FimPromptBuilderTests
     }
 
     [Theory]
-    [InlineData(FimGpuClass.None, "Small")]
-    [InlineData(FimGpuClass.Integrated, "Medium")]
-    [InlineData(FimGpuClass.Discrete, "Large")]
-    public void FimHardwareProfiler_SuggestPresetId(FimGpuClass gpuClass, string expected)
-    {
-        Assert.Equal(expected, FimHardwareProfiler.SuggestPresetId(gpuClass));
-    }
-
-    [Theory]
     [InlineData(0, 50)]
     [InlineData(47, 50)]
     [InlineData(200, 200)]
@@ -80,38 +41,6 @@ public sealed class FimPromptBuilderTests
     public void ContextExtractor_ClampMaxTokens(int input, int expected)
     {
         Assert.Equal(expected, FimContextExtractor.ClampMaxTokens(input));
-    }
-
-    [Theory]
-    [InlineData(350, 600, "Excellent")]
-    [InlineData(700, 600, "Good")]
-    [InlineData(1800, 600, "Usable")]
-    [InlineData(3500, 600, "Noticeable")]
-    [InlineData(7000, 600, "Too slow")]
-    public void SpeedBenchmark_EvaluateLatency_HasGuidance(double avgMs, int debounceMs, string expectedFragment)
-    {
-        Assert.Contains(expectedFragment, FimSpeedBenchmark.EvaluateLatency(avgMs, debounceMs), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void SpeedBenchmark_CreateSampleRequest_RespectsWindowAndTokens()
-    {
-        var request = FimSpeedBenchmark.CreateSampleRequest("Large", 80);
-        Assert.Equal(80, request.MaxTokens);
-        // Large = 4096 tok × 4 chars × 0.70/0.30, sample uses ~85% of limits
-        Assert.InRange(request.Prefix.Length, 9000, 11469);
-        Assert.InRange(request.Suffix.Length, 3500, 4915);
-        Assert.Contains("SELECT", request.Prefix, StringComparison.Ordinal);
-        Assert.Contains("FROM customers", request.Suffix, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void SpeedBenchmark_CreateSampleRequest_UsesExplicitBudgets()
-    {
-        var request = FimSpeedBenchmark.CreateSampleRequest(512, 0.60, 0.40, 30);
-        Assert.Equal(30, request.MaxTokens);
-        Assert.InRange(request.Prefix.Length, 800, 1229);
-        Assert.InRange(request.Suffix.Length, 500, 819);
     }
 
     [Fact]
@@ -134,66 +63,30 @@ public sealed class FimPromptBuilderTests
     }
 
     [Fact]
-    public void SpeedBenchmark_FormatComparison_ShowsContextMatrix()
+    public void EmbeddedChatCatalog_ContainsRequestedModels()
     {
-        var profiles = new[]
-        {
-            MakeReport("CPU", "Current", 10, 40, 800),
-            MakeReport("CPU", "Small", 50, 40, 200),
-            MakeReport("GPU", "Current", 80, 120, 300),
-            MakeReport("GPU", "Small", 200, 120, 80),
-        };
-        var text = FimSpeedBenchmark.FormatComparison(new FimBenchmarkComparisonReport("TestModel", 600, profiles));
-        Assert.Contains("PREFILL tok/s", text, StringComparison.Ordinal);
-        Assert.Contains("GENERATE tok/s", text, StringComparison.Ordinal);
-        Assert.Contains("Current", text, StringComparison.Ordinal);
-        Assert.Contains("Small", text, StringComparison.Ordinal);
-        Assert.Contains("CPU", text, StringComparison.Ordinal);
-        Assert.Contains("GPU", text, StringComparison.Ordinal);
-        Assert.Contains("TestModel", text, StringComparison.Ordinal);
+        var catalog = new EmbeddedChatModelCatalog();
+        var ids = catalog.Models.Select(m => m.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.Equal(EmbeddedChatModelIds.Qwen35_4B, catalog.Resolve(null).Id);
+        Assert.Contains(EmbeddedChatModelIds.Qwen35_4B, ids);
+        Assert.Contains(EmbeddedChatModelIds.Qwen35_9B, ids);
+        Assert.Contains(EmbeddedChatModelIds.Qwen36_27B, ids);
+        Assert.Contains(EmbeddedChatModelIds.Qwen36_35BA3B, ids);
+        Assert.Contains(EmbeddedChatModelIds.Gemma4_12B, ids);
+        Assert.Contains(EmbeddedChatModelIds.Gemma4_26BA4B, ids);
+        Assert.Contains(EmbeddedChatModelIds.Gemma4_31B, ids);
+        Assert.Contains(EmbeddedChatModelIds.Devstral2_22B, ids);
     }
 
     [Fact]
-    public void SpeedBenchmark_BuildDefaultContextVariants_IncludesCurrentAndPresets()
+    public void EmbeddedChatCatalog_LicenseModelsRequireAcceptance()
     {
-        var variants = FimSpeedBenchmark.BuildDefaultContextVariants(1536, 0.65, 0.35, 50);
-        Assert.Equal("Current", variants[0].Label);
-        Assert.Contains(variants, v => v.Label == "Small");
-        Assert.Contains(variants, v => v.Label == "Medium");
-        Assert.Contains(variants, v => v.Label == "Large");
-        Assert.Equal(1536, variants[0].MaxPromptTokens);
+        var catalog = new EmbeddedChatModelCatalog();
+        Assert.True(catalog.Resolve(EmbeddedChatModelIds.Gemma4_12B).RequiresLicenseAcceptance);
+        Assert.True(catalog.Resolve(EmbeddedChatModelIds.Gemma4_31B).RequiresLicenseAcceptance);
+        Assert.True(catalog.Resolve(EmbeddedChatModelIds.Gemma4_26BA4B).RequiresLicenseAcceptance);
+        Assert.True(catalog.Resolve(EmbeddedChatModelIds.Devstral2_22B).RequiresLicenseAcceptance);
+        Assert.False(catalog.Resolve(EmbeddedChatModelIds.Qwen35_4B).RequiresLicenseAcceptance);
     }
-
-    private static FimBenchmarkReport MakeReport(
-        string backend,
-        string context,
-        double prefill,
-        double generate,
-        double e2e) =>
-        new(
-            ModelDisplayName: "TestModel",
-            ProfileLabel: $"{backend} · {context}",
-            BackendLabel: backend,
-            ContextLabel: context,
-            GpuLayers: backend == "CPU" ? 0 : 99,
-            ContextWindow: context,
-            PrefixChars: 100,
-            SuffixChars: 50,
-            PrefixLimit: 100,
-            SuffixLimit: 50,
-            MaxTokens: 50,
-            DebounceMs: 600,
-            LoadMs: 1,
-            WarmupMs: 0,
-            WarmupPreview: "preview",
-            Runs: [],
-            AverageE2eMs: e2e,
-            MinE2eMs: (long)e2e,
-            MaxE2eMs: (long)e2e,
-            PrefillTokPerSec: prefill,
-            GenerateTokPerSec: generate,
-            PromptTokenEstimate: 100,
-            DecodeProbeAvgMs: 10,
-            DecodeProbeTokPerSec: generate,
-            Verdict: "Good");
 }

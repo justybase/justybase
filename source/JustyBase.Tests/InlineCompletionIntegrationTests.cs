@@ -1,4 +1,4 @@
-using JustyBase.Ai.Fim.Abstractions;
+using JustyBase.Ai.Embedded.Abstractions;
 using JustyBase.Editor;
 using JustyBase.Editor.InlineCompletion;
 using JustyBase.Services.Fim;

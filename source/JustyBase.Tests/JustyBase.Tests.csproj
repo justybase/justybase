@@ -26,7 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\JustyBase.Ai.Fim\JustyBase.Ai.Fim.csproj" />
+    <ProjectReference Include="..\JustyBase.Ai.Embedded\JustyBase.Ai.Embedded.csproj" />
     <ProjectReference Include="..\JustyBase.Common\JustyBase.Common\JustyBase.Common.csproj" />
     <ProjectReference Include="..\JustyBase.PluginCommon\JustyBase.PluginCommon.csproj" />
     <ProjectReference Include="..\JustyBase.PluginBase\JustyBase.PluginBase.csproj" />

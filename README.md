@@ -55,9 +55,9 @@ It is especially useful for:
 
 - **SQL editor** with syntax highlighting, folding, and autocomplete
 - **Quick Open** via `Ctrl+P` for SQL files, docs, file roots, and known explorer paths
-- **Embedded FIM AI** for local ghost-text SQL completions with LLamaSharp / GGUF
+- **Embedded FIM AI** for local ghost-text SQL completions via a bundled llama.cpp llama-server (GGUF)
 - **Git integration** with status, staging, history, diff, and commit workflow support
-- **AI Copilot** for SQL help using OpenAI-compatible, Ollama, or LM Studio backends
+- **AI Copilot** for SQL help using Codex/ChatGPT, any OpenAI-compatible endpoint, or an embedded local GGUF model
 - **Data grid** with grouping, filtering, and export to Excel, CSV, and Parquet
 - **Multi-connection management** for multiple database sessions
 - **Netezza-first database support** for IBM Netezza Performance Server
@@ -100,7 +100,7 @@ Dark theme screenshots are shown below for a consistent presentation.
 * [AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit) — Avalonia-based text editor (port of AvalonEdit)
 * [SpreadSheetTasks](https://github.com/justybase/SpreadSheetTasks) — Excel I/O
 * [Sylvan CSV](https://github.com/MarkPflug/Sylvan) — fast CSV
-* [LLamaSharp](https://github.com/SciSharp/LLamaSharp) — optional embedded FIM (local GGUF)
+* [llama.cpp](https://github.com/ggml-org/llama.cpp) — bundled `llama-server` for embedded FIM and chat (GGUF)
 * [Velopack](https://velopack.io/) — desktop updates
 
 ## Requirements
@@ -136,11 +136,12 @@ On first launch, add an IBM Netezza connection from the schema or connections UI
 
 AI features are opt-in and disabled by default. The application supports two local/offline paths and several provider-backed chat paths:
 
-- **Embedded FIM** downloads a user-selected GGUF model from the documented model source and runs inference locally through LLamaSharp. SQL text used for a suggestion stays in the local process after the model is downloaded.
-- **Ollama** and **LM Studio** send chat prompts and the SQL context selected by the application to the local endpoint configured by the user. Their privacy and retention depend on that local service and its configuration.
+- **Embedded FIM** downloads a user-selected GGUF model from the documented model source and runs inference locally through a bundled llama.cpp `llama-server` subprocess. SQL text used for a suggestion stays on the workstation after the model is downloaded.
+- **Embedded AI Chat** hosts a user-selected GGUF chat model (Qwen 3.5/3.6, Gemma 4, Devstral 2) on a second bundled `llama-server` subprocess, with tool calling / agent loop supported.
+- **OpenAI Compatible** sends chat prompts and the SQL context selected by the application to the user-configured local endpoint (LM Studio, Ollama `/v1`, llama.cpp, vLLM, …). Their privacy and retention depend on that local service and its configuration.
 - **Codex (ChatGPT)** starts the official Codex CLI app-server and uses the user's existing Codex/ChatGPT authentication. The app does not request or persist an OpenAI API key, but the active SQL document and selected metadata can be sent to the provider as part of a chat request.
 
-The application does not expose arbitrary workspace file reads or result-grid rows to the AI tools. SQL execution and document changes require explicit approval in the UI. Credentials are stored in the application's protected local data store; users should still avoid sending confidential SQL or schema information to any remote provider unless their organization's policy permits it. See [docs/EMBEDDED_FIM.md](docs/EMBEDDED_FIM.md) and [docs/AI_CHAT_CODEX.md](docs/AI_CHAT_CODEX.md) for complete model and provider details.
+The application does not expose arbitrary workspace file reads or result-grid rows to the AI tools. SQL execution and document changes require explicit approval in the UI. Credentials are stored in the application's protected local data store; users should still avoid sending confidential SQL or schema information to any remote provider unless their organization's policy permits it. See [docs/EMBEDDED_FIM.md](docs/EMBEDDED_FIM.md), [docs/EMBEDDED_CHAT.md](docs/EMBEDDED_CHAT.md) and [docs/AI_CHAT_CODEX.md](docs/AI_CHAT_CODEX.md) for complete model and provider details.
 
 ## How to build
 

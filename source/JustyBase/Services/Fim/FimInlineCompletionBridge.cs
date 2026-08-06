@@ -1,5 +1,5 @@
-using JustyBase.Ai.Fim.Abstractions;
-using JustyBase.Ai.Fim.Prompting;
+using JustyBase.Ai.Embedded.Abstractions;
+using JustyBase.Ai.Embedded.Prompting;
 using JustyBase.Editor.InlineCompletion;
 
 namespace JustyBase.Services.Fim;

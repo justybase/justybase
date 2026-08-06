@@ -80,67 +80,81 @@ public sealed class AppOptions
     public string LintSeverityNz102 { get; set; } = "Warning";
 
     /// <summary>
-    /// When true, SQL editors request Fill-in-the-Middle ghost-text via the embedded LLamaSharp provider.
-    /// Model is downloaded on demand to %LOCALAPPDATA%/JustyBase/models/. Default off.
+    /// When true, SQL editors request Fill-in-the-Middle ghost-text via the bundled llama.cpp
+    /// llama-server subprocess hosting a FIM GGUF model. Default off.
     /// </summary>
-    public bool EnableEmbeddedFimAi { get; set; }
+    public bool EnableFimServer { get; set; }
 
     /// <summary>
-    /// Selected embedded FIM model id (see JustyBase.Ai.Fim FimModelIds).
+    /// Selected embedded FIM model id (see JustyBase.Ai.Embedded FimModelIds).
     /// Default: qwen2.5-coder-3b (Medium preset).
     /// </summary>
-    public string EmbeddedFimModelId { get; set; } = "qwen2.5-coder-3b";
+    public string FimModelId { get; set; } = "qwen2.5-coder-3b";
 
     /// <summary>
     /// Idle delay after typing/caret stop before requesting an embedded FIM suggestion.
     /// Allowed: 250, 400, 600, 1000, 2000, 3000. Default 600.
     /// </summary>
-    public int EmbeddedFimDebounceMs { get; set; } = 600;
-
-    /// <summary>Legacy seconds-based debounce (migrated to <see cref="EmbeddedFimDebounceMs"/>).</summary>
-    public int EmbeddedFimDebounceSeconds { get; set; }
+    public int FimDebounceMs { get; set; } = 600;
 
     /// <summary>
     /// Max tokens for a single FIM ghost-text suggestion (20–200, default 50).
     /// </summary>
-    public int EmbeddedFimMaxTokens { get; set; } = 50;
-
-    /// <summary>
-    /// Named preset: Small / Medium / Large / Custom. Individual knobs may diverge → Custom.
-    /// </summary>
-    public string EmbeddedFimPreset { get; set; } = "Medium";
+    public int FimMaxTokens { get; set; } = 50;
 
     /// <summary>Total prompt budget in tokens (prefix+suffix), mapped to chars via ~4 chars/token.</summary>
-    public int EmbeddedFimMaxPromptTokens { get; set; } = 1536;
+    public int FimMaxPromptTokens { get; set; } = 1536;
 
     /// <summary>Share of prompt budget used before the caret (0–1).</summary>
-    public double EmbeddedFimPrefixPercentage { get; set; } = 0.65;
+    public double FimPrefixPercentage { get; set; } = 0.65;
 
     /// <summary>Share of prompt budget used after the caret (0–1).</summary>
-    public double EmbeddedFimSuffixPercentage { get; set; } = 0.35;
+    public double FimSuffixPercentage { get; set; } = 0.35;
+
+    /// <summary>Named preset: Small / Medium / Large / Custom. Individual knobs may diverge → Custom.</summary>
+    public string FimPreset { get; set; } = "Medium";
 
     /// <summary>
-    /// Legacy context-window name. Kept for config migration; prefer <see cref="EmbeddedFimPreset"/>.
+    /// llama.cpp gpu_layers offloaded for the FIM server (0 = CPU compute, 99 = as many as fit).
+    /// Used when LlamaServerPreferVulkan is true. Default 99.
     /// </summary>
-    public string EmbeddedFimContextWindow { get; set; } = "Medium";
+    public int FimGpuLayers { get; set; } = 99;
 
-    /// <summary>
-    /// Prefer LLamaSharp Vulkan backend (AMD/Intel iGPU, etc.). Must be set before first model load; restart if changed after load.
-    /// Default true. Set false for CPU-only native library selection.
-    /// </summary>
-    public bool EmbeddedFimPreferVulkan { get; set; } = true;
-
-    /// <summary>
-    /// llama.cpp gpu_layers to offload (0 = CPU compute, 99 = as many as fit). Used when PreferVulkan is true.
-    /// Default 99.
-    /// </summary>
-    public int EmbeddedFimGpuLayers { get; set; } = 99;
+    /// <summary>Context size (tokens) for the FIM llama-server. Default 4096.</summary>
+    public int FimCtxSize { get; set; } = 4096;
 
     /// <summary>Model ids for which the user accepted a required third-party license (Codestral, Gemma, …).</summary>
-    public List<string> EmbeddedFimAcceptedLicenseModelIds { get; set; } = [];
+    public List<string> FimAcceptedLicenseModelIds { get; set; } = [];
 
-    /// <summary>True after a one-shot hardware-based preset suggestion was applied (or dismissed).</summary>
-    public bool EmbeddedFimAutoPresetApplied { get; set; }
+    /// <summary>
+    /// When true, AI Chat offers the "Embedded (local)" backend: a bundled llama.cpp llama-server
+    /// hosting the selected chat GGUF model. Model is downloaded in Settings first. Default off.
+    /// </summary>
+    public bool EnableEmbeddedChatAi { get; set; }
+
+    /// <summary>
+    /// Selected embedded chat model id (see JustyBase.Ai.Embedded EmbeddedChatModelIds).
+    /// Default: qwen3.5-4b (smallest, iGPU friendly).
+    /// </summary>
+    public string EmbeddedChatModelId { get; set; } = "qwen3.5-4b";
+
+    /// <summary>
+    /// llama.cpp gpu_layers offloaded for the embedded chat server (0 = CPU, 99 = as many as fit).
+    /// Used when LlamaServerPreferVulkan is true. Default 99.
+    /// </summary>
+    public int EmbeddedChatGpuLayers { get; set; } = 99;
+
+    /// <summary>Context size (tokens) for the embedded chat llama-server. Default 4096.</summary>
+    public int EmbeddedChatCtxSize { get; set; } = 4096;
+
+    /// <summary>Embedded chat model ids for which the user accepted a required third-party license.</summary>
+    public List<string> EmbeddedChatAcceptedLicenseModelIds { get; set; } = [];
+
+    /// <summary>
+    /// Prefer the Vulkan variant of the bundled llama-server binary (AMD/Intel iGPU, etc.).
+    /// Off selects the CPU (avx2) build. Default true.
+    /// </summary>
+    public bool LlamaServerPreferVulkan { get; set; } = true;
 
     // AI Chat sessions history
     public List<ChatSession> ChatSessions { get; set; } = [];
@@ -153,9 +167,16 @@ public sealed class AppOptions
     public bool EnableAiChat { get; set; }
 
     /// <summary>
-    /// Default backend id: "codex", "ollama" or "lmstudio".
+    /// Default backend id: "codex", "openai-compatible" or "embedded".
+    /// Legacy "ollama" / "lmstudio" values are migrated to "openai-compatible".
     /// </summary>
     public string? AiChatBackendId { get; set; } = "codex";
+
+    /// <summary>Base URL of the OpenAI-compatible backend (LM Studio, Ollama /v1, llama.cpp, vLLM, …).</summary>
+    public string AiChatOpenAiCompatibleEndpoint { get; set; } = "http://localhost:1234/v1";
+
+    /// <summary>Optional bearer API key for the OpenAI-compatible backend (empty for local servers).</summary>
+    public string? AiChatOpenAiCompatibleApiKey { get; set; }
 
     /// <summary>
     /// Default chat model id. The value is also updated when the model is selected in the AI Chat toolbar.

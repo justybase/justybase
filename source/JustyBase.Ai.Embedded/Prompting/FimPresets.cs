@@ -1,4 +1,4 @@
-namespace JustyBase.Ai.Fim.Prompting;
+namespace JustyBase.Ai.Embedded.Prompting;
 
 /// <summary>Named FIM quality/speed presets. Individual options remain editable (→ Custom).</summary>
 public static class FimPresets
@@ -61,12 +61,6 @@ public static class FimPresets
         if (string.Equals(id, Large, StringComparison.OrdinalIgnoreCase))
         {
             return Large;
-        }
-
-        // Legacy context-window names map onto presets.
-        if (string.Equals(id, "Custom", StringComparison.OrdinalIgnoreCase))
-        {
-            return Custom;
         }
 
         return Medium;

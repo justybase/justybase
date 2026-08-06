@@ -1,16 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using JustyBase.Ai.Embedded.Abstractions;
+using JustyBase.Ai.Embedded.Download;
+using JustyBase.Ai.Embedded.Prompting;
 using JustyBase.Common;
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Models;
 using JustyBase.Services;
-#if EMBEDDED_FIM
-using JustyBase.Ai.Fim.Abstractions;
-using JustyBase.Ai.Fim.Benchmark;
-using JustyBase.Ai.Fim.Download;
-using JustyBase.Ai.Fim.Prompting;
+using JustyBase.Services.Embedded;
 using JustyBase.Services.Fim;
-#endif
 using JustyBase.Editor.InlineCompletion;
 using JustyBase.PluginCommon.Contracts;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,16 +23,16 @@ public partial class SettingsViewModel : DocumentBaseVM
     private readonly IGeneralApplicationData _generalApplicationData;
     private readonly IClipboardService _clipboardService;
     private readonly ICopilotChatService _chatService;
-#if EMBEDDED_FIM
     private readonly IFimModelBootstrapService _fimBootstrap;
-    private readonly IFimModelCatalog _fimCatalog;
-#endif
+    private readonly FimModelCatalog _fimCatalog;
+    private readonly EmbeddedChatModelCatalog _embeddedChatCatalog;
+    private readonly IModelStore _embeddedChatStore;
     private bool _fimPrepareInFlight;
+    private bool _chatPrepareInFlight;
     private bool _suppressFimSideEffects;
     private bool _applyingFimPreset;
-    private bool _fimHardwareProfiled;
-    private string _suggestedFimPresetId = "Medium";
     private CancellationTokenSource? _fimPrepareCts;
+    private CancellationTokenSource? _chatPrepareCts;
     private DateTime _lastFimProgressUiUtc = DateTime.MinValue;
 
     private bool _suppressAiChatSideEffects;
@@ -46,12 +44,11 @@ public partial class SettingsViewModel : DocumentBaseVM
         IActiveDocumentManager activeDocumentManager,
         IAvaloniaSpecificHelpers avaloniaSpecificHelpers,
         IClipboardService clipboardService,
-        ICopilotChatService chatService
-#if EMBEDDED_FIM
-        , IFimModelBootstrapService fimBootstrap
-        , IFimModelCatalog fimCatalog
-#endif
-        )
+        ICopilotChatService chatService,
+        IFimModelBootstrapService fimBootstrap,
+        FimModelCatalog fimCatalog,
+        EmbeddedChatModelCatalog embeddedChatCatalog,
+        [FromKeyedServices(EmbeddedAiServiceCollectionExtensions.ChatStoreKey)] IModelStore embeddedChatStore)
         : base(generalApplicationData, messageForUserTools, documentCloseDecisionService, activeDocumentManager)
     {
         _generalApplicationData = generalApplicationData;
@@ -59,10 +56,11 @@ public partial class SettingsViewModel : DocumentBaseVM
         _clipboardService = clipboardService;
         _chatService = chatService;
         _ = avaloniaSpecificHelpers;
-#if EMBEDDED_FIM
         _fimBootstrap = fimBootstrap ?? throw new ArgumentNullException(nameof(fimBootstrap));
         _fimCatalog = fimCatalog ?? throw new ArgumentNullException(nameof(fimCatalog));
-        EmbeddedFimModelChoices = _fimCatalog.Models
+        _embeddedChatCatalog = embeddedChatCatalog ?? throw new ArgumentNullException(nameof(embeddedChatCatalog));
+        _embeddedChatStore = embeddedChatStore ?? throw new ArgumentNullException(nameof(embeddedChatStore));
+        FimModelChoices = _fimCatalog.Models
             .Select(static m => new FimModelChoiceItem(
                 Id: m.Id,
                 DisplayName: m.DisplayName,
@@ -75,18 +73,19 @@ public partial class SettingsViewModel : DocumentBaseVM
                 LicenseUrl: m.LicenseUrl?.ToString(),
                 LicenseSummary: m.LicenseSummary))
             .ToArray();
-#else
-        EmbeddedFimModelChoices =
-        [
-            new(
-                Id: "qwen2.5-coder-7b",
-                DisplayName: "Qwen2.5-Coder 7B (stripped build)",
-                SizeLabel: "n/a",
-                Notes: "Embedded FIM was stripped from this binary.",
-                SourceUrl: "https://huggingface.co/Qwen/Qwen2.5-Coder-7B",
-                Family: "Qwen (recommended)"),
-        ];
-#endif
+        EmbeddedChatModelChoices = _embeddedChatCatalog.Models
+            .Select(static m => new FimModelChoiceItem(
+                Id: m.Id,
+                DisplayName: m.DisplayName,
+                SizeLabel: m.ApproxSizeLabel,
+                Notes: m.Notes,
+                SourceUrl: m.SourceModelUrl.ToString(),
+                Family: m.Family,
+                RequiresLicenseAcceptance: m.RequiresLicenseAcceptance,
+                LicenseName: m.LicenseName,
+                LicenseUrl: m.LicenseUrl?.ToString(),
+                LicenseSummary: m.LicenseSummary))
+            .ToArray();
         Title = "Settings";
 
         ReloadSettings();
@@ -179,35 +178,32 @@ public partial class SettingsViewModel : DocumentBaseVM
         try
         {
             MigrateLegacyEmbeddedFimPreset();
-            EnableEmbeddedFimAi = _generalApplicationData.Config.EnableEmbeddedFimAi;
+            EnableEmbeddedFimAi = _generalApplicationData.Config.EnableFimServer;
             SelectedEmbeddedFimDebounce = EmbeddedFimDebounceChoices.FirstOrDefault(c =>
                 c.Milliseconds == ResolveEmbeddedFimDebounceMs(_generalApplicationData.Config))
                 ?? EmbeddedFimDebounceChoices.First(c => c.Milliseconds == 600);
             EmbeddedFimMaxPromptTokens = ClampEmbeddedFimMaxPromptTokens(
-                _generalApplicationData.Config.EmbeddedFimMaxPromptTokens);
+                _generalApplicationData.Config.FimMaxPromptTokens);
             EmbeddedFimPrefixPercentage = ClampEmbeddedFimPercentage(
-                _generalApplicationData.Config.EmbeddedFimPrefixPercentage,
+                _generalApplicationData.Config.FimPrefixPercentage,
                 0.65);
             EmbeddedFimSuffixPercentage = ClampEmbeddedFimPercentage(
-                _generalApplicationData.Config.EmbeddedFimSuffixPercentage,
+                _generalApplicationData.Config.FimSuffixPercentage,
                 0.35);
-            EmbeddedFimMaxTokens = ClampEmbeddedFimMaxTokens(_generalApplicationData.Config.EmbeddedFimMaxTokens);
-            SelectedEmbeddedFimModel = EmbeddedFimModelChoices.FirstOrDefault(m =>
-                string.Equals(m.Id, _generalApplicationData.Config.EmbeddedFimModelId, StringComparison.OrdinalIgnoreCase))
-                ?? EmbeddedFimModelChoices[0];
+            EmbeddedFimMaxTokens = ClampEmbeddedFimMaxTokens(_generalApplicationData.Config.FimMaxTokens);
+            SelectedEmbeddedFimModel = FimModelChoices.FirstOrDefault(m =>
+                string.Equals(m.Id, _generalApplicationData.Config.FimModelId, StringComparison.OrdinalIgnoreCase))
+                ?? FimModelChoices[0];
             SelectedEmbeddedFimPreset = EmbeddedFimPresetChoices.FirstOrDefault(c =>
-                string.Equals(c.Id, _generalApplicationData.Config.EmbeddedFimPreset, StringComparison.OrdinalIgnoreCase))
+                string.Equals(c.Id, _generalApplicationData.Config.FimPreset, StringComparison.OrdinalIgnoreCase))
                 ?? EmbeddedFimPresetChoices[1];
-            EmbeddedFimPreferVulkan = _generalApplicationData.Config.EmbeddedFimPreferVulkan;
+            EmbeddedFimPreferVulkan = _generalApplicationData.Config.LlamaServerPreferVulkan;
             EmbeddedFimGpuLayers = Math.Clamp(
-                _generalApplicationData.Config.EmbeddedFimGpuLayers < 0
+                _generalApplicationData.Config.FimGpuLayers < 0
                     ? 99
-                    : _generalApplicationData.Config.EmbeddedFimGpuLayers,
+                    : _generalApplicationData.Config.FimGpuLayers,
                 0,
                 999);
-
-            EnsureFimHardwareSuggestion();
-            // Auto-apply runs asynchronously after GPU detect (see BeginFimHardwareProfiling).
         }
         finally
         {
@@ -215,6 +211,34 @@ public partial class SettingsViewModel : DocumentBaseVM
         }
 
         RefreshEmbeddedFimDiskStatus();
+
+        // === Embedded chat (llama-server) settings ===
+        _suppressFimSideEffects = true;
+        try
+        {
+            EnableEmbeddedChatAi = _generalApplicationData.Config.EnableEmbeddedChatAi;
+            SelectedEmbeddedChatModel = EmbeddedChatModelChoices.FirstOrDefault(m =>
+                string.Equals(m.Id, _generalApplicationData.Config.EmbeddedChatModelId, StringComparison.OrdinalIgnoreCase))
+                ?? EmbeddedChatModelChoices[0];
+            EmbeddedChatGpuLayers = Math.Clamp(
+                _generalApplicationData.Config.EmbeddedChatGpuLayers < 0
+                    ? 99
+                    : _generalApplicationData.Config.EmbeddedChatGpuLayers,
+                0,
+                999);
+            EmbeddedChatCtxSize = Math.Clamp(
+                _generalApplicationData.Config.EmbeddedChatCtxSize <= 0
+                    ? 4096
+                    : _generalApplicationData.Config.EmbeddedChatCtxSize,
+                512,
+                131_072);
+        }
+        finally
+        {
+            _suppressFimSideEffects = false;
+        }
+
+        RefreshEmbeddedChatDiskStatus();
 
         // === AI Chat settings ===
         _suppressAiChatSideEffects = true;
@@ -234,6 +258,8 @@ public partial class SettingsViewModel : DocumentBaseVM
                 _generalApplicationData.Config.AiChatHistoryLimit <= 0 ? 10 : _generalApplicationData.Config.AiChatHistoryLimit,
                 0, 100);
             AiChatSystemPromptOverride = _generalApplicationData.Config.AiChatSystemPromptOverride ?? string.Empty;
+            AiChatOpenAiCompatibleEndpoint = _generalApplicationData.Config.AiChatOpenAiCompatibleEndpoint;
+            AiChatOpenAiCompatibleApiKey = _generalApplicationData.Config.AiChatOpenAiCompatibleApiKey ?? string.Empty;
             AiChatTemperature = ClampAiChatTemperature(_generalApplicationData.Config.AiChatTemperature);
             AiChatMaxTokens = ClampAiChatMaxTokens(_generalApplicationData.Config.AiChatMaxTokens);
             AiChatRequestTimeoutMs = Math.Clamp(
@@ -603,21 +629,15 @@ public partial class SettingsViewModel : DocumentBaseVM
 
             var snapped = InlineCompletionController.SnapDebounceMs(value.Milliseconds);
             EmbeddedFimDebounceMs = snapped;
-            _generalApplicationData.Config.EmbeddedFimDebounceMs = snapped;
-            _generalApplicationData.Config.EmbeddedFimDebounceSeconds = 0;
+            _generalApplicationData.Config.FimDebounceMs = snapped;
         }
     }
 
     private static int ResolveEmbeddedFimDebounceMs(AppOptions config)
     {
-        if (config.EmbeddedFimDebounceMs > 0)
+        if (config.FimDebounceMs > 0)
         {
-            return InlineCompletionController.SnapDebounceMs(config.EmbeddedFimDebounceMs);
-        }
-
-        if (config.EmbeddedFimDebounceSeconds > 0)
-        {
-            return InlineCompletionController.DebounceMsFromSeconds(config.EmbeddedFimDebounceSeconds);
+            return InlineCompletionController.SnapDebounceMs(config.FimDebounceMs);
         }
 
         return InlineCompletionController.DefaultDebounceMs;
@@ -633,11 +653,10 @@ public partial class SettingsViewModel : DocumentBaseVM
                 return;
             }
 
-            _generalApplicationData.Config.EnableEmbeddedFimAi = value;
+            _generalApplicationData.Config.EnableFimServer = value;
 
             if (value && !_suppressFimSideEffects)
             {
-#if EMBEDDED_FIM
                 if (!_fimBootstrap.IsSelectedModelPresent)
                 {
                     _messageForUserTools.ShowSimpleMessageBoxInstance(
@@ -646,11 +665,6 @@ public partial class SettingsViewModel : DocumentBaseVM
                         "After the download, the current SQL tab will start using FIM without restarting the application.",
                         "FIM model required");
                 }
-#else
-                _messageForUserTools.ShowSimpleMessageBoxInstance(
-                    "Embedded FIM is not available in this build.",
-                    "FIM unavailable");
-#endif
             }
         }
     }
@@ -666,7 +680,7 @@ public partial class SettingsViewModel : DocumentBaseVM
                 return;
             }
 
-            _generalApplicationData.Config.EmbeddedFimMaxTokens = clamped;
+            _generalApplicationData.Config.FimMaxTokens = clamped;
             OnPropertyChanged(nameof(EmbeddedFimMaxTokensLabel));
             MarkPresetCustom();
         }
@@ -685,7 +699,7 @@ public partial class SettingsViewModel : DocumentBaseVM
                 return;
             }
 
-            _generalApplicationData.Config.EmbeddedFimMaxPromptTokens = clamped;
+            _generalApplicationData.Config.FimMaxPromptTokens = clamped;
             MarkPresetCustom();
         }
     }
@@ -701,7 +715,7 @@ public partial class SettingsViewModel : DocumentBaseVM
                 return;
             }
 
-            _generalApplicationData.Config.EmbeddedFimPrefixPercentage = clamped;
+            _generalApplicationData.Config.FimPrefixPercentage = clamped;
             MarkPresetCustom();
         }
     }
@@ -717,7 +731,7 @@ public partial class SettingsViewModel : DocumentBaseVM
                 return;
             }
 
-            _generalApplicationData.Config.EmbeddedFimSuffixPercentage = clamped;
+            _generalApplicationData.Config.FimSuffixPercentage = clamped;
             MarkPresetCustom();
         }
     }
@@ -740,10 +754,7 @@ public partial class SettingsViewModel : DocumentBaseVM
                 return;
             }
 
-            _generalApplicationData.Config.EmbeddedFimPreset = value.Id;
-            _generalApplicationData.Config.EmbeddedFimContextWindow = value.Id == "Custom"
-                ? _generalApplicationData.Config.EmbeddedFimContextWindow
-                : value.Id;
+            _generalApplicationData.Config.FimPreset = value.Id;
             OnPropertyChanged(nameof(SelectedEmbeddedFimPresetNotes));
 
             if (!_suppressFimSideEffects && !_applyingFimPreset
@@ -757,12 +768,6 @@ public partial class SettingsViewModel : DocumentBaseVM
     public string SelectedEmbeddedFimPresetNotes =>
         SelectedEmbeddedFimPreset?.Notes ?? "Select a quality/speed preset.";
 
-    public string EmbeddedFimHardwareSuggestion
-    {
-        get;
-        private set => SetProperty(ref field, value);
-    } = "Detecting hardware…";
-
     public bool EmbeddedFimPreferVulkan
     {
         get;
@@ -773,13 +778,13 @@ public partial class SettingsViewModel : DocumentBaseVM
                 return;
             }
 
-            _generalApplicationData.Config.EmbeddedFimPreferVulkan = value;
+            _generalApplicationData.Config.LlamaServerPreferVulkan = value;
             OnPropertyChanged(nameof(EmbeddedFimGpuLayersEnabled));
             if (!_suppressFimSideEffects)
             {
                 FimPrepareStatusMessage = value
-                    ? "Vulkan preferred — reload model (Prepare) or restart if the native backend already loaded as CPU."
-                    : "CPU backend preferred — restart the app if Vulkan was already loaded this session.";
+                    ? "Vulkan preferred — reload the model (Prepare) for the new binary variant to take effect."
+                    : "CPU (avx2) binary preferred — reload the model (Prepare) for the new binary variant to take effect.";
             }
         }
     }
@@ -795,7 +800,7 @@ public partial class SettingsViewModel : DocumentBaseVM
                 return;
             }
 
-            _generalApplicationData.Config.EmbeddedFimGpuLayers = clamped;
+            _generalApplicationData.Config.FimGpuLayers = clamped;
             OnPropertyChanged(nameof(EmbeddedFimGpuLayersLabel));
             if (!_suppressFimSideEffects)
             {
@@ -815,7 +820,6 @@ public partial class SettingsViewModel : DocumentBaseVM
 
     private async Task ReloadFimModelAfterGpuChangeAsync()
     {
-#if EMBEDDED_FIM
         if (_fimPrepareInFlight || !FimModelPresentOnDisk)
         {
             return;
@@ -833,9 +837,6 @@ public partial class SettingsViewModel : DocumentBaseVM
         {
             FimPrepareStatusMessage = ex.Message;
         }
-#else
-        await Task.CompletedTask.ConfigureAwait(false);
-#endif
     }
 
     private static int ClampEmbeddedFimMaxTokens(int value)
@@ -866,7 +867,7 @@ public partial class SettingsViewModel : DocumentBaseVM
     private void MigrateLegacyEmbeddedFimPreset()
     {
         var cfg = _generalApplicationData.Config;
-        var preset = cfg.EmbeddedFimPreset;
+        var preset = cfg.FimPreset;
         var known = string.Equals(preset, "Small", StringComparison.OrdinalIgnoreCase)
             || string.Equals(preset, "Medium", StringComparison.OrdinalIgnoreCase)
             || string.Equals(preset, "Large", StringComparison.OrdinalIgnoreCase)
@@ -874,65 +875,8 @@ public partial class SettingsViewModel : DocumentBaseVM
 
         if (string.IsNullOrWhiteSpace(preset) || !known)
         {
-#if EMBEDDED_FIM
-            cfg.EmbeddedFimPreset = FimPresets.Normalize(cfg.EmbeddedFimContextWindow);
-#else
-            cfg.EmbeddedFimPreset = string.IsNullOrWhiteSpace(cfg.EmbeddedFimContextWindow)
-                ? "Medium"
-                : cfg.EmbeddedFimContextWindow;
-#endif
+            cfg.FimPreset = FimPresets.Normalize(preset);
         }
-    }
-
-    private void EnsureFimHardwareSuggestion()
-    {
-        if (_fimHardwareProfiled)
-        {
-            return;
-        }
-
-        _fimHardwareProfiled = true;
-        EmbeddedFimHardwareSuggestion = "Detecting GPU for preset suggestion…";
-        _ = BeginFimHardwareProfilingAsync();
-    }
-
-    private async Task BeginFimHardwareProfilingAsync()
-    {
-#if EMBEDDED_FIM
-        FimGpuClass gpu;
-        string suggested;
-        string description;
-        try
-        {
-            (gpu, suggested, description) = await Task.Run(() =>
-            {
-                var detected = FimHardwareProfiler.DetectGpuClass();
-                var preset = FimHardwareProfiler.SuggestPresetId(detected);
-                return (detected, preset, FimHardwareProfiler.DescribeSuggestion(detected, preset));
-            }).ConfigureAwait(true);
-        }
-#pragma warning disable CA1031
-        catch
-#pragma warning restore CA1031
-        {
-            gpu = FimGpuClass.None;
-            suggested = FimPresets.Small;
-            description = FimHardwareProfiler.DescribeSuggestion(gpu, suggested);
-        }
-
-        _suggestedFimPresetId = suggested;
-        EmbeddedFimHardwareSuggestion = description;
-
-        if (!_generalApplicationData.Config.EmbeddedFimAutoPresetApplied)
-        {
-            ApplyPreset(_suggestedFimPresetId);
-            _generalApplicationData.Config.EmbeddedFimAutoPresetApplied = true;
-        }
-#else
-        await Task.CompletedTask.ConfigureAwait(false);
-        _suggestedFimPresetId = "Medium";
-        EmbeddedFimHardwareSuggestion = "Hardware detection unavailable in this build.";
-#endif
     }
 
     private void ApplyPreset(string presetId)
@@ -943,16 +887,7 @@ public partial class SettingsViewModel : DocumentBaseVM
             return;
         }
 
-#if EMBEDDED_FIM
         var def = FimPresets.Get(presetId);
-#else
-        var def = presetId.ToUpperInvariant() switch
-        {
-            "SMALL" => (Id: "Small", MaxPromptTokens: 512, PrefixPercentage: 0.60, SuffixPercentage: 0.40, MaxGenerationTokens: 30, ModelId: "qwen2.5-coder-1.5b"),
-            "LARGE" => (Id: "Large", MaxPromptTokens: 4096, PrefixPercentage: 0.70, SuffixPercentage: 0.30, MaxGenerationTokens: 80, ModelId: "qwen2.5-coder-7b"),
-            _ => (Id: "Medium", MaxPromptTokens: 1536, PrefixPercentage: 0.65, SuffixPercentage: 0.35, MaxGenerationTokens: 50, ModelId: "qwen2.5-coder-3b"),
-        };
-#endif
 
         _applyingFimPreset = true;
         try
@@ -964,15 +899,14 @@ public partial class SettingsViewModel : DocumentBaseVM
             EmbeddedFimPrefixPercentage = def.PrefixPercentage;
             EmbeddedFimSuffixPercentage = def.SuffixPercentage;
             EmbeddedFimMaxTokens = def.MaxGenerationTokens;
-            var model = EmbeddedFimModelChoices.FirstOrDefault(m =>
+            var model = FimModelChoices.FirstOrDefault(m =>
                 string.Equals(m.Id, def.ModelId, StringComparison.OrdinalIgnoreCase));
             if (model is not null)
             {
                 SelectedEmbeddedFimModel = model;
             }
 
-            _generalApplicationData.Config.EmbeddedFimPreset = def.Id;
-            _generalApplicationData.Config.EmbeddedFimContextWindow = def.Id;
+            _generalApplicationData.Config.FimPreset = def.Id;
         }
         finally
         {
@@ -987,12 +921,12 @@ public partial class SettingsViewModel : DocumentBaseVM
             return;
         }
 
-        if (string.Equals(_generalApplicationData.Config.EmbeddedFimPreset, "Custom", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(_generalApplicationData.Config.FimPreset, "Custom", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        _generalApplicationData.Config.EmbeddedFimPreset = "Custom";
+        _generalApplicationData.Config.FimPreset = "Custom";
         var custom = EmbeddedFimPresetChoices.First(c => c.Id == "Custom");
         if (!ReferenceEquals(SelectedEmbeddedFimPreset, custom))
         {
@@ -1011,11 +945,10 @@ public partial class SettingsViewModel : DocumentBaseVM
     [RelayCommand]
     private void ApplySuggestedFimPreset()
     {
-        EnsureFimHardwareSuggestion();
-        ApplyPreset(_suggestedFimPresetId);
+        ApplyPreset("Medium");
     }
 
-    public IReadOnlyList<FimModelChoiceItem> EmbeddedFimModelChoices { get; }
+    public IReadOnlyList<FimModelChoiceItem> FimModelChoices { get; }
 
     public FimModelChoiceItem? SelectedEmbeddedFimModel
     {
@@ -1040,7 +973,7 @@ public partial class SettingsViewModel : DocumentBaseVM
                 return;
             }
 
-            _generalApplicationData.Config.EmbeddedFimModelId = value.Id;
+            _generalApplicationData.Config.FimModelId = value.Id;
             OnPropertyChanged(nameof(SelectedEmbeddedFimModelNotes));
             if (!_suppressFimSideEffects && !_applyingFimPreset)
             {
@@ -1064,7 +997,7 @@ public partial class SettingsViewModel : DocumentBaseVM
             return false;
         }
 
-        var accepted = _generalApplicationData.Config.EmbeddedFimAcceptedLicenseModelIds;
+        var accepted = _generalApplicationData.Config.FimAcceptedLicenseModelIds;
         return accepted is null
             || !accepted.Any(id => string.Equals(id, model.Id, StringComparison.OrdinalIgnoreCase));
     }
@@ -1087,7 +1020,7 @@ public partial class SettingsViewModel : DocumentBaseVM
             return;
         }
 
-        var list = _generalApplicationData.Config.EmbeddedFimAcceptedLicenseModelIds
+        var list = _generalApplicationData.Config.FimAcceptedLicenseModelIds
             ??= [];
         if (!list.Any(id => string.Equals(id, value.Id, StringComparison.OrdinalIgnoreCase)))
         {
@@ -1096,20 +1029,7 @@ public partial class SettingsViewModel : DocumentBaseVM
 
         SelectedEmbeddedFimModel = value;
     }
-    public string FimModelsDirectory
-    {
-        get
-        {
-#if EMBEDDED_FIM
-            return _fimBootstrap.ModelsDirectory;
-#else
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "JustyBase",
-                "models");
-#endif
-        }
-    }
+    public string FimModelsDirectory => _fimBootstrap.ModelsDirectory;
 
     public string FimModelDiskStatus
     {
@@ -1210,14 +1130,8 @@ public partial class SettingsViewModel : DocumentBaseVM
 
     private void RefreshEmbeddedFimDiskStatus()
     {
-#if EMBEDDED_FIM
         FimModelPresentOnDisk = _fimBootstrap.IsSelectedModelPresent;
         FimModelDiskStatus = _fimBootstrap.SelectedModelDiskStatus;
-#else
-        FimModelPresentOnDisk = false;
-        FimModelDiskStatus =
-            "Embedded FIM was stripped from this binary (-p:EnableEmbeddedFim=false).";
-#endif
         OnPropertyChanged(nameof(CanDeleteEmbeddedFimModel));
         OnPropertyChanged(nameof(CanRunEmbeddedFimBenchmark));
         DeleteEmbeddedFimModelCommand.NotifyCanExecuteChanged();
@@ -1249,7 +1163,6 @@ public partial class SettingsViewModel : DocumentBaseVM
     {
         try
         {
-#if EMBEDDED_FIM
             var dir = _fimBootstrap.EnsureModelsDirectory();
             var path = _fimBootstrap.SelectedModelLocalPath;
             if (File.Exists(path))
@@ -1259,11 +1172,6 @@ public partial class SettingsViewModel : DocumentBaseVM
             }
 
             _messageForUserTools.OpenInExplorerHelper(dir);
-#else
-            var dir = FimModelsDirectory;
-            Directory.CreateDirectory(dir);
-            _messageForUserTools.OpenInExplorerHelper(dir);
-#endif
         }
 #pragma warning disable CA1031
         catch (Exception ex)
@@ -1317,7 +1225,6 @@ public partial class SettingsViewModel : DocumentBaseVM
     [RelayCommand(CanExecute = nameof(CanDeleteEmbeddedFimModel))]
     private async Task DeleteEmbeddedFimModel()
     {
-#if EMBEDDED_FIM
         var model = SelectedEmbeddedFimModel?.DisplayName ?? "selected model";
         var confirm = await _messageForUserTools.ShowConfirmationDialogAsync(
             $"Delete local GGUF for {model} from disk?\n\n{_fimBootstrap.SelectedModelLocalPath}",
@@ -1344,11 +1251,6 @@ public partial class SettingsViewModel : DocumentBaseVM
             FimPrepareStatusMessage = ex.Message;
             RefreshEmbeddedFimDiskStatus();
         }
-#else
-        FimPrepareStatusMessage =
-            "Embedded FIM was stripped from this binary (-p:EnableEmbeddedFim=false).";
-        await Task.CompletedTask.ConfigureAwait(false);
-#endif
     }
 
     [RelayCommand(CanExecute = nameof(CanRunEmbeddedFimBenchmark))]
@@ -1370,23 +1272,20 @@ public partial class SettingsViewModel : DocumentBaseVM
 
         try
         {
-#if EMBEDDED_FIM
             var progress = new Progress<FimModelProgress>(p =>
                 ReportFimPrepareProgress(p.Fraction, p.Message, p.IsIndeterminate, force: p.IsIndeterminate || p.Fraction >= 1.0));
 
             try
             {
-                var report = await _fimBootstrap.RunSpeedBenchmarkAsync(
+                var report = await _fimBootstrap.RunSpeedTestAsync(
                     EmbeddedFimMaxTokens,
                     EmbeddedFimMaxPromptTokens,
                     EmbeddedFimPrefixPercentage,
                     EmbeddedFimSuffixPercentage,
-                    EmbeddedFimDebounceMs,
-                    EmbeddedFimPreferVulkan ? EmbeddedFimGpuLayers : 0,
                     progress,
                     ct).ConfigureAwait(true);
 
-                FimBenchmarkResult = FimSpeedBenchmark.FormatComparison(report);
+                FimBenchmarkResult = FormatSpeedTestReport(report);
                 ReportFimPrepareProgress(1.0, "Speed test finished.", force: true);
             }
             catch (OperationCanceledException)
@@ -1397,13 +1296,6 @@ public partial class SettingsViewModel : DocumentBaseVM
             {
                 ReportFimPrepareProgress(0, ex.Message, force: true);
             }
-#else
-            ReportFimPrepareProgress(
-                0,
-                "Embedded FIM was stripped from this binary (-p:EnableEmbeddedFim=false).",
-                force: true);
-            await Task.CompletedTask.ConfigureAwait(false);
-#endif
         }
 #pragma warning disable CA1031
         catch (Exception ex)
@@ -1418,6 +1310,16 @@ public partial class SettingsViewModel : DocumentBaseVM
             _fimPrepareCts?.Dispose();
             _fimPrepareCts = null;
         }
+    }
+
+    private static string FormatSpeedTestReport(FimSpeedTestReport report)
+    {
+        if (!report.Succeeded)
+        {
+            return $"{report.ModelName}: generation returned no output ({report.ElapsedMs} ms).";
+        }
+
+        return $"{report.ModelName}: {report.TokensPerSecond:0.0} tokens/s (approx), {report.ElapsedMs} ms elapsed.";
     }
 
     private async Task BootstrapFimModelAsync()
@@ -1437,7 +1339,6 @@ public partial class SettingsViewModel : DocumentBaseVM
 
         try
         {
-#if EMBEDDED_FIM
             var progress = new Progress<FimModelProgress>(p =>
                 ReportFimPrepareProgress(p.Fraction, p.Message, p.IsIndeterminate));
 
@@ -1463,13 +1364,6 @@ public partial class SettingsViewModel : DocumentBaseVM
             }
 
             RefreshEmbeddedFimDiskStatus();
-#else
-            ReportFimPrepareProgress(
-                0,
-                "Embedded FIM was stripped from this binary (-p:EnableEmbeddedFim=false).",
-                force: true);
-            await Task.CompletedTask.ConfigureAwait(false);
-#endif
         }
 #pragma warning disable CA1031
         catch (Exception ex)
@@ -1483,6 +1377,378 @@ public partial class SettingsViewModel : DocumentBaseVM
             _fimPrepareInFlight = false;
             _fimPrepareCts?.Dispose();
             _fimPrepareCts = null;
+        }
+    }
+
+    // ============================================================
+    // === Embedded chat (llama-server) settings ====
+    // ============================================================
+
+    /// <summary>Master On/Off switch for the Embedded (local) AI chat backend. Default off.</summary>
+    public bool EnableEmbeddedChatAi
+    {
+        get;
+        set
+        {
+            if (!SetProperty(ref field, value))
+            {
+                return;
+            }
+
+            _generalApplicationData.Config.EnableEmbeddedChatAi = value;
+
+            if (value && !_suppressFimSideEffects)
+            {
+                if (!_embeddedChatStore.IsModelPresent)
+                {
+                    _messageForUserTools.ShowSimpleMessageBoxInstance(
+                        "Embedded Chat is enabled, but the selected chat model is not downloaded yet. " +
+                        "Download the model below in the Embedded AI (Chat) settings before switching to it in AI Chat.",
+                        "Chat model required");
+                }
+            }
+        }
+    }
+
+    public IReadOnlyList<FimModelChoiceItem> EmbeddedChatModelChoices { get; }
+
+    public FimModelChoiceItem? SelectedEmbeddedChatModel
+    {
+        get;
+        set
+        {
+            if (value is null)
+            {
+                return;
+            }
+
+            if (!_suppressFimSideEffects
+                && NeedsEmbeddedChatLicenseAcceptance(value))
+            {
+                _ = SelectEmbeddedChatModelWithLicenseAsync(value);
+                return;
+            }
+
+            if (!SetProperty(ref field, value))
+            {
+                return;
+            }
+
+            _generalApplicationData.Config.EmbeddedChatModelId = value.Id;
+            OnPropertyChanged(nameof(SelectedEmbeddedChatModelNotes));
+            if (!_suppressFimSideEffects)
+            {
+                RefreshEmbeddedChatDiskStatus();
+            }
+        }
+    }
+
+    public string SelectedEmbeddedChatModelNotes =>
+        SelectedEmbeddedChatModel?.Notes ?? "Select a model to see details.";
+
+    private bool NeedsEmbeddedChatLicenseAcceptance(FimModelChoiceItem model)
+    {
+        if (!model.RequiresLicenseAcceptance)
+        {
+            return false;
+        }
+
+        var accepted = _generalApplicationData.Config.EmbeddedChatAcceptedLicenseModelIds;
+        return accepted is null
+            || !accepted.Any(id => string.Equals(id, model.Id, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task SelectEmbeddedChatModelWithLicenseAsync(FimModelChoiceItem value)
+    {
+        var summary = value.LicenseSummary ?? $"Accept the license for {value.DisplayName}?";
+        var urlLine = string.IsNullOrWhiteSpace(value.LicenseUrl) ? "" : $"\n\n{value.LicenseUrl}";
+        var title = string.IsNullOrWhiteSpace(value.LicenseName)
+            ? "License acceptance"
+            : $"Accept {value.LicenseName}?";
+        var confirm = await _messageForUserTools
+            .ShowConfirmationDialogAsync(summary + urlLine, title)
+            .ConfigureAwait(true);
+
+        if (!confirm)
+        {
+            OnPropertyChanged(nameof(SelectedEmbeddedChatModel));
+            return;
+        }
+
+        var list = _generalApplicationData.Config.EmbeddedChatAcceptedLicenseModelIds
+            ??= [];
+        if (!list.Any(id => string.Equals(id, value.Id, StringComparison.OrdinalIgnoreCase)))
+        {
+            list.Add(value.Id);
+        }
+
+        SelectedEmbeddedChatModel = value;
+    }
+
+    public string ChatModelsDirectory => _embeddedChatStore.ModelsDirectory;
+
+    public string ChatModelDiskStatus
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "Model status unknown.";
+
+    public bool ChatModelPresentOnDisk
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    public string ChatPrepareStatusMessage
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "Idle — use Download / prepare when needed.";
+
+    public double ChatPrepareProgressValue
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    public string ChatPrepareProgressPercentText
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    } = "";
+
+    public bool ChatPrepareIsIndeterminate
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    public bool ChatPrepareInProgress
+    {
+        get;
+        private set
+        {
+            if (SetProperty(ref field, value))
+            {
+                OnPropertyChanged(nameof(CanDeleteEmbeddedChatModel));
+                PrepareEmbeddedChatModelCommand.NotifyCanExecuteChanged();
+                CancelEmbeddedChatPrepareCommand.NotifyCanExecuteChanged();
+                DeleteEmbeddedChatModelCommand.NotifyCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool CanDeleteEmbeddedChatModel => ChatModelPresentOnDisk && !ChatPrepareInProgress;
+
+    public int EmbeddedChatGpuLayers
+    {
+        get;
+        set
+        {
+            var clamped = Math.Clamp(value < 0 ? 99 : value, 0, 999);
+            if (!SetProperty(ref field, clamped))
+            {
+                return;
+            }
+
+            _generalApplicationData.Config.EmbeddedChatGpuLayers = clamped;
+            OnPropertyChanged(nameof(EmbeddedChatGpuLayersLabel));
+        }
+    }
+
+    public bool EmbeddedChatGpuLayersEnabled => EmbeddedFimPreferVulkan;
+
+    public string EmbeddedChatGpuLayersLabel =>
+        EmbeddedChatGpuLayers <= 0
+            ? "0 (CPU compute)"
+            : EmbeddedChatGpuLayers >= 99
+                ? $"{EmbeddedChatGpuLayers} (max offload)"
+                : $"{EmbeddedChatGpuLayers} layers";
+
+    public int EmbeddedChatCtxSize
+    {
+        get;
+        set
+        {
+            var clamped = Math.Clamp(value <= 0 ? 4096 : value, 512, 131_072);
+            if (!SetProperty(ref field, clamped))
+            {
+                return;
+            }
+
+            _generalApplicationData.Config.EmbeddedChatCtxSize = clamped;
+        }
+    }
+
+    private void RefreshEmbeddedChatDiskStatus()
+    {
+        ChatModelPresentOnDisk = _embeddedChatStore.IsModelPresent;
+        var model = _embeddedChatStore.CurrentModel;
+        ChatModelDiskStatus = _embeddedChatStore.IsModelPresent
+            ? $"{model.DisplayName}: on disk ({new FileInfo(_embeddedChatStore.LocalModelPath).Length / (1024d * 1024d):0.#} MB)."
+            : $"{model.DisplayName}: not downloaded.";
+        OnPropertyChanged(nameof(CanDeleteEmbeddedChatModel));
+        DeleteEmbeddedChatModelCommand.NotifyCanExecuteChanged();
+    }
+
+    private void ReportChatPrepareProgress(double fraction, string message, bool isIndeterminate = false, bool force = false)
+    {
+        ChatPrepareStatusMessage = message;
+        ChatPrepareIsIndeterminate = isIndeterminate;
+        ChatPrepareProgressValue = Math.Clamp(fraction, 0, 1);
+        ChatPrepareProgressPercentText = isIndeterminate
+            ? "…"
+            : $"{ChatPrepareProgressValue * 100:0.#}%";
+    }
+
+    [RelayCommand]
+    private void ShowEmbeddedChatModelInFolder()
+    {
+        try
+        {
+            var dir = _embeddedChatStore.EnsureModelsDirectory();
+            var path = _embeddedChatStore.LocalModelPath;
+            if (File.Exists(path))
+            {
+                _messageForUserTools.ShowOrShowInExplorerHelper(path);
+                return;
+            }
+
+            _messageForUserTools.OpenInExplorerHelper(dir);
+        }
+#pragma warning disable CA1031
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            ChatPrepareStatusMessage = ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenSelectedEmbeddedChatModelPage()
+    {
+        var url = SelectedEmbeddedChatModel?.SourceUrl;
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+#pragma warning disable CA1031
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            ChatPrepareStatusMessage = ex.Message;
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanPrepareEmbeddedChatModel))]
+    private Task PrepareEmbeddedChatModel() => BootstrapChatModelAsync();
+
+    private bool CanPrepareEmbeddedChatModel() => !ChatPrepareInProgress;
+
+    [RelayCommand(CanExecute = nameof(ChatPrepareInProgress))]
+    private void CancelEmbeddedChatPrepare()
+    {
+        try
+        {
+            _chatPrepareCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // ignore
+        }
+
+        ChatPrepareStatusMessage = "Cancelling…";
+    }
+
+    [RelayCommand(CanExecute = nameof(CanDeleteEmbeddedChatModel))]
+    private async Task DeleteEmbeddedChatModel()
+    {
+        var model = SelectedEmbeddedChatModel?.DisplayName ?? "selected model";
+        var confirm = await _messageForUserTools.ShowConfirmationDialogAsync(
+            $"Delete local GGUF for {model} from disk?\n\n{_embeddedChatStore.LocalModelPath}",
+            "Delete chat model").ConfigureAwait(true);
+        if (!confirm)
+        {
+            return;
+        }
+
+        try
+        {
+            _embeddedChatStore.TryDeleteCurrentModel();
+            ChatPrepareStatusMessage = "Model deleted from disk.";
+            ChatPrepareProgressValue = 0;
+            ChatPrepareProgressPercentText = "";
+            ChatPrepareIsIndeterminate = false;
+            RefreshEmbeddedChatDiskStatus();
+        }
+#pragma warning disable CA1031
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            ChatPrepareStatusMessage = ex.Message;
+            RefreshEmbeddedChatDiskStatus();
+        }
+    }
+
+    private async Task BootstrapChatModelAsync()
+    {
+        if (_chatPrepareInFlight)
+        {
+            return;
+        }
+
+        _chatPrepareInFlight = true;
+        ChatPrepareInProgress = true;
+        _chatPrepareCts?.Dispose();
+        _chatPrepareCts = new CancellationTokenSource();
+        var ct = _chatPrepareCts.Token;
+        ReportChatPrepareProgress(0, "Starting download…");
+
+        try
+        {
+            var progress = new Progress<FimModelProgress>(p =>
+                ReportChatPrepareProgress(p.Fraction, p.Message, p.IsIndeterminate));
+
+            try
+            {
+                await _embeddedChatStore.EnsureModelAsync(progress, ct).ConfigureAwait(true);
+                if (!ct.IsCancellationRequested)
+                {
+                    ReportChatPrepareProgress(1.0, "Model ready.");
+                }
+                else
+                {
+                    ReportChatPrepareProgress(0, "Download cancelled.");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                ReportChatPrepareProgress(0, "Download cancelled.", force: true);
+            }
+            catch (Exception ex)
+            {
+                ReportChatPrepareProgress(0, ex.Message, force: true);
+            }
+
+            RefreshEmbeddedChatDiskStatus();
+        }
+#pragma warning disable CA1031
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            ReportChatPrepareProgress(0, ex.Message, force: true);
+        }
+        finally
+        {
+            ChatPrepareInProgress = false;
+            _chatPrepareInFlight = false;
+            _chatPrepareCts?.Dispose();
+            _chatPrepareCts = null;
         }
     }
 
@@ -1517,8 +1783,8 @@ public partial class SettingsViewModel : DocumentBaseVM
     public IReadOnlyList<AiChatBackendChoiceItem> AiChatBackendChoices { get; } =
     [
         new("codex", "Codex / ChatGPT", "Official Codex app-server using a ChatGPT account."),
-        new("lmstudio", "LM Studio", "OpenAI-compatible local endpoint at LM Studio."),
-        new("ollama", "Ollama", "Local Ollama model server."),
+        new("openai-compatible", "OpenAI Compatible", "Any OpenAI-compatible endpoint (LM Studio, Ollama /v1, llama.cpp, vLLM, …)."),
+        new("embedded", "Embedded (local)", "Bundled llama.cpp llama-server with a downloaded GGUF chat model."),
     ];
 
     public AiChatBackendChoiceItem? SelectedAiChatBackend
@@ -1532,6 +1798,40 @@ public partial class SettingsViewModel : DocumentBaseVM
             }
 
             AiChatBackendId = value.Id;
+        }
+    }
+
+    /// <summary>Base URL of the OpenAI-compatible backend (default LM Studio /v1).</summary>
+    public string AiChatOpenAiCompatibleEndpoint
+    {
+        get;
+        set
+        {
+            if (!SetProperty(ref field, value))
+            {
+                return;
+            }
+
+            _generalApplicationData.Config.AiChatOpenAiCompatibleEndpoint = string.IsNullOrWhiteSpace(value)
+                ? "http://localhost:1234/v1"
+                : value.Trim();
+        }
+    }
+
+    /// <summary>Optional bearer API key for the OpenAI-compatible backend (empty for local servers).</summary>
+    public string AiChatOpenAiCompatibleApiKey
+    {
+        get;
+        set
+        {
+            if (!SetProperty(ref field, value))
+            {
+                return;
+            }
+
+            _generalApplicationData.Config.AiChatOpenAiCompatibleApiKey = string.IsNullOrWhiteSpace(value)
+                ? null
+                : value.Trim();
         }
     }
 
@@ -2054,8 +2354,9 @@ public partial class SettingsViewModel : DocumentBaseVM
         new("Export", "Export data", ["export", "csv", "column separator", "row separator", "encoding", "decimal", "excel", "xlsx", "xlsb", "sheet"]),
         new("SnipettsANDkeywords", "Snippets", ["snippet", "snippets", "keywords", "edit snippets"]),
         new("SqlLinter", "SQL Linter", ["sql", "linter", "lint", "nz001", "nz002", "nz003", "nz004", "nz005", "nz008", "nz011", "nz012", "nz013", "nz015", "nz102", "select *", "where", "distribute", "cross join", "like", "truncate", "union", "join"]),
-        new("EmbeddedAi", "Embedded AI (FIM)", ["fim", "ai", "autocomplete", "ghost", "llamasharp", "gguf", "qwen", "coder", "1.5b", "3b", "7b", "14b", "preset", "vulkan", "inline", "model", "codestral", "starcoder", "codegemma"]),
-        new("AiChat", "AI Chat", ["chat", "ai", "ollama", "lm studio", "model", "expert", "sqlfix", "assistant", "copilot", "chatgpt", "preset", "system prompt", "temperature", "tokens", "timeout"]),
+        new("EmbeddedAi", "Embedded AI (FIM)", ["fim", "ai", "autocomplete", "ghost", "llama", "gguf", "qwen", "coder", "1.5b", "3b", "7b", "14b", "preset", "vulkan", "inline", "model", "codestral", "starcoder", "codegemma", "llama-server", "server"]),
+        new("EmbeddedAiChat", "Embedded AI (Chat)", ["chat", "ai", "embedded", "gguf", "llama", "server", "model", "gemma", "qwen", "devstral", "moe", "vulkan", "download", "gpu", "context"]),
+        new("AiChat", "AI Chat", ["chat", "ai", "openai", "compatible", "endpoint", "api key", "codex", "chatgpt", "model", "expert", "sqlfix", "assistant", "copilot", "preset", "system prompt", "temperature", "tokens", "timeout", "embedded"]),
         new("Results", "Results", ["results", "rows", "limit", "rows count"]),
         new("Limits", "Limits", ["limits", "rows count limit", "result rows"]),
         new("Apperance", "Appearance", ["appearance", "theme", "color", "font", "splash", "details button", "accent", "dark", "folding", "collapse"]),
@@ -2156,8 +2457,8 @@ public sealed record AiChatBackendChoiceItem(
     public static readonly IReadOnlyList<AiChatBackendChoiceItem> All =
     [
         Codex,
-        new("lmstudio", "LM Studio", "OpenAI-compatible local endpoint at LM Studio."),
-        new("ollama", "Ollama", "Local Ollama model server."),
+        new("openai-compatible", "OpenAI Compatible", "Any OpenAI-compatible endpoint (LM Studio, Ollama /v1, llama.cpp, vLLM, …)."),
+        new("embedded", "Embedded (local)", "Bundled llama.cpp llama-server with a downloaded GGUF chat model."),
     ];
 }
 

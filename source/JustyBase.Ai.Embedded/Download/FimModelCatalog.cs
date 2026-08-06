@@ -1,4 +1,4 @@
-namespace JustyBase.Ai.Fim.Download;
+namespace JustyBase.Ai.Embedded.Download;
 
 /// <summary>Well-known embedded FIM model ids persisted in AppOptions.</summary>
 public static class FimModelIds
@@ -20,33 +20,13 @@ public static class FimModelIds
     public const string Default = Qwen25Coder3B;
 }
 
-public sealed record FimModelDescriptor(
-    string Id,
-    string DisplayName,
-    string FileName,
-    Uri DownloadUri,
-    string ApproxSizeLabel,
-    Uri SourceModelUrl,
-    string Notes,
-    long ApproxBytes,
-    string Family = "Qwen (recommended)",
-    bool RequiresLicenseAcceptance = false,
-    string? LicenseName = null,
-    Uri? LicenseUrl = null,
-    string? LicenseSummary = null);
-
-public interface IFimModelCatalog
-{
-    IReadOnlyList<FimModelDescriptor> Models { get; }
-    FimModelDescriptor Resolve(string? modelId);
-}
-
 /// <summary>
-/// Catalog of GGUF models for Fill-in-the-Middle. Defaults are Qwen2.5-Coder base (non-Instruct).
+/// Catalog of GGUF models for Fill-in-the-Middle served by the bundled llama.cpp llama-server.
+/// llama.cpp has built-in FIM templates for Qwen2.5-Coder, CodeGemma, StarCoder2 and Codestral.
 /// </summary>
-public sealed class FimModelCatalog : IFimModelCatalog
+public sealed class FimModelCatalog : IModelCatalog
 {
-    public IReadOnlyList<FimModelDescriptor> Models { get; } =
+    public IReadOnlyList<ModelDescriptor> Models { get; } =
     [
         new(
             Id: FimModelIds.Qwen25Coder15B,
@@ -164,7 +144,7 @@ public sealed class FimModelCatalog : IFimModelCatalog
                 "You must read and accept the MNPL before downloading or using this model."),
     ];
 
-    public FimModelDescriptor Resolve(string? modelId)
+    public ModelDescriptor Resolve(string? modelId)
     {
         if (string.IsNullOrWhiteSpace(modelId))
         {

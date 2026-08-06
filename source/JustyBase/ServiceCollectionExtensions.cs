@@ -13,9 +13,7 @@ using JustyBase.Services.Chat;
 using JustyBase.Services.Docking;
 using JustyBase.Services.DataGrid;
 using JustyBase.Services.Documents;
-#if EMBEDDED_FIM
-using JustyBase.Services.Fim;
-#endif
+using JustyBase.Services.Embedded;
 using JustyBase.Services.Git;
 using JustyBase.Services.Logging;
 using JustyBase.Themes;
@@ -130,11 +128,21 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<MainWindowViewModel>();
         collection.AddTransient<FileExplorerViewModel>();
         collection.AddSingleton<IGitService, SystemGitService>();
-#if EMBEDDED_FIM
-        collection.AddSingleton<IGitCommitMessageAiService, EmbeddedFimGitCommitMessageAiService>();
-#else
-        collection.AddSingleton<IGitCommitMessageAiService, UnavailableGitCommitMessageAiService>();
-#endif
+        collection.AddSingleton<IGitCommitMessageAiService>(sp =>
+        {
+            var appData = sp.GetRequiredService<IGeneralApplicationData>();
+            if (!appData.Config.EnableFimServer)
+            {
+                return new UnavailableGitCommitMessageAiService();
+            }
+
+            var store = sp.GetRequiredKeyedService<JustyBase.Ai.Embedded.Download.IModelStore>(
+                JustyBase.Services.Embedded.EmbeddedAiServiceCollectionExtensions.FimStoreKey);
+            return new LlamaServerGitCommitMessageAiService(
+                sp.GetRequiredService<JustyBase.Ai.Embedded.Server.LlamaServerManager>(),
+                store,
+                appData);
+        });
         collection.AddTransient<GitViewModel>();
         collection.AddTransient<GitDiffDocumentViewModel>();
         collection.AddTransient<SqlResultsFastViewModel>();
@@ -144,8 +152,8 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<SqlResultsViewModel>();
         collection.AddTransient<HistoryViewModel>();
         collection.AddSingleton<AiChatViewModel>();
-        collection.AddSingleton<ILocalChatBackend, OllamaChatBackend>();
-        collection.AddSingleton<ILocalChatBackend, LmStudioChatBackend>();
+        collection.AddSingleton<OpenAiCompatibleChatBackend>();
+        collection.AddSingleton<ILocalChatBackend>(sp => sp.GetRequiredService<OpenAiCompatibleChatBackend>());
         collection.AddSingleton<LocalChatClientFactory>();
         collection.AddSingleton<ILocalStateProvider, LocalStateProvider>();
         collection.AddSingleton<ILocalModelConfigurationService, LocalModelConfigurationService>();
@@ -153,9 +161,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<CodexAppServerClient>();
         collection.AddSingleton<ICopilotChatService, LocalChatService>();
 
-#if EMBEDDED_FIM
-        collection.AddEmbeddedFimCompletion();
-#endif
+        collection.AddEmbeddedLlamaServerServices();
 
         collection.AddTransient<ISqlCodeFormatterService, SqlCodeFormatterService>();
         collection.AddTransient<ISqlVariableProcessor, SqlVariableProcessor>();

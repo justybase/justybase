@@ -4,6 +4,7 @@ using ChatMessage = JustyBase.Common.Models.ChatMessage;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.Services.Chat;
 using JustyBase.Services.Documents;
+using JustyBase.Services.Embedded;
 using JustyBase.ViewModels.Tools;
 using Microsoft.Extensions.AI;
 using System.Globalization;
@@ -53,6 +54,7 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
     private readonly ILocalModelConfigurationService _modelConfiguration;
     private readonly ISystemPromptBuilder _promptBuilder;
     private readonly CodexAppServerClient _codexClient;
+    private readonly JustyBase.Ai.Embedded.Server.LlamaServerManager? _llamaServerManager;
 
     private bool _isConnected;
     public bool IsConnected => _isConnected;
@@ -75,7 +77,8 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
         ILocalStateProvider stateProvider,
         ILocalModelConfigurationService modelConfiguration,
         CodexAppServerClient codexClient,
-        SqlExecutionErrorStore sqlExecutionErrorStore)
+        SqlExecutionErrorStore sqlExecutionErrorStore,
+        JustyBase.Ai.Embedded.Server.LlamaServerManager? llamaServerManager = null)
     {
         _logger = logger;
         _messageForUserTools = messageForUserTools;
@@ -84,9 +87,51 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
         _stateProvider = stateProvider;
         _modelConfiguration = modelConfiguration;
         _codexClient = codexClient;
+        _llamaServerManager = llamaServerManager;
         _promptBuilder = new SystemPromptBuilder();
         _toolExecutor = new LocalToolExecutor(logger, generalApplicationData, databaseServiceResolver, diagnosticsViewModel, sqlExecutionErrorStore);
         _codexClient.SetToolHandler(ExecuteCodexToolAsync, ConfirmCodexToolAsync);
+        WireLocalToolExecutors();
+    }
+
+    /// <summary>Shares the Codex tool executor (approval-gated, mapped to LocalToolExecutor) with local backends.</summary>
+    private void WireLocalToolExecutors()
+    {
+        foreach (var backend in _clientFactory.Backends)
+        {
+            switch (backend)
+            {
+                case OpenAiCompatibleChatBackend openAiBackend:
+                    openAiBackend.ToolExecutor = ExecuteCodexToolAsync;
+                    break;
+                case EmbeddedChatBackend embeddedBackend:
+                    embeddedBackend.ToolExecutor = ExecuteCodexToolAsync;
+                    break;
+            }
+        }
+    }
+
+    /// <summary>Maps pre-consolidation backend ids (ollama / lmstudio) onto the OpenAI-compatible backend.</summary>
+    private void MigrateLegacyBackendConfiguration()
+    {
+        var config = _generalApplicationData.Config;
+        var backendId = config.AiChatBackendId;
+        if (string.Equals(backendId, "ollama", StringComparison.OrdinalIgnoreCase))
+        {
+            config.AiChatBackendId = "openai-compatible";
+            if (string.IsNullOrWhiteSpace(config.AiChatOpenAiCompatibleEndpoint))
+            {
+                config.AiChatOpenAiCompatibleEndpoint = "http://localhost:11434/v1";
+            }
+        }
+        else if (string.Equals(backendId, "lmstudio", StringComparison.OrdinalIgnoreCase))
+        {
+            config.AiChatBackendId = "openai-compatible";
+            if (string.IsNullOrWhiteSpace(config.AiChatOpenAiCompatibleEndpoint))
+            {
+                config.AiChatOpenAiCompatibleEndpoint = "http://localhost:1234/v1";
+            }
+        }
     }
 
     public void SetMode(ChatMode mode) => _currentMode = mode;
@@ -207,6 +252,7 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
     {
         _logger?.TrackError(new Exception("Initializing local chat backend..."), isCrash: false);
         ConnectionError = null;
+        MigrateLegacyBackendConfiguration();
 
         foreach (var backend in _clientFactory.Backends)
         {
@@ -224,7 +270,8 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
             catch { }
         }
 
-        ConnectionError = "Could not connect to any local AI backend. Start Ollama or LM Studio and try again.";
+        ConnectionError = "Could not connect to any local AI backend. Start an OpenAI-compatible server " +
+            "(LM Studio, Ollama, llama.cpp) or prepare a model for the Embedded backend in Settings.";
         _isConnected = false;
         // No modal here — callers surface ConnectionError in StatusMessage / on explicit user action.
         return false;
@@ -994,5 +1041,9 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _codexClient.DisposeAsync().ConfigureAwait(false);
+        if (_llamaServerManager is not null)
+        {
+            await _llamaServerManager.DisposeAsync().ConfigureAwait(false);
+        }
     }
 }

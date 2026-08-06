@@ -1,67 +1,105 @@
-#if EMBEDDED_FIM
-using JustyBase.Ai.Fim.LlamaSharp;
+using JustyBase.Ai.Embedded.Download;
+using JustyBase.Ai.Embedded.Server;
 using JustyBase.Common.Contracts;
+using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace JustyBase.Services.Git;
 
 /// <summary>
-/// Uses the same embedded Qwen2.5-Coder GGUF host as FIM, but with plain text completion
-/// (no &lt;|fim_*|&gt; tokens). The catalog model is base/non-instruct, so prompts must be
+/// Uses the bundled FIM llama-server with plain text completion (no FIM tokens) to draft
+/// git commit messages. The FIM catalog model is base/non-instruct, so prompts must be
 /// few-shot continuation — not chat "rules" lists.
 /// </summary>
-public sealed class EmbeddedFimGitCommitMessageAiService : IGitCommitMessageAiService
+public sealed class LlamaServerGitCommitMessageAiService : IGitCommitMessageAiService
 {
-    private static readonly string[] AntiPrompts =
-    [
-        "<|endoftext|>",
-        "<|fim_prefix|>",
-        "<|fim_suffix|>",
-        "<|fim_middle|>",
-        "\nChanges:",
-        "\n### ",
-        "\nExample ",
-        "\ndiff --git ",
-    ];
-
-    private static readonly string[] RejectPhrases =
-    [
-        "imperative subject",
-        "optional short body",
-        "markdown fences",
-        "output only the commit",
-        "write a concise git commit",
-        "max ~72",
-        "max 72",
-    ];
-
-    private readonly LlamaSharpModelHost _host;
+    private readonly LlamaServerManager _serverManager;
+    private readonly IModelStore _fimStore;
     private readonly IGeneralApplicationData _appData;
+    private readonly HttpClient _http;
 
-    public EmbeddedFimGitCommitMessageAiService(LlamaSharpModelHost host, IGeneralApplicationData appData)
+    public LlamaServerGitCommitMessageAiService(
+        LlamaServerManager serverManager,
+        IModelStore fimStore,
+        IGeneralApplicationData appData,
+        HttpClient? httpClient = null)
     {
-        _host = host ?? throw new ArgumentNullException(nameof(host));
+        _serverManager = serverManager ?? throw new ArgumentNullException(nameof(serverManager));
+        _fimStore = fimStore ?? throw new ArgumentNullException(nameof(fimStore));
         _appData = appData ?? throw new ArgumentNullException(nameof(appData));
+        _http = httpClient ?? new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
     }
 
-    public bool IsAvailable => _appData.Config.EnableEmbeddedFimAi;
+    public bool IsAvailable => _appData.Config.EnableFimServer;
 
     public async Task<string?> GenerateAsync(string changeContext, CancellationToken cancellationToken = default)
     {
         if (!IsAvailable || string.IsNullOrWhiteSpace(changeContext))
+        {
             return null;
+        }
 
-        // Plain completion on the shared host — not FIM fill-in-the-middle.
-        string prompt = BuildCompletionPrompt(changeContext);
-        string raw = await _host.InferAsync(
-            prompt,
-            AntiPrompts,
-            maxTokens: 96,
-            temperature: 0.2f,
-            topP: 0.9f,
+        var server = _serverManager.FimServer;
+        if (server is not { IsRunning: true })
+        {
+            if (!_fimStore.IsModelPresent)
+            {
+                return null;
+            }
+
+            // Start the FIM server on demand (model must already be downloaded in Settings).
+            var config = _appData.Config;
+            try
+            {
+                server = await _serverManager.GetOrStartServerAsync(
+                    LlamaServerRole.Fim,
+                    _fimStore.LocalModelPath,
+                    config.LlamaServerPreferVulkan
+                        ? Math.Clamp(config.FimGpuLayers < 0 ? 99 : config.FimGpuLayers, 0, 999)
+                        : 0,
+                    (uint)Math.Clamp(config.FimCtxSize > 0 ? config.FimCtxSize : 4096, 512, 131_072),
+                    progress: null,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        var prompt = BuildCompletionPrompt(changeContext);
+        var body = new LlamaGitCompletionRequest
+        {
+            Prompt = prompt,
+            NPredict = 96,
+            Temperature = 0.2f,
+            TopP = 0.9f,
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(server.Endpoint, "/completion"))
+        {
+            Content = JsonContent.Create(body, GitLlamaJsonContext.Default.LlamaGitCompletionRequest),
+        };
+
+        using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        var payload = await response.Content.ReadFromJsonAsync(
+            GitLlamaJsonContext.Default.LlamaGitCompletionResponse,
             cancellationToken).ConfigureAwait(false);
 
-        string cleaned = CleanMessage(raw);
+        var raw = payload?.Content;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var cleaned = CleanMessage(raw);
         return string.IsNullOrWhiteSpace(cleaned) ? null : cleaned;
     }
 
@@ -102,7 +140,9 @@ public sealed class EmbeddedFimGitCommitMessageAiService : IGitCommitMessageAiSe
     internal static string CleanMessage(string raw)
     {
         if (string.IsNullOrWhiteSpace(raw))
+        {
             return string.Empty;
+        }
 
         string text = raw.Trim();
         if (text.StartsWith("```", StringComparison.Ordinal))
@@ -165,7 +205,17 @@ public sealed class EmbeddedFimGitCommitMessageAiService : IGitCommitMessageAiSe
             return true;
 
         string upper = text.ToUpperInvariant();
-        foreach (string phrase in RejectPhrases)
+        string[] rejectPhrases =
+        [
+            "imperative subject",
+            "optional short body",
+            "markdown fences",
+            "output only the commit",
+            "write a concise git commit",
+            "max ~72",
+            "max 72",
+        ];
+        foreach (string phrase in rejectPhrases)
         {
             if (upper.Contains(phrase.ToUpperInvariant(), StringComparison.Ordinal))
                 return true;
@@ -188,4 +238,31 @@ public sealed class EmbeddedFimGitCommitMessageAiService : IGitCommitMessageAiSe
         return bulletish >= 2;
     }
 }
-#endif
+
+internal sealed class LlamaGitCompletionRequest
+{
+    [JsonPropertyName("prompt")]
+    public string Prompt { get; init; } = string.Empty;
+
+    [JsonPropertyName("n_predict")]
+    public int NPredict { get; init; } = 96;
+
+    [JsonPropertyName("temperature")]
+    public float Temperature { get; init; } = 0.2f;
+
+    [JsonPropertyName("top_p")]
+    public float TopP { get; init; } = 0.9f;
+}
+
+internal sealed class LlamaGitCompletionResponse
+{
+    [JsonPropertyName("content")]
+    public string? Content { get; init; }
+}
+
+[JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSerializable(typeof(LlamaGitCompletionRequest))]
+[JsonSerializable(typeof(LlamaGitCompletionResponse))]
+internal sealed partial class GitLlamaJsonContext : JsonSerializerContext
+{
+}

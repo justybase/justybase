@@ -18,12 +18,24 @@ public static class LegacyConfigMigration
             return;
         }
 
-        using var doc = JsonDocument.Parse(rawJson);
-        var root = doc.RootElement;
-        if (root.ValueKind != JsonValueKind.Object)
+        JsonDocument doc;
+        try
         {
+            doc = JsonDocument.Parse(rawJson);
+        }
+        catch (JsonException)
+        {
+            // Malformed config — nothing to migrate.
             return;
         }
+
+        using (doc)
+        {
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
 
         // A new-schema key present in the file means the user already ran this version —
         // never overwrite newer values with legacy ones.
@@ -106,6 +118,7 @@ public static class LegacyConfigMigration
                     config.AiChatOpenAiCompatibleEndpoint = "http://localhost:1234/v1";
                 }
             }
+        }
         }
     }
 

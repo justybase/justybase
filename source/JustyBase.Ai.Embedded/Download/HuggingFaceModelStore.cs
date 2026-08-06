@@ -126,6 +126,8 @@ public sealed class HuggingFaceModelStore : IModelStore, IDisposable
                 $"Connecting to download host for {model.DisplayName}…"));
 
             using var request = new HttpRequestMessage(HttpMethod.Get, downloadUri);
+            long total = 0;
+            long copied = 0;
             using (var response = await _httpClient.SendAsync(
                        request,
                        HttpCompletionOption.ResponseHeadersRead,
@@ -138,7 +140,7 @@ public sealed class HuggingFaceModelStore : IModelStore, IDisposable
                 }
 
                 var contentLength = response.Content.Headers.ContentLength;
-                var total = contentLength is > 0 ? contentLength.Value : expectedTotal;
+                total = contentLength is > 0 ? contentLength.Value : expectedTotal;
                 progress?.Report(new FimModelProgress(
                     0.01,
                     total > 0
@@ -158,7 +160,6 @@ public sealed class HuggingFaceModelStore : IModelStore, IDisposable
                     await using (localStream.ConfigureAwait(false))
                     {
                         var buffer = new byte[1024 * 128];
-                        long copied = 0;
                         int read;
                         var lastFlushUtc = DateTime.UtcNow;
                         while ((read = await remote.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
@@ -181,6 +182,13 @@ public sealed class HuggingFaceModelStore : IModelStore, IDisposable
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (total > 0 && copied < total)
+            {
+                TryDeleteFile(tempPath);
+                throw new InvalidOperationException(
+                    $"Download finished early: {copied} of {total} bytes received. The transfer was interrupted — please try again.");
+            }
 
             if (copiedFileLooksEmpty(tempPath))
             {

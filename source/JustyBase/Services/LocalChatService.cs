@@ -94,7 +94,7 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
         WireLocalToolExecutors();
     }
 
-    /// <summary>Shares the Codex tool executor (approval-gated, mapped to LocalToolExecutor) with local backends.</summary>
+    /// <summary>Shares the approval-gated local tool executor with the local chat backends.</summary>
     private void WireLocalToolExecutors()
     {
         foreach (var backend in _clientFactory.Backends)
@@ -102,10 +102,10 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
             switch (backend)
             {
                 case OpenAiCompatibleChatBackend openAiBackend:
-                    openAiBackend.ToolExecutor = ExecuteCodexToolAsync;
+                    openAiBackend.ToolExecutor = ExecuteLocalToolAsync;
                     break;
                 case EmbeddedChatBackend embeddedBackend:
-                    embeddedBackend.ToolExecutor = ExecuteCodexToolAsync;
+                    embeddedBackend.ToolExecutor = ExecuteLocalToolAsync;
                     break;
             }
         }
@@ -258,6 +258,13 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
 
         foreach (var backend in _clientFactory.Backends)
         {
+            // The embedded backend boots a llama-server (potentially downloading the binary first)
+            // — that must only happen on an explicit backend switch, never during startup discovery.
+            if (backend is EmbeddedChatBackend)
+            {
+                continue;
+            }
+
             try
             {
                 if (await backend.PingAsync())
@@ -475,9 +482,20 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
         // Fallback: if model didn't call ApplySqlFix but output SQL, auto-apply it
         var textBuilder = new StringBuilder();
         foreach (var t in textChunks) textBuilder.Append(t);
-        if (functionCalls.Count == 0 && textBuilder.Length > 0)
+        var responseText = textBuilder.ToString();
+        if (functionCalls.Count == 0 && responseText.Length > 0)
         {
-            var sql = ExtractSqlFromResponse(textBuilder.ToString());
+            // The agent loop executes tools itself and marks each execution with a
+            // "[Tool 'X' executed: ...]" chunk. If a write tool already ran this turn,
+            // never auto-apply the SQL from the response text on top of it.
+            var writeToolExecuted = responseText.Contains("[Tool 'ApplySqlFix' executed", StringComparison.Ordinal)
+                || responseText.Contains("[Tool 'ExecuteSql' executed", StringComparison.Ordinal);
+            if (writeToolExecuted)
+            {
+                yield break;
+            }
+
+            var sql = ExtractSqlFromResponse(responseText);
             if (ShouldApplySqlFixByDefault(lastUserMessage.Content)
                 && !string.IsNullOrWhiteSpace(sql)
                 && !string.Equals(sql.Trim(), currentSql?.Trim(), StringComparison.Ordinal))
@@ -903,9 +921,36 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
         return await _toolConfirmationHandler(toolName, arguments).ConfigureAwait(false);
     }
 
-    private async Task<string> ExecuteCodexToolAsync(string toolName, string arguments)
+    /// <summary>
+    /// Executes tools for the local backends (OpenAI Compatible / Embedded). Tools are
+    /// advertised to the model with their AIFunction PascalCase names; Codex-style snake_case
+    /// names are accepted too. Write tools (ExecuteSql / ApplySqlFix) always pass through the
+    /// user approval gate — the protocol-level approval that Codex has does not exist here.
+    /// </summary>
+    private async Task<string> ExecuteLocalToolAsync(string toolName, string arguments)
     {
-        var mappedName = toolName switch
+        var mappedName = MapLocalToolName(toolName);
+        if (string.IsNullOrEmpty(mappedName))
+            return $"[Blocked: tool '{toolName}' is not available.]";
+
+        if (mappedName.Equals("ExecuteSql", StringComparison.OrdinalIgnoreCase))
+            return await ExecuteSql(ExtractToolArgument(arguments, "sql")).ConfigureAwait(false);
+
+        if (mappedName.Equals("ApplySqlFix", StringComparison.OrdinalIgnoreCase))
+            return await ApplySqlFix(ExtractToolArgument(arguments, "proposedSql")).ConfigureAwait(false);
+
+        return await _toolExecutor.ExecuteToolAsync(mappedName, arguments).ConfigureAwait(false);
+    }
+
+    /// <summary>Normalizes a tool name from either naming convention to the executor PascalCase name.</summary>
+    internal static string MapLocalToolName(string toolName)
+    {
+        if (string.IsNullOrWhiteSpace(toolName))
+        {
+            return string.Empty;
+        }
+
+        return toolName switch
         {
             "get_current_sql" => "GetCurrentSql",
             "get_sql_editor_context" => "GetCurrentSqlEditorContext",
@@ -922,12 +967,40 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
             "get_last_execution_error" => "GetLastExecutionError",
             "export_schema" => "ExportSchema",
             "execute_sql" => "ExecuteSql",
-            _ => string.Empty
+            _ => toolName,
         };
+    }
 
+    private static string ExtractToolArgument(string argumentsJson, string propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(argumentsJson))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(argumentsJson);
+            if (doc.RootElement.TryGetProperty(propertyName, out var element))
+            {
+                return element.GetString() ?? string.Empty;
+            }
+        }
+        catch
+        {
+            // malformed args — treat as empty
+        }
+
+        return string.Empty;
+    }
+
+    private async Task<string> ExecuteCodexToolAsync(string toolName, string arguments)
+    {
+        var mappedName = MapLocalToolName(toolName);
         if (string.IsNullOrEmpty(mappedName))
             return $"[Blocked: tool '{toolName}' is not available in Codex mode.]";
 
+        // Codex tools are approved at the app-server protocol level before this runs.
         return await _toolExecutor.ExecuteToolAsync(mappedName, arguments).ConfigureAwait(false);
     }
 

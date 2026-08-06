@@ -38,6 +38,10 @@ public sealed class OpenAiCompatibleChatBackend : ILocalChatBackend
     /// <summary>Executes model tool calls (approval-gated). Wired by LocalChatService.</summary>
     public Func<string, string, Task<string>>? ToolExecutor { get; set; }
 
+    // One shared HttpClient for all chat streams of this backend (singleton lifetime);
+    // the per-request clients only borrow it.
+    private readonly HttpClient _sharedHttp = new() { Timeout = TimeSpan.FromMinutes(10) };
+
     private Uri ModelsUri => new($"{Endpoint.AbsoluteUri.TrimEnd('/')}/models");
 
     public async Task<bool> PingAsync(CancellationToken ct = default)
@@ -79,7 +83,8 @@ public sealed class OpenAiCompatibleChatBackend : ILocalChatBackend
             Endpoint,
             modelId,
             ApiKey,
-            enableFunctionInvocation ? ToolExecutor : null);
+            enableFunctionInvocation ? ToolExecutor : null,
+            _sharedHttp);
     }
 
     private void ApplyAuth(HttpClient http)

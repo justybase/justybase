@@ -116,8 +116,12 @@ public sealed class EmbeddedChatBackend : ILocalChatBackend
             server.Endpoint,
             modelId,
             apiKey: null,
-            enableFunctionInvocation ? ToolExecutor : null);
+            enableFunctionInvocation ? ToolExecutor : null,
+            _sharedHttp);
     }
+
+    // One shared HttpClient for all chat streams (singleton lifetime).
+    private static readonly HttpClient _sharedHttp = new() { Timeout = TimeSpan.FromMinutes(10) };
 
     private static int ResolveGpuLayers(JustyBase.Common.AppOptions config)
     {

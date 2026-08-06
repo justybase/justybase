@@ -86,6 +86,8 @@ public sealed class LlamaServerBinaryManager
 
         try
         {
+            long total = 0;
+            long copied = 0;
             using (var response = await _httpClient.GetAsync(zipUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
             {
                 if (!response.IsSuccessStatusCode)
@@ -95,7 +97,7 @@ public sealed class LlamaServerBinaryManager
                         "Check the llama.cpp release tag (JUSTYBASE_LLAMA_TAG) or your network.");
                 }
 
-                var total = response.Content.Headers.ContentLength ?? 0L;
+                total = response.Content.Headers.ContentLength ?? 0L;
                 await using var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
                 await using var target = new FileStream(
                     zipPath,
@@ -105,7 +107,6 @@ public sealed class LlamaServerBinaryManager
                     bufferSize: 1024 * 128,
                     useAsync: true);
                 var buffer = new byte[1024 * 128];
-                long copied = 0;
                 int read;
                 while ((read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
                 {
@@ -120,6 +121,13 @@ public sealed class LlamaServerBinaryManager
                 }
 
                 await target.FlushAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            if (total > 0 && copied < total)
+            {
+                throw new InvalidOperationException(
+                    $"llama-server download finished early: {copied} of {total} bytes received. The transfer was interrupted — please try again.");
             }
 
             progress?.Report(new FimModelProgress(0.95, "Extracting llama-server…"));

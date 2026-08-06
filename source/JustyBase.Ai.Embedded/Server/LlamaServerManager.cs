@@ -25,6 +25,8 @@ public sealed class LlamaServerManager : IAsyncDisposable
     private uint _chatContextSize;
     private int _fimGpuLayers;
     private uint _fimContextSize;
+    private string? _chatBinaryVariant;
+    private string? _fimBinaryVariant;
 
     public LlamaServerManager(LlamaServerBinaryManager binary)
     {
@@ -52,11 +54,14 @@ public sealed class LlamaServerManager : IAsyncDisposable
             var currentPath = role == LlamaServerRole.Chat ? _chatModelPath : _fimModelPath;
             var currentGpu = role == LlamaServerRole.Chat ? _chatGpuLayers : _fimGpuLayers;
             var currentCtx = role == LlamaServerRole.Chat ? _chatContextSize : _fimContextSize;
+            var currentVariant = role == LlamaServerRole.Chat ? _chatBinaryVariant : _fimBinaryVariant;
+            var binaryVariant = _binary.BinaryVariant;
 
             if (current is { IsRunning: true }
                 && string.Equals(currentPath, modelPath, StringComparison.OrdinalIgnoreCase)
                 && currentGpu == gpuLayers
-                && currentCtx == contextSize)
+                && currentCtx == contextSize
+                && string.Equals(currentVariant, binaryVariant, StringComparison.OrdinalIgnoreCase))
             {
                 return current;
             }
@@ -87,6 +92,7 @@ public sealed class LlamaServerManager : IAsyncDisposable
                     _chatModelPath = modelPath;
                     _chatGpuLayers = gpuLayers;
                     _chatContextSize = contextSize;
+                    _chatBinaryVariant = binaryVariant;
                 }
                 else
                 {
@@ -94,6 +100,7 @@ public sealed class LlamaServerManager : IAsyncDisposable
                     _fimModelPath = modelPath;
                     _fimGpuLayers = gpuLayers;
                     _fimContextSize = contextSize;
+                    _fimBinaryVariant = binaryVariant;
                 }
 
                 instance = null;
@@ -139,6 +146,7 @@ public sealed class LlamaServerManager : IAsyncDisposable
             _chatModelPath = null;
             _chatGpuLayers = 0;
             _chatContextSize = 0;
+            _chatBinaryVariant = null;
         }
         else
         {
@@ -151,6 +159,7 @@ public sealed class LlamaServerManager : IAsyncDisposable
             _fimModelPath = null;
             _fimGpuLayers = 0;
             _fimContextSize = 0;
+            _fimBinaryVariant = null;
         }
     }
 

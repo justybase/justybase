@@ -16,6 +16,7 @@ public sealed class LlamaServerInstance : IAsyncDisposable
     private readonly int _gpuLayers;
     private readonly uint _contextSize;
     private Process? _process;
+    private CancellationTokenSource? _startCts;
     private bool _disposed;
 
     public LlamaServerInstance(string binaryPath, string modelPath, int gpuLayers, uint contextSize)
@@ -96,30 +97,47 @@ public sealed class LlamaServerInstance : IAsyncDisposable
 
         using var health = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
         var deadline = DateTime.UtcNow.AddMinutes(8);
-        while (DateTime.UtcNow < deadline)
+        var startCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _startCts = startCts;
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (_process is { HasExited: true })
+            while (DateTime.UtcNow < deadline)
             {
-                LastError = $"llama-server exited early (code {_process.ExitCode}). See {LogFilePath}.";
-                return false;
-            }
-
-            try
-            {
-                using var resp = await health.GetAsync(new Uri(Endpoint, "/health"), cancellationToken).ConfigureAwait(false);
-                if (resp.IsSuccessStatusCode)
+                startCts.Token.ThrowIfCancellationRequested();
+                if (_process is not { HasExited: false })
                 {
-                    progress?.Report(new FimModelProgress(1.0, "llama-server ready."));
-                    return true;
+                    return false;
                 }
+
+                try
+                {
+                    using var resp = await health.GetAsync(new Uri(Endpoint, "/health"), startCts.Token).ConfigureAwait(false);
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        progress?.Report(new FimModelProgress(1.0, "llama-server ready."));
+                        return true;
+                    }
+                }
+                catch
+                {
+                    // not up yet
+                }
+
+                await Task.Delay(750, startCts.Token).ConfigureAwait(false);
             }
-            catch
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        finally
+        {
+            if (ReferenceEquals(_startCts, startCts))
             {
-                // not up yet
+                _startCts = null;
             }
 
-            await Task.Delay(750, cancellationToken).ConfigureAwait(false);
+            startCts.Dispose();
         }
 
         LastError = "llama-server did not become ready in time.";
@@ -190,6 +208,11 @@ public sealed class LlamaServerInstance : IAsyncDisposable
         }
 
         _disposed = true;
+        // Cancel any in-flight StartAsync health poll so shutdown never waits out the deadline.
+        _startCts?.Cancel();
+        _startCts?.Dispose();
+        _startCts = null;
+
         var process = _process;
         _process = null;
         if (process is null)

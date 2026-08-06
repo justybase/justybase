@@ -25,6 +25,8 @@ public sealed class OpenAiCompatibleChatClient : IChatClient
     private readonly string? _apiKey;
     private readonly Func<string, string, Task<string>>? _toolExecutor;
     private readonly HttpClient _http;
+    private readonly bool _ownsHttp;
+    private readonly bool _sendThinkFalse;
 
     public OpenAiCompatibleChatClient(
         Uri endpoint,
@@ -37,12 +39,34 @@ public sealed class OpenAiCompatibleChatClient : IChatClient
         _modelId = modelId;
         _apiKey = apiKey;
         _toolExecutor = toolExecutor;
+        _ownsHttp = httpClient is null;
         _http = httpClient ?? new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+        // {"think": false} is a non-standard field — only inject it for local servers that
+        // support thinking suppression; strict remote OpenAI-compatible gateways reject it.
+        _sendThinkFalse = IsLoopback(endpoint);
+    }
+
+    private static bool IsLoopback(Uri endpoint)
+    {
+        if (endpoint.IsLoopback)
+        {
+            return true;
+        }
+
+        return string.Equals(endpoint.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(endpoint.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(endpoint.Host, "::1", StringComparison.OrdinalIgnoreCase);
     }
 
     public object? GetService(Type serviceType, object? key = null) => null;
 
-    public void Dispose() => _http.Dispose();
+    public void Dispose()
+    {
+        if (_ownsHttp)
+        {
+            _http.Dispose();
+        }
+    }
 
     public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
@@ -144,7 +168,7 @@ public sealed class OpenAiCompatibleChatClient : IChatClient
                     {
                         var index = call.TryGetProperty("index", out var indexProp) && indexProp.TryGetInt32(out var idx)
                             ? idx
-                            : toolCalls.Count;
+                            : Math.Max(0, toolCalls.Count - 1); // some servers omit "index" — merge into the last call
                         var id = call.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
                         var name = string.Empty;
                         var args = string.Empty;
@@ -270,7 +294,7 @@ public sealed class OpenAiCompatibleChatClient : IChatClient
             Model = _modelId,
             Messages = openAiMessages,
             Stream = true,
-            Think = false,
+            Think = _sendThinkFalse ? false : null,
             MaxTokens = options?.MaxOutputTokens,
             Temperature = options?.Temperature,
             Tools = tools,
@@ -440,7 +464,7 @@ internal sealed class OpenAiChatRequest
     public bool Stream { get; init; }
 
     [JsonPropertyName("think")]
-    public bool Think { get; init; }
+    public bool? Think { get; init; }
 
     [JsonPropertyName("max_tokens")]
     public int? MaxTokens { get; init; }

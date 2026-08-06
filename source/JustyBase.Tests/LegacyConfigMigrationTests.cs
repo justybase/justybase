@@ -60,7 +60,10 @@ public sealed class LegacyConfigMigrationTests
             }
             """;
 
-        var config = new AppOptions();
+        // Like production: deserialize onto the new schema first, then migrate legacy keys.
+        var config = System.Text.Json.JsonSerializer.Deserialize(
+            raw,
+            JustyBase.Common.MyJsonContextAppOptions.Default.AppOptions) ?? new AppOptions();
         LegacyConfigMigration.Migrate(config, raw);
 
         // New-schema keys win over legacy ones.

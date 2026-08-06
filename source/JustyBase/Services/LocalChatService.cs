@@ -236,7 +236,9 @@ public sealed class LocalChatService : ICopilotChatService, IAsyncDisposable
                 return true;
             }
 
-            ConnectionError = $"Backend '{backend.DisplayName}' is not responding.";
+            ConnectionError = backend is EmbeddedChatBackend embeddedBackend && !string.IsNullOrWhiteSpace(embeddedBackend.LastError)
+                ? embeddedBackend.LastError
+                : $"Backend '{backend.DisplayName}' is not responding.";
             _isConnected = wasConnected;
             return false;
         }

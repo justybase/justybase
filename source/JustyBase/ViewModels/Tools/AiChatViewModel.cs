@@ -534,6 +534,9 @@ public sealed partial class AiChatViewModel : Tool
             }
             else
             {
+                // The switch failed — never leave the previous backend's model list visible.
+                AvailableModels.Clear();
+                SelectedModelIndex = -1;
                 AvailableReasoningEfforts.Clear();
                 SelectedReasoningEffortIndex = -1;
                 SynchronizeSelectedBackendIndex(_chatService.ActiveBackendId);
@@ -598,10 +601,12 @@ public sealed partial class AiChatViewModel : Tool
 
     private async Task RefreshModelsAsync()
     {
+        // Clear first so a failing probe can never leave the previous backend's models visible.
+        AvailableModels.Clear();
+        SelectedModelIndex = -1;
         try
         {
             var models = await _chatService.GetAvailableModelsAsync();
-            AvailableModels.Clear();
             foreach (var model in models)
             {
                 AvailableModels.Add(model);

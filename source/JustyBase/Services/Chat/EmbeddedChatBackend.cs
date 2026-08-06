@@ -40,6 +40,9 @@ public sealed class EmbeddedChatBackend : ILocalChatBackend
     /// <summary>Executes model tool calls (approval-gated). Wired by LocalChatService.</summary>
     public Func<string, string, Task<string>>? ToolExecutor { get; set; }
 
+    /// <summary>Human-readable reason when <see cref="PingAsync"/> returns false.</summary>
+    public string? LastError { get; private set; }
+
     public async Task<bool> PingAsync(CancellationToken ct = default)
     {
         try
@@ -48,6 +51,13 @@ public sealed class EmbeddedChatBackend : ILocalChatBackend
             // the binary or spawn a server unless the user opted in.
             if (!_appData.Config.EnableEmbeddedChatAi)
             {
+                LastError = "Embedded (local) is disabled — enable 'Embedded AI (Chat)' in Preferences and prepare a model there first.";
+                return false;
+            }
+
+            if (!_chatModelStore.IsModelPresent)
+            {
+                LastError = "No embedded chat model downloaded — prepare one in Preferences → Embedded AI (Chat).";
                 return false;
             }
 
@@ -55,11 +65,6 @@ public sealed class EmbeddedChatBackend : ILocalChatBackend
             if (server is { IsRunning: true })
             {
                 return await PingServerAsync(server, ct);
-            }
-
-            if (!_chatModelStore.IsModelPresent)
-            {
-                return false;
             }
 
             var config = _appData.Config;
@@ -72,8 +77,9 @@ public sealed class EmbeddedChatBackend : ILocalChatBackend
                 ct).ConfigureAwait(false);
             return await PingServerAsync(instance, ct);
         }
-        catch
+        catch (Exception ex)
         {
+            LastError = $"Embedded llama-server failed to start: {ex.Message}";
             return false;
         }
     }

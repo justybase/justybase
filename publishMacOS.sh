@@ -28,7 +28,7 @@ dotnet publish "$PROJECT" -r "$RID" -c Release -f net10.0 \
   -p:PublishReadyToRun=true -p:PublishTrimmed=false \
   --self-contained true -p:DebugType=None -p:DebugSymbols=false \
   -p:UseSharedCompilation=false \
-  -p:UseLocalJustyBaseLibraries=false \
+  -p:UseLocalJustyBaseLibraries=true \
   -p:Version="$VERSION" -o "$PUBLISH_DIR"
 RUNTIMES_DIR="$PUBLISH_DIR/runtimes"
 if [[ -d "$RUNTIMES_DIR" ]]; then

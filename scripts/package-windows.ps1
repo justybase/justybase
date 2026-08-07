@@ -32,7 +32,7 @@ dotnet publish $project -r win-x64 -c Release -f net10.0 `
     -p:PublishTrimmed=false `
     --self-contained true -p:DebugType=None -p:DebugSymbols=false `
     -p:UseSharedCompilation=false `
-    -p:UseLocalJustyBaseLibraries=false `
+    -p:UseLocalJustyBaseLibraries=true `
     -p:Version=$Version -o $publish
 $runtimeRoot = Join-Path $publish 'runtimes'
 if (Test-Path $runtimeRoot) {

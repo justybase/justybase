@@ -40,6 +40,7 @@ public sealed partial class AiChatViewModel : Tool
     private CancellationTokenSource? _codexLoginCts;
     private CancellationTokenSource? _backendSwitchCts;
     private readonly SemaphoreSlim _backendSwitchGate = new(1, 1);
+    private readonly SemaphoreSlim _initializeGate = new(1, 1);
     private bool _synchronizingBackendSelection;
     private bool _synchronizingSessionSelection;
     private ChatMessage? _activeAssistantMessage;
@@ -57,6 +58,9 @@ public sealed partial class AiChatViewModel : Tool
     public partial bool IsStreaming { get; set; }
 
     [ObservableProperty]
+    public partial bool IsInitializing { get; set; }
+
+    [ObservableProperty]
     public partial bool IsSessionChoicePending { get; set; } = true;
 
     [ObservableProperty]
@@ -71,9 +75,9 @@ public sealed partial class AiChatViewModel : Tool
     [ObservableProperty]
     public partial bool HasSelectedSavedSession { get; set; }
 
-    public bool CanCompose => !IsStreaming && !IsSessionChoicePending;
+    public bool CanCompose => !IsStreaming && !IsSessionChoicePending && !IsInitializing;
 
-    public bool CanSwitchSession => !IsStreaming && !IsSessionChoicePending;
+    public bool CanSwitchSession => !IsStreaming && !IsSessionChoicePending && !IsInitializing;
 
     [ObservableProperty]
     public partial string StatusMessage { get; set; } = "Initializing...";
@@ -471,6 +475,12 @@ public sealed partial class AiChatViewModel : Tool
         OnPropertyChanged(nameof(CanSwitchSession));
     }
 
+    partial void OnIsInitializingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanCompose));
+        OnPropertyChanged(nameof(CanSwitchSession));
+    }
+
     partial void OnIsSessionChoicePendingChanged(bool value)
     {
         OnPropertyChanged(nameof(CanCompose));
@@ -705,12 +715,29 @@ public sealed partial class AiChatViewModel : Tool
             return true;
         }
 
-        await InitializeAsync().ConfigureAwait(true);
-        return IsConnected;
+        // Serialize lazy initialization so repeated sends during a slow first launch
+        // (e.g. starting the embedded llama-server) do not spawn parallel connects.
+        await _initializeGate.WaitAsync();
+        try
+        {
+            if (IsConnected)
+            {
+                return true;
+            }
+
+            await InitializeAsync().ConfigureAwait(true);
+            return IsConnected;
+        }
+        finally
+        {
+            _initializeGate.Release();
+        }
     }
 
     private async Task InitializeAsync()
     {
+        IsInitializing = true;
+        StatusMessage = "Preparing the AI provider — first launch of the embedded model may take a few seconds…";
         try
         {
             AvailableBackends.Clear();
@@ -720,7 +747,7 @@ public sealed partial class AiChatViewModel : Tool
             }
             SynchronizeSelectedBackendIndex(_generalApplicationData.Config.AiChatBackendId);
 
-            StatusMessage = "Connecting to AI provider...";
+            StatusMessage = "Preparing the AI provider — first launch of the embedded model may take a few seconds…";
 
             // Prefer the configured backend (Preferences → AI Chat → Backend); fall back to the
             // first reachable backend if the configured one is unavailable.
@@ -831,6 +858,10 @@ public sealed partial class AiChatViewModel : Tool
         {
             _logger.TrackError(ex, isCrash: false);
             StatusMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            IsInitializing = false;
         }
     }
 
@@ -982,7 +1013,8 @@ public sealed partial class AiChatViewModel : Tool
     {
         if (IsSessionChoicePending
             || (string.IsNullOrWhiteSpace(InputText) && PendingAttachments.Count == 0)
-            || IsStreaming)
+            || IsStreaming
+            || IsInitializing)
             return;
 
         if (!await EnsureConnectedAsync())

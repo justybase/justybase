@@ -252,6 +252,7 @@
             </ComboBox.ItemTemplate>
           </ComboBox>
           <TextBlock Text="{Binding StatusMessage}" FontSize="9" Opacity="0.65" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+          <ProgressBar Width="80" Height="4" IsIndeterminate="True" IsVisible="{Binding IsInitializing}" VerticalAlignment="Center" />
         </StackPanel>
         <ItemsControl Grid.Row="1" Grid.ColumnSpan="2" ItemsSource="{Binding PendingAttachments}" IsVisible="{Binding HasPendingAttachments}" Margin="0 0 0 5">
           <ItemsControl.ItemTemplate>

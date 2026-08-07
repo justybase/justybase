@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Root MIT `LICENSE` (+ EN/PL copies), restored `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`
 - `docs/ARCHITECTURE.md` — public layering and SQL run overview
-- ProDataGrid 12.0.5 NuGet dependency; CI no longer requires a sibling repository checkout
+- ProDataGrid 12.0.5 NuGet dependency
 - Removed the configurable update feed path from the app configuration surface
 - ISP split: `IDatabaseConnectionInfo`, `IDatabaseSchemaQueryService`, `IDatabaseDdlTextService` under umbrella `IDatabaseService`
 - Portfolio tests: product Avalonia headless smokes, `SqlResultsViewModel` / `SqlFoldingStrategy` / Sqlite smoke, formatter/linter goldens
@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Publish scripts use repo-relative paths (no machine-specific roots)
+- CI checks out the sibling `JustyBase.NetezzaSql` repo and builds tests/releases with local project references (`UseLocalJustyBaseLibraries=true`) instead of floating NuGet packages
 - README quick start, badges, dependency notes, and honest multi-DB maturity labels
 - README Tests section notes Cobertura coverage CI artifact
 - `ViewLocator` takes `IServiceProvider` (registered from `App` after DI build)

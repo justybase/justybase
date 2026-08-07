@@ -24,9 +24,9 @@ Be respectful and inclusive. We welcome contributions from everyone.
 
 ### Dependencies
 
-The DataGrid and hierarchical schema tree are restored from the official `ProDataGrid` NuGet package, version `12.0.5`. No sibling checkout or special CI checkout is required.
+The DataGrid and hierarchical schema tree are restored from the official `ProDataGrid` NuGet package, version `12.0.5`.
 
-Optional Netezza SQL libraries: when `../JustyBase.NetezzaSql` exists, MSBuild uses local `ProjectReference`s (projects are listed under `/JustyBase.NetezzaSql/` in `JustyBase.slnx` so Visual Studio restore works). Without the sibling, the latest NuGet packages are used (`*-*`, including prerelease). Override with `-p:UseLocalJustyBaseLibraries=false` or pin `-p:JustyBaseNetezzaLibsPackageVersion=0.3.0-preview.6`.
+Netezza SQL libraries: MSBuild prefers the local sibling checkout `../JustyBase.NetezzaSql` (the projects are listed under `/JustyBase.NetezzaSql/` in `JustyBase.slnx`, so Visual Studio restore works). GitHub Actions clones `justybase/JustyBase.NetezzaSql` automatically next to the `JustyBase` checkout and builds with `-p:UseLocalJustyBaseLibraries=true`, so CI tests and releases always compile against the same projects as local development. Without the sibling checkout, the latest NuGet packages are used (`*-*`, including prerelease). Override with `-p:UseLocalJustyBaseLibraries=false` or pin `-p:JustyBaseNetezzaLibsPackageVersion=0.3.0-preview.6`.
 
 ### First Build
 
@@ -102,7 +102,7 @@ Optional live Netezza integration: see [docs/INTEGRATION_TESTS.md](docs/INTEGRAT
 ## Architecture notes
 
 - Plugins inherit `DatabaseService` and set `WHO_I_AM_CONST`
-- Native AOT: prefer source generators; avoid unnecessary reflection
+- Release artifacts are self-contained ReadyToRun (no NativeAOT, no trimming), so reflection-based providers and in-process plugins work as-is
 - See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for layering and SQL run flow
 
 ## Questions?

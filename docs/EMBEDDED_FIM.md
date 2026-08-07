@@ -93,8 +93,8 @@ templates for all of these families (`/completion` with `input_prefix` / `input_
 | Git tool / Diff document | Status, stage/commit, history; side-by-side Diff tab (`CanFloat` off) |
 | Preferences UI | Enable, delay, presets / fine-tune, model, license gate, download/delete |
 
-The engine is a separate native process (`llama-server.exe`), so there is **no AOT impact** on the
-JustyBase binary itself.
+The engine is a separate native process (`llama-server.exe`), so it has no impact on the
+JustyBase managed process itself.
 
 ## Tips
 

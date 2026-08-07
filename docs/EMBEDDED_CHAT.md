@@ -72,6 +72,6 @@ Persisted options: `EnableEmbeddedChatAi`, `EmbeddedChatModelId`, `EmbeddedChatG
 ## Notes
 
 - The chat and FIM servers are started on demand and stopped on app exit.
-- The engine is an external native process, so there is no AOT impact on the JustyBase binary.
+- The engine is an external native process, so it has no impact on the JustyBase managed process.
 - Backend selection in Preferences migrates legacy `ollama` / `lmstudio` values to
   `openai-compatible` with the matching default endpoint.

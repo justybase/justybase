@@ -34,7 +34,7 @@ Local **Fill-in-the-Middle** SQL ghost text — served by a bundled llama.cpp `l
 - Editor: `InlineCompletionController` (configurable debounce, Tab accept)
 - Settings (`AppOptions`): `EnableFimServer` / `EnableEmbeddedChatAi` (default off), model ids / presets / delay / GPU knobs (see EMBEDDED_FIM.md)
 - Models downloaded to `%LOCALAPPDATA%/JustyBase/models/`; llama-server binary to `%LOCALAPPDATA%/JustyBase/llama-server/`
-- Native AOT: the engine is an external native process, so there is no AOT impact on the JustyBase binary
+- The engine is an external native process, so it has no impact on the JustyBase managed process
 
 ## Git tool
 
@@ -77,4 +77,4 @@ Maturity by engine: [PLUGIN_CAPABILITIES.md](PLUGIN_CAPABILITIES.md).
 - Credentials stored encrypted under `%AppData%\JustDataEvo`
 - Logging redacts connection secrets
 - Update feed integration was removed; the app no longer depends on a remote update feed URL
-- Native AOT publish path for Windows/Linux
+- Release artifacts are self-contained ReadyToRun (no NativeAOT, no trimming); CI builds the Netezza libraries from the sibling `JustyBase.NetezzaSql` checkout (`UseLocalJustyBaseLibraries=true`)

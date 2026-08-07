@@ -130,7 +130,7 @@ On first launch, add an IBM Netezza connection from the schema or connections UI
 | Dependency | How it is resolved |
 |------------|--------------------|
 | **ProDataGrid** | NuGet package `ProDataGrid` version `12.0.5`. |
-| **JustyBase.Netezza\*** | Local `../JustyBase.NetezzaSql` when present (also in `JustyBase.slnx`); otherwise latest NuGet (`*-*`). Pin with `-p:JustyBaseNetezzaLibsPackageVersion=...` or force NuGet with `-p:UseLocalJustyBaseLibraries=false`. |
+| **JustyBase.Netezza\*** | Local `../JustyBase.NetezzaSql` sibling when present (also in `JustyBase.slnx`); otherwise NuGet fallback (`*-*`). CI clones the sibling automatically and forces `UseLocalJustyBaseLibraries=true`. Pin with `-p:JustyBaseNetezzaLibsPackageVersion=...` or force NuGet with `-p:UseLocalJustyBaseLibraries=false`. |
 
 ### AI and data privacy
 
@@ -173,6 +173,8 @@ publishWindows.bat <version>
 ```
 
 The GitHub Actions release workflow builds one self-contained ReadyToRun package per supported operating system. Dynamic plugins and reflection-heavy database providers remain in-process; trimming is disabled for provider compatibility.
+
+Netezza SQL libraries in CI: the workflows clone `justybase/JustyBase.NetezzaSql` next to the `JustyBase` checkout and build with `-p:UseLocalJustyBaseLibraries=true`, so releases and tests compile the same projects as local development instead of resolving floating NuGet versions. Locally the sibling checkout is auto-detected; without it the NuGet fallback (`*-*`) applies.
 
 ## Quick verification
 

@@ -1,5 +1,6 @@
 using Avalonia.Markup.Xaml;
 using JustyBase.ViewModels.Tools;
+using JustyBase.Ai.Models;
 using JustyBase.Common.Models;
 
 namespace JustyBase.Views.Tools;
@@ -136,7 +137,8 @@ public partial class AiChatView : UserControl
 
         if (e.Key == Key.Enter)
         {
-            if (e.KeyModifiers == KeyModifiers.Shift)
+            // Bare Enter sends the message; Ctrl+Enter and Shift+Enter insert a newline.
+            if (e.KeyModifiers is KeyModifiers.Control or KeyModifiers.Shift)
             {
                 return;
             }

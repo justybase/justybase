@@ -3,10 +3,12 @@ using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Core;
 using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
+using JustyBase.Ai.Models;
 using JustyBase.Common.Models;
 using JustyBase.Helpers;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
+using JustyBase.Ai.Services;
 using JustyBase.Services;
 using JustyBase.Services.Documents;
 using JustyBase.ViewModels.Tools.Converters;
@@ -108,6 +110,16 @@ public sealed partial class AiChatViewModel : Tool
 
     [ObservableProperty]
     public partial bool IsCodexBackend { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsEmbeddedBackend { get; set; }
+
+    /// <summary>Reasoning effort is available for Codex and the embedded llama-server (Qwen3-style thinking).</summary>
+    public bool ShowReasoningEffort => IsCodexBackend || IsEmbeddedBackend;
+
+    partial void OnIsCodexBackendChanged(bool value) => OnPropertyChanged(nameof(ShowReasoningEffort));
+
+    partial void OnIsEmbeddedBackendChanged(bool value) => OnPropertyChanged(nameof(ShowReasoningEffort));
 
     [ObservableProperty]
     public partial ObservableCollection<string> AvailableBackends { get; set; } = [];
@@ -228,12 +240,13 @@ public sealed partial class AiChatViewModel : Tool
         // first network probe.  The chat panel must not look uninitialized just
         // because lazy connection is enabled.
         IsCodexBackend = string.Equals(config.AiChatBackendId, "codex", StringComparison.OrdinalIgnoreCase);
+        IsEmbeddedBackend = string.Equals(config.AiChatBackendId, "embedded", StringComparison.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(SelectedModel))
         {
             AvailableModels.Add(SelectedModel);
             SelectedModelIndex = 0;
         }
-        if (IsCodexBackend && !string.IsNullOrWhiteSpace(SelectedReasoningEffort))
+        if (ShowReasoningEffort && !string.IsNullOrWhiteSpace(SelectedReasoningEffort))
         {
             AvailableReasoningEfforts.Add(SelectedReasoningEffort);
             SelectedReasoningEffortIndex = 0;
@@ -412,7 +425,7 @@ public sealed partial class AiChatViewModel : Tool
             PersistAiChatSelection();
         }
 
-        if (IsCodexBackend && !IsStreaming)
+        if (ShowReasoningEffort && !IsStreaming)
             _ = RefreshReasoningEffortsAsync(value);
     }
 
@@ -528,6 +541,7 @@ public sealed partial class AiChatViewModel : Tool
                 return;
 
             IsCodexBackend = success && string.Equals(backendId, "codex", StringComparison.OrdinalIgnoreCase);
+            IsEmbeddedBackend = success && string.Equals(backendId, "embedded", StringComparison.OrdinalIgnoreCase);
             if (success)
             {
                 await RefreshModelsAsync();
@@ -637,7 +651,7 @@ public sealed partial class AiChatViewModel : Tool
 
     private async Task RefreshReasoningEffortsAsync(string? modelId)
     {
-        if (!IsCodexBackend)
+        if (!ShowReasoningEffort)
         {
             AvailableReasoningEfforts.Clear();
             SelectedReasoningEffortIndex = -1;
@@ -730,6 +744,8 @@ public sealed partial class AiChatViewModel : Tool
             RefreshCodexAccountState();
             IsCodexBackend = IsConnected
                 && string.Equals(_chatService.ActiveBackendId, "codex", StringComparison.OrdinalIgnoreCase);
+            IsEmbeddedBackend = IsConnected
+                && string.Equals(_chatService.ActiveBackendId, "embedded", StringComparison.OrdinalIgnoreCase);
 
             // match active backend index
             if (IsConnected && _chatService.ActiveBackendId is not null)
@@ -1028,7 +1044,7 @@ public sealed partial class AiChatViewModel : Tool
             await foreach (var chunk in _chatService.SendMessageAsync(
                 Messages.ToList(),
                 SelectedModel,
-                IsCodexBackend ? SelectedReasoningEffort : null,
+                ShowReasoningEffort ? SelectedReasoningEffort : null,
                 _currentStreamingCts.Token))
             {
                 assistantMessage.Content += chunk;

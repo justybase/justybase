@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vm="using:JustyBase.ViewModels.Tools"
-             xmlns:m="using:JustyBase.Common.Models"
+             xmlns:m="using:JustyBase.Ai.Models"
              xmlns:conv="using:JustyBase.Converters"
              xmlns:chat="using:JustyBase.Views.Tools"
              xmlns:md="clr-namespace:LiveMarkdown.Avalonia;assembly=LiveMarkdown.Avalonia"
@@ -86,7 +86,7 @@
         <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="5" Margin="15 6 0 0">
           <ComboBox ItemsSource="{Binding AvailableBackends}" SelectedIndex="{Binding SelectedBackendIndex}" Width="130" FontSize="10" ToolTip.Tip="Switch AI provider (active request will be cancelled)" />
           <ComboBox ItemsSource="{Binding AvailableModels}" SelectedIndex="{Binding SelectedModelIndex}" Width="145" FontSize="10" IsEnabled="{Binding !IsStreaming}" />
-          <ComboBox ItemsSource="{Binding AvailableReasoningEfforts}" SelectedIndex="{Binding SelectedReasoningEffortIndex}" Width="100" FontSize="10" IsVisible="{Binding IsCodexBackend}" IsEnabled="{Binding !IsStreaming}" ToolTip.Tip="Codex reasoning effort" />
+          <ComboBox ItemsSource="{Binding AvailableReasoningEfforts}" SelectedIndex="{Binding SelectedReasoningEffortIndex}" Width="100" FontSize="10" IsVisible="{Binding ShowReasoningEffort}" IsEnabled="{Binding !IsStreaming}" ToolTip.Tip="Reasoning effort (Codex / Embedded)" />
           <ToggleButton IsChecked="{Binding ShowTodoPanel}" Content="Tasks" Padding="7 3" FontSize="10" />
         </StackPanel>
       </Grid>

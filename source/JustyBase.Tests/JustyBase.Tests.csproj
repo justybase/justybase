@@ -26,12 +26,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\JustyBase.Ai.Embedded\JustyBase.Ai.Embedded.csproj" />
+    <ProjectReference Include="..\JustyBase\JustyBase.csproj" />
     <ProjectReference Include="..\JustyBase.Common\JustyBase.Common\JustyBase.Common.csproj" />
     <ProjectReference Include="..\JustyBase.PluginCommon\JustyBase.PluginCommon.csproj" />
     <ProjectReference Include="..\JustyBase.PluginBase\JustyBase.PluginBase.csproj" />
     <ProjectReference Include="..\Plugins\NetezzaBase\NetezzaBase.csproj" />
-    <ProjectReference Include="..\JustyBase\JustyBase.csproj" />
     <ProjectReference Include="..\SqlEditor.Avalonia\SqlEditor.Avalonia.csproj" />
   </ItemGroup>
 

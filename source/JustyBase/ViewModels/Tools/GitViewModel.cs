@@ -6,7 +6,8 @@ using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
 using JustyBase.Helpers;
 using JustyBase.Services;
-using JustyBase.Services.Git;
+using JustyBase.Ai.Git;
+using JustyBase.Core.Git;
 
 namespace JustyBase.ViewModels.Tools;
 

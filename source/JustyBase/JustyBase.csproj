@@ -110,7 +110,6 @@
 		
 		<ProjectReference Include="..\Plugins\NetezzaDotnetPlugin\NetezzaDotnetPlugin.csproj" />
 		<ProjectReference Include="..\SqlEditor.Avalonia\SqlEditor.Avalonia.csproj" />
-		<ProjectReference Include="..\JustyBase.Ai.Embedded\JustyBase.Ai.Embedded.csproj" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' == 'true'">
 		<ProjectReference Include="$(JustyBaseLocalNetezzaSqlParserProject)" />
@@ -119,6 +118,8 @@
 		<ProjectReference Include="$(JustyBaseLocalNetezzaCatalogSqlProject)" />
 		<ProjectReference Include="$(JustyBaseLocalCoreProject)" />
 		<ProjectReference Include="$(JustyBaseLocalImportExportProject)" />
+		<ProjectReference Include="$(JustyBaseLocalAiProject)" />
+		<ProjectReference Include="$(JustyBaseLocalAiEmbeddedProject)" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' != 'true'">
 		<PackageReference Include="JustyBase.NetezzaSqlParser" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
@@ -127,6 +128,8 @@
 		<PackageReference Include="JustyBase.NetezzaCatalogSql" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
 		<PackageReference Include="JustyBase.Core" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
 		<PackageReference Include="JustyBase.ImportExport" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
+		<PackageReference Include="JustyBase.Ai" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
+		<PackageReference Include="JustyBase.Ai.Embedded" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
 	</ItemGroup>
 	<ItemGroup Condition="$(DefineConstants.Contains('MYSQL'))">
 		<ProjectReference Include="..\Plugins\MySqlPlugin\MySqlPlugin.csproj" />

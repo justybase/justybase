@@ -1,4 +1,5 @@
 using System.Globalization;
+using JustyBase.Ai.Models;
 using JustyBase.Common.Models;
 
 namespace JustyBase.ViewModels.Tools.Converters;

@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
+using JustyBase.Ai.Services;
 using JustyBase.Common.Models;
 using JustyBase.Common.Contracts;
 using JustyBase.Helpers.Shared;

@@ -1,4 +1,7 @@
 using Dock.Model.Core;
+using JustyBase.Ai.Chat;
+using JustyBase.Ai.Ports;
+using JustyBase.Ai.Services;
 using JustyBase.Common;
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Helpers;
@@ -9,12 +12,12 @@ using JustyBase.Helpers.Interactions;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services;
-using JustyBase.Services.Chat;
+using JustyBase.Services.Ai;
 using JustyBase.Services.Docking;
 using JustyBase.Services.DataGrid;
 using JustyBase.Services.Documents;
 using JustyBase.Services.Embedded;
-using JustyBase.Services.Git;
+using JustyBase.Ai.Git;
 using JustyBase.Services.Logging;
 using JustyBase.Themes;
 using JustyBase.ViewModels;
@@ -26,6 +29,7 @@ using JustyBase.NetezzaSqlParser.Completion;
 using JustyBase.NetezzaSqlParser.Visitor;
 using Microsoft.Extensions.DependencyInjection;
 using SqlEditor.Avalonia.AvaloniaSpecificHelpers;
+using HostSimpleLogger = JustyBase.PluginCommon.Contracts.ISimpleLogger;
 
 namespace JustyBase;
 
@@ -36,7 +40,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IEncryptionHelper, WindowsLinuxEncryptionHelper>();
         collection.AddSingleton<IThemeManager, FluentThemeManager>();
         collection.AddSingleton<IOtherHelpers, OtherHelpers>();
-        collection.AddSingleton<ISimpleLogger>(sp =>
+        collection.AddSingleton<HostSimpleLogger>(sp =>
             new FileSimpleLogger(
                 IGeneralApplicationData.LogsPath,
                 openMessagesInNotepad: true,
@@ -127,21 +131,21 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<SettingsViewModel>();
         collection.AddTransient<MainWindowViewModel>();
         collection.AddTransient<FileExplorerViewModel>();
-        collection.AddSingleton<IGitService, SystemGitService>();
-        collection.AddSingleton<IGitCommitMessageAiService>(sp =>
+        collection.AddSingleton<JustyBase.Core.Git.IGitService, JustyBase.Core.Git.SystemGitService>();
+        collection.AddSingleton<JustyBase.Ai.Git.IGitCommitMessageAiService>(sp =>
         {
-            var appData = sp.GetRequiredService<IGeneralApplicationData>();
-            if (!appData.Config.EnableFimServer)
+            var settingsStore = sp.GetRequiredService<JustyBase.Ai.Embedded.Settings.IFimSettingsStore>();
+            if (!settingsStore.Settings.EnableFimAi)
             {
-                return new UnavailableGitCommitMessageAiService();
+                return new JustyBase.Ai.Git.UnavailableGitCommitMessageAiService();
             }
 
             var store = sp.GetRequiredKeyedService<JustyBase.Ai.Embedded.Download.IModelStore>(
                 JustyBase.Services.Embedded.EmbeddedAiServiceCollectionExtensions.FimStoreKey);
-            return new LlamaServerGitCommitMessageAiService(
+            return new JustyBase.Ai.Git.LlamaServerGitCommitMessageAiService(
                 sp.GetRequiredService<JustyBase.Ai.Embedded.Server.LlamaServerManager>(),
                 store,
-                appData);
+                settingsStore);
         });
         collection.AddTransient<GitViewModel>();
         collection.AddTransient<GitDiffDocumentViewModel>();
@@ -152,6 +156,15 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<SqlResultsViewModel>();
         collection.AddTransient<HistoryViewModel>();
         collection.AddSingleton<AiChatViewModel>();
+        collection.AddSingleton<IChatSettingsStore, AppOptionsChatSettingsStore>();
+        collection.AddSingleton<JustyBase.Ai.Embedded.Settings.IFimSettingsStore, AppOptionsFimSettingsStore>();
+        collection.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
+        collection.AddSingleton<IChatDatabaseAccessProvider, ChatDatabaseAccessProvider>();
+        collection.AddSingleton<ISqlDiagnosticsProvider>(sp =>
+            new SqlDiagnosticsProviderAdapter(sp.GetRequiredService<SqlDiagnosticsViewModel>()));
+        collection.AddSingleton<JustyBase.Ai.Ports.ISimpleLogger>(sp =>
+            new ChatLoggerAdapter(sp.GetRequiredService<JustyBase.PluginCommon.Contracts.ISimpleLogger>()));
+        collection.AddSingleton<IChatEnvironment, ChatEnvironmentAdapter>();
         collection.AddSingleton<OpenAiCompatibleChatBackend>();
         collection.AddSingleton<ILocalChatBackend>(sp => sp.GetRequiredService<OpenAiCompatibleChatBackend>());
         collection.AddSingleton<LocalChatClientFactory>();

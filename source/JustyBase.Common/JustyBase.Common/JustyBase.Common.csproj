@@ -15,5 +15,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\JustyBase.Common.Tools\JustyBase.Common.Tools.csproj" />
+    <ProjectReference Include="$(JustyBaseLocalAiProject)" Condition="'$(UseLocalJustyBaseLibraries)' == 'true'" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' != 'true'">
+    <PackageReference Include="JustyBase.Ai" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
   </ItemGroup>
 </Project>

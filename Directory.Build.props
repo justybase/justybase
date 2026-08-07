@@ -24,13 +24,17 @@
     <JustyBaseLocalNetezzaCatalogSqlProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.NetezzaCatalogSql\JustyBase.NetezzaCatalogSql.csproj</JustyBaseLocalNetezzaCatalogSqlProject>
     <JustyBaseLocalCoreProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Core\JustyBase.Core.csproj</JustyBaseLocalCoreProject>
     <JustyBaseLocalImportExportProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.ImportExport\JustyBase.ImportExport.csproj</JustyBaseLocalImportExportProject>
+    <JustyBaseLocalAiProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Ai\JustyBase.Ai.csproj</JustyBaseLocalAiProject>
+    <JustyBaseLocalAiEmbeddedProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Ai.Embedded\JustyBase.Ai.Embedded.csproj</JustyBaseLocalAiEmbeddedProject>
     <UseLocalJustyBaseLibraries Condition="'$(UseLocalJustyBaseLibraries)' == ''
       and Exists('$(JustyBaseLocalNetezzaProject)')
       and Exists('$(JustyBaseLocalNetezzaSqlParserProject)')
       and Exists('$(JustyBaseLocalNetezzaDdlProject)')
       and Exists('$(JustyBaseLocalNetezzaCatalogSqlProject)')
       and Exists('$(JustyBaseLocalCoreProject)')
-      and Exists('$(JustyBaseLocalImportExportProject)')">true</UseLocalJustyBaseLibraries>
+      and Exists('$(JustyBaseLocalImportExportProject)')
+      and Exists('$(JustyBaseLocalAiProject)')
+      and Exists('$(JustyBaseLocalAiEmbeddedProject)')">true</UseLocalJustyBaseLibraries>
     <UseLocalJustyBaseLibraries Condition="'$(UseLocalJustyBaseLibraries)' == ''">false</UseLocalJustyBaseLibraries>
 
     <!-- NuGet fallback: latest published incl. prerelease. Pin e.g. 0.3.0-preview.6 -->

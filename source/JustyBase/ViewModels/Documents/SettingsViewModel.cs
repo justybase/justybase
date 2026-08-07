@@ -1,12 +1,15 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using JustyBase.Ai.Chat;
 using JustyBase.Ai.Embedded.Abstractions;
 using JustyBase.Ai.Embedded.Download;
 using JustyBase.Ai.Embedded.Prompting;
 using JustyBase.Ai.Embedded.Server;
 using JustyBase.Common;
 using JustyBase.Common.Contracts;
+using JustyBase.Ai.Models;
 using JustyBase.Common.Models;
+using JustyBase.Ai.Services;
 using JustyBase.Services;
 using JustyBase.Services.Embedded;
 using JustyBase.Services.Fim;
@@ -50,7 +53,7 @@ public partial class SettingsViewModel : DocumentBaseVM
         IFimModelBootstrapService fimBootstrap,
         FimModelCatalog fimCatalog,
         EmbeddedChatModelCatalog embeddedChatCatalog,
-        [FromKeyedServices(EmbeddedAiServiceCollectionExtensions.ChatStoreKey)] IModelStore embeddedChatStore,
+        [FromKeyedServices(EmbeddedChatBackend.ChatModelStoreKey)] IModelStore embeddedChatStore,
         JustyBase.Ai.Embedded.Server.LlamaServerManager? llamaServerManager = null)
         : base(generalApplicationData, messageForUserTools, documentCloseDecisionService, activeDocumentManager)
     {
@@ -1951,11 +1954,9 @@ public partial class SettingsViewModel : DocumentBaseVM
             .ToArray();
 
     public IReadOnlyList<AiChatModeChoiceItem> AiChatDefaultModeChoices { get; } =
-    [
-        new("expert", "Expert", "Full-featured SQL assistant with schema tools."),
-        new("sqlfix", "SQL Fix", "Automated diagnostics fixer — read, fix, recheck."),
-        new("simple", "Simple", "Plain chat — no tools, no schema."),
-    ];
+        ChatPresets.AllModes
+            .Select(mode => new AiChatModeChoiceItem(mode.Id, mode.DisplayName, mode.Description))
+            .ToArray();
 
     public AiChatModeChoiceItem? SelectedAiChatDefaultMode
     {
@@ -2071,12 +2072,9 @@ public partial class SettingsViewModel : DocumentBaseVM
     // === Presets (Balanced / Precise / Creative / Custom) ===
 
     public IReadOnlyList<AiChatPresetChoiceItem> AiChatPresetChoices { get; } =
-    [
-        new("balanced", "Balanced", "General-purpose — temp 0.7, 2048 tokens. Good default."),
-        new("precise", "Precise", "Deterministic answers — temp 0.2, 4096 tokens. Best for SQL fixes."),
-        new("creative", "Creative", "More exploratory — temp 1.1, 2048 tokens. Best for brainstorming."),
-        new("custom", "Custom", "User-tuned values (no longer matches a named preset)."),
-    ];
+        ChatPresets.All
+            .Select(preset => new AiChatPresetChoiceItem(preset.Id, preset.DisplayName, preset.Description))
+            .ToArray();
 
     public AiChatPresetChoiceItem? SelectedAiChatPreset
     {
@@ -2509,9 +2507,11 @@ public sealed record AiChatPresetChoiceItem(
 
     public static AiChatPresetChoiceItem FromId(string? id)
     {
-        var preset = CommonAiChatPresets.All.FirstOrDefault(p =>
+        var preset = ChatPresets.All.FirstOrDefault(p =>
             string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
-        return preset ?? CommonAiChatPresets.Balanced;
+        return preset is null
+            ? new AiChatPresetChoiceItem(ChatPresets.Balanced.Id, ChatPresets.Balanced.DisplayName, ChatPresets.Balanced.Description)
+            : new AiChatPresetChoiceItem(preset.Id, preset.DisplayName, preset.Description);
     }
 }
 
@@ -2524,10 +2524,11 @@ public sealed record AiChatModeChoiceItem(
 
     public static AiChatModeChoiceItem FromSlug(string? slug)
     {
-        var resolved = JustyBase.Common.Models.ChatModeExtensions.FromSlug(slug ?? string.Empty);
-        return CommonAiChatPresets.AllModes.FirstOrDefault(m =>
-            string.Equals(m.Slug, resolved.ToSlug(), StringComparison.OrdinalIgnoreCase))
-            ?? CommonAiChatPresets.AllModes[0];
+        var resolved = JustyBase.Ai.Models.ChatModeExtensions.FromSlug(slug ?? string.Empty);
+        var match = ChatPresets.AllModes.FirstOrDefault(m =>
+            string.Equals(m.Id, resolved.ToSlug(), StringComparison.OrdinalIgnoreCase))
+            ?? ChatPresets.AllModes[0];
+        return new AiChatModeChoiceItem(match.Id, match.DisplayName, match.Description);
     }
 }
 
@@ -2560,23 +2561,6 @@ public sealed record AiChatSystemPromptChoiceItem(
     string Slug,
     string DisplayName,
     string Prompt);
-
-internal static class CommonAiChatPresets
-{
-    public static readonly AiChatPresetChoiceItem Balanced = new("balanced", "Balanced", "General-purpose — temp 0.7, 2048 tokens. Good default.");
-    public static readonly AiChatPresetChoiceItem Precise = new("precise", "Precise", "Deterministic answers — temp 0.2, 4096 tokens. Best for SQL fixes.");
-    public static readonly AiChatPresetChoiceItem Creative = new("creative", "Creative", "More exploratory — temp 1.1, 2048 tokens. Best for brainstorming.");
-    public static readonly AiChatPresetChoiceItem Custom = new("custom", "Custom", "User-tuned values (no longer matches a named preset).");
-
-    public static readonly IReadOnlyList<AiChatPresetChoiceItem> All = [Balanced, Precise, Creative, Custom];
-
-    public static readonly IReadOnlyList<AiChatModeChoiceItem> AllModes =
-    [
-        new("expert", "Expert", "Full-featured SQL assistant with schema tools."),
-        new("sqlfix", "SQL Fix", "Automated diagnostics fixer — read, fix, recheck."),
-        new("simple", "Simple", "Plain chat — no tools, no schema."),
-    ];
-}
 
 public sealed record SettingsSectionDescriptor(string Id, string Title, IReadOnlyList<string> Keywords)
 {

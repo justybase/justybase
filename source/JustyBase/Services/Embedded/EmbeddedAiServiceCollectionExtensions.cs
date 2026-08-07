@@ -2,10 +2,11 @@ using AvaloniaEdit;
 using JustyBase.Ai.Embedded.Abstractions;
 using JustyBase.Ai.Embedded.Download;
 using JustyBase.Ai.Embedded.Server;
-using JustyBase.Common.Contracts;
+using JustyBase.Ai.Embedded.Settings;
+using JustyBase.Ai.Ports;
 using JustyBase.Editor;
 using JustyBase.Editor.InlineCompletion;
-using JustyBase.Services.Chat;
+using JustyBase.Ai.Chat;
 using JustyBase.Services.Fim;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,7 +19,6 @@ namespace JustyBase.Services.Embedded;
 public static class EmbeddedAiServiceCollectionExtensions
 {
     public const string FimStoreKey = "fim";
-    public const string ChatStoreKey = "chat";
 
     public static IServiceCollection AddEmbeddedLlamaServerServices(this IServiceCollection collection)
     {
@@ -30,21 +30,21 @@ public static class EmbeddedAiServiceCollectionExtensions
         collection.AddKeyedSingleton<IModelStore>(FimStoreKey, (sp, _) =>
         {
             var catalog = sp.GetRequiredService<FimModelCatalog>();
-            var appData = sp.GetRequiredService<IGeneralApplicationData>();
-            return new HuggingFaceModelStore(catalog, () => appData.Config.FimModelId);
+            var settings = sp.GetRequiredService<IFimSettingsStore>();
+            return new HuggingFaceModelStore(catalog, () => settings.Settings.FimModelId);
         });
-        collection.AddKeyedSingleton<IModelStore>(ChatStoreKey, (sp, _) =>
+        collection.AddKeyedSingleton<IModelStore>(EmbeddedChatBackend.ChatModelStoreKey, (sp, _) =>
         {
             var catalog = sp.GetRequiredService<EmbeddedChatModelCatalog>();
-            var appData = sp.GetRequiredService<IGeneralApplicationData>();
-            return new HuggingFaceModelStore(catalog, () => appData.Config.EmbeddedChatModelId);
+            var settings = sp.GetRequiredService<IChatSettingsStore>();
+            return new HuggingFaceModelStore(catalog, () => settings.Settings.EmbeddedChatModelId);
         });
 
         // llama-server binary + subprocess manager.
         collection.AddSingleton(sp =>
         {
-            var appData = sp.GetRequiredService<IGeneralApplicationData>();
-            return new LlamaServerBinaryManager(() => appData.Config.LlamaServerPreferVulkan);
+            var settings = sp.GetRequiredService<IChatSettingsStore>();
+            return new LlamaServerBinaryManager(() => settings.Settings.LlamaServerPreferVulkan);
         });
         collection.AddSingleton<LlamaServerManager>();
 
@@ -53,47 +53,51 @@ public static class EmbeddedAiServiceCollectionExtensions
         {
             var manager = sp.GetRequiredService<LlamaServerManager>();
             var store = sp.GetRequiredKeyedService<IModelStore>(FimStoreKey);
-            var appData = sp.GetRequiredService<IGeneralApplicationData>();
+            var settings = sp.GetRequiredService<IFimSettingsStore>();
             return new LlamaServerFimProvider(
                 manager,
                 store,
-                getGpuLayers: () => ResolveFimGpuLayers(appData.Config),
+                getGpuLayers: () => ResolveFimGpuLayers(settings.Settings),
                 getContextSize: () => (uint)Math.Clamp(
-                    appData.Config.FimCtxSize > 0 ? appData.Config.FimCtxSize : 4096, 512, 131_072));
+                    settings.Settings.FimCtxSize > 0 ? settings.Settings.FimCtxSize : 4096, 512, 131_072));
         });
         collection.AddSingleton(sp =>
         {
             var provider = sp.GetRequiredService<ICompletionProvider>();
-            var appData = sp.GetRequiredService<IGeneralApplicationData>();
+            var settings = sp.GetRequiredService<IFimSettingsStore>();
             return new FimInlineCompletionBridge(
                 provider,
-                () => appData.Config.EnableFimServer,
+                () => settings.Settings.EnableFimAi,
                 () =>
                 {
                     // The prompt budget must never exceed the llama-server context window,
                     // otherwise llama.cpp rejects the request ("prompt too long") and FIM
                     // silently produces nothing.
                     var ctxTokens = (int)Math.Clamp(
-                        (uint)(appData.Config.FimCtxSize > 0 ? appData.Config.FimCtxSize : 4096),
+                        (uint)(settings.Settings.FimCtxSize > 0 ? settings.Settings.FimCtxSize : 4096),
                         512,
                         131_072);
-                    var promptTokens = appData.Config.FimMaxPromptTokens > 0
-                        ? appData.Config.FimMaxPromptTokens
+                    var promptTokens = settings.Settings.FimMaxPromptTokens > 0
+                        ? settings.Settings.FimMaxPromptTokens
                         : 1536;
                     return new FimPromptBudget(
                         Math.Min(promptTokens, ctxTokens),
-                        appData.Config.FimPrefixPercentage,
-                        appData.Config.FimSuffixPercentage,
-                        appData.Config.FimMaxTokens);
+                        settings.Settings.FimPrefixPercentage,
+                        settings.Settings.FimSuffixPercentage,
+                        settings.Settings.FimMaxTokens);
                 });
         });
-        collection.AddSingleton<IFimModelBootstrapService>(sp =>
+        collection.AddSingleton<JustyBase.Ai.Embedded.Server.IFimModelBootstrapService>(sp =>
         {
             var provider = sp.GetRequiredService<ICompletionProvider>();
             var store = sp.GetRequiredKeyedService<IModelStore>(FimStoreKey);
             var manager = sp.GetRequiredService<LlamaServerManager>();
             var bridge = sp.GetRequiredService<FimInlineCompletionBridge>();
-            return new LlamaServerFimBootstrapService(provider, store, manager, bridge);
+            return new JustyBase.Ai.Embedded.Server.LlamaServerFimBootstrapService(
+                provider,
+                store,
+                manager,
+                notifyModelReady: () => bridge.NotifyModelReady());
         });
 
         // Embedded AI chat backend.
@@ -103,14 +107,14 @@ public static class EmbeddedAiServiceCollectionExtensions
         return collection;
     }
 
-    private static int ResolveFimGpuLayers(JustyBase.Common.AppOptions config)
+    private static int ResolveFimGpuLayers(FimSettings settings)
     {
-        if (!config.LlamaServerPreferVulkan)
+        if (!settings.FimPreferVulkan)
         {
             return 0;
         }
 
-        var layers = config.FimGpuLayers;
+        var layers = settings.FimGpuLayers;
         return Math.Clamp(layers < 0 ? 99 : layers, 0, 999);
     }
 }

@@ -1,3 +1,4 @@
+using JustyBase.Ai.Models;
 using JustyBase.Common.Models;
 using System.Text.Json.Serialization;
 

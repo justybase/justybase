@@ -35,7 +35,8 @@
     <Project Path="../JustyBase.NetezzaSql/JustyBase.Core/JustyBase.Core.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.ImportExport/JustyBase.ImportExport.csproj" />
   </Folder>
-  <Project Path="source/JustyBase.Ai.Embedded/JustyBase.Ai.Embedded.csproj" />
+  <Project Path="..\JustyBase.NetezzaSql\JustyBase.Ai\JustyBase.Ai.csproj" />
+  <Project Path="..\JustyBase.NetezzaSql\JustyBase.Ai.Embedded\JustyBase.Ai.Embedded.csproj" />
   <Project Path="source/JustyBase.PluginBase/JustyBase.PluginBase.csproj" />
   <Project Path="source/JustyBase.PluginCommon/JustyBase.PluginCommon.csproj" />
   <Project Path="source/JustyBase.Public.Lib/JustyBase.Public.Lib.csproj" />

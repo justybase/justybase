@@ -43,6 +43,20 @@ public sealed class FimEditorAttachment : IDisposable
             getIsEnabled: isEnabled,
             completionHost: editor as CodeTextEditor);
         _controller.Attach();
+
+        // Proactively preload the model in the background so the first keystroke is fast.
+        // Without this the server starts on demand behind a keystroke debounce, so the
+        // first few seconds of typing produce no completion and FIM feels broken.
+        if (_bridge.IsEnabled())
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await _bridge.TryPreloadAsync().ConfigureAwait(false); }
+#pragma warning disable CA1031
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[FIM] Background preload failed: {ex.Message}"); }
+#pragma warning restore CA1031
+            });
+        }
     }
 
     public void SyncEnabled(bool enabled)

@@ -31,6 +31,49 @@ public sealed class FimInlineCompletionBridge
     public void NotifyModelReady() => ModelReady?.Invoke(this, EventArgs.Empty);
 
     /// <summary>
+    /// Best-effort background preload: starts the llama-server only when the model is
+    /// already on disk (never triggers a download from the editor hot path). Serialized
+    /// with the on-demand start so concurrent keystrokes and preloads never race.
+    /// </summary>
+    public async Task<bool> TryPreloadAsync(CancellationToken cancellationToken = default)
+    {
+        if (_provider.IsReady)
+        {
+            return true;
+        }
+
+        if (!_provider.IsAvailable)
+        {
+            return false;
+        }
+
+        try
+        {
+            await _startGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                if (!_provider.IsReady)
+                {
+                    await _provider.EnsureReadyAsync(progress: null, CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                _startGate.Release();
+            }
+        }
+#pragma warning disable CA1031
+        catch (Exception)
+#pragma warning restore CA1031
+        {
+            return false;
+        }
+
+        return _provider.IsReady;
+    }
+
+
+    /// <summary>
     /// Completes inline; <paramref name="schemaHintProvider"/> (per document) may return a
     /// schema-context block (e.g. columns/types of tables near the caret) that is prepended
     /// to the FIM prefix and charged against the prefix budget.

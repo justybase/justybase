@@ -62,7 +62,7 @@ It is especially useful for:
 - **Multi-connection management** for multiple database sessions
 - **Netezza-first database support** for IBM Netezza Performance Server
 - **Other database engines** (Postgres, DB2, Oracle, DuckDB, MySQL, SQLite) are **coming soon / work in progress** and should not yet be considered generally supported
-- **Native AOT** support for faster startup with `PublishAot` (Windows/Linux; macOS ARM64 release is self-contained)
+- **Self-contained ReadyToRun** release packages for deployment without a separately installed .NET runtime
 
 > The hierarchical DataGrid is provided by the official `ProDataGrid` NuGet package and is restored automatically during the normal build.
 
@@ -151,29 +151,28 @@ The application does not expose arbitrary workspace file reads or result-grid ro
 dotnet build JustyBase.slnx -c Release
 ```
 
-### Native AOT build
+### Self-contained ReadyToRun publish
 
 ```bash
 cd source/JustyBase
-dotnet publish -r win-x64 -c Release -f net10.0 -p:EnableAOT=true
+dotnet publish -r win-x64 -c Release -f net10.0 \
+  -p:PublishAot=false -p:PublishReadyToRun=true -p:PublishTrimmed=false \
+  --self-contained true
 ```
 
-Release packaging generates separate database/runtime variants:
+Release packaging generates one full database/runtime variant:
 
-- `aot-netezza`: Native AOT for Windows x64 and Linux x64, Netezza only.
-- `self-contained-netezza-db2`: self-contained for Windows x64, Linux x64 and macOS ARM64, with Netezza and DB2.
+- `self-contained`: self-contained ReadyToRun package for the target operating system, including Netezza and DB2.
 
 Examples:
 
 ```text
-publishWindows.bat <version> aot-netezza
-publishWindows.bat <version> self-contained-netezza-db2
-./publishLinux.sh <version> artifacts aot-netezza
-./publishLinux.sh <version> artifacts self-contained-netezza-db2
+publishWindows.bat <version>
+./publishLinux.sh <version> artifacts
 ./publishMacOS.sh <version> osx-arm64 artifacts
 ```
 
-The GitHub Actions release workflow builds and uploads all variants automatically. macOS is always self-contained because Native AOT is not supported reliably there, while DB2 is excluded from AOT because its provider is not AOT-compatible.
+The GitHub Actions release workflow builds one self-contained ReadyToRun package per supported operating system. Dynamic plugins and reflection-heavy database providers remain in-process; trimming is disabled for provider compatibility.
 
 ## Quick verification
 

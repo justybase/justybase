@@ -19,15 +19,13 @@ command -v zip >/dev/null || { echo "zip is required" >&2; exit 1; }
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT="$ROOT/source/JustyBase/JustyBase.csproj"
 PUBLISH_DIR="$ROOT/$OUTPUT_ROOT/work/$RID"
-ZIP_PATH="$ROOT/$OUTPUT_ROOT/JustyBase-${VERSION}-macos-${ARCH}-self-contained-netezza-db2.zip"
+ZIP_PATH="$ROOT/$OUTPUT_ROOT/JustyBase-${VERSION}-macos-${ARCH}-self-contained.zip"
 
 rm -rf "$PUBLISH_DIR"
 mkdir -p "$PUBLISH_DIR" "$(dirname "$ZIP_PATH")"
-# macOS ARM64 is distributed as a self-contained framework-compatible build.
-# NativeAOT currently requires Swift shim symbols that are not consistently
-# available on hosted runners, so keep this target reliable and portable.
 dotnet publish "$PROJECT" -r "$RID" -c Release -f net10.0 \
-  -p:EnableAOT=false -p:EnableDb2Plugin=true -p:PublishAot=false \
+  -p:EnableDb2Plugin=true -p:PublishAot=false \
+  -p:PublishReadyToRun=true -p:PublishTrimmed=false \
   --self-contained true -p:DebugType=None -p:DebugSymbols=false \
   -p:UseSharedCompilation=false \
   -p:UseLocalJustyBaseLibraries=false \

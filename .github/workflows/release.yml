@@ -48,19 +48,9 @@ jobs:
       contents: read
 
   windows:
-    name: Windows x64 ${{ matrix.variant.name }} packages
+    name: Windows x64 self-contained ReadyToRun package
     needs: [prepare, quality]
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        variant:
-          - name: aot-netezza
-            enableAot: true
-            enableDb2: false
-          - name: self-contained-netezza-db2
-            enableAot: false
-            enableDb2: true
     defaults:
       run:
         working-directory: JustyBase
@@ -74,11 +64,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Restore
-        run: >
-          dotnet restore .\source\JustyBase\JustyBase.csproj --force-evaluate
-          -p:UseLocalJustyBaseLibraries=false
-          -p:EnableAOT=${{ matrix.variant.enableAot }}
-          -p:EnableDb2Plugin=${{ matrix.variant.enableDb2 }}
+        run: dotnet restore .\source\JustyBase\JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=false
       - name: Install Velopack CLI
         shell: pwsh
         run: |
@@ -88,31 +74,20 @@ jobs:
         shell: pwsh
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
-          VARIANT: ${{ matrix.variant.name }}
-        run: .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts -Variant $env:VARIANT
+        run: .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts
       - name: Upload Windows packages
         uses: actions/upload-artifact@v4
         with:
-          name: release-windows-${{ matrix.variant.name }}
+          name: release-windows-self-contained
           path: |
-            JustyBase/artifacts/*-${{ matrix.variant.name }}.zip
-            JustyBase/artifacts/*-${{ matrix.variant.name }}-Setup.exe
+            JustyBase/artifacts/*-self-contained.zip
+            JustyBase/artifacts/*-self-contained-Setup.exe
           if-no-files-found: error
 
   linux:
-    name: Linux x64 ${{ matrix.variant.name }} package
+    name: Linux x64 self-contained ReadyToRun package
     needs: [prepare, quality]
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        variant:
-          - name: aot-netezza
-            enableAot: true
-            enableDb2: false
-          - name: self-contained-netezza-db2
-            enableAot: false
-            enableDb2: true
     defaults:
       run:
         working-directory: JustyBase
@@ -127,24 +102,16 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Install packaging dependencies
         run: sudo apt-get update && sudo apt-get install -y zip
-      - name: Install NativeAOT dependencies
-        if: matrix.variant.enableAot
-        run: sudo apt-get install -y clang lld zlib1g-dev
       - name: Restore
-        run: >
-          dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate
-          -p:UseLocalJustyBaseLibraries=false
-          -p:EnableAOT=${{ matrix.variant.enableAot }}
-          -p:EnableDb2Plugin=${{ matrix.variant.enableDb2 }}
+        run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=false
       - name: Build Linux package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
-          VARIANT: ${{ matrix.variant.name }}
-        run: bash ./publishLinux.sh "$VERSION" ./artifacts "$VARIANT"
+        run: bash ./publishLinux.sh "$VERSION" ./artifacts
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
         with:
-          name: release-linux-${{ matrix.variant.name }}
+          name: release-linux-self-contained
           path: JustyBase/artifacts/*.zip
           if-no-files-found: error
 
@@ -169,9 +136,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Restore
-        run: >
-          dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate
-          -p:UseLocalJustyBaseLibraries=false -p:EnableAOT=false -p:EnableDb2Plugin=true
+        run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=false
       - name: Build macOS self-contained package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
@@ -205,13 +170,10 @@ jobs:
         run: |
           set -euo pipefail
           expected=(
-            "JustyBase-${VERSION}-win-x64-aot-netezza-Setup.exe"
-            "JustyBase-${VERSION}-win-x64-aot-netezza.zip"
-            "JustyBase-${VERSION}-win-x64-self-contained-netezza-db2-Setup.exe"
-            "JustyBase-${VERSION}-win-x64-self-contained-netezza-db2.zip"
-            "JustyBase-${VERSION}-linux-x64-aot-netezza.zip"
-            "JustyBase-${VERSION}-linux-x64-self-contained-netezza-db2.zip"
-            "JustyBase-${VERSION}-macos-arm64-self-contained-netezza-db2.zip"
+            "JustyBase-${VERSION}-win-x64-self-contained-Setup.exe"
+            "JustyBase-${VERSION}-win-x64-self-contained.zip"
+            "JustyBase-${VERSION}-linux-x64-self-contained.zip"
+            "JustyBase-${VERSION}-macos-arm64-self-contained.zip"
           )
           for file in "${expected[@]}"; do
             test -s "dist/$file" || { echo "Missing release asset: $file" >&2; exit 1; }

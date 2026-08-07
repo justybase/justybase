@@ -1,9 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)] [string] $Version,
-    [Parameter(Mandatory = $true)] [string] $OutputRoot,
-    [ValidateSet('aot-netezza', 'self-contained-netezza-db2')]
-    [string] $Variant = 'aot-netezza'
+    [Parameter(Mandatory = $true)] [string] $OutputRoot
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,13 +10,11 @@ $project = Join-Path $root 'source\JustyBase\JustyBase.csproj'
 $releaseNotes = Join-Path $root 'source\JustyBase\ReleaseNotes.md'
 $icon = Join-Path $root 'source\JustyBase\Assets\Icon2.ico'
 $output = [IO.Path]::GetFullPath((Join-Path $root $OutputRoot))
-$publish = Join-Path $output "work\win-x64-$Variant"
+$variant = 'self-contained'
+$publish = Join-Path $output "work\win-x64-$variant"
 $velopack = Join-Path $output 'velopack'
-$zip = Join-Path $output "JustyBase-$Version-win-x64-$Variant.zip"
-$setup = Join-Path $output "JustyBase-$Version-win-x64-$Variant-Setup.exe"
-
-$enableAot = $Variant -eq 'aot-netezza'
-$enableDb2 = $Variant -eq 'self-contained-netezza-db2'
+$zip = Join-Path $output "JustyBase-$Version-win-x64-$variant.zip"
+$setup = Join-Path $output "JustyBase-$Version-win-x64-$variant-Setup.exe"
 
 if (-not (Test-Path $project)) { throw "Project not found: $project" }
 if (-not (Test-Path $releaseNotes)) { throw "Release notes not found: $releaseNotes" }
@@ -30,9 +26,10 @@ Remove-Item $publish, $velopack, $zip, $setup -Recurse -Force -ErrorAction Silen
 New-Item -ItemType Directory -Path $publish, $velopack, $output -Force | Out-Null
 
 dotnet publish $project -r win-x64 -c Release -f net10.0 `
-    -p:EnableAOT=$($enableAot.ToString().ToLowerInvariant()) `
-    -p:EnableDb2Plugin=$($enableDb2.ToString().ToLowerInvariant()) `
-    -p:PublishAot=$($enableAot.ToString().ToLowerInvariant()) `
+    -p:EnableDb2Plugin=true `
+    -p:PublishAot=false `
+    -p:PublishReadyToRun=true `
+    -p:PublishTrimmed=false `
     --self-contained true -p:DebugType=None -p:DebugSymbols=false `
     -p:UseSharedCompilation=false `
     -p:UseLocalJustyBaseLibraries=false `

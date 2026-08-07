@@ -1,12 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<!-- <DefineConstants>ORACLE;POSTGRES;MYSQL</DefineConstants> -->
-		<!-- Static plugin wiring (NativeAOT publishes cannot load plugins dynamically).
-		     EnableDb2Plugin=true adds the DB2 define + DB2Plugin project reference.
-		     Debug builds (F5 in Visual Studio) enable DB2 automatically; release scripts
-		     select the required AOT or self-contained database variant explicitly. -->
-		<EnableDb2Plugin Condition="'$(EnableDb2Plugin)' == '' and '$(Configuration)' == 'Debug'">true</EnableDb2Plugin>
-		<EnableDb2Plugin Condition="'$(EnableDb2Plugin)' == '' and '$(Configuration)' != 'Debug'">false</EnableDb2Plugin>
+		<!-- All release artifacts are regular self-contained .NET applications with
+		     ReadyToRun enabled. DB2 stays in-process because NativeAOT is no longer
+		     a deployment requirement. -->
+		<EnableDb2Plugin Condition="'$(EnableDb2Plugin)' == ''">true</EnableDb2Plugin>
 		<DefineConstants Condition="'$(EnableDb2Plugin)' == 'true'">$(DefineConstants);DB2</DefineConstants>
 		<OutputType>WinExe</OutputType>
 		<PlatformTarget>AnyCPU</PlatformTarget>
@@ -25,50 +23,13 @@
 		<Copyright>JustyBaseTeam</Copyright>
 		<RestoreEnablePackagePruning>true</RestoreEnablePackagePruning>
 		<ServerGarbageCollection>true</ServerGarbageCollection>
-		<!--<PublishReadyToRun>false</PublishReadyToRun>
-		<SelfContained>false</SelfContained>-->
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(EnableAOT)' == 'true'">
-    <PublishAot>true</PublishAot>
-    <TrimMode>link</TrimMode>
-    <DefineConstants>$(DefineConstants);AOT</DefineConstants>
-    <!--https://docs.avaloniaui.net/docs/deployment/native-aot-->
-    <!-- macOS-specific AOT settings for linker compatibility -->
-    <IlcExportUnmanagedEntrypoints>true</IlcExportUnmanagedEntrypoints>
-    <UseSystemResourceKeys>true</UseSystemResourceKeys>
-    <InvariantGlobalization>false</InvariantGlobalization>
-    <SelfContained>true</SelfContained>
+	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
+	    <PublishAot>false</PublishAot>
+	    <PublishReadyToRun>true</PublishReadyToRun>
+	    <PublishTrimmed>false</PublishTrimmed>
+	    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
 	</PropertyGroup>
-	<Target Name="ValidateJustyBasePublishConfiguration" BeforeTargets="Publish">
-		<Error Condition="'$(EnableAOT)' == 'true' and '$(EnableDb2Plugin)' == 'true'"
-		       Text="DB2Plugin is not compatible with NativeAOT. Use the self-contained DB2 variant with EnableAOT=false." />
-		<Error Condition="'$(EnableAOT)' == 'true' and ('$(RuntimeIdentifier)' == 'osx-arm64' or '$(RuntimeIdentifier)' == 'osx-x64')"
-		       Text="NativeAOT is not supported for macOS release artifacts. Use the self-contained macOS variant." />
-	</Target>
-	<ItemGroup>
-		<TrimmerRootAssembly Include="JustyBase" />
-		<TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />
-
-		<!--<TrimmerRootAssembly Include="Avalonia.Themes.Default" />-->
-
-		<!--<TrimmerRootAssembly Include="Avalonia.MarkupExtension" />
-		<TrimmerRootAssembly Include="Dock.Model" />
-		<TrimmerRootAssembly Include="Dock.Model.Mvvm" />
-		<TrimmerRootAssembly Include="Dock.Avalonia" />-->
-		
-
-		<TrimmerRootAssembly Include="Avalonia.Controls.DataGrid" />
-
-		<!-- The IBM DB2 provider relies on reflection for provider type maps; keep it whole under AOT. -->
-		<TrimmerRootAssembly Include="DB2Plugin" Condition="'$(Configuration)' == 'Release' and '$(EnableAOT)' == 'true' and '$(EnableDb2Plugin)' == 'true'" />
-		<TrimmerRootAssembly Include="IBM.Data.Db2" Condition="'$(Configuration)' == 'Release' and '$(EnableAOT)' == 'true' and '$(EnableDb2Plugin)' == 'true'" />
-
-		<!--<TrimmerRootAssembly Include="JustyBase.Common"/>-->
-		<!--<<assembly fullname="Dock.ProportionalStackPanel" preserve="All" />
-		<assembly fullname="AvaloniaEdit" preserve="All" />
-		<assembly fullname="Avalonia.Controls.DataGrid" preserve="All" />
-		-->
-	</ItemGroup>
 	<ItemGroup>
 		<AvaloniaResource Include="Assets\**" />
 	</ItemGroup>
@@ -116,10 +77,6 @@
 		<PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.10" />
 		<PackageReference Include="Xaml.Behaviors.Avalonia" Version="12.0.5" />
 	</ItemGroup>
-	<ItemGroup Condition="'$(Configuration)' == 'Release' and '$(EnableAOT)' == 'true' and '$(EnableAOTCompress)' == 'true'">
-		<PackageReference Include="PublishAotCompressed" Version="1.0.3" />
-	</ItemGroup>
-
 	<ItemGroup>
 		<Compile Update="Views\CustomListBox.axaml.cs">
 			<DependentUpon>CustomListBox.axaml</DependentUpon>

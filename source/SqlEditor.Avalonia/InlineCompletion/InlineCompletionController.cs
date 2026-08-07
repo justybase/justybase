@@ -172,12 +172,13 @@ public sealed class InlineCompletionController : IDisposable
 
     private void OnCaretChanged(object? sender, EventArgs e)
     {
+        // Navigation (mouse click, arrow keys, Home/End) must never start a completion.
+        // Only clear a stale ghost text when the caret left its anchor; typing is handled
+        // by OnTextEntered, and selection changes by OnCompletionSelectionChanged.
         if (_generator.HasGhostText && _generator.Offset != _editor.CaretOffset)
         {
             ClearGhostText();
         }
-
-        Schedule();
     }
 
     private void OnDocumentChanged(object? sender, DocumentChangeEventArgs e)

@@ -27,6 +27,14 @@ public partial class AiChatView : UserControl
         _mentionListBox = this.FindControl<ListBox>("MentionListBox");
         _chatActionsMenuFlyout = this.FindControl<Button>("ChatActionsButton")?.Flyout as MenuFlyout;
         _conversationsSectionHeader = this.FindControl<MenuItem>("ConversationsSectionHeader");
+
+        // The composer uses AcceptsReturn=True, whose class handler consumes a bare Enter
+        // in the bubbling KeyDown phase. Intercept Enter in the tunneling phase so it can
+        // send the message instead of inserting a newline.
+        if (this.FindControl<TextBox>("InputTextBox") is { } inputTextBox)
+        {
+            inputTextBox.AddHandler(InputElement.KeyDownEvent, InputTextBox_OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        }
     }
 
     private void OnChatActionsFlyoutOpening(object? sender, EventArgs e)
@@ -64,7 +72,7 @@ public partial class AiChatView : UserControl
         }
     }
 
-    private void InputTextBox_OnKeyDown(object? sender, KeyEventArgs e)
+    private void InputTextBox_OnPreviewKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is not AiChatViewModel vm)
             return;
@@ -73,18 +81,6 @@ public partial class AiChatView : UserControl
         {
             switch (e.Key)
             {
-                case Key.Down:
-                    _mentionSelectedIndex = Math.Min(_mentionSelectedIndex + 1, _mentionListBox.Items.Count - 1);
-                    _mentionListBox.SelectedIndex = _mentionSelectedIndex;
-                    _mentionListBox.ScrollIntoView(_mentionListBox.SelectedItem!);
-                    e.Handled = true;
-                    return;
-                case Key.Up:
-                    _mentionSelectedIndex = Math.Max(_mentionSelectedIndex - 1, 0);
-                    _mentionListBox.SelectedIndex = _mentionSelectedIndex;
-                    _mentionListBox.ScrollIntoView(_mentionListBox.SelectedItem!);
-                    e.Handled = true;
-                    return;
                 case Key.Enter or Key.Tab:
                     if (_mentionSelectedIndex >= 0 && _mentionListBox.SelectedItem is MentionItem mention)
                     {
@@ -106,18 +102,6 @@ public partial class AiChatView : UserControl
         {
             switch (e.Key)
             {
-                case Key.Down:
-                    _slashCommandSelectedIndex = Math.Min(_slashCommandSelectedIndex + 1, _slashCommandListBox.Items.Count - 1);
-                    _slashCommandListBox.SelectedIndex = _slashCommandSelectedIndex;
-                    _slashCommandListBox.ScrollIntoView(_slashCommandListBox.SelectedItem!);
-                    e.Handled = true;
-                    return;
-                case Key.Up:
-                    _slashCommandSelectedIndex = Math.Max(_slashCommandSelectedIndex - 1, 0);
-                    _slashCommandListBox.SelectedIndex = _slashCommandSelectedIndex;
-                    _slashCommandListBox.ScrollIntoView(_slashCommandListBox.SelectedItem!);
-                    e.Handled = true;
-                    return;
                 case Key.Enter or Key.Tab:
                     if (_slashCommandSelectedIndex >= 0 && _slashCommandListBox.SelectedItem is SlashCommand cmd)
                     {
@@ -138,12 +122,58 @@ public partial class AiChatView : UserControl
         if (e.Key == Key.Enter)
         {
             // Bare Enter sends the message; Ctrl+Enter and Shift+Enter insert a newline.
+            // Handled in the tunneling phase: the TextBox (AcceptsReturn) would otherwise
+            // consume Enter in its own KeyDown before this handler gets to run.
             if (e.KeyModifiers is KeyModifiers.Control or KeyModifiers.Shift)
             {
                 return;
             }
             vm.SendMessageCommand.Execute(null);
             e.Handled = true;
+        }
+    }
+
+    private void InputTextBox_OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is not AiChatViewModel vm)
+            return;
+
+        if (vm.ShowMentionMenu && _mentionListBox is { Items.Count: > 0 })
+        {
+            switch (e.Key)
+            {
+                case Key.Down:
+                    _mentionSelectedIndex = Math.Min(_mentionSelectedIndex + 1, _mentionListBox.Items.Count - 1);
+                    _mentionListBox.SelectedIndex = _mentionSelectedIndex;
+                    _mentionListBox.ScrollIntoView(_mentionListBox.SelectedItem!);
+                    e.Handled = true;
+                    return;
+                case Key.Up:
+                    _mentionSelectedIndex = Math.Max(_mentionSelectedIndex - 1, 0);
+                    _mentionListBox.SelectedIndex = _mentionSelectedIndex;
+                    _mentionListBox.ScrollIntoView(_mentionListBox.SelectedItem!);
+                    e.Handled = true;
+                    return;
+            }
+        }
+
+        if (vm.ShowSlashCommandMenu && _slashCommandListBox is { Items.Count: > 0 })
+        {
+            switch (e.Key)
+            {
+                case Key.Down:
+                    _slashCommandSelectedIndex = Math.Min(_slashCommandSelectedIndex + 1, _slashCommandListBox.Items.Count - 1);
+                    _slashCommandListBox.SelectedIndex = _slashCommandSelectedIndex;
+                    _slashCommandListBox.ScrollIntoView(_slashCommandListBox.SelectedItem!);
+                    e.Handled = true;
+                    return;
+                case Key.Up:
+                    _slashCommandSelectedIndex = Math.Max(_slashCommandSelectedIndex - 1, 0);
+                    _slashCommandListBox.SelectedIndex = _slashCommandSelectedIndex;
+                    _slashCommandListBox.ScrollIntoView(_slashCommandListBox.SelectedItem!);
+                    e.Handled = true;
+                    return;
+            }
         }
     }
 

@@ -161,6 +161,11 @@ public sealed class FimInlineCompletionBridge
     /// <summary>Truncates by UTF-16 chars without splitting a surrogate pair.</summary>
     private static string TruncateAtRuneBoundary(string text, int maxChars)
     {
+        if (maxChars <= 0)
+        {
+            return string.Empty;
+        }
+
         if (maxChars >= text.Length)
         {
             return text;

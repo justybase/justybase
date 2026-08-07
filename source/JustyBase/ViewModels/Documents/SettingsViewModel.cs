@@ -897,8 +897,19 @@ public partial class SettingsViewModel : DocumentBaseVM
         EmbeddedFimGpuLayers <= 0
             ? "0 (CPU compute)"
             : EmbeddedFimGpuLayers >= 99
-                ? $"{EmbeddedFimGpuLayers} (max offload)"
+                ? FimAutoGpuLayersLabel
                 : $"{EmbeddedFimGpuLayers} layers";
+
+    private string FimAutoGpuLayersLabel
+    {
+        get
+        {
+            var layers = GgufBlockCountReader.Read(_fimBootstrap.SelectedModelLocalPath);
+            return layers is > 0
+                ? $"Auto — all {layers} layers"
+                : "Auto (as many layers as fit in VRAM)";
+        }
+    }
 
     private async Task ReloadFimModelAfterGpuChangeAsync()
     {
@@ -1647,8 +1658,19 @@ public partial class SettingsViewModel : DocumentBaseVM
         EmbeddedChatGpuLayers <= 0
             ? "0 (CPU compute)"
             : EmbeddedChatGpuLayers >= 99
-                ? $"{EmbeddedChatGpuLayers} (max offload)"
+                ? ChatAutoGpuLayersLabel
                 : $"{EmbeddedChatGpuLayers} layers";
+
+    private string ChatAutoGpuLayersLabel
+    {
+        get
+        {
+            var layers = GgufBlockCountReader.Read(_embeddedChatStore.LocalModelPath);
+            return layers is > 0
+                ? $"Auto — all {layers} layers"
+                : "Auto (as many layers as fit in VRAM)";
+        }
+    }
 
     public int EmbeddedChatCtxSize
     {

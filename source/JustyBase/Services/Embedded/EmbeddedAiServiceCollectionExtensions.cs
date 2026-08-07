@@ -114,7 +114,8 @@ public static class EmbeddedAiServiceCollectionExtensions
             return 0;
         }
 
+        // Negative = auto: llama-server offloads as many layers as fit in VRAM.
         var layers = settings.FimGpuLayers;
-        return Math.Clamp(layers < 0 ? 99 : layers, 0, 999);
+        return layers < 0 ? -1 : Math.Clamp(layers, 0, 999);
     }
 }

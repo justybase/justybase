@@ -668,7 +668,7 @@
 							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
 								<StackPanel Grid.Column="0">
 									<TextBlock Classes="row-title" Text="GPU layers" />
-									<TextBlock Classes="row-desc" Text="llama.cpp offload count. 0 = CPU compute; 99 = as many layers as fit in VRAM. Reloads the model when changed." TextWrapping="Wrap" />
+									<TextBlock Classes="row-desc" Text="llama.cpp offload count. 0 = CPU compute; 99 = Auto (offloads as many layers as fit in VRAM). Reloads the model when changed." TextWrapping="Wrap" />
 								</StackPanel>
 								<StackPanel Grid.Column="1" Classes="settings-control" Width="200" Spacing="4"
 											IsEnabled="{Binding EmbeddedFimGpuLayersEnabled}">
@@ -817,7 +817,7 @@
 					<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
 						<StackPanel Grid.Column="0">
 							<TextBlock Classes="row-title" Text="GPU layers" />
-							<TextBlock Classes="row-desc" Text="llama.cpp offload count. 0 = CPU compute; 99 = as many layers as fit in VRAM." TextWrapping="Wrap" />
+									<TextBlock Classes="row-desc" Text="llama.cpp offload count. 0 = CPU compute; 99 = Auto (offloads as many layers as fit in VRAM)." TextWrapping="Wrap" />
 						</StackPanel>
 						<StackPanel Grid.Column="1" Classes="settings-control" Width="200" Spacing="4"
 									IsEnabled="{Binding EmbeddedChatGpuLayersEnabled}">

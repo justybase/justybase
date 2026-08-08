@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Core;
 using JustyBase.Common.Contracts;
+using JustyBase.Core.Database;
 using Microsoft.Extensions.DependencyInjection;
 using JustyBase.Common.Models;
 using JustyBase.Common.Services;
@@ -55,6 +56,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private readonly NzCompletionEngine? _completionEngine;
     private readonly InMemorySchemaProvider? _parserSchema;
     private readonly DocumentParsingCoordinator? _parsingCoordinator;
+    private readonly ISqlDbWordListProvider? _wordListProvider;
     private readonly FimEditorAttachment _fimAttachment;
     private readonly Queue<string> _pendingSnippetTexts = [];
     private IReadOnlyList<SymbolOccurrence> _lastReferenceOccurrences = [];
@@ -77,7 +79,8 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
           NzCompletionEngine? completionEngine = null,
           InMemorySchemaProvider? parserSchema = null,
           DocumentParsingCoordinator? parsingCoordinator = null,
-          FimInlineCompletionBridge? fimBridge = null
+          FimInlineCompletionBridge? fimBridge = null,
+          ISqlDbWordListProvider? wordListProvider = null
            )
         : base(generalApplicationData, messageForUserTools, documentCloseDecisionService, activeDocumentManager)
     {
@@ -99,6 +102,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         _completionEngine = completionEngine;
         _parserSchema = parserSchema;
         _parsingCoordinator = parsingCoordinator;
+        _wordListProvider = wordListProvider;
         _fimAttachment = new FimEditorAttachment(fimBridge);
         this.Factory = factory;
         _sqlVariableProcessor = sqlVariableProcessor;
@@ -247,7 +251,10 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         var documentUri = $"sql-doc-{Id}";
         value.Initialize(this, _generalApplicationData, _completionEngine, _parserSchema, _parsingCoordinator, documentUri,
             ensureTableColumns: (database, schema, table) => _linterService?.EnsureTableColumns(database, schema, table),
-            dialect: _documentDialect);
+            dialect: _documentDialect,
+            wordListProvider: _wordListProvider,
+            connectionNameProvider: () => SelectedConnectionName,
+            databaseNameProvider: () => SelectedDatabase);
         _fimAttachment.Attach(
             value,
             () => _generalApplicationData.Config.EnableFimServer,

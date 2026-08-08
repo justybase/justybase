@@ -1,4 +1,5 @@
 using JustyBase.Helpers;
+using JustyBase.Core.Database;
 using JustyBase.NetezzaSqlParser.Authoring;
 using JustyBase.NetezzaSqlParser.Completion;
 using JustyBase.NetezzaSqlParser.Caching;
@@ -11,19 +12,17 @@ namespace JustyBase.Editor.CompletionProviders;
 
 public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
 {
-    private readonly ISqlAutocompleteData _sqlAutocompleteData;
     private readonly SnippetInfoService _snippetService;
     private readonly SqlCodeEditor _sqlCodeEditor;
     private readonly ISomeEditorOptions? _someEditorOptions;
-    private readonly NzCompletionEngine? _completionEngine;
     private readonly DocumentParsingCoordinator? _parsingCoordinator;
     private readonly string? _documentUri;
     private readonly Action<string, string, string>? _ensureTableColumns;
     private readonly InMemorySchemaProvider? _parserSchema;
+    private readonly ISqlDbWordListProvider? _wordListProvider;
+    private readonly Func<string?>? _connectionNameProvider;
+    private readonly Func<string?>? _databaseNameProvider;
     private SqlDialect _dialect = SqlDialect.Netezza;
-
-    private static readonly object EngineCacheLock = new();
-    private static readonly Dictionary<SqlDialect, NzCompletionEngine> EngineCache = new();
 
     private const string FastSnippetTxt = "fast";
 
@@ -32,17 +31,21 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
         DocumentParsingCoordinator? parsingCoordinator = null, string? documentUri = null,
         Action<string, string, string>? ensureTableColumns = null,
         InMemorySchemaProvider? parserSchema = null,
-        SqlDialect dialect = SqlDialect.Netezza)
+        SqlDialect dialect = SqlDialect.Netezza,
+        ISqlDbWordListProvider? wordListProvider = null,
+        Func<string?>? connectionNameProvider = null,
+        Func<string?>? databaseNameProvider = null)
     {
         _someEditorOptions = snippetsProvider;
         _snippetService = new SnippetInfoService(_someEditorOptions);
-        _sqlAutocompleteData = sqlAutocompleteData;
         _sqlCodeEditor = sqlCodeEditor;
-        _completionEngine = completionEngine;
         _parsingCoordinator = parsingCoordinator;
         _documentUri = documentUri;
         _ensureTableColumns = ensureTableColumns;
         _parserSchema = parserSchema;
+        _wordListProvider = wordListProvider;
+        _connectionNameProvider = connectionNameProvider;
+        _databaseNameProvider = databaseNameProvider;
         _dialect = dialect;
     }
 
@@ -53,31 +56,6 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
     public void SetDialect(SqlDialect dialect)
     {
         _dialect = dialect;
-    }
-
-    private NzCompletionEngine GetCompletionEngine()
-    {
-        if (_dialect == SqlDialect.Netezza)
-            return _completionEngine ?? CreateEngine(SqlDialect.Netezza);
-
-        return CreateEngine(_dialect);
-    }
-
-    private NzCompletionEngine CreateEngine(SqlDialect dialect)
-    {
-        lock (EngineCacheLock)
-        {
-            if (EngineCache.TryGetValue(dialect, out var cached))
-                return cached;
-
-            var engine = new NzCompletionEngine(
-                _parserSchema,
-                _parsingCoordinator,
-                catalog: DialectRuntime.AuthoringCatalog(dialect),
-                dialect: dialect);
-            EngineCache[dialect] = engine;
-            return engine;
-        }
     }
 
     public async Task<CompletionResult> GetCompletionData(int position, char? triggerChar, CompletionRequestKind requestKind = CompletionRequestKind.Completion)
@@ -95,11 +73,11 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
 
         // Whitespace (space/tab/newline) never opens the completion list by itself;
         // only a word character, '.' or an explicit Ctrl+Space (triggerChar == null) does.
-        if (IsSuppressedTrigger(triggerChar))
+        if (CompletionGate.ShouldSuppressTrigger(triggerChar))
             return new CompletionResult([], null, true);
 
-        string? lastWord = EditorHelpers.GetLastWord(_sqlCodeEditor, position);
         var rawSqlText = _sqlCodeEditor.Document?.Text ?? string.Empty;
+        string? lastWord = CompletionFragment.GetLastWordFromText(rawSqlText, position);
         if (string.IsNullOrWhiteSpace(lastWord))
         {
             // Explicit Ctrl+Space (triggerChar == null) always shows the full context list.
@@ -113,43 +91,33 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
             return importExportCompletion;
 
         var completionData = new List<ICompletionDataEx>();
-        var engineItems = Array.Empty<CompletionItem>();
-        Dictionary<string, List<string>> withHints = new(StringComparer.OrdinalIgnoreCase);
-        Dictionary<string, List<string>> tempTableHints = new(StringComparer.OrdinalIgnoreCase);
-        Dictionary<string, List<string>> aliasDbTable = new(StringComparer.OrdinalIgnoreCase);
-        string legacySql = rawSqlText;
-
-        var completionEngine = GetCompletionEngine();
-        if (completionEngine is not null)
-        {
-            completionEngine.SetDocumentUri(_documentUri);
-            int lineCount = _sqlCodeEditor.Document?.LineCount ?? SqlPerformancePolicy.CountLines(rawSqlText);
-            // Dot / explicit invoke use the forced (48k) statement limit; passive timer uses 8k.
-            bool forced = triggerChar is '.' or null;
-            if (SqlAutocompleteWindow.ShouldRunEngine(rawSqlText, position, lineCount, forced))
+        bool forced = triggerChar is '.' or null;
+        var orchestration = await CompletionOrchestrator.GetCompletions(
+            rawSqlText,
+            position,
+            _parserSchema,
+            _dialect,
+            _wordListProvider,
+            ShouldRunLegacyPath,
+            _parsingCoordinator,
+            _documentUri,
+            _connectionNameProvider?.Invoke(),
+            _databaseNameProvider?.Invoke(),
+            new CompletionOrchestrationOptions
             {
-                var (engineSql, engineCursor) = SqlAutocompleteWindow.SliceForEngine(
-                    rawSqlText, position, lineCount, forced);
-                legacySql = engineSql;
-                engineItems = completionEngine.GetCompletions(engineSql, engineCursor).ToArray();
-                if (TryHydrateColumnsForDotCompletion(engineSql, engineCursor, engineItems))
-                    engineItems = completionEngine.GetCompletions(engineSql, engineCursor).ToArray();
-                if (ShouldRunLegacyPath(engineItems, engineSql))
-                {
-                    (withHints, tempTableHints, aliasDbTable) = completionEngine.GetScopeHints();
-                }
-                foreach (var ci in engineItems)
-                {
-                    completionData.Add(CompletionDataSql.FromEngineItem(ci, MapGlyph(ci.Kind)));
-                }
-            }
-        }
+                ForcedAutocomplete = forced,
+                HydrateColumns = TryHydrateColumnsForDotCompletion
+            });
 
-        AddVariableCompletions(completionData, lastWord);
-        AddSnippetCompletions(completionData, lastWord);
+        foreach (var ci in orchestration.EngineItems)
+            completionData.Add(CompletionDataSql.FromEngineItem(ci, MapGlyph(ci.Kind)));
 
-        if (ShouldRunLegacyPath(engineItems, legacySql))
-            await AddLegacyDatabaseCompletions(completionData, lastWord ?? string.Empty, withHints, tempTableHints, aliasDbTable);
+        string completionPrefix = lastWord ?? string.Empty;
+        AddVariableCompletions(completionData, completionPrefix);
+        AddSnippetCompletions(completionData, completionPrefix);
+
+        foreach (var item in orchestration.WordListItems)
+            completionData.Add(FromWordListItem(item));
 
         return new CompletionResult(completionData, null, true);
     }
@@ -163,7 +131,7 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
     /// and null (explicit Ctrl+Space) always shows the full list.
     /// </summary>
     public static bool IsSuppressedTrigger(char? triggerChar)
-        => triggerChar is not null && char.IsWhiteSpace(triggerChar.Value);
+        => CompletionGate.ShouldSuppressTrigger(triggerChar);
 
     private void AddVariableCompletions(List<ICompletionDataEx> completionData, string lastWord)
     {
@@ -201,25 +169,6 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
         }
     }
 
-    private async Task AddLegacyDatabaseCompletions(List<ICompletionDataEx> completionData, string lastWord,
-        Dictionary<string, List<string>> withHints,
-        Dictionary<string, List<string>> tempTableHints,
-        Dictionary<string, List<string>> aliasDbTable)
-    {
-        if (int.TryParse(lastWord, out _))
-            return;
-
-        await foreach (var objectName in _sqlAutocompleteData.GetWordsList(
-                           lastWord,
-                           aliasDbTable,
-                           new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase),
-                           withHints,
-                           tempTableHints))
-        {
-            completionData.Add(objectName);
-        }
-    }
-
     private static Glyph MapGlyph(CompletionKind kind) => kind switch
     {
         CompletionKind.Keyword => Glyph.None,
@@ -235,6 +184,35 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
         CompletionKind.Snippet => Glyph.Snippet,
         CompletionKind.Variable => Glyph.None,
         CompletionKind.ExternalTable => Glyph.ExternalTable,
+        _ => Glyph.None
+    };
+
+    private static CompletionDataSql FromWordListItem(SqlWordListItem item)
+        => new(
+            item.Label,
+            item.Detail ?? item.Description ?? item.Kind.ToString(),
+            false,
+            MapGlyph(item.Kind),
+            null,
+            item.Label,
+            item.Detail,
+            item.Description);
+
+    private static Glyph MapGlyph(SqlWordListKind kind) => kind switch
+    {
+        SqlWordListKind.Database => Glyph.Database,
+        SqlWordListKind.Schema => Glyph.Schema,
+        SqlWordListKind.Table => Glyph.Table,
+        SqlWordListKind.View => Glyph.View,
+        SqlWordListKind.Procedure => Glyph.Procedure,
+        SqlWordListKind.Synonym => Glyph.Synonym,
+        SqlWordListKind.ExternalTable => Glyph.ExternalTable,
+        SqlWordListKind.Function => Glyph.Function,
+        SqlWordListKind.Column => Glyph.Column,
+        SqlWordListKind.Alias => Glyph.Table,
+        SqlWordListKind.With => Glyph.WithDb,
+        SqlWordListKind.TempTable => Glyph.TempTable,
+        SqlWordListKind.Subquery => Glyph.SubQuery,
         _ => Glyph.None
     };
 

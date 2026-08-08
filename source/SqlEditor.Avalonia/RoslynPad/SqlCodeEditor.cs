@@ -1,4 +1,5 @@
 using JustyBase.Helpers;
+using JustyBase.Core.Database;
 using JustyBase.Editor.CompletionProviders;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommons;
@@ -342,7 +343,10 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
         NzCompletionEngine? completionEngine = null, InMemorySchemaProvider? parserSchema = null,
         DocumentParsingCoordinator? parsingCoordinator = null, string? documentUri = null,
         Action<string, string, string>? ensureTableColumns = null,
-        SqlDialect dialect = SqlDialect.Netezza)
+        SqlDialect dialect = SqlDialect.Netezza,
+        ISqlDbWordListProvider? wordListProvider = null,
+        Func<string?>? connectionNameProvider = null,
+        Func<string?>? databaseNameProvider = null)
     {
         if (_editorServicesInitialized)
         {
@@ -358,7 +362,8 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
         _braceMatcherHighlighter = new BraceMatcherHighlightRenderer(TextArea.TextView);
         AsyncToolTipRequest = OnAsyncToolTipRequest;
         var completionProvider = new SqlCompletionProvider(this, sqlAutocompleteData, _someEditorOptions,
-            completionEngine, parsingCoordinator, documentUri, ensureTableColumns, parserSchema, dialect);
+            completionEngine, parsingCoordinator, documentUri, ensureTableColumns, parserSchema, dialect,
+            wordListProvider, connectionNameProvider, databaseNameProvider);
         _completionProvider = completionProvider;
         CompletionProvider = completionProvider;
         _textMarkerService = new TextMarkerService(this);

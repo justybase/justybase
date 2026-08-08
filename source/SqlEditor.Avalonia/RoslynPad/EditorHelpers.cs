@@ -136,41 +136,11 @@ public static partial class EditorHelpers
         => GetLastWordFromText(textEditor.Document?.Text ?? string.Empty, position);
 
     /// <summary>
-    /// Returns the word directly before <paramref name="position"/> (whitespace,
-    /// '(', ',' and document start are boundaries). Never includes the char that
-    /// precedes the caret when it is whitespace.
+    /// Returns the fragment directly before <paramref name="position"/> using
+    /// the shared SQL completion boundary rules.
     /// </summary>
     public static string? GetLastWordFromText(string text, int position)
-    {
-        if (string.IsNullOrEmpty(text) || position <= 0)
-            return string.Empty;
-        if (position > text.Length)
-            position = text.Length;
-
-        Stack<char> tmpStack = new Stack<char>();
-        int l = position - 1;
-
-        while (l >= 0)
-        {
-            char c = text[l];
-            if (c == ' ' || c == '\r' || c == '\n' || c == '\t' || c == '(' || c == ',')
-            {
-                break;
-            }
-            tmpStack.Push(c);
-            if (tmpStack.Count > 128)
-            {
-                return null;
-            }
-            l--;
-        }
-
-        string result = string.Create(tmpStack.Count, tmpStack, (chars, buf) =>
-        {
-            for (int i = 0; i < chars.Length; i++) chars[i] = buf.Pop();
-        });
-        return result;
-    }
+        => JustyBase.NetezzaSqlParser.Completion.CompletionFragment.GetLastWordFromText(text, position);
 
     public static string GetSurrendedText(this TextArea textArea)
     {
@@ -349,4 +319,3 @@ public static partial class EditorHelpers
 
 
 }
-

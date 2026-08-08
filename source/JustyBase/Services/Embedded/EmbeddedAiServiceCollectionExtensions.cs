@@ -22,37 +22,59 @@ public static class EmbeddedAiServiceCollectionExtensions
 
     public static IServiceCollection AddEmbeddedLlamaServerServices(this IServiceCollection collection)
     {
+        // Apple Silicon runs the native MLX backend (uv + mlx_lm.server); everything else uses
+        // the bundled llama.cpp llama-server with GGUF models.
+        var useMlx = AppleSiliconRuntime.IsSupported;
+
         // Catalogs.
         collection.AddSingleton<FimModelCatalog>();
         collection.AddSingleton<EmbeddedChatModelCatalog>();
 
-        // GGUF stores (FIM model + embedded chat model) in the shared models directory.
+        // Model stores (FIM model + embedded chat model) in the shared models directory.
         collection.AddKeyedSingleton<IModelStore>(FimStoreKey, (sp, _) =>
         {
             var catalog = sp.GetRequiredService<FimModelCatalog>();
             var settings = sp.GetRequiredService<IFimSettingsStore>();
-            return new HuggingFaceModelStore(catalog, () => settings.Settings.FimModelId);
+            return useMlx
+                ? (IModelStore)new HuggingFaceMlxRepoStore(catalog, () => settings.Settings.FimModelId)
+                : new HuggingFaceModelStore(catalog, () => settings.Settings.FimModelId);
         });
         collection.AddKeyedSingleton<IModelStore>(EmbeddedChatBackend.ChatModelStoreKey, (sp, _) =>
         {
             var catalog = sp.GetRequiredService<EmbeddedChatModelCatalog>();
             var settings = sp.GetRequiredService<IChatSettingsStore>();
-            return new HuggingFaceModelStore(catalog, () => settings.Settings.EmbeddedChatModelId);
+            return useMlx
+                ? (IModelStore)new HuggingFaceMlxRepoStore(catalog, () => settings.Settings.EmbeddedChatModelId)
+                : new HuggingFaceModelStore(catalog, () => settings.Settings.EmbeddedChatModelId);
         });
 
-        // llama-server binary + subprocess manager.
+        // Runtime + subprocess manager.
+        if (useMlx)
+        {
+            collection.AddSingleton<MlxServerRuntime>();
+        }
+
         collection.AddSingleton(sp =>
         {
+            if (useMlx)
+            {
+                return new LlamaServerManager(sp.GetRequiredService<MlxServerRuntime>());
+            }
+
             var settings = sp.GetRequiredService<IChatSettingsStore>();
-            return new LlamaServerBinaryManager(() => settings.Settings.LlamaServerPreferVulkan);
+            return new LlamaServerManager(new LlamaServerBinaryManager(() => settings.Settings.LlamaServerPreferVulkan));
         });
-        collection.AddSingleton<LlamaServerManager>();
 
         // FIM: provider + bridge + bootstrap (server-based).
         collection.AddSingleton<ICompletionProvider>(sp =>
         {
             var manager = sp.GetRequiredService<LlamaServerManager>();
             var store = sp.GetRequiredKeyedService<IModelStore>(FimStoreKey);
+            if (useMlx)
+            {
+                return new MlxFimProvider(manager, store);
+            }
+
             var settings = sp.GetRequiredService<IFimSettingsStore>();
             return new LlamaServerFimProvider(
                 manager,

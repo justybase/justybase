@@ -8,9 +8,9 @@ namespace JustyBase.Tests;
 public sealed class InlineCompletionIntegrationTests
 {
     [Fact]
-    public async Task FimBridge_UsesSelectedCompletionInVirtualPrefix()
+    public async Task FimBridge_KeepsRealDocumentInPrompt_WithSelectedCompletion()
     {
-        var provider = new RecordingCompletionProvider(" = 1;");
+        var provider = new RecordingCompletionProvider("ENDARSEMESTER = 1;");
         var bridge = new FimInlineCompletionBridge(provider, () => true);
         const string document = "SELECT * FROM DIMDATE D WHERE D.CAL";
         var replacementStart = document.Length - 3;
@@ -25,8 +25,13 @@ public sealed class InlineCompletionIntegrationTests
 
         var result = await bridge.CompleteAsync(context, CancellationToken.None);
 
-        Assert.Equal(" = 1;", result);
-        Assert.Contains("D.CALENDARSEMESTER", provider.Request!.Prefix, StringComparison.Ordinal);
+        Assert.Equal("ENDARSEMESTER = 1;", result);
+        Assert.NotNull(provider.Request);
+        // The prompt must keep the real typed document and real caret so the model
+        // continues from the typed prefix and its output starts with the item
+        // remainder — only then the ghost composer's augmentation rule can match.
+        Assert.Contains("D.CAL", provider.Request!.Prefix, StringComparison.Ordinal);
+        Assert.DoesNotContain("D.CALENDARSEMESTER", provider.Request.Prefix, StringComparison.Ordinal);
         Assert.DoesNotContain("D.CALCALENDARSEMESTER", provider.Request.Prefix, StringComparison.Ordinal);
     }
 

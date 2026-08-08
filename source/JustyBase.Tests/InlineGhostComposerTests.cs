@@ -56,6 +56,20 @@ public sealed class InlineGhostComposerTests
     }
 
     [Fact]
+    public void RemainderSeed_WithModelContinuation_AugmentsToRemainderPlusTail()
+    {
+        // With the real-document prompt the model continues from the typed prefix, so
+        // the suggestion starts with the item remainder ("ENDARSEMESTER") and the
+        // composer renders remainder + FIM tail — the VS Code inline ghost over the list.
+        var result = InlineGhostComposer.Compose(
+            "ENDARSEMESTER = 1;",
+            "ENDARSEMESTER");
+
+        Assert.Equal("ENDARSEMESTER = 1;", result.Text);
+        Assert.Equal("ENDARSEMESTER".Length, result.PrefixLength);
+    }
+
+    [Fact]
     public void CaseSensitiveComparison_RejectsCaseOnlyDifference()
     {
         var result = InlineGhostComposer.Compose(

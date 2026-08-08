@@ -225,18 +225,13 @@ public sealed class FimInlineCompletionBridge
 
     private static (string Text, int CaretOffset) BuildPromptDocument(InlineCompletionContext context)
     {
-        var selection = context.CompletionSelection;
-        if (selection is null)
-        {
-            return (context.DocumentText, context.CaretOffset);
-        }
-
-        var documentText = context.DocumentText;
-        var caret = Math.Clamp(context.CaretOffset, 0, documentText.Length);
-        var start = Math.Clamp(selection.ReplacementStartOffset, 0, caret);
-        var insertText = selection.InsertText ?? string.Empty;
-        var virtualText = string.Concat(documentText[..start], insertText, documentText[caret..]);
-        return (virtualText, start + insertText.Length);
+        // Keep the real document and the real caret even when a completion list item is
+        // selected. The model is asked to continue from the typed prefix, so its output
+        // starts with the item remainder ("ENDARSEMESTER = 1;") and the ghost composer's
+        // augmentation rule (VS Code) can match it against the selected seed. Expanding
+        // the item into the prompt would make the model continue after the item, the
+        // output would not start with the seed, and the ghost would never render.
+        return (context.DocumentText, Math.Clamp(context.CaretOffset, 0, context.DocumentText.Length));
     }
 }
 

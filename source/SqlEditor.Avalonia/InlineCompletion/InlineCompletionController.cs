@@ -265,16 +265,6 @@ public sealed class InlineCompletionController : IDisposable
         CancelPending();
         ClearGhostText();
 
-        if (_completionSelection is not null)
-        {
-            var visibleSeed = GetVisibleCompletionText(_completionSelection);
-            _ghostCompletionPrefixLength = visibleSeed.Length;
-            if (!string.IsNullOrEmpty(visibleSeed))
-            {
-                SetGhostText(_editor.CaretOffset, visibleSeed);
-            }
-        }
-
         Schedule();
     }
 
@@ -391,12 +381,19 @@ public sealed class InlineCompletionController : IDisposable
                     return;
                 }
 
-                var continuation = NormalizeContinuation(suggestion, completionSelection);
-                var visibleSeed = completionSelection is null
+                var seed = completionSelection is null
                     ? string.Empty
                     : GetVisibleCompletionText(completionSelection);
-                _ghostCompletionPrefixLength = visibleSeed.Length;
-                SetGhostText(caret, visibleSeed + continuation);
+                var composed = InlineGhostComposer.Compose(suggestion, seed);
+                if (composed.Text.Length == 0)
+                {
+                    // Drop suggestions that do not continue from the selected list item
+                    // (VS Code augmentation rule) instead of conflicting with the list.
+                    return;
+                }
+
+                _ghostCompletionPrefixLength = composed.PrefixLength;
+                SetGhostText(caret, composed.Text);
             }).GetTask().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -449,19 +446,6 @@ public sealed class InlineCompletionController : IDisposable
 
         _generator.Set(offset, text, _editor.FontFamily, _editor.FontSize);
         _editor.TextArea.TextView.Redraw();
-    }
-
-    private static string NormalizeContinuation(string suggestion, CompletionSelectionSnapshot? selection)
-    {
-        if (selection is null || string.IsNullOrEmpty(suggestion))
-        {
-            return suggestion;
-        }
-
-        var selectedText = selection.InsertText;
-        return suggestion.StartsWith(selectedText, StringComparison.OrdinalIgnoreCase)
-            ? suggestion[selectedText.Length..]
-            : suggestion;
     }
 }
 

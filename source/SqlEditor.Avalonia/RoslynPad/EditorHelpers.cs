@@ -133,33 +133,36 @@ public static partial class EditorHelpers
     }
 
     public static string? GetLastWord(this TextEditor textEditor, int position)
+        => GetLastWordFromText(textEditor.Document?.Text ?? string.Empty, position);
+
+    /// <summary>
+    /// Returns the word directly before <paramref name="position"/> (whitespace,
+    /// '(', ',' and document start are boundaries). Never includes the char that
+    /// precedes the caret when it is whitespace.
+    /// </summary>
+    public static string? GetLastWordFromText(string text, int position)
     {
+        if (string.IsNullOrEmpty(text) || position <= 0)
+            return string.Empty;
+        if (position > text.Length)
+            position = text.Length;
+
         Stack<char> tmpStack = new Stack<char>();
         int l = position - 1;
 
-        if (l < 0)
-            return string.Empty;
-
-        char c = textEditor.Document.GetCharAt(l);
-        if (l > 0)
+        while (l >= 0)
         {
-            do
+            char c = text[l];
+            if (c == ' ' || c == '\r' || c == '\n' || c == '\t' || c == '(' || c == ',')
             {
-                tmpStack.Push(c);
-                c = textEditor.Document.GetCharAt(--l);
-                if (tmpStack.Count > 128)
-                {
-                    return null;
-                }
-            } while (c != ' ' && c != '\r' && c != '\n' && c != '\t' && c != '(' && c != ',' && l > 0);
-        }
-        else
-        {
+                break;
+            }
             tmpStack.Push(c);
-        }
-        if (l==0 && position > 1 && position < 10)
-        {
-            tmpStack.Push(textEditor.Document.GetCharAt(0));
+            if (tmpStack.Count > 128)
+            {
+                return null;
+            }
+            l--;
         }
 
         string result = string.Create(tmpStack.Count, tmpStack, (chars, buf) =>

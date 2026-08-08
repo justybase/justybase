@@ -93,14 +93,18 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
                 true);
         }
 
-        if (triggerChar == '\n')
+        // Whitespace (space/tab/newline) never opens the completion list by itself;
+        // only a word character, '.' or an explicit Ctrl+Space (triggerChar == null) does.
+        if (IsSuppressedTrigger(triggerChar))
             return new CompletionResult([], null, true);
 
         string? lastWord = EditorHelpers.GetLastWord(_sqlCodeEditor, position);
         var rawSqlText = _sqlCodeEditor.Document?.Text ?? string.Empty;
         if (string.IsNullOrWhiteSpace(lastWord))
         {
-            if (position <= 0 || position > rawSqlText.Length || rawSqlText[position - 1] != '.')
+            // Explicit Ctrl+Space (triggerChar == null) always shows the full context list.
+            bool isExplicit = triggerChar is null;
+            if (!isExplicit && (position <= 0 || position > rawSqlText.Length || rawSqlText[position - 1] != '.'))
                 return new CompletionResult(Array.Empty<ICompletionDataEx>(), null, true);
         }
 
@@ -152,6 +156,14 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
 
     public static bool ShouldRunLegacyPath(IReadOnlyList<CompletionItem> engineItems, string sql)
         => SqlCompletionMergePolicy.ShouldRunLegacyPath(engineItems, sql);
+
+    /// <summary>
+    /// True when the just-typed character must never open the completion list.
+    /// Whitespace stays silent (VS Code-like); '.' and word characters trigger,
+    /// and null (explicit Ctrl+Space) always shows the full list.
+    /// </summary>
+    public static bool IsSuppressedTrigger(char? triggerChar)
+        => triggerChar is not null && char.IsWhiteSpace(triggerChar.Value);
 
     private void AddVariableCompletions(List<ICompletionDataEx> completionData, string lastWord)
     {

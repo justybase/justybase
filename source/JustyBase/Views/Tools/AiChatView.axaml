@@ -118,7 +118,7 @@
     </Border>
 
     <!-- Conversation -->
-    <Grid Grid.Row="2" RowDefinitions="Auto,*">
+    <Grid Grid.Row="2" RowDefinitions="Auto,Auto,*">
       <Border Grid.Row="0"
               IsVisible="{Binding IsSessionChoicePending}"
               Background="{DynamicResource AiChatSurfaceBrush}"
@@ -180,7 +180,25 @@
         </StackPanel>
       </Border>
 
-      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="10 8">
+      <!-- Live thinking while the local model generates -->
+      <Border Grid.Row="1"
+              IsVisible="{Binding HasLiveThinking}"
+              Background="{DynamicResource AiChatElevatedSurfaceBrush}"
+              BorderBrush="{DynamicResource AiChatBorderBrush}"
+              BorderThickness="1"
+              CornerRadius="5"
+              Margin="10 4 10 2"
+              Padding="8 6"
+              MaxHeight="170">
+        <StackPanel Spacing="4">
+          <TextBlock Text="Thinking…" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AiChatMutedForegroundBrush}" />
+          <ScrollViewer Name="ThinkingScrollViewer" MaxHeight="120" VerticalScrollBarVisibility="Auto">
+            <chat:ChatMarkdownView MarkdownText="{Binding CurrentThinkingContent}" />
+          </ScrollViewer>
+        </StackPanel>
+      </Border>
+
+      <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="10 8">
         <ItemsControl ItemsSource="{Binding Messages}">
         <ItemsControl.ItemTemplate>
           <DataTemplate DataType="m:ChatMessage" x:DataType="m:ChatMessage">
@@ -191,7 +209,7 @@
                                         CornerRadius="7"
                                         Padding="10 8"
                                         IsVisible="{Binding !IsToolConfirmation}">
-                <Grid RowDefinitions="Auto,Auto,Auto">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
                   <ItemsControl Grid.Row="0" ItemsSource="{Binding Attachments}" IsVisible="{Binding HasAttachments}">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate DataType="m:ChatAttachment" x:DataType="m:ChatAttachment">
@@ -202,7 +220,14 @@
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
                   <chat:ChatMarkdownView Grid.Row="1" MarkdownText="{Binding Content}" IsStreaming="{Binding IsStreaming}" />
-                  <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="3" Margin="0 4 0 0">
+                  <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasThinkingContent}">
+                    <ToggleButton Content="Thinking" Padding="8 2" FontSize="9" IsChecked="{Binding IsThinkingExpanded, Mode=TwoWay}" />
+                    <TextBlock Text="{Binding ThinkingContent, StringFormat=({}{0} chars)}" FontSize="9" Opacity="0.5" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <Border Grid.Row="3" Background="{DynamicResource AiChatElevatedSurfaceBrush}" BorderBrush="{DynamicResource AiChatBorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6 4" Margin="0 3 0 0" IsVisible="{Binding IsThinkingExpanded}">
+                    <chat:ChatMarkdownView MarkdownText="{Binding ThinkingContent}" />
+                  </Border>
+                  <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="3" Margin="0 4 0 0">
                     <Button Command="{Binding $parent[ItemsControl].((vm:AiChatViewModel)DataContext).CopyMessageCommand}" CommandParameter="{Binding}" Content="Copy" Padding="6 2" FontSize="9" />
                     <TextBlock Text="{Binding GenerationTimeDisplay}" FontSize="9" Opacity="0.55" VerticalAlignment="Center" />
                   </StackPanel>
@@ -354,6 +379,6 @@
           <Button Command="{Binding SendMessageCommand}" Content="Send" Padding="10 5" IsEnabled="{Binding CanCompose}" FontWeight="SemiBold" />
         </StackPanel>
       </Grid>
-    </Border>
-  </Grid>
+      </Border>
+    </Grid>
 </UserControl>

@@ -270,10 +270,26 @@ public sealed class InlineCompletionController : IDisposable
 
     private void OnCompletionWindowClosed(object? sender, EventArgs e)
     {
-        // A Tab swallowed by the completion window sets _completionAcceptancePending;
-        // if the window closes WITHOUT committing a change (Esc/click), that flag must
-        // be reset or FIM stops responding to typing until the window reopens.
-        _completionAcceptancePending = false;
+        // AvaloniaEdit can close the completion window before it applies the selected
+        // item's document change. Keep the ghost until Document.Changed can extract the
+        // FIM tail; only clear it later when the window closed without an insertion.
+        if (_completionAcceptancePending)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!_completionAcceptancePending)
+                {
+                    return;
+                }
+
+                _completionAcceptancePending = false;
+                _completionSelection = null;
+                _completionContinuationActive = false;
+                ClearGhostText();
+            });
+
+            return;
+        }
 
         if (_completionContinuationActive)
         {

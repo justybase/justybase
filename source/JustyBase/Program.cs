@@ -37,6 +37,15 @@ internal class Program
             return;
         }
 
+        // Kill llama-server children orphaned by a previously crashed or force-killed
+        // instance (they hold VRAM/RAM and are never auto-exited). Only servers whose
+        // owner process is dead are touched — a running second instance is safe.
+        var orphanedServers = JustyBase.Ai.Embedded.Server.LlamaServerProcessRegistry.CleanupOrphans();
+        if (orphanedServers > 0)
+        {
+            Debug.WriteLine($"Cleaned up {orphanedServers} orphaned llama-server process(es).");
+        }
+
         try
         {
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

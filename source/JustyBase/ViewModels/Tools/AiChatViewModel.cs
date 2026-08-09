@@ -207,6 +207,11 @@ public sealed partial class AiChatViewModel : Tool
         _chatService.SetSqlEditorBufferUpdater(UpdateCurrentSqlBuffer);
         _chatService.SetActiveSqlContextProvider(GetActiveSqlContext);
         _chatService.SetToolConfirmationHandler(HandleToolConfirmationAsync);
+        _chatService.ReasoningChunkReceived += reasoningChunk =>
+        {
+            // Stream the thinking text live while the local model generates.
+            Dispatcher.UIThread.Post(() => CurrentThinkingContent += reasoningChunk);
+        };
 
         PendingAttachments.CollectionChanged += (_, _) => HasPendingAttachments = PendingAttachments.Count > 0;
 
@@ -268,6 +273,10 @@ public sealed partial class AiChatViewModel : Tool
         {
             _ = InitializeAsync();
         }
+
+        // The embedded model list is a pure disk probe — populate the dropdown right
+        // away so downloaded models are visible even before the backend connects.
+        _ = RefreshModelsAsync();
     }
 
     private ChatMessage? _pendingConfirmationMessage;
@@ -473,7 +482,16 @@ public sealed partial class AiChatViewModel : Tool
     {
         OnPropertyChanged(nameof(CanCompose));
         OnPropertyChanged(nameof(CanSwitchSession));
+        OnPropertyChanged(nameof(HasLiveThinking));
     }
+
+    partial void OnCurrentThinkingContentChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasLiveThinking));
+    }
+
+    /// <summary>True while the local model streams its thinking and there is text to show.</summary>
+    public bool HasLiveThinking => IsStreaming && !string.IsNullOrWhiteSpace(CurrentThinkingContent);
 
     partial void OnIsInitializingChanged(bool value)
     {
@@ -1087,6 +1105,13 @@ public sealed partial class AiChatViewModel : Tool
             assistantMessage.IsStreaming = false;
             stopwatch.Stop();
             assistantMessage.GenerationTimeMs = stopwatch.ElapsedMilliseconds;
+            var reasoning = _chatService.LastReasoningContent;
+            if (!string.IsNullOrWhiteSpace(reasoning) && !string.IsNullOrWhiteSpace(assistantMessage.Content))
+            {
+                // The visible answer is the thinking text only when the model answered
+                // entirely inside its reasoning phase (the client flushes it into Content).
+                assistantMessage.ThinkingContent = reasoning;
+            }
             CurrentSession.Messages.Add(assistantMessage);
             CurrentSession.LastActivityAt = DateTime.Now;
         }

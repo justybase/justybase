@@ -1692,7 +1692,7 @@ public partial class SettingsViewModel : DocumentBaseVM
         ChatModelPresentOnDisk = _embeddedChatStore.IsModelPresent;
         var model = _embeddedChatStore.CurrentModel;
         ChatModelDiskStatus = _embeddedChatStore.IsModelPresent
-            ? $"{model.DisplayName}: on disk ({new FileInfo(_embeddedChatStore.LocalModelPath).Length / (1024d * 1024d):0.#} MB)."
+            ? $"{model.DisplayName}: on disk ({_embeddedChatStore.LocalModelSizeBytes / (1024d * 1024d):0.#} MB)."
             : $"{model.DisplayName}: not downloaded.";
         OnPropertyChanged(nameof(CanDeleteEmbeddedChatModel));
         DeleteEmbeddedChatModelCommand.NotifyCanExecuteChanged();

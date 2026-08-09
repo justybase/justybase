@@ -2,6 +2,7 @@ using Avalonia.Markup.Xaml;
 using JustyBase.ViewModels.Tools;
 using JustyBase.Ai.Models;
 using JustyBase.Common.Models;
+using System.ComponentModel;
 
 namespace JustyBase.Views.Tools;
 
@@ -13,6 +14,7 @@ public partial class AiChatView : UserControl
     private int _mentionSelectedIndex = -1;
     private MenuFlyout? _chatActionsMenuFlyout;
     private MenuItem? _conversationsSectionHeader;
+    private ScrollViewer? _thinkingScrollViewer;
     private readonly List<MenuItem> _flyoutSessionItems = [];
 
     public AiChatView()
@@ -27,6 +29,17 @@ public partial class AiChatView : UserControl
         _mentionListBox = this.FindControl<ListBox>("MentionListBox");
         _chatActionsMenuFlyout = this.FindControl<Button>("ChatActionsButton")?.Flyout as MenuFlyout;
         _conversationsSectionHeader = this.FindControl<MenuItem>("ConversationsSectionHeader");
+        _thinkingScrollViewer = this.FindControl<ScrollViewer>("ThinkingScrollViewer");
+
+        // Keep the live thinking panel pinned to the newest reasoning text.
+        DataContextChanged += (_, _) =>
+        {
+            if (DataContext is AiChatViewModel viewModel)
+            {
+                viewModel.PropertyChanged -= OnChatViewModelPropertyChanged;
+                viewModel.PropertyChanged += OnChatViewModelPropertyChanged;
+            }
+        };
 
         // The composer uses AcceptsReturn=True, whose class handler consumes a bare Enter
         // in the bubbling KeyDown phase. Intercept Enter in the tunneling phase so it can
@@ -34,6 +47,15 @@ public partial class AiChatView : UserControl
         if (this.FindControl<TextBox>("InputTextBox") is { } inputTextBox)
         {
             inputTextBox.AddHandler(InputElement.KeyDownEvent, InputTextBox_OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        }
+    }
+
+    private void OnChatViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(AiChatViewModel.CurrentThinkingContent)
+            && _thinkingScrollViewer is { IsVisible: true } scrollViewer)
+        {
+            scrollViewer.ScrollToEnd();
         }
     }
 

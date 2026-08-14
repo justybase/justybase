@@ -8,8 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="K4os.Compression.LZ4.Streams" Version="1.3.8" />
-    <PackageReference Include="Parquet.Net" Version="6.0.3" />
-    <PackageReference Include="SpreadSheetTasks" Version="1.0.0" />
+    <PackageReference Include="Parquet.Net" Version="6.1.0" />
+    <PackageReference Include="SpreadSheetTasks" Version="1.0.1" />
     <PackageReference Include="Sylvan.Data.Csv" Version="1.4.4" />
     <PackageReference Include="ZstdSharp.Port" Version="0.8.8" />
   </ItemGroup>

@@ -11,6 +11,12 @@ public interface ISqlResultsViewBridge
     void RecalculateSummaryValues();
 
     /// <summary>
+    /// Invalidates cached summary alignment measurements after the data or
+    /// column layout changed.
+    /// </summary>
+    void InvalidateSummaryLayout();
+
+    /// <summary>
     /// Refreshes DataGrid columns after data is loaded. This is needed because DataGrid_Initialized
     /// may be called before data is available, resulting in no columns being created.
     /// </summary>

@@ -72,6 +72,7 @@ public sealed class SummaryRowSyncBehavior : Behavior<DataGrid>
 
     private void OnColumnReordered(object? sender, DataGridColumnEventArgs e)
     {
+        InvalidateSummaryLayout();
         RefreshSummaryRowWidths();
     }
 
@@ -79,7 +80,16 @@ public sealed class SummaryRowSyncBehavior : Behavior<DataGrid>
     {
         if (e.Property == DataGrid.FrozenColumnCountProperty)
         {
+            InvalidateSummaryLayout();
             RefreshSummaryRowWidths();
+        }
+    }
+
+    private void InvalidateSummaryLayout()
+    {
+        if (_scrollService is not null)
+        {
+            _scrollService.InvalidateRowHeaderWidthCache();
         }
     }
 

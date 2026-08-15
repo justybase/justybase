@@ -10,6 +10,14 @@ internal sealed class TestApp : Application
     public override void Initialize()
     {
         Styles.Add(new FluentTheme());
+        Styles.Add(new StyleInclude(new Uri("avares://Avalonia.Controls.DataGrid/Themes/Fluent.v2.xaml"))
+        {
+            Source = new Uri("avares://Avalonia.Controls.DataGrid/Themes/Fluent.v2.xaml")
+        });
+        Styles.Add(new StyleInclude(new Uri("avares://Avalonia.Controls.DataGrid/Themes/Flat.xaml"))
+        {
+            Source = new Uri("avares://Avalonia.Controls.DataGrid/Themes/Flat.xaml")
+        });
         Styles.Add(new StyleInclude(new Uri("avares://LiveMarkdown.Avalonia/Styles.axaml"))
         {
             Source = new Uri("avares://LiveMarkdown.Avalonia/Styles.axaml")

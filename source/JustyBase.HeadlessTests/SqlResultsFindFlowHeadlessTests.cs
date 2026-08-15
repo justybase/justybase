@@ -21,7 +21,7 @@ namespace JustyBase.HeadlessTests;
 /// </summary>
 public sealed class SqlResultsFindFlowHeadlessTests : HeadlessSessionTestBase
 {
-    private static SqlResultsView CreateView(out SqlResultsViewModel vm)
+    internal static SqlResultsView CreateView(out SqlResultsViewModel vm)
     {
         var appData = new Mock<IGeneralApplicationData>();
         appData.SetupProperty(x => x.Config, new AppOptions());

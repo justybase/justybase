@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Data.Common;
 using System.Text;
 using Avalonia.Collections;
+using Avalonia.Controls.DataGridFiltering;
 using Avalonia.Controls.DataGridSearching;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -615,6 +616,11 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         WrapNavigation = true,
         UpdateSelectionOnNavigate = false
     };
+
+    /// <summary>
+    /// Experimental: drives the built-in distinct-value column filter (ProDataGrid #318).
+    /// </summary>
+    public FilteringModel FilteringModel { get; } = new() { OwnsViewFilter = true };
 
     [ObservableProperty]
     public partial string FindText { get; set; } = "";

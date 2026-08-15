@@ -320,7 +320,8 @@
 				RowHeight="22"
 				AutomationProperties.Name="ResultDataGrid"
 				AutomationProperties.AutomationId="ResultDataGrid"
-				SearchModel="{Binding FindModel}">
+				SearchModel="{Binding FindModel}"
+				FilteringModel="{Binding FilteringModel}">
 			<Interaction.Behaviors>
 				<behaviors:SummaryRowSyncBehavior SummaryScrollViewer="{Binding #SummaryScrollViewer}" 
 												  RecalculateAction="{ReflectionBinding $parent[UserControl].RecalculateSummaryValuesAction}"/>

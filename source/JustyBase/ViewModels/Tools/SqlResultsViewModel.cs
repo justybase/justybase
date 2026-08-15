@@ -3,6 +3,8 @@ using System.Collections.ObjectModel;
 using System.Data.Common;
 using System.Text;
 using Avalonia.Collections;
+using Avalonia.Controls.DataGridSearching;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Core;
@@ -143,6 +145,20 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         CurrentResultsTable = new TableOfSqlResults();
         //GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows, isDataSorted: true, isDataInGroupOrder: true);
         GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows);
+
+        _findDebounceTimer = new DispatcherTimer(
+            TimeSpan.FromMilliseconds(300),
+            DispatcherPriority.Background,
+            (_, _) =>
+            {
+                _findDebounceTimer.Stop();
+                if (IsFindVisible)
+                {
+                    ApplyFind();
+                }
+            });
+        FindModel.ResultsChanged += (_, _) => UpdateFindSummary();
+        FindModel.CurrentChanged += (_, _) => UpdateFindSummary();
     }
 
     [RelayCommand]
@@ -521,6 +537,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
 
     public void DoCleanup()
     {
+        _findDebounceTimer.Stop();
         DisposeSpill();
         if (CurrentResultsTable is not null)
         {
@@ -597,6 +614,123 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
             TriggerSearchTimerCommand.Execute(null);
         }
     } = true;
+
+    /// <summary>
+    /// Ctrl+F highlight-and-navigate search. Independent from the row filtering
+    /// performed by <see cref="SearchText"/>.
+    /// </summary>
+    public SearchModel FindModel { get; } = new()
+    {
+        HighlightMode = SearchHighlightMode.TextAndCell,
+        HighlightCurrent = true,
+        WrapNavigation = true,
+        UpdateSelectionOnNavigate = false
+    };
+
+    [ObservableProperty]
+    public partial string FindText { get; set; } = "";
+
+    [ObservableProperty]
+    public partial bool IsFindVisible { get; set; } = false;
+
+    [ObservableProperty]
+    public partial string FindResultSummary { get; set; } = "";
+
+    private readonly DispatcherTimer _findDebounceTimer;
+
+    partial void OnFindTextChanged(string value)
+    {
+        if (!IsFindVisible)
+        {
+            return;
+        }
+        _findDebounceTimer.Stop();
+        _findDebounceTimer.Start();
+    }
+
+    partial void OnIsFindVisibleChanged(bool value)
+    {
+        if (!value)
+        {
+            FindText = "";
+            _findDebounceTimer.Stop();
+            FindModel.Clear();
+            FindResultSummary = "";
+        }
+    }
+
+    [RelayCommand]
+    private void FindNext()
+    {
+        EnsureFindVisible();
+        FindModel.MoveNext();
+        UpdateFindSummary();
+    }
+
+    [RelayCommand]
+    private void FindPrevious()
+    {
+        EnsureFindVisible();
+        FindModel.MovePrevious();
+        UpdateFindSummary();
+    }
+
+    [RelayCommand]
+    private void CloseFind()
+    {
+        IsFindVisible = false;
+    }
+
+    private void EnsureFindVisible()
+    {
+        if (!IsFindVisible)
+        {
+            IsFindVisible = true;
+            ApplyFind();
+        }
+    }
+
+    /// <summary>
+    /// Re-runs the active find query after the grid data changed (filter, load,
+    /// spill page, sort or grouping).
+    /// </summary>
+    public void RefreshFind()
+    {
+        if (!IsFindVisible)
+        {
+            return;
+        }
+        _findDebounceTimer.Stop();
+        ApplyFind();
+    }
+
+    private void ApplyFind()
+    {
+        string query = FindText?.Trim() ?? "";
+        if (query.Length == 0)
+        {
+            FindModel.Clear();
+        }
+        else
+        {
+            FindModel.SetOrUpdate(new SearchDescriptor(
+                query: query,
+                matchMode: SearchMatchMode.Contains,
+                termMode: SearchTermCombineMode.Any,
+                scope: SearchScope.AllColumns,
+                comparison: StringComparison.OrdinalIgnoreCase,
+                wholeWord: false,
+                normalizeWhitespace: true,
+                ignoreDiacritics: true));
+        }
+        UpdateFindSummary();
+    }
+
+    private void UpdateFindSummary()
+    {
+        int count = FindModel.Results.Count;
+        FindResultSummary = count > 0 ? $"{FindModel.CurrentIndex + 1} of {count}" : "";
+    }
 
 
     [ObservableProperty]

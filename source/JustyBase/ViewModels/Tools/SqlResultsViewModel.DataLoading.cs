@@ -285,6 +285,8 @@ partial class SqlResultsViewModel
                 LoadingPlaceholderMessage = "";
                 GridEnabled = true;
                 NotifySpillCommands();
+                ViewBridge?.InvalidateSummaryLayout();
+                RefreshFind();
             }, DispatcherPriority.Background);
         }
     }

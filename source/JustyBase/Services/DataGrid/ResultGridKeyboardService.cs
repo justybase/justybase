@@ -10,8 +10,16 @@ public sealed class ResultGridKeyboardService : IResultGridKeyboardService
             {
                 Key.C => ResultGridKeyboardAction.Copy,
                 Key.A => ResultGridKeyboardAction.CopyAll,
+                Key.F => ResultGridKeyboardAction.Find,
                 _ => ResultGridKeyboardAction.None
             };
+        }
+
+        if (key == Key.F3)
+        {
+            return modifiers == KeyModifiers.Shift
+                ? ResultGridKeyboardAction.FindPrevious
+                : ResultGridKeyboardAction.FindNext;
         }
 
         return ResultGridKeyboardAction.None;

@@ -4,7 +4,10 @@ public enum ResultGridKeyboardAction
 {
     None,
     Copy,
-    CopyAll
+    CopyAll,
+    Find,
+    FindNext,
+    FindPrevious
 }
 
 public interface IResultGridKeyboardService

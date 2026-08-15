@@ -97,6 +97,41 @@ public sealed class SqlResultsViewModelTests
         Assert.Equal("10", vm.DpWidth);
     }
 
+    [Fact]
+    public void CloseFind_WhenVisible_ClearsFindState()
+    {
+        var vm = CreateViewModel();
+        vm.IsFindVisible = true;
+        vm.FindText = "abc";
+
+        vm.CloseFindCommand.Execute(null);
+
+        Assert.False(vm.IsFindVisible);
+        Assert.Equal("", vm.FindText);
+        Assert.Equal("", vm.FindResultSummary);
+        Assert.Empty(vm.FindModel.Results);
+    }
+
+    [Fact]
+    public void FindNext_WhenFindHidden_ShowsFindBar()
+    {
+        var vm = CreateViewModel();
+        Assert.False(vm.IsFindVisible);
+
+        vm.FindNextCommand.Execute(null);
+
+        Assert.True(vm.IsFindVisible);
+    }
+
+    [Fact]
+    public void RefreshFind_WhenHidden_DoesNotSearch()
+    {
+        var vm = CreateViewModel();
+        vm.RefreshFind();
+
+        Assert.Empty(vm.FindModel.Results);
+    }
+
     private static SqlResultsViewModel CreateViewModel()
     {
         var appData = new Mock<IGeneralApplicationData>();

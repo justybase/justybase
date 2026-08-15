@@ -46,4 +46,25 @@ public class ResultGridKeyboardServiceTests
         var result = _service.ParseKeyDown(Key.C, KeyModifiers.Shift);
         Assert.Equal(ResultGridKeyboardAction.None, result);
     }
+
+    [Fact]
+    public void ParseKeyDown_WithCtrlF_ReturnsFind()
+    {
+        var result = _service.ParseKeyDown(Key.F, KeyModifiers.Control);
+        Assert.Equal(ResultGridKeyboardAction.Find, result);
+    }
+
+    [Fact]
+    public void ParseKeyDown_WithF3_ReturnsFindNext()
+    {
+        var result = _service.ParseKeyDown(Key.F3, KeyModifiers.None);
+        Assert.Equal(ResultGridKeyboardAction.FindNext, result);
+    }
+
+    [Fact]
+    public void ParseKeyDown_WithShiftF3_ReturnsFindPrevious()
+    {
+        var result = _service.ParseKeyDown(Key.F3, KeyModifiers.Shift);
+        Assert.Equal(ResultGridKeyboardAction.FindPrevious, result);
+    }
 }

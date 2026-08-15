@@ -168,6 +168,14 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
     public Action RecalculateSummaryValuesAction => RefreshSummaryRowWidths;
 
     /// <summary>
+    /// Invalidates cached summary alignment measurements after the data or column layout changed.
+    /// </summary>
+    public void InvalidateSummaryLayout()
+    {
+        _summaryScrollService.InvalidateRowHeaderWidthCache();
+    }
+
+    /// <summary>
     /// Refreshes the summary row widths to match current column widths
     /// </summary>
     private void RefreshSummaryRowWidths()
@@ -209,7 +217,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
         if (summaryPanel == null || ResultDataGrid.Columns.Count == 0)
             return;
 
-        double spacerWidth = GetFirstColumnXOffset();
+        double spacerWidth = _summaryScrollService.GetFirstColumnSpacerWidth(ResultDataGrid, _summaryScrollViewer);
         
         _summaryRowPresenter.BuildSummaryRow(
             summaryPanel,
@@ -238,63 +246,6 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
     private int GetGroupCount()
     {
         return GridCollectionView.Groups?.Count ?? 0;
-    }
-
-    /// <summary>
-    /// Gets the width of the DataGrid row header column
-    /// </summary>
-    private double GetRowHeaderWidth()
-    {
-        // Try to find the DataGridRowHeader to measure its width
-        var rowHeader = ResultDataGrid.GetVisualDescendants()
-            .OfType<DataGridRowHeader>()
-            .FirstOrDefault();
-        
-        if (rowHeader != null)
-        {
-            return rowHeader.Bounds.Width;
-        }
-
-        // Fallback: try to get from DataGridRowsPresenter
-        var presenter = ResultDataGrid.GetVisualDescendants()
-            .OfType<DataGridRowsPresenter>()
-            .FirstOrDefault();
-        
-        // Default row header width when we can't detect it
-        return 45; // Typical row header width
-    }
-
-    /// <summary>
-    /// Calculates the X-offset of the first visible column relative to the grid.
-    /// This accounts for RowHeaders + Grouping Indentation (which shifts the columns right).
-    /// </summary>
-    private double GetFirstColumnXOffset()
-    {
-        double rowHeaderWidth = GetRowHeaderWidth();
-
-        var firstColumn = ResultDataGrid.Columns
-            .OrderBy(c => c.DisplayIndex)
-            .FirstOrDefault(c => c.IsVisible);
-        if (firstColumn == null)
-        {
-            return rowHeaderWidth;
-        }
-
-        var headersPresenter = ResultDataGrid.GetVisualDescendants()
-            .OfType<DataGridColumnHeadersPresenter>()
-            .FirstOrDefault();
-        if (headersPresenter == null)
-        {
-            return rowHeaderWidth;
-        }
-
-        var columnHeader = headersPresenter.GetVisualDescendants()
-            .OfType<DataGridColumnHeader>()
-            .FirstOrDefault(h => Equals(h.Content, firstColumn.Header));
-
-        double? translatedColumnX = columnHeader?.TranslatePoint(new Point(0, 0), ResultDataGrid)?.X;
-        double scrollOffsetX = _summaryScrollViewer?.Offset.X ?? 0;
-        return _summaryScrollService.ResolveFirstColumnSpacerWidth(rowHeaderWidth, translatedColumnX, scrollOffsetX);
     }
 
 
@@ -589,6 +540,45 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
             e.Handled = true;
             _ = Dispatcher.UIThread.InvokeAsync(CopyAllRowsToClipboardAsync, DispatcherPriority.Background);
         }
+        else if (action == ResultGridKeyboardAction.Find)
+        {
+            ShowFindBar();
+            e.Handled = true;
+        }
+        else if (action is ResultGridKeyboardAction.FindNext or ResultGridKeyboardAction.FindPrevious)
+        {
+            if (DataContext is not SqlResultsViewModel findVm)
+            {
+                return;
+            }
+            if (!findVm.IsFindVisible)
+            {
+                findVm.IsFindVisible = true;
+            }
+            if (action == ResultGridKeyboardAction.FindNext)
+            {
+                findVm.FindNextCommand.Execute(null);
+            }
+            else
+            {
+                findVm.FindPreviousCommand.Execute(null);
+            }
+            e.Handled = true;
+        }
+    }
+
+    private void ShowFindBar()
+    {
+        if (DataContext is not SqlResultsViewModel findVm)
+        {
+            return;
+        }
+        findVm.IsFindVisible = true;
+        _ = Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            findTextBox?.Focus();
+            findTextBox?.SelectAll();
+        }, DispatcherPriority.Input);
     }
 
     private async Task CopyAllRowsToClipboardAsync()
@@ -694,6 +684,8 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
             rowsLoadingMessage.Text = $"{CurrentResultsTable.FilteredRows.Count:N0} rows";
             _refreshHolder.RefreshAction?.Invoke();
             RefreshSummaryRowWidths();
+            vm.RefreshFind();
+            _summaryScrollService.InvalidateRowHeaderWidthCache();
         }
         finally
         {
@@ -728,6 +720,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
             // Clear existing columns to handle both new and recycled views
             ResultDataGrid.Columns.Clear();
             _pinnedColumns.Clear();
+            _summaryScrollService.InvalidateRowHeaderWidthCache();
 
             // Update autocomplete items
             if (columnAutoComplet is not null)

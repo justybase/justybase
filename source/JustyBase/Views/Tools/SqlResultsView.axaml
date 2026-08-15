@@ -170,6 +170,36 @@
 						</Style-->
 				</AutoCompleteBox.Styles>
 			</AutoCompleteBox>
+			<StackPanel Name="findPanel" Orientation="Horizontal" Margin="10 0 0 0"
+						IsVisible="{Binding IsFindVisible}">
+				<TextBox Name="findTextBox"
+						 Width="120"
+						 Height="30"
+						 PlaceholderText="Find"
+						 Text="{Binding FindText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+					<TextBox.KeyBindings>
+						<KeyBinding Gesture="Return" Command="{Binding FindNextCommand}"/>
+						<KeyBinding Gesture="Shift+Return" Command="{Binding FindPreviousCommand}"/>
+						<KeyBinding Gesture="Escape" Command="{Binding CloseFindCommand}"/>
+						<KeyBinding Gesture="F3" Command="{Binding FindNextCommand}"/>
+						<KeyBinding Gesture="Shift+F3" Command="{Binding FindPreviousCommand}"/>
+					</TextBox.KeyBindings>
+				</TextBox>
+				<TextBlock Text="{Binding FindResultSummary}" MinWidth="44" Margin="4 0 0 0"
+						   VerticalAlignment="Center" TextAlignment="Center"/>
+				<Button Command="{Binding FindPreviousCommand}" Background="Transparent" Padding="4"
+						ToolTip.Tip="Previous (Shift+F3)" AutomationProperties.Name="ResultFindPrevious">
+					<PathIcon Data="{StaticResource ChevronUpPath}" Width="14" Height="14"/>
+				</Button>
+				<Button Command="{Binding FindNextCommand}" Background="Transparent" Padding="4"
+						ToolTip.Tip="Next (F3)" AutomationProperties.Name="ResultFindNext">
+					<PathIcon Data="{StaticResource ChevronDownPath}" Width="14" Height="14"/>
+				</Button>
+				<Button Command="{Binding CloseFindCommand}" Background="Transparent" Padding="4"
+						ToolTip.Tip="Close (Esc)" AutomationProperties.Name="ResultFindClose">
+					<PathIcon Data="{StaticResource CloseX}" Width="14" Height="14"/>
+				</Button>
+			</StackPanel>
 		</WrapPanel>
 		<!-- Grouping Panel - Drop Zone for column headers -->
 		<Border Grid.Row="2" Grid.Column="0" 
@@ -289,7 +319,8 @@
 				UseLogicalScrollable="True"
 				RowHeight="22"
 				AutomationProperties.Name="ResultDataGrid"
-				AutomationProperties.AutomationId="ResultDataGrid">
+				AutomationProperties.AutomationId="ResultDataGrid"
+				SearchModel="{Binding FindModel}">
 			<Interaction.Behaviors>
 				<behaviors:SummaryRowSyncBehavior SummaryScrollViewer="{Binding #SummaryScrollViewer}" 
 												  RecalculateAction="{ReflectionBinding $parent[UserControl].RecalculateSummaryValuesAction}"/>

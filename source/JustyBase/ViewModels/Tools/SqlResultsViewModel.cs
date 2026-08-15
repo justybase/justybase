@@ -146,17 +146,6 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         //GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows, isDataSorted: true, isDataInGroupOrder: true);
         GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows);
 
-        _findDebounceTimer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(300),
-            DispatcherPriority.Background,
-            (_, _) =>
-            {
-                _findDebounceTimer.Stop();
-                if (IsFindVisible)
-                {
-                    ApplyFind();
-                }
-            });
         FindModel.ResultsChanged += (_, _) => UpdateFindSummary();
         FindModel.CurrentChanged += (_, _) => UpdateFindSummary();
     }
@@ -537,7 +526,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
 
     public void DoCleanup()
     {
-        _findDebounceTimer.Stop();
+        _findDebounceCts?.Cancel();
         DisposeSpill();
         if (CurrentResultsTable is not null)
         {
@@ -636,7 +625,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
     [ObservableProperty]
     public partial string FindResultSummary { get; set; } = "";
 
-    private readonly DispatcherTimer _findDebounceTimer;
+    private CancellationTokenSource? _findDebounceCts;
 
     partial void OnFindTextChanged(string value)
     {
@@ -644,8 +633,9 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         {
             return;
         }
-        _findDebounceTimer.Stop();
-        _findDebounceTimer.Start();
+        _findDebounceCts?.Cancel();
+        var cts = _findDebounceCts = new CancellationTokenSource();
+        _ = DebounceFindAsync(cts.Token);
     }
 
     partial void OnIsFindVisibleChanged(bool value)
@@ -653,9 +643,32 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         if (!value)
         {
             FindText = "";
-            _findDebounceTimer.Stop();
+            _findDebounceCts?.Cancel();
             FindModel.Clear();
             FindResultSummary = "";
+        }
+    }
+
+    private async Task DebounceFindAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(300, token).ConfigureAwait(false);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (token.IsCancellationRequested || !IsFindVisible)
+                {
+                    return;
+                }
+                ApplyFind();
+            }, DispatcherPriority.Background);
+        }
+        catch (OperationCanceledException)
+        {
         }
     }
 
@@ -700,7 +713,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         {
             return;
         }
-        _findDebounceTimer.Stop();
+        _findDebounceCts?.Cancel();
         ApplyFind();
     }
 

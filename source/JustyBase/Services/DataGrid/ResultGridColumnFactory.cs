@@ -1,3 +1,4 @@
+using Avalonia.Controls.DataGridSearching;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using JustyBase.Converters;
@@ -31,6 +32,10 @@ public static class ResultGridColumnFactory
         DataGridBoundColumn col = table.TypeCodes[index] == TypeCode.Boolean
             ? CreateCheckBoxColumn(table, index, headerTemplate, cellValueBinding)
             : CreateTextColumn(table, index, headerTemplate, cellValueBinding);
+
+        // Enable the grid search adapter (Ctrl+F) to read this column's values
+        // through the same Fields[index] path used by the cell binding.
+        DataGridColumnSearch.SetSearchMemberPath(col, $"{TableOfSqlResults.FIELDS_WORD}[{index}]");
 
         if (col.Header is string header && pinnedColumns.TryGetValue(header, out var displayIndex))
         {

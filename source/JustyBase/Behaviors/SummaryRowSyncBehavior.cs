@@ -1,4 +1,5 @@
 using Avalonia.Controls.Primitives;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Avalonia.Xaml.Interactivity;
 using JustyBase.Services.DataGrid;
@@ -35,6 +36,7 @@ public sealed class SummaryRowSyncBehavior : Behavior<DataGrid>
     private ScrollViewer? _gridScrollViewer;
     private ScrollBar? _gridHorizontalScrollBar;
     private IResultGridSummaryScrollService? _scrollService;
+    private bool _summaryRefreshQueued;
 
     protected override void OnAttached()
     {
@@ -132,9 +134,18 @@ public sealed class SummaryRowSyncBehavior : Behavior<DataGrid>
 
     private void RefreshSummaryRowWidths()
     {
-        if (RecalculateAction is System.Action action)
+        // Geometry-dependent measurements (row header width, first column offset)
+        // are only correct after the grid re-arranges, e.g. when columns get
+        // frozen or reordered. Rebuild on the Loaded priority so the frozen
+        // layout is in place before the summary cells are aligned.
+        if (RecalculateAction is System.Action action && !_summaryRefreshQueued)
         {
-            action();
+            _summaryRefreshQueued = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                _summaryRefreshQueued = false;
+                action();
+            }, DispatcherPriority.Loaded);
         }
     }
 }

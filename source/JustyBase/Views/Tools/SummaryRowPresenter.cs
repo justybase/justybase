@@ -24,12 +24,14 @@ public sealed class SummaryRowPresenter
     /// <param name="summaryPanel">The StackPanel to populate with summary cells.</param>
     /// <param name="columns">DataGrid columns in their original order.</param>
     /// <param name="table">Current results table for calculations.</param>
+    /// <param name="rows">The rows the summaries are calculated over (typically the filtered view).</param>
     /// <param name="columnSummaries">Summary type configuration per column index.</param>
     /// <param name="spacerWidth">Width of the spacer to account for row headers/indentation.</param>
     public void BuildSummaryRow(
         StackPanel summaryPanel,
         IEnumerable<DataGridColumn> columns,
         TableOfSqlResults table,
+        IReadOnlyList<TableRow> rows,
         Dictionary<int, ColumnSummaryType> columnSummaries,
         double spacerWidth)
     {
@@ -56,8 +58,8 @@ public sealed class SummaryRowPresenter
 
             if (columnSummaries.TryGetValue(originalIndex, out var summaryType) && summaryType != ColumnSummaryType.None)
             {
-                value = _summaryRowService.CalculateSummaryValue(table, originalIndex, summaryType);
-                tooltip = _summaryRowService.GetAllStatsTooltip(table, originalIndex);
+                value = _summaryRowService.CalculateSummaryValue(table, rows, originalIndex, summaryType);
+                tooltip = _summaryRowService.GetAllStatsTooltip(table, rows, originalIndex);
             }
 
             var border = new Border

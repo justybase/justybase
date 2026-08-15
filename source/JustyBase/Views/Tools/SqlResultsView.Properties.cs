@@ -103,18 +103,6 @@ public sealed partial class SqlResultsView
         get => ResultDataGrid.SelectedItems;
     }
 
-    public static readonly DirectProperty<SqlResultsView, Dictionary<int, AditionalOneFilter>> AdditionalValuesProperty =
-        AvaloniaProperty.RegisterDirect<SqlResultsView, Dictionary<int, AditionalOneFilter>>(nameof(AdditionalValues),
-            x => x.AdditionalValues,
-            (o, v) => o.AdditionalValues = v, defaultBindingMode: BindingMode.OneTime);
-
-    private Dictionary<int, AditionalOneFilter> _additionalValues = [];
-    public Dictionary<int, AditionalOneFilter> AdditionalValues
-    {
-        get => _additionalValues;
-        set => SetAndRaise(AdditionalValuesProperty, ref _additionalValues, value);
-    }
-
     public static readonly StyledProperty<string> StatsTextProperty =
         AvaloniaProperty.Register<SqlResultsView, string>(nameof(StatsText));
 

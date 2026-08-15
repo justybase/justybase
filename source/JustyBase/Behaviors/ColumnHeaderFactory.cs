@@ -1,6 +1,5 @@
 using Avalonia.Xaml.Interactivity;
 using JustyBase.Models;
-using JustyBase.ViewModels;
 using JustyBase.ViewModels.Tools;
 
 namespace JustyBase.Behaviors;
@@ -9,23 +8,12 @@ public sealed class ColumnHeaderContext
 {
     public required DataFormat<string> ColumnNameDataFormat { get; init; }
     public required Dictionary<string, int> PinnedColumns { get; init; }
-    public Dictionary<int, AditionalOneFilter>? AdditionalValues { get; set; }
     public required DataGrid DataGrid { get; init; }
     public required StreamGeometry PinIcon { get; init; }
     public required StreamGeometry UnpinIcon { get; init; }
-    public required StreamGeometry FilterFilledIcon { get; init; }
-    public required StreamGeometry FilterNormalIcon { get; init; }
     public SqlResultsViewModel? ViewModel { get; init; }
-    public System.Action? TriggerSearchTimer { get; init; }
     public System.Action? RefreshSummaryRowWidths { get; init; }
-    public Func<int, CustomListBoxViewModel>? GetFilterDataContext { get; init; }
-    public RefreshActionHolder? RefreshHolder { get; init; }
     public int SavedIndex { get; init; }
-}
-
-public sealed class RefreshActionHolder
-{
-    public System.Action? RefreshAction { get; set; }
 }
 
 public static class ColumnHeaderFactory
@@ -40,7 +28,7 @@ public static class ColumnHeaderFactory
     {
         var grid = new Grid
         {
-            ColumnDefinitions = ColumnDefinitions.Parse("Auto,*,Auto,Auto,Auto")
+            ColumnDefinitions = ColumnDefinitions.Parse("Auto,*,Auto,Auto")
         };
 
         var headerText = CreateHeaderTextBlock(table, index, ctx);
@@ -54,10 +42,6 @@ public static class ColumnHeaderFactory
         var summaryButton = CreateSummaryButton(table, index, ctx);
         grid.Children.Add(summaryButton);
         Grid.SetColumn(summaryButton, 3);
-
-        var filterButton = CreateFilterButton(table, index, ctx);
-        grid.Children.Add(filterButton);
-        Grid.SetColumn(filterButton, 4);
 
         SetupDropHandlers(grid, table, index, ctx);
 
@@ -213,94 +197,6 @@ public static class ColumnHeaderFactory
                 tb.Foreground = Brushes.Green;
             }
         }
-
-        return button;
-    }
-
-    private static Button CreateFilterButton(TableOfSqlResults table, int index, ColumnHeaderContext ctx)
-    {
-        bool hasFilter = ctx.AdditionalValues?.ContainsKey(index) == true;
-
-        var button = new Button
-        {
-            Content = new PathIcon { Data = hasFilter ? ctx.FilterFilledIcon : ctx.FilterNormalIcon },
-            Margin = new Thickness(0, 2, 0, 0),
-            Padding = new Thickness(0),
-            FontSize = 20,
-            Background = Brushes.Transparent,
-            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
-            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right
-        };
-        Avalonia.Automation.AutomationProperties.SetName(button, $"ColumnFilter_{index}");
-        Avalonia.Automation.AutomationProperties.SetAutomationId(button, $"ColumnFilter_{index}");
-
-        var listBox = new CustomListBox();
-        var listBoxViewModel = ctx.GetFilterDataContext?.Invoke(index);
-        if (listBoxViewModel == null) return button;
-        
-        listBox.DataContext = listBoxViewModel;
-
-        var flyout = new Flyout
-        {
-            Content = listBox,
-            ShowMode = FlyoutShowMode.Standard
-        };
-
-        flyout.Opening += (_, _) =>
-        {
-            listBoxViewModel.OpeningAction();
-            if (ctx.RefreshHolder != null)
-                ctx.RefreshHolder.RefreshAction = () => listBoxViewModel?.RefreshList();
-        };
-
-        listBoxViewModel.CloseAction = () =>
-        {
-            if (ctx.RefreshHolder != null)
-                ctx.RefreshHolder.RefreshAction = null;
-            flyout.Hide();
-        };
-
-        void ApplyFilter()
-        {
-            var newFilter = new AditionalOneFilter(listBoxViewModel.FilterTextForList)
-            {
-                InList = listBoxViewModel.CheckItems,
-                NotList = listBoxViewModel.UncheckItems,
-                FilterType = listBoxViewModel.FilterType
-            };
-
-            if (string.IsNullOrEmpty(newFilter.FilterEnteredTextPhase) && 
-                (newFilter.InList?.Count ?? 0) == 0 &&
-                (newFilter.NotList?.Count ?? 0) == 0 &&
-                newFilter.FilterType != FilterTypeEnum.isNull && 
-                newFilter.FilterType != FilterTypeEnum.isNotNull)
-            {
-                ctx.AdditionalValues?.Remove(index);
-            }
-            else
-            {
-                var values = ctx.AdditionalValues ??= [];
-                values[index] = newFilter;
-            }
-
-            ctx.TriggerSearchTimer?.Invoke();
-        }
-
-        flyout.Closed += (_, _) =>
-        {
-            button.Content = new PathIcon
-            {
-                Data = ctx.AdditionalValues?.ContainsKey(index) == true
-                    ? ctx.FilterFilledIcon
-                    : ctx.FilterNormalIcon
-            };
-            ApplyFilter();
-        };
-
-        listBoxViewModel.OnlineSearchAction = ApplyFilter;
-
-        button.ContextFlyout = flyout;
-        button.Click += (_, _) => flyout.ShowAt(button, true);
 
         return button;
     }

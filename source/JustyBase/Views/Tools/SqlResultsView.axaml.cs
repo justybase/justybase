@@ -32,6 +32,7 @@
 // =============================================================================
 
 using Avalonia.Collections;
+using Avalonia.Controls.DataGridFiltering;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
@@ -218,11 +219,15 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
             return;
 
         double spacerWidth = _summaryScrollService.GetFirstColumnSpacerWidth(ResultDataGrid, _summaryScrollViewer);
-        
+
+        // Summaries reflect the currently visible rows (filtered collection view).
+        var visibleRows = GridCollectionView.Cast<object>().OfType<TableRow>().ToList();
+
         _summaryRowPresenter.BuildSummaryRow(
             summaryPanel,
             ResultDataGrid.Columns,
             CurrentResultsTable,
+            visibleRows,
             vm.ColumnSummaries,
             spacerWidth);
 
@@ -331,9 +336,13 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
         var currentViewModel = DataContext as SqlResultsViewModel;
         if (!ReferenceEquals(_boundViewModel, currentViewModel))
         {
-            if (_boundViewModel is not null && ReferenceEquals(_boundViewModel.ViewBridge, this))
+            if (_boundViewModel is not null)
             {
-                _boundViewModel.ViewBridge = null;
+                _boundViewModel.FilteringModel.FilteringChanged -= OnFilteringChanged;
+                if (ReferenceEquals(_boundViewModel.ViewBridge, this))
+                {
+                    _boundViewModel.ViewBridge = null;
+                }
             }
 
             _boundViewModel = currentViewModel;
@@ -342,17 +351,37 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
         if (currentViewModel is not null)
         {
             currentViewModel.ViewBridge = this;
+            currentViewModel.FilteringModel.FilteringChanged += OnFilteringChanged;
         }
     }
 
     private void UnbindViewBridge()
     {
-        if (_boundViewModel is not null && ReferenceEquals(_boundViewModel.ViewBridge, this))
+        if (_boundViewModel is not null)
         {
-            _boundViewModel.ViewBridge = null;
+            _boundViewModel.FilteringModel.FilteringChanged -= OnFilteringChanged;
+            if (ReferenceEquals(_boundViewModel.ViewBridge, this))
+            {
+                _boundViewModel.ViewBridge = null;
+            }
         }
 
         _boundViewModel = null;
+    }
+
+    private void OnFilteringChanged(object? sender, FilteringChangedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (DataContext is not SqlResultsViewModel vm)
+            {
+                return;
+            }
+
+            rowsLoadingMessage.Text = $"{GridCollectionView.Count:N0} rows";
+            RefreshSummaryRowWidths();
+            vm.RefreshFind();
+        }, DispatcherPriority.Background);
     }
 
     private Dictionary<string, (Control, string)> _flyoutOnControls;
@@ -672,7 +701,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
             // Detach so FilteredRows mutations do not layout against a live DataGrid.
             ((ISqlResultsViewBridge)this).SuspendGridBinding();
 
-            _searchService.ApplySearch(CurrentResultsTable, SearchText, AdditionalValues, ContainsGeneralSearch == true);
+            _searchService.ApplySearch(CurrentResultsTable, SearchText, null, ContainsGeneralSearch == true);
 
             if (SelectedItems.Count > 5_000)
             {
@@ -681,8 +710,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
             vm.GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows);
 
-            rowsLoadingMessage.Text = $"{CurrentResultsTable.FilteredRows.Count:N0} rows";
-            _refreshHolder.RefreshAction?.Invoke();
+            rowsLoadingMessage.Text = $"{vm.GridCollectionView.Count:N0} rows";
             RefreshSummaryRowWidths();
             vm.RefreshFind();
             _summaryScrollService.InvalidateRowHeaderWidthCache();
@@ -731,11 +759,12 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
             }
 
             // Recreate columns
-            ValueConverters = [];
+            List<IValueConverter> valueConverters = [];
             for (var i = 0; i < CurrentResultsTable.Headers.Count; ++i)
             {
                 FuncDataTemplate<object> headerTemplate = GetHeaderTemplate(CurrentResultsTable, i, i);
-                DataGridBoundColumn col = ResultGridColumnFactory.CreateColumn(CurrentResultsTable, i, headerTemplate, _pinnedColumns, ValueConverters);
+
+                DataGridBoundColumn col = ResultGridColumnFactory.CreateColumn(CurrentResultsTable, i, headerTemplate, _pinnedColumns, valueConverters);
                 ResultDataGrid.Columns.Add(col);
             }
             ResultDataGrid.FrozenColumnCount = _pinnedColumns.Count;
@@ -748,25 +777,11 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
     private readonly Dictionary<string, int> _pinnedColumns = [];
 
-    private readonly Dictionary<int, CustomListBoxViewModel> _listBoxesDictionaryCache = [];
-    private List<IValueConverter> ValueConverters = null;
-    public CustomListBoxViewModel GetFilterDataContext(int index)
-    {
-        if (!_listBoxesDictionaryCache.TryGetValue(index, out CustomListBoxViewModel? outVal1))
-        {
-            outVal1 = new CustomListBoxViewModel(CurrentResultsTable, index, FilterTypeEnum.equals, ValueConverters[index]);
-            _listBoxesDictionaryCache[index] = outVal1;
-        }
-
-        return outVal1;
-    }
-
     // This payload is consumed only by JustyBase. An application format keeps it
     // available to the in-process drop target on every Avalonia platform.
     private readonly DataFormat<string> _columnNameDataFormat =
         DataFormat.CreateStringApplicationFormat("JustyBase.ColumnName");
     private readonly List<string> _groupedCols = [];
-    private readonly RefreshActionHolder _refreshHolder = new();
     
     private FuncDataTemplate<object> GetHeaderTemplate(TableOfSqlResults table, int index, int savedI)
     {
@@ -776,17 +791,11 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
             {
                 ColumnNameDataFormat = _columnNameDataFormat,
                 PinnedColumns = _pinnedColumns,
-                AdditionalValues = AdditionalValues,
                 DataGrid = ResultDataGrid,
                 PinIcon = this.Resources["btPinData"] as StreamGeometry ?? throw new InvalidOperationException("btPinData resource not found"),
                 UnpinIcon = this.Resources["btPinData2"] as StreamGeometry ?? throw new InvalidOperationException("btPinData2 resource not found"),
-                FilterFilledIcon = this.Resources["filterFilledData"] as StreamGeometry ?? throw new InvalidOperationException("filterFilledData resource not found"),
-                FilterNormalIcon = this.Resources["filterNormalData"] as StreamGeometry ?? throw new InvalidOperationException("filterNormalData resource not found"),
                 ViewModel = DataContext as SqlResultsViewModel,
-                TriggerSearchTimer = () => TriggerSearchTimerCommand?.Execute(null),
                 RefreshSummaryRowWidths = RefreshSummaryRowWidths,
-                GetFilterDataContext = GetFilterDataContext,
-                RefreshHolder = _refreshHolder,
                 SavedIndex = savedI
             };
             return ColumnHeaderFactory.CreateHeaderControl(table, index, ctx);

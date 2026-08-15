@@ -88,42 +88,103 @@ public sealed class BuiltInColumnFilterHeadlessTests : HeadlessSessionTestBase
     [Fact]
     public Task DistinctFilterFlyout_WithAccessor_BuildsOptionsAndCounts() => RunOnUi(() =>
     {
-        var table = CreateResultTable();
-        var grid = new DataGrid
-        {
-            ItemsSource = new DataGridCollectionView(table.FilteredRows),
-            AutoGenerateColumns = false,
-            IsReadOnly = true,
-            RowHeight = 22
-        };
-        var converters = new List<Avalonia.Data.Converters.IValueConverter>();
-        for (int i = 0; i < table.Headers.Count; i++)
-        {
-            grid.Columns.Add(ResultGridColumnFactory.CreateColumn(table, i, null!, new Dictionary<string, int>(), converters));
-        }
-        var window = new Window { Width = 600, Height = 400, Content = grid };
+        var view = SqlResultsFindFlowHeadlessTests.CreateView(out _);
+        var grid = view.ResultDataGrid;
+        var window = new Window { Width = 700, Height = 500, Content = view };
         window.Show();
         Dispatcher.UIThread.RunJobs();
 
         var column = grid.Columns[1];
-        Assert.IsType<DataGridDistinctValueFilterFlyout>(column.FilterFlyout);
+        Assert.IsType<CascadingDistinctValueFilterFlyout>(column.FilterFlyout);
         Assert.True(column.ShowFilterButton);
 
-        var header = grid.GetVisualDescendants()
-            .OfType<DataGridColumnHeader>()
-            .FirstOrDefault(h => Equals(h.Content, column.Header));
-        Assert.True(header is not null,
-            $"column header not found; headers: {string.Join(", ", grid.GetVisualDescendants().OfType<DataGridColumnHeader>().Select(h => $"'{h.Content}'"))}");
-
-        header!.TryShowFilterFlyout();
+        var flyout = (CascadingDistinctValueFilterFlyout)column.FilterFlyout!;
+        flyout.ShowAt(grid);
         Dispatcher.UIThread.RunJobs();
 
-        var flyout = (DataGridDistinctValueFilterFlyout)column.FilterFlyout!;
         Assert.Null(flyout.LastError);
+        Assert.NotNull(flyout.ContentTemplate);
         Assert.NotNull(flyout.Context);
         Assert.Equal(100, flyout.Context!.Options.Count);
         Assert.All(flyout.Context.Options, o => Assert.Equal(1, o.Count));
         Assert.True(flyout.Context.Options.All(o => !o.IsSelected));
+        window.Close();
+    });
+
+    [Fact]
+    public Task DistinctFilterFlyout_UsesCurrentFilteredViewForOptions() => RunOnUi(() =>
+    {
+        var table = CreateResultTable();
+        var grid = CreateFilterGrid(table);
+        var window = new Window { Width = 600, Height = 400, Content = grid };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        grid.FilteringModel.SetOrUpdate(new FilteringDescriptor(
+            columnId: "col0",
+            @operator: FilteringOperator.In,
+            propertyPath: "Fields[0]",
+            values: new object[] { "Name1", "Name2" }));
+        Dispatcher.UIThread.RunJobs();
+
+        var column = grid.Columns[1];
+        FindHeader(grid, column).TryShowFilterFlyout();
+        Dispatcher.UIThread.RunJobs();
+
+        var flyout = (CascadingDistinctValueFilterFlyout)column.FilterFlyout!;
+        Assert.NotNull(flyout.Context);
+        Assert.Equal(2, flyout.Context!.Options.Count);
+        Assert.Contains(flyout.Context.Options, option => option.Display == "1");
+        Assert.Contains(flyout.Context.Options, option => option.Display == "2");
+        window.Close();
+    });
+
+    [Fact]
+    public Task DistinctFilterFlyout_ClearAll_RemovesColumnDescriptor() => RunOnUi(() =>
+    {
+        var table = CreateResultTable();
+        var grid = CreateFilterGrid(table);
+        var window = new Window { Width = 600, Height = 400, Content = grid };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var column = grid.Columns[0];
+        FindHeader(grid, column).TryShowFilterFlyout();
+        Dispatcher.UIThread.RunJobs();
+        var flyout = (CascadingDistinctValueFilterFlyout)column.FilterFlyout!;
+
+        flyout.Context!.Options[0].IsSelected = true;
+        Dispatcher.UIThread.RunJobs();
+        Assert.Single(grid.FilteringModel.Descriptors);
+        Assert.Single(grid.ItemsSource.Cast<object>());
+
+        flyout.Context.ClearAllCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Empty(grid.FilteringModel.Descriptors);
+        Assert.Equal(100, grid.ItemsSource.Cast<object>().Count());
+        window.Close();
+    });
+
+    [Fact]
+    public Task DistinctFilterFlyout_SearchText_FiltersVisibleOptions() => RunOnUi(() =>
+    {
+        var table = CreateResultTable();
+        var grid = CreateFilterGrid(table);
+        var window = new Window { Width = 600, Height = 400, Content = grid };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var column = grid.Columns[0];
+        FindHeader(grid, column).TryShowFilterFlyout();
+        Dispatcher.UIThread.RunJobs();
+        var flyout = (CascadingDistinctValueFilterFlyout)column.FilterFlyout!;
+
+        flyout.Context!.SearchText = "Name1";
+
+        Assert.Equal(11, flyout.Context.Options.Count);
+        Assert.All(flyout.Context.Options, option =>
+            Assert.Contains("Name1", option.Display, StringComparison.OrdinalIgnoreCase));
         window.Close();
     });
 
@@ -159,6 +220,29 @@ public sealed class BuiltInColumnFilterHeadlessTests : HeadlessSessionTestBase
         window.Close();
     });
 
+    [Fact]
+    public Task FilteringChanged_UpdatesRowsLoadingMessage() => RunOnUi(() =>
+    {
+        var view = SqlResultsFindFlowHeadlessTests.CreateView(out var vm);
+        var window = new Window { Width = 700, Height = 500, Content = view };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var rowsText = view.FindControl<TextBlock>("rowsLoadingMessage");
+        Assert.NotNull(rowsText);
+
+        vm.FilteringModel.SetOrUpdate(new FilteringDescriptor(
+            columnId: "col1",
+            @operator: FilteringOperator.In,
+            propertyPath: "Fields[1]",
+            values: new object[] { 1, 2, 3 }));
+        Dispatcher.UIThread.RunJobs();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("3 rows", rowsText!.Text);
+        window.Close();
+    });
+
     private static TableOfSqlResults CreateResultTable()
     {
         var table = new TableOfSqlResults();
@@ -171,5 +255,38 @@ public sealed class BuiltInColumnFilterHeadlessTests : HeadlessSessionTestBase
         }
         table.FilteredRows.AddRange(table.Rows);
         return table;
+    }
+
+    private static DataGrid CreateFilterGrid(TableOfSqlResults table)
+    {
+        var grid = new DataGrid
+        {
+            ItemsSource = new DataGridCollectionView(table.FilteredRows),
+            AutoGenerateColumns = false,
+            IsReadOnly = true,
+            RowHeight = 22,
+            FilteringModel = new FilteringModel { OwnsViewFilter = true }
+        };
+        var converters = new List<Avalonia.Data.Converters.IValueConverter>();
+        for (int i = 0; i < table.Headers.Count; i++)
+        {
+            grid.Columns.Add(ResultGridColumnFactory.CreateColumn(
+                table,
+                i,
+                null!,
+                new Dictionary<string, int>(),
+                converters));
+        }
+
+        return grid;
+    }
+
+    private static DataGridColumnHeader FindHeader(DataGrid grid, DataGridColumn column)
+    {
+        var header = grid.GetVisualDescendants()
+            .OfType<DataGridColumnHeader>()
+            .FirstOrDefault(h => Equals(h.Content, column.Header));
+        Assert.NotNull(header);
+        return header!;
     }
 }

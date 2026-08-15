@@ -20,6 +20,10 @@ partial class SqlResultsViewModel
     {
         DisposeSpill();
 
+        // A new query starts with a clean filter state; stale colN descriptors
+        // must not apply to a different result set.
+        _messageForUserTools.DispatcherActionInstance(FilteringModel.Clear);
+
         if (!string.IsNullOrWhiteSpace(res.errorMessage))
         {
             _messageForUserTools.DispatcherActionInstance(() =>

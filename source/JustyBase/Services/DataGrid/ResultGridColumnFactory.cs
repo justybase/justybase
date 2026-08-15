@@ -15,12 +15,6 @@ namespace JustyBase.Services.DataGrid;
 /// </summary>
 public static class ResultGridColumnFactory
 {
-    /// <summary>
-    /// Experimental: enables the built-in Excel/DataGrip-style distinct-value
-    /// column filter (ProDataGrid #318) next to the custom one.
-    /// </summary>
-    public static bool EnableBuiltInColumnFilter = true;
-
     public static DataGridBoundColumn CreateColumn(
         TableOfSqlResults table,
         int index,
@@ -45,10 +39,7 @@ public static class ResultGridColumnFactory
         // through the same Fields[index] path used by the cell binding.
         DataGridColumnSearch.SetSearchMemberPath(col, $"{TableOfSqlResults.FIELDS_WORD}[{index}]");
 
-        if (EnableBuiltInColumnFilter)
-        {
-            ConfigureBuiltInColumnFilter(table, index, col);
-        }
+        ConfigureBuiltInColumnFilter(table, index, col);
 
         if (col.Header is string header && pinnedColumns.TryGetValue(header, out var displayIndex))
         {
@@ -64,12 +55,13 @@ public static class ResultGridColumnFactory
 
         col.SortMemberPath = fieldsPath;
         col.ColumnKey = $"col{index}";
-        DataGridColumnFilter.SetValueAccessor(
-            col,
-            new DataGridColumnValueAccessor<TableRow, object>(row => row.Fields[index]));
+        var valueAccessor = new DataGridColumnValueAccessor<TableRow, object>(row => row.Fields[index]);
+        DataGridColumnFilter.SetValueAccessor(col, valueAccessor);
         col.ShowFilterButton = true;
-        col.FilterFlyout = new DataGridDistinctValueFilterFlyout
+        col.FilterFlyout = new CascadingDistinctValueFilterFlyout
         {
+            Column = col,
+            ValueAccessor = valueAccessor,
             Placement = PlacementMode.Bottom
         };
     }

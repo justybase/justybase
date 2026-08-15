@@ -751,10 +751,6 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         FindResultSummary = count > 0 ? $"{FindModel.CurrentIndex + 1} of {count}" : "";
     }
 
-
-    [ObservableProperty]
-    public partial Dictionary<int, AditionalOneFilter> AdditionalValues { get; set; } = [];
-
     [ObservableProperty]
     public partial bool DataLoadingInProgress { get; set; } = false;
 

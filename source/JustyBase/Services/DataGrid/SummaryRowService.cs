@@ -13,7 +13,15 @@ public sealed class SummaryRowService : ISummaryRowService
         if (table?.FilteredRows == null || table.FilteredRows.Count == 0)
             return string.Empty;
 
-        var stats = new TableRowStats(table, table.FilteredRows, columnIndex);
+        return CalculateSummaryValue(table, table.FilteredRows, columnIndex, summaryType);
+    }
+
+    public string CalculateSummaryValue(TableOfSqlResults table, IReadOnlyList<TableRow> rows, int columnIndex, ColumnSummaryType summaryType)
+    {
+        if (rows == null || rows.Count == 0)
+            return string.Empty;
+
+        var stats = new TableRowStats(table, rows, columnIndex);
         var scale = table.GetNumericScale(columnIndex);
         string format = $"N{(scale <= 0 ? 2 : scale)}";
 
@@ -34,7 +42,15 @@ public sealed class SummaryRowService : ISummaryRowService
         if (table?.FilteredRows == null || table.FilteredRows.Count == 0)
             return string.Empty;
 
-        var stats = new TableRowStats(table, table.FilteredRows, columnIndex);
+        return GetAllStatsTooltip(table, table.FilteredRows, columnIndex);
+    }
+
+    public string GetAllStatsTooltip(TableOfSqlResults table, IReadOnlyList<TableRow> rows, int columnIndex)
+    {
+        if (rows == null || rows.Count == 0)
+            return string.Empty;
+
+        var stats = new TableRowStats(table, rows, columnIndex);
         var scale = table.GetNumericScale(columnIndex);
         string format = $"N{(scale <= 0 ? 2 : scale)}";
 

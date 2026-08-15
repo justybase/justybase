@@ -10,12 +10,15 @@
              x:DataType="vm:DbSchemaViewModel">
   <Grid Focusable="True" RowDefinitions="*,Auto">
 	  <DataGrid x:Name="dbSchemaTreeGrid" Grid.Row="0"
+				Theme="{StaticResource DataGridFlatTheme}"
+				VisualLayoutMode="Flat"
 				HierarchicalModel="{Binding SchemaModel}"
 				SelectedItem="{Binding SelectedSchemaItem, Mode=TwoWay}"
 				ColumnDefinitionsSource="{Binding ColumnDefinitions}"
 				HierarchicalRowsEnabled="True"
 				AutoGenerateColumns="False"
 				RowHeight="24"
+				HeadersVisibility="Column"
 				IsEnabled="{Binding SchemaEnabled}"
 				Focusable="True"
 				AutomationProperties.Name="DbSchemaTree"

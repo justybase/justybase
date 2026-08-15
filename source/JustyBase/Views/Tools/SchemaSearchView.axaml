@@ -89,6 +89,8 @@ Data="M24 16.4999C19.8579 16.4999 16.5 19.8578 16.5 23.9999C16.5 28.1421 19.8579
 		<!-- Uniform-height rows + logical scroll. Details use their own layout row so
 		     they reduce the grid area instead of being drawn over a selected row. -->
 		<DataGrid  Name="SchemaSearchDataGrid" Grid.Row="3"
+			Theme="{StaticResource DataGridFlatTheme}"
+			VisualLayoutMode="Flat"
 			ItemsSource="{Binding GridItemsSource}"
 			SelectedItem="{Binding SelectedSearchItem, Mode=TwoWay}"
 			AutoGenerateColumns="False"

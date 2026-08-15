@@ -32,11 +32,15 @@
 			<DataGrid 
 			  Name="fileSearchGrid"
 			  Grid.Row="1"
+				Theme="{StaticResource DataGridFlatTheme}"
+				VisualLayoutMode="Flat"
 				ItemsSource="{Binding SearchItems}"
 			    SelectedItem="{Binding SelectedItem}"
 			    AutoGenerateColumns="False"
 			    CanUserResizeColumns="True"
-			    IsReadOnly="True">
+			    IsReadOnly="True"
+				RowHeight="21"
+				HeadersVisibility="Column">
 			<DataGrid.Columns>
 				<DataGridTextColumn Header="Last write time" Width="120" CanUserResize="False" Binding="{Binding LastWriteTime, StringFormat=g}" x:DataType="vm:SearchItem"/>
 				<DataGridTextColumn Header="Name" Width="*" MinWidth="100" Binding="{Binding ShortName}" x:DataType="vm:SearchItem"/>

@@ -71,9 +71,11 @@ public sealed class LlamaServerManagerTests
         var b = factory.Add(cancelStart: true);
 
         await manager.GetOrStartServerAsync(LlamaServerRole.Fim, "model-a", 0, 4096);
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(30));
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            manager.GetOrStartServerAsync(LlamaServerRole.Fim, "model-b", 0, 4096, cancellationToken: cts.Token));
+        using var cts = new CancellationTokenSource();
+        var startTask = manager.GetOrStartServerAsync(LlamaServerRole.Fim, "model-b", 0, 4096, cancellationToken: cts.Token);
+        await b.StartedSignal.Task;
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => startTask);
 
         Assert.True(b.Disposed);
         Assert.Same(a, manager.FimServer);
@@ -157,13 +159,15 @@ public sealed class LlamaServerManagerTests
         public string LogFilePath => string.Empty;
         public int Port => 12345;
         public Uri Endpoint => new("http://127.0.0.1:12345");
+        public TaskCompletionSource StartedSignal { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<bool> StartAsync(IProgress<FimModelProgress>? progress = null, CancellationToken cancellationToken = default)
         {
+            StartedSignal.TrySetResult();
             if (CancelStart)
             {
                 // Simulate a cancellation observed while the start is in flight (after the gate).
-                return StartWithCancelAsync(cancellationToken);
+                return WaitForCancellationAsync(cancellationToken);
             }
 
             if (!StartResult)
@@ -175,9 +179,11 @@ public sealed class LlamaServerManagerTests
             return Task.FromResult(true);
         }
 
-        private static async Task<bool> StartWithCancelAsync(CancellationToken ct)
+        private static async Task<bool> WaitForCancellationAsync(CancellationToken ct)
         {
-            await Task.Delay(100, ct).ConfigureAwait(false);
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var registration = ct.Register(() => tcs.TrySetException(new OperationCanceledException(ct)));
+            await tcs.Task.ConfigureAwait(false);
             return true;
         }
 

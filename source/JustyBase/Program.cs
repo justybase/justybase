@@ -22,7 +22,7 @@ internal class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        VelopackApp.Build().Run();
+        VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
         var provider = CodePagesEncodingProvider.Instance;
         Encoding.RegisterProvider(provider);
         TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;

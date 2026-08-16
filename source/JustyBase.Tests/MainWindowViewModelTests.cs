@@ -1,5 +1,10 @@
 using JustyBase.Common;
+using JustyBase.Common.Contracts;
+using JustyBase.PluginCommon.Contracts;
+using JustyBase.Services.Updates;
 using JustyBase.ViewModels;
+using Moq;
+using System.Text.Json;
 
 namespace JustyBase.Tests;
 
@@ -19,11 +24,39 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
-    public void DefaultAppOptions_DisableAutoUpdateByDefault()
+    public void DefaultAppOptions_EnableAutoUpdateByDefault()
     {
         var options = new AppOptions();
 
-        Assert.False(options.AutoDownloadUpdate);
+        Assert.True(options.AutoDownloadUpdate);
+    }
+
+    [Fact]
+    public void UpdateCheckTimestamp_RoundTripsThroughSourceGeneratedJson()
+    {
+        DateTimeOffset timestamp = new(2026, 8, 16, 12, 30, 0, TimeSpan.Zero);
+        var options = new AppOptions { LastUpdateCheckUtc = timestamp };
+
+        string json = JsonSerializer.Serialize(options, MyJsonContextAppOptions.Default.AppOptions);
+        AppOptions restored = JsonSerializer.Deserialize(
+            json,
+            MyJsonContextAppOptions.Default.AppOptions)!;
+
+        Assert.Equal(timestamp, restored.LastUpdateCheckUtc);
+    }
+
+    [Fact]
+    public async Task UpdateService_SkipsNonVelopackInstallation()
+    {
+        var applicationData = new Mock<IGeneralApplicationData>();
+        applicationData.SetupGet(x => x.Config).Returns(new AppOptions());
+        var logger = new Mock<ISimpleLogger>();
+        using var service = new ApplicationUpdateService(applicationData.Object, logger.Object);
+
+        ApplicationUpdateResult result = await service.CheckAndDownloadAsync(manual: true);
+
+        Assert.Equal(ApplicationUpdateStatus.Unsupported, result.Status);
+        applicationData.Verify(x => x.SaveConfig(), Times.Never);
     }
 
     [Fact]

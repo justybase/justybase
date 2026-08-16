@@ -1442,6 +1442,18 @@
 						</StackPanel>
 					</Border>
 
+					<TextBlock Classes="section-caption" Text="UPDATES" />
+					<Border Classes="settings-card">
+						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+							<StackPanel Grid.Column="0">
+								<TextBlock Classes="row-title" Text="Auto-download application updates" />
+								<TextBlock Classes="row-desc" Text="Check GitHub Releases every 24 hours and download updates in the background. You will be asked before restarting." />
+							</StackPanel>
+							<ToggleSwitch Grid.Column="1" Classes="settings-control"
+										  IsChecked="{Binding AutoDownloadUpdate}" />
+						</Grid>
+					</Border>
+
 					<TextBlock Classes="section-caption" Text="HISTORY" />
 					<Border Classes="settings-card">
 						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">

@@ -101,7 +101,7 @@ Dark theme screenshots are shown below for a consistent presentation.
 * [SpreadSheetTasks](https://github.com/justybase/SpreadSheetTasks) — Excel I/O
 * [Sylvan CSV](https://github.com/MarkPflug/Sylvan) — fast CSV
 * [llama.cpp](https://github.com/ggml-org/llama.cpp) — bundled `llama-server` for embedded FIM and chat (GGUF)
-* [Velopack](https://velopack.io/) — desktop updates
+* [Velopack](https://velopack.io/) — Windows installation and desktop updates from GitHub Releases
 
 ## Requirements
 
@@ -173,6 +173,8 @@ publishWindows.bat <version>
 ```
 
 The GitHub Actions release workflow builds one self-contained ReadyToRun package per supported operating system. Dynamic plugins and reflection-heavy database providers remain in-process; trimming is disabled for provider compatibility.
+
+Windows installations created with Velopack automatically check the JustyBase GitHub Releases feed once per 24 hours, including prereleases. Updates download in the background and ask before restarting the application. The manual **Check for updates** command is available from the main window. Development runs and the Linux/macOS ZIP distributions do not perform automatic updates.
 
 Netezza SQL libraries in CI: the workflows clone `justybase/JustyBase.NetezzaSql` next to the `JustyBase` checkout and build with `-p:UseLocalJustyBaseLibraries=true`, so releases and tests compile the same projects as local development instead of resolving floating NuGet versions. Locally the sibling checkout is auto-detected; without it the NuGet fallback (`*-*`) applies.
 

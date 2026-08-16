@@ -76,5 +76,5 @@ Maturity by engine: [PLUGIN_CAPABILITIES.md](PLUGIN_CAPABILITIES.md).
 
 - Credentials stored encrypted under `%AppData%\JustDataEvo`
 - Logging redacts connection secrets
-- Update feed integration was removed; the app no longer depends on a remote update feed URL
+- Windows update integration uses Velopack's `GithubSource` against the public JustyBase GitHub Releases feed. Automatic checks are throttled to once per 24 hours and downloaded updates require user confirmation before restart.
 - Release artifacts are self-contained ReadyToRun (no NativeAOT, no trimming); CI builds the Netezza libraries from the sibling `JustyBase.NetezzaSql` checkout (`UseLocalJustyBaseLibraries=true`)

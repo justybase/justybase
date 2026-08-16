@@ -127,6 +127,39 @@ public sealed class DbWordListProviderTests
         Assert.Empty(results);
     }
 
+    [Fact]
+    public void Autocomplete_resolves_unqualified_sqlite_alias_against_main_schema()
+    {
+        var database = new Mock<IDatabaseService>();
+        database.SetupGet(x => x.DatabaseType).Returns(DatabaseTypeEnum.Sqlite);
+        database.SetupGet(x => x.AutoCompletDatabaseMode).Returns(
+            CurrentAutoCompletDatabaseMode.DatabaseSchemaTable
+            | CurrentAutoCompletDatabaseMode.SchemaTable
+            | CurrentAutoCompletDatabaseMode.SchemaOptional
+            | CurrentAutoCompletDatabaseMode.DatabaseAndSchemaOptional);
+        database.Setup(x => x.CleanSqlWord(It.IsAny<string?>(), It.IsAny<CurrentAutoCompletDatabaseMode>()))
+            .Returns((string? word, CurrentAutoCompletDatabaseMode _) => word ?? string.Empty);
+        database.Setup(x => x.GetSchemas(It.IsAny<string>(), It.IsAny<string>())).Returns([]);
+        database.Setup(x => x.GetDbObjects(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TypeInDatabaseEnum>()))
+            .Returns([]);
+        database.Setup(x => x.GetColumns("DB", "main", "orders", ""))
+            .Returns([new DatabaseColumn("id", null, "INTEGER", false, null)]);
+
+        var aliases = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["orders"] = ["o"]
+        };
+        var emptyHints = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        var items = _service.GetWordsList(
+                "o.", aliases, emptyHints, emptyHints, emptyHints, database.Object, "DB")
+            .ToList();
+
+        Assert.Contains(items, item => item.Text == "id" && item.Glyph == Glyph.Column);
+        database.Verify(x => x.GetColumns("DB", "main", "orders", ""), Times.AtLeastOnce);
+    }
+
     private static IDatabaseService CreateNetezzaDatabaseMock()
     {
         var database = new Mock<IDatabaseService>();

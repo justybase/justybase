@@ -94,5 +94,6 @@ public class SqlFileWatcherService : ISqlFileWatcherService
     public void Dispose()
     {
         _fileWatcher?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

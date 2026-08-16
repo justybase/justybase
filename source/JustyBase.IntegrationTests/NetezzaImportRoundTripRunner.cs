@@ -61,7 +61,7 @@ internal static class NetezzaImportRoundTripRunner
         ImportUsingOptionsContext.Current = ImportUsingOptions.Default;
         var progress = new List<string>();
 
-        var import = new ImportFromExcelFile(msg => progress.Add(msg), logger: null)
+        using var import = new ImportFromExcelFile(msg => progress.Add(msg), logger: null)
         {
             FilePath = csvPath,
             StandardMessageAction = msg => progress.Add(msg)
@@ -153,7 +153,7 @@ internal static class NetezzaImportRoundTripRunner
         ImportUsingOptionsContext.Current = ImportUsingOptions.Default;
         var progress = new List<string>();
 
-        var import = new ImportFromExcelFile(msg => progress.Add(msg), logger: null)
+        using var import = new ImportFromExcelFile(msg => progress.Add(msg), logger: null)
         {
             FilePath = filePath,
             StandardMessageAction = msg => progress.Add(msg)
@@ -228,7 +228,7 @@ internal static class NetezzaImportRoundTripRunner
             NetezzaLiveTestHost.Execute(setup, string.Format(CultureInfo.InvariantCulture, createTableSql, table));
         }
 
-        var import = new ImportFromExcelFile(msg => progress.Add(msg), logger: null)
+        using var import = new ImportFromExcelFile(msg => progress.Add(msg), logger: null)
         {
             FilePath = csvPath,
             StandardMessageAction = msg => progress.Add(msg)
@@ -378,5 +378,4 @@ internal static class NetezzaImportRoundTripRunner
         }
     }
 }
-
 

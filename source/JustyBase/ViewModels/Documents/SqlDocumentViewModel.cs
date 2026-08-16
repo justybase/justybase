@@ -38,6 +38,10 @@ public sealed class FileChangedInfo
     public required Action KeepCurrentAction { get; init; }
 }
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Design",
+    "CA1001",
+    Justification = "Document cleanup is owned by ICleanableViewModel and DockableCleanupService.")]
 public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompleteData, ICleanableViewModel, IHotDocumentVm
 {
     private readonly LogToolViewModel _logToolViewModel;
@@ -59,7 +63,8 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private readonly ISqlDbWordListProvider? _wordListProvider;
     private readonly FimEditorAttachment _fimAttachment;
     private readonly Queue<string> _pendingSnippetTexts = [];
-    private IReadOnlyList<SymbolOccurrence> _lastReferenceOccurrences = [];
+    private int _cleanupStarted;
+    private List<SymbolOccurrence> _lastReferenceOccurrences = [];
     private int _referenceNavigateIndex;
     private SqlDialect _documentDialect = SqlDialect.Netezza;
 
@@ -456,7 +461,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
     private static bool ReferenceSetsEqual(
         IReadOnlyList<SymbolOccurrence> left,
-        IReadOnlyList<SymbolOccurrence> right)
+        List<SymbolOccurrence> right)
     {
         if (left.Count != right.Count)
             return false;
@@ -669,7 +674,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         }
     }
 
-    private bool _stopReloadFileOnSaving = false;
+    private bool _stopReloadFileOnSaving;
 
     [RelayCommand]
     private async Task OpenFileAsync()
@@ -746,6 +751,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         _periodicTimer?.Stop();
         SharedCleanup();
     }
+
     public Action<FileChangedInfo>? OnFileChangedExternal
     {
         get => _interactionServices.OnFileChangedExternal;
@@ -1020,7 +1026,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     [ObservableProperty]
     public partial string SelectedDatabase { get; set; }
 
-    private int _selectedConnectionIndex = 0;
+    private int _selectedConnectionIndex;
 
     public int SelectedConnectionIndex
     {
@@ -1053,7 +1059,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
     /// <summary>
     /// Resolves the SQL dialect of the currently selected connection
-    /// (Db2 documents use the Db2 dialect from JustyBase.NetezzaSql).
+    /// (Db2 and SQLite documents use their dialects from JustyBase.NetezzaSql).
     /// </summary>
     private SqlDialect GetCurrentSqlDialect()
     {
@@ -1107,13 +1113,13 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     [ObservableProperty]
     public partial bool DoPooling { get; set; }
 
-    private readonly DataTable _tableToCompute = new();
     private object Evaluate(string expression)
     {
         object result = _sqlVariableProcessor.ReplaceSessionVariables(expression);
         try
         {
-            result = _tableToCompute.Compute(expression, "");
+            using var tableToCompute = new DataTable();
+            result = tableToCompute.Compute(expression, "");
         }
         catch (EvaluateException ex)
         {
@@ -1132,13 +1138,13 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
     private IDatabaseService _databaseService;
     public IAsyncEnumerable<CompletionDataSql> GetWordsList(string input, Dictionary<string, List<string>> aliasDbTable,
-    Dictionary<string, List<string>> subqueryHints,
-    Dictionary<string, List<string>> withHints,
-    Dictionary<string, List<string>> tempTableHints)
+        Dictionary<string, List<string>> subqueriesHints,
+        Dictionary<string, List<string>> withs,
+        Dictionary<string, List<string>> tempTables)
     {
         _sqlCodeFormatterService.SelectedConnectionName = SelectedConnectionName;
         _sqlCodeFormatterService.SelectedDatabase = SelectedDatabase;
-        return _sqlCodeFormatterService.GetWordsList(input, aliasDbTable, subqueryHints, withHints, tempTableHints);
+        return _sqlCodeFormatterService.GetWordsList(input, aliasDbTable, subqueriesHints, withs, tempTables);
     }
 
     private void AppendTextToColdDocumentState(string text)
@@ -1324,6 +1330,11 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     }
     private void SharedCleanup()
     {
+        if (Interlocked.Exchange(ref _cleanupStarted, 1) != 0)
+        {
+            return;
+        }
+
         _generalApplicationData.RemoveDocumentById(Id);
         _interactionServices.EnableRaisingEvents = false;
         _interactionServices.Dispose();

@@ -185,7 +185,7 @@ public sealed class ImportTypeSelectionTests
         {
             await File.WriteAllTextAsync(csv, "id,price\n1,10.5\n2,20.75\n3,1\n");
 
-            var import = new ImportFromExcelFile(null, null)
+            using var import = new ImportFromExcelFile(null, null)
             {
                 FilePath = csv
             };
@@ -224,7 +224,7 @@ public sealed class ImportTypeSelectionTests
         {
             await File.WriteAllTextAsync(csv, "id,price\n1,10.5\n2,20.75\n3,1\n");
 
-            var import = new ImportFromExcelFile(null, null)
+            using var import = new ImportFromExcelFile(null, null)
             {
                 FilePath = csv
             };
@@ -278,7 +278,7 @@ public sealed class ImportTypeSelectionTests
         {
             await File.WriteAllTextAsync(csv, "id\n1\n2\n3\n");
 
-            var import = new ImportFromExcelFile(null, null)
+            using var import = new ImportFromExcelFile(null, null)
             {
                 FilePath = csv
             };
@@ -313,7 +313,7 @@ public sealed class ImportTypeSelectionTests
         try
         {
             await File.WriteAllTextAsync(csv, "code\n1\nnot-an-integer\n\n");
-            var import = new ImportFromExcelFile(null, null) { FilePath = csv };
+            using var import = new ImportFromExcelFile(null, null) { FilePath = csv };
             Assert.True(import.InitImport());
             string sheet = import.SheetNamesToImport![0];
             DatabaseTypeChooser chooser = (await import.DetectSheetAsync(sheet))!;
@@ -349,7 +349,7 @@ public sealed class ImportTypeSelectionTests
         try
         {
             await File.WriteAllTextAsync(csv, "value\n\n");
-            var import = new ImportFromExcelFile(null, null) { FilePath = csv };
+            using var import = new ImportFromExcelFile(null, null) { FilePath = csv };
             Assert.True(import.InitImport());
             string sheet = import.SheetNamesToImport![0];
             DatabaseTypeChooser chooser = (await import.DetectSheetAsync(sheet))!;
@@ -391,7 +391,7 @@ public sealed class ImportTypeSelectionTests
         {
             await File.WriteAllTextAsync(csv, "num,intcol,dec,code,dateiso,datedotted,mix\n1,100,1.5,001,2024-01-15,07.06.2024,abc\n2,200,2.25,002,2024-02-01,08.06.2024,x\n");
 
-            var import = new ImportFromExcelFile(null, null)
+            using var import = new ImportFromExcelFile(null, null)
             {
                 FilePath = csv
             };
@@ -432,7 +432,7 @@ public sealed class ImportTypeSelectionTests
         {
             await File.WriteAllTextAsync(csv, "id,amount,when\n1,10.5,2024-01-15\n2,20.75,2024-02-01\n");
 
-            var import = new ImportFromExcelFile(null, null)
+            using var import = new ImportFromExcelFile(null, null)
             {
                 FilePath = csv,
                 TreatAllColumnsAsText = true
@@ -464,7 +464,7 @@ public sealed class ImportTypeSelectionTests
         {
             await File.WriteAllTextAsync(csv, "pesel,amount\n85122312345,10.5\n92010112345,20.75\n");
 
-            var import = new ImportFromExcelFile(null, null)
+            using var import = new ImportFromExcelFile(null, null)
             {
                 FilePath = csv
             };

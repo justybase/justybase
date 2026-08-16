@@ -7,7 +7,7 @@ namespace JustyBase.Services.Fim;
 /// <summary>
 /// Bridges editor inline-completion requests to an <see cref="ICompletionProvider"/>.
 /// </summary>
-public sealed class FimInlineCompletionBridge
+public sealed class FimInlineCompletionBridge : IDisposable
 {
     private readonly ICompletionProvider _provider;
     private readonly Func<FimPromptBudget> _getBudget;
@@ -167,6 +167,12 @@ public sealed class FimInlineCompletionBridge
         {
             _startGate.Release();
         }
+    }
+
+    public void Dispose()
+    {
+        _startGate.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private static (string Prefix, string Suffix) ExtractWithSchemaHint(

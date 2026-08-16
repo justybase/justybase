@@ -11,7 +11,7 @@ public sealed class InlineCompletionIntegrationTests
     public async Task FimBridge_KeepsRealDocumentInPrompt_WithSelectedCompletion()
     {
         var provider = new RecordingCompletionProvider("ENDARSEMESTER = 1;");
-        var bridge = new FimInlineCompletionBridge(provider, () => true);
+        using var bridge = new FimInlineCompletionBridge(provider, () => true);
         const string document = "SELECT * FROM DIMDATE D WHERE D.CAL";
         var replacementStart = document.Length - 3;
 
@@ -49,7 +49,7 @@ public sealed class InlineCompletionIntegrationTests
     public async Task FimBridge_WithSchemaHintProvider_PrependsHintAndKeepsCodePrefix()
     {
         var provider = new RecordingCompletionProvider(";");
-        var bridge = new FimInlineCompletionBridge(provider, () => true);
+        using var bridge = new FimInlineCompletionBridge(provider, () => true);
         const string document = "SELECT * FROM ORDERS WHERE ST";
         Func<string, int, string?> hintProvider = (_, _) => "-- table: PUBLIC.ORDERS(id:int)";
 
@@ -65,7 +65,7 @@ public sealed class InlineCompletionIntegrationTests
     public async Task FimBridge_SchemaHint_IsChargedAgainstPrefixBudget()
     {
         var provider = new RecordingCompletionProvider(";");
-        var bridge = new FimInlineCompletionBridge(
+        using var bridge = new FimInlineCompletionBridge(
             provider,
             () => true,
             () => new FimPromptBudget(MaxPromptTokens: 128, 0.65, 0.35, 50));
@@ -90,7 +90,7 @@ public sealed class InlineCompletionIntegrationTests
     public async Task FimBridge_WhenServerDownAndModelPresent_StartsServerOnDemand()
     {
         var provider = new FakeCompletionProvider { IsAvailable = true, IsReady = false };
-        var bridge = new FimInlineCompletionBridge(provider, () => true);
+        using var bridge = new FimInlineCompletionBridge(provider, () => true);
         var context = new InlineCompletionContext("SELECT * FROM ORDERS", 20);
 
         var result = await bridge.CompleteAsync(context, CancellationToken.None);
@@ -104,7 +104,7 @@ public sealed class InlineCompletionIntegrationTests
     public async Task FimBridge_WhenModelAbsent_DoesNotStartServer()
     {
         var provider = new FakeCompletionProvider { IsAvailable = false, IsReady = false };
-        var bridge = new FimInlineCompletionBridge(provider, () => true);
+        using var bridge = new FimInlineCompletionBridge(provider, () => true);
         var context = new InlineCompletionContext("SELECT * FROM ORDERS", 20);
 
         var result = await bridge.CompleteAsync(context, CancellationToken.None);
@@ -117,7 +117,7 @@ public sealed class InlineCompletionIntegrationTests
     public async Task FimBridge_WhenServerReady_DoesNotStartAgain()
     {
         var provider = new FakeCompletionProvider { IsAvailable = true, IsReady = true };
-        var bridge = new FimInlineCompletionBridge(provider, () => true);
+        using var bridge = new FimInlineCompletionBridge(provider, () => true);
         var context = new InlineCompletionContext("SELECT * FROM ORDERS", 20);
 
         var result = await bridge.CompleteAsync(context, CancellationToken.None);
@@ -130,7 +130,7 @@ public sealed class InlineCompletionIntegrationTests
     public async Task FimBridge_NoHint_DoesNotChangePrompt()
     {
         var provider = new RecordingCompletionProvider(";");
-        var bridge = new FimInlineCompletionBridge(provider, () => true);
+        using var bridge = new FimInlineCompletionBridge(provider, () => true);
         const string document = "SELECT * FROM ORDERS";
 
         var context = new InlineCompletionContext(document, document.Length);

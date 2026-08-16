@@ -13,7 +13,7 @@ using System.Collections.ObjectModel;
 
 namespace JustyBase.ViewModels.Tools;
 
-public sealed partial class SchemaSearchViewModel : Tool
+public sealed partial class SchemaSearchViewModel : Tool, IDisposable
 {
     /// <summary>
     /// DataGrid grouping is disabled for scroll performance (same idea as SQL Results:
@@ -326,7 +326,7 @@ public sealed partial class SchemaSearchViewModel : Tool
         _ = ApplyFilter();
     }
 
-    private CancellationTokenSource _filterCancellationTokenSource;
+    private CancellationTokenSource? _filterCancellationTokenSource;
     private CancellationTokenSource? _revealCancellationTokenSource;
     
     private async Task ApplyFilter()
@@ -378,6 +378,25 @@ public sealed partial class SchemaSearchViewModel : Tool
         {
             GridEnabled = true;
         }
+    }
+
+    public void Dispose()
+    {
+        _filterCancellationTokenSource?.Cancel();
+        _filterCancellationTokenSource?.Dispose();
+        _filterCancellationTokenSource = null;
+
+        _revealCancellationTokenSource?.Cancel();
+        _revealCancellationTokenSource?.Dispose();
+        _revealCancellationTokenSource = null;
+
+        if (searchTimer is not null)
+        {
+            searchTimer.Tick -= Timer_Tick;
+            searchTimer.Stop();
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     [ObservableProperty]

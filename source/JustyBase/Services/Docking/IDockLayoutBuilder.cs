@@ -77,6 +77,7 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
         var sessionMonitorViewModel = _viewModelFactory.CreateNetezzaSessionMonitorViewModel();
         ConfigureDockable(sessionMonitorViewModel, "NetezzaSessionMonitor", "NZ Sessions");
 
+#pragma warning disable CA2000 // The dock layout owns this view model for the application lifetime.
         var schemaSearchViewModel = new SchemaSearchViewModel(dockFactory, _generalApplicationData, _messageForUserTools, logViewModel)
         {
             Id = "schemaSearch",
@@ -85,6 +86,7 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
             CanPin = true,
             CanFloat = false
         };
+#pragma warning restore CA2000
         DockCapabilityHelper.SyncOverridesFromFlags(schemaSearchViewModel);
 
         var fileExplorerViewModel = _viewModelFactory.CreateFileExplorerViewModel();

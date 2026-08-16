@@ -8,7 +8,7 @@ using System.Collections.ObjectModel;
 
 namespace JustyBase.ViewModels.Tools;
 
-public partial class VariablesViewModel : Tool
+public partial class VariablesViewModel : Tool, IDisposable
 {
     private readonly IGeneralApplicationData _generalApplicationData;
     private readonly IActiveDocumentManager _activeDocumentManager;
@@ -114,5 +114,11 @@ public partial class VariablesViewModel : Tool
             dictionary.TryAdd(item.VariableName, item.VariableComputedValue);
         }
         return dictionary;
+    }
+
+    public void Dispose()
+    {
+        _periodicTimer.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

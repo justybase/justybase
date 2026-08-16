@@ -19,7 +19,6 @@ public class SqlVariableProcessor : ISqlVariableProcessor
     private readonly VariablesViewModel _variablesViewModel;
     private readonly IAvaloniaSpecificHelpers _avaloniaSpecificHelpers;
     private readonly IDatabaseServiceResolver _databaseServiceResolver;
-    private readonly DataTable _tableToCompute = new();
 
     public SqlVariableProcessor(
         IGeneralApplicationData generalApplicationData,
@@ -40,7 +39,8 @@ public class SqlVariableProcessor : ISqlVariableProcessor
         object result = expression;
         try
         {
-            result = _tableToCompute.Compute(expression, "");
+            using var tableToCompute = new DataTable();
+            result = tableToCompute.Compute(expression, "");
         }
         catch (Exception ex)
         {

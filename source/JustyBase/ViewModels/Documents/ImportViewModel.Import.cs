@@ -350,6 +350,7 @@ public sealed partial class ImportViewModel
         IsSourceEmpty = false;
         InvalidateExistingTargetColumns();
 
+#pragma warning disable CA2000 // The import view model owns these instances until the source is closed.
         var curentImportFromFile = new ImportFromExcelFile(x => _messageForUserTools.ShowSimpleMessageBoxInstance(x), _generalApplicationData.GlobalLoggerObject)
         {
             FilePath = filePath,
@@ -357,6 +358,7 @@ public sealed partial class ImportViewModel
         };
         _importFromExcelFilesClasses[filePath] = curentImportFromFile;
         _currentImportFromExcelFile = curentImportFromFile;
+#pragma warning restore CA2000
 
         if (string.IsNullOrWhiteSpace(curentImportFromFile.FilePath))
         {
@@ -1096,7 +1098,7 @@ public sealed partial class ImportViewModel
             if (!string.IsNullOrEmpty(tableNameMask))
             {
                 if ((tableNameMask.StartsWith("\"") && tableNameMask.EndsWith("\""))
-                    || (tableNameMask.StartsWith("'") && tableNameMask.EndsWith("'")))
+                    || (tableNameMask.StartsWith('\'') && tableNameMask.EndsWith('\'')))
                 {
                     tableNameMask = tableNameMask[1..^1];
                 }

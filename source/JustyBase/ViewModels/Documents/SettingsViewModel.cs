@@ -21,7 +21,7 @@ using System.Text.Json;
 
 namespace JustyBase.ViewModels.Documents;
 
-public partial class SettingsViewModel : DocumentBaseVM
+public partial class SettingsViewModel : DocumentBaseVM, IDisposable
 {
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly IGeneralApplicationData _generalApplicationData;
@@ -2477,7 +2477,7 @@ public partial class SettingsViewModel : DocumentBaseVM
         new("Others", "Others", ["others", "clear data", "autocomplete", "confirm", "update", "plugins", "log", "errors.log", "logging", "history", "months", "retention"]),
     ];
 
-    private static IReadOnlyList<string> GetMatchingSectionIds(string? searchText)
+    private static string[] GetMatchingSectionIds(string? searchText)
     {
         var query = searchText?.Trim();
         if (string.IsNullOrEmpty(query))
@@ -2489,6 +2489,19 @@ public partial class SettingsViewModel : DocumentBaseVM
             .Where(s => s.Matches(query))
             .Select(s => s.Id)
             .ToArray();
+    }
+
+    public void Dispose()
+    {
+        _fimPrepareCts?.Cancel();
+        _fimPrepareCts?.Dispose();
+        _fimPrepareCts = null;
+
+        _chatPrepareCts?.Cancel();
+        _chatPrepareCts?.Dispose();
+        _chatPrepareCts = null;
+
+        GC.SuppressFinalize(this);
     }
 }
 

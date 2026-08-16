@@ -9,7 +9,7 @@ using JustyBase.Services;
 
 namespace JustyBase.ViewModels.Tools;
 
-public sealed partial class NetezzaSessionMonitorViewModel : Tool
+public sealed partial class NetezzaSessionMonitorViewModel : Tool, IDisposable
 {
     private readonly NetezzaSessionMonitorService _monitorService;
     private readonly IGeneralApplicationData _generalApplicationData;
@@ -146,6 +146,7 @@ public sealed partial class NetezzaSessionMonitorViewModel : Tool
     private async Task AutoRefreshLoopAsync()
     {
         _refreshCts?.Cancel();
+        _refreshCts?.Dispose();
         _refreshCts = new CancellationTokenSource();
         var token = _refreshCts.Token;
         try
@@ -159,5 +160,13 @@ public sealed partial class NetezzaSessionMonitorViewModel : Tool
         catch (OperationCanceledException)
         {
         }
+    }
+
+    public void Dispose()
+    {
+        _refreshCts?.Cancel();
+        _refreshCts?.Dispose();
+        _refreshCts = null;
+        GC.SuppressFinalize(this);
     }
 }

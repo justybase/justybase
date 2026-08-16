@@ -252,7 +252,7 @@ public sealed class NetezzaImportDetectionTests
         try
         {
             await File.WriteAllTextAsync(path, csv);
-            var import = new ImportFromExcelFile(null, null) { FilePath = path };
+            using var import = new ImportFromExcelFile(null, null) { FilePath = path };
             Assert.True(import.InitImport());
             try
             {

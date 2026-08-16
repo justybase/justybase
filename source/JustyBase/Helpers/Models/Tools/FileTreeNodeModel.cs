@@ -6,7 +6,7 @@ using System.Globalization;
 
 namespace JustyBase.Models.Tools;
 
-public partial class FileTreeNodeModel : ObservableObject
+public partial class FileTreeNodeModel : ObservableObject, IDisposable
 {
     /// <summary>
     /// When &gt; 0, background directory enumeration sleeps this many ms.
@@ -191,6 +191,19 @@ public partial class FileTreeNodeModel : ObservableObject
         {
             _simpleLogger.TrackError(ex, isCrash: false);
         }
+    }
+
+    public void Dispose()
+    {
+        _watcher?.Dispose();
+        _watcher = null;
+
+        foreach (var child in _children)
+        {
+            child.Dispose();
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     public static Comparison<FileTreeNodeModel?> SortAscending<T>(Func<FileTreeNodeModel, T> selector)

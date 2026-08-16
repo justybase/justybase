@@ -10,7 +10,7 @@ namespace JustyBase.Common.Tools.ImportHelpers;
 /// <see cref="DatabaseTypeChooser"/> cache (the UI override plan) and maps scan results to the
 /// host type model; all file orchestration lives in the shared scanner.
 /// </summary>
-public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, ISimpleLogger? logger)
+public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, ISimpleLogger? logger) : IDisposable
 {
     private const string ScanStarted = "data scan started";
     private const string ScanEnded = "data scan ended";
@@ -85,6 +85,13 @@ public sealed class ImportFromExcelFile(Action<string>? exceptionMessageAction, 
     public void DoFileDispose()
     {
         _scanner.DisposeSource();
+    }
+
+    public void Dispose()
+    {
+        DoFileDispose();
+        _detectionGate.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>

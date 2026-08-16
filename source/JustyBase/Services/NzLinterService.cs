@@ -65,7 +65,7 @@ public sealed class NzLinterService : IDisposable
 
     /// <summary>
     /// Recreates the <see cref="LintEngine"/> when the attached document's dialect changes
-    /// (e.g. Db2 documents use the Db2-only rule registry and Db2 parser runtime).
+    /// (e.g. Db2 and SQLite documents use their parser/runtime rule registries).
     /// </summary>
     private void EnsureEngineForDialect(SqlDialect dialect)
     {
@@ -855,7 +855,7 @@ public sealed class NzLinterService : IDisposable
     /// </summary>
     private static async Task<bool> TryDebounceAsync(int milliseconds, CancellationToken cancellationToken)
     {
-        var debounceTask = Task.Delay(milliseconds);
+        var debounceTask = Task.Delay(milliseconds, cancellationToken);
         if (!cancellationToken.CanBeCanceled)
         {
             await debounceTask.ConfigureAwait(false);

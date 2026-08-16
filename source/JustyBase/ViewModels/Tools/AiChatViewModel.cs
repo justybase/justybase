@@ -16,7 +16,7 @@ using System.Collections.ObjectModel;
 
 namespace JustyBase.ViewModels.Tools;
 
-public sealed partial class AiChatViewModel : Tool
+public sealed partial class AiChatViewModel : Tool, IDisposable
 {
     private const string DefaultAiChatModel = "gpt-5.6-luna";
     private const string DefaultAiChatReasoningEffort = "low";
@@ -527,7 +527,7 @@ public sealed partial class AiChatViewModel : Tool
         }
     }
 
-    private string ResolveConfiguredModel(JustyBase.Common.AppOptions config)
+    private static string ResolveConfiguredModel(JustyBase.Common.AppOptions config)
     {
         var configuredModel = config.AiChatDefaultModel;
         if (string.IsNullOrWhiteSpace(configuredModel)
@@ -1149,6 +1149,25 @@ public sealed partial class AiChatViewModel : Tool
         StatusMessage = "Stopping…";
         _currentStreamingCts?.Cancel();
         await _chatService.CancelCurrentRequestAsync().ConfigureAwait(true);
+    }
+
+    public void Dispose()
+    {
+        _currentStreamingCts?.Cancel();
+        _currentStreamingCts?.Dispose();
+        _currentStreamingCts = null;
+
+        _codexLoginCts?.Cancel();
+        _codexLoginCts?.Dispose();
+        _codexLoginCts = null;
+
+        _backendSwitchCts?.Cancel();
+        _backendSwitchCts?.Dispose();
+        _backendSwitchCts = null;
+
+        _backendSwitchGate.Dispose();
+        _initializeGate.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     [RelayCommand]

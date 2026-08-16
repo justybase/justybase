@@ -119,6 +119,11 @@ public class SqlExecutionService : ISqlExecutionService
 
                 con = SqlDocumentViewModelHelper.OpenConnectionIfNeeded(actualDatabaseService, con, _simpleLogger);
 
+                if (actualDatabaseService is IDatabaseConnectionConfigurator configurator)
+                {
+                    configurator.ConfigureOpenConnection(con);
+                }
+
                 actualDatabaseService.DbMessageAction += o =>
                 {
             if (o?.StartsWith("QUERY PLAN:", StringComparison.Ordinal) == true)
@@ -197,6 +202,7 @@ public class SqlExecutionService : ISqlExecutionService
                 {
                     con.Open();
                 }
+                ConfigureConnectionForDriver();
                 bridge.RefreshDatabaseList(actualDatabaseService);
             }
 
@@ -279,6 +285,7 @@ public class SqlExecutionService : ISqlExecutionService
                                         {
                                             con.Open();
                                         }
+                                        ConfigureConnectionForDriver();
                                     }
                                     catch (Exception openEx)
                                     {
@@ -475,9 +482,17 @@ public class SqlExecutionService : ISqlExecutionService
                 }
 
                 await rdr.HandleCsvOrParquetOutput(filePathToExport, opt, ProgressAction2).ConfigureAwait(false);
-            }
+                }
 
-            void HandleStatementError(Exception exx1, DbCommand cmd, string sql, int currentLocalSqlNumber)
+                void ConfigureConnectionForDriver()
+                {
+                    if (actualDatabaseService is IDatabaseConnectionConfigurator configurator)
+                    {
+                        configurator.ConfigureOpenConnection(con);
+                    }
+                }
+
+                void HandleStatementError(Exception exx1, DbCommand cmd, string sql, int currentLocalSqlNumber)
             {
                 _sqlExecutionErrorStore.Record(exx1, localTitle, selectedConnectionName, selectedDatabase);
                 if (exx1.Message is not null

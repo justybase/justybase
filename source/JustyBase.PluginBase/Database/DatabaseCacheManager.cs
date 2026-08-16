@@ -43,7 +43,8 @@ internal sealed class DatabaseCacheManager
         Action<string, DbConnection> loadColumns,
         Action<DatabaseConnectedLevel> setConnectedLevel,
         INetezza? netezza,
-        ISimpleLogger? logger)
+        ISimpleLogger? logger,
+        Action<DbConnection>? configureConnection = null)
     {
         if (_initialized)
         {
@@ -80,12 +81,13 @@ internal sealed class DatabaseCacheManager
                 try
                 {
                     con.Open();
+                    configureConnection?.Invoke(con);
                     loadDatabaseObject(database, con);
                     setConnectedLevel(DatabaseConnectedLevel.ConnectedDatabaseObjects);
 
                     if (databaseType == DatabaseTypeEnum.PostgreSql)
                     {
-                        con = ResetConnection(database, con, getConnection);
+                        con = ResetConnection(database, con, getConnection, configureConnection);
                     }
 
                     loadColumns(database, con);
@@ -124,7 +126,8 @@ internal sealed class DatabaseCacheManager
         Func<TypeInDatabaseEnum, string, string, string?> getObjectCode,
         Func<TypeInDatabaseEnum, bool> isTypeInDatabaseSupported,
         INetezza? netezza,
-        ISimpleLogger? logger)
+        ISimpleLogger? logger,
+        Action<DbConnection>? configureConnection = null)
     {
         return Task.Run(() =>
         {
@@ -142,6 +145,7 @@ internal sealed class DatabaseCacheManager
                 {
                     using var con = getConnection(database, false);
                     con.Open();
+                    configureConnection?.Invoke(con);
 
                     foreach (var typeInDatabase in typeInDatabaseArr)
                     {
@@ -301,12 +305,17 @@ internal sealed class DatabaseCacheManager
             clearExternalTableCache);
     }
 
-    private static DbConnection ResetConnection(string database, DbConnection con, Func<string?, bool, DbConnection> getConnection)
+    private static DbConnection ResetConnection(
+        string database,
+        DbConnection con,
+        Func<string?, bool, DbConnection> getConnection,
+        Action<DbConnection>? configureConnection)
     {
         con.Close();
         con.Dispose();
         var newConn = getConnection(database, false);
         newConn.Open();
+        configureConnection?.Invoke(newConn);
         return newConn;
     }
 }

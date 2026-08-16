@@ -33,6 +33,10 @@ public record class SchemaSearchItem
         {
             properItemName = "Partitions";
         }
+        else if (Type == "Trigger")
+        {
+            properItemName = "Triggers";
+        }
 
         if (Type == "Column" && parentTypeName == "Views")
         {

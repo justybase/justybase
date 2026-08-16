@@ -105,7 +105,7 @@ public abstract partial class DatabaseService : IDatabaseService, IDatabaseWithS
         return word;
     }
 
-    public void ClearCachedData()
+    public virtual void ClearCachedData()
     {
         _cacheManager.ClearMainCache();
         DatabaseTableIdColumnIntervalSpan.Clear();
@@ -139,11 +139,20 @@ public abstract partial class DatabaseService : IDatabaseService, IDatabaseWithS
             GetDatabases,
             disposeSharedConnection: () => _connection?.Dispose(),
             getConnection: GetConnection,
+            configureConnection: ConfigureOpenConnection,
             loadDatabaseObject: LoadDatabaseObject,
             loadColumns: LoadColumns,
             setConnectedLevel: level => ConnectedLevel = level,
             netezza: this as INetezza,
             logger: Logger);
+    }
+
+    private void ConfigureOpenConnection(DbConnection connection)
+    {
+        if (this is IDatabaseConnectionConfigurator configurator)
+        {
+            configurator.ConfigureOpenConnection(connection);
+        }
     }
 
     public DbCommand CreateCommandFromConnection(DbConnection con)

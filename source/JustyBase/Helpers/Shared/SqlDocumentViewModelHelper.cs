@@ -272,6 +272,11 @@ public static partial class SqlDocumentViewModelHelper
             }
         }
 
+        if (actualDatabaseService is IDatabaseConnectionConfigurator configurator)
+        {
+            configurator.ConfigureOpenConnection(con);
+        }
+
         return con;
     }
 

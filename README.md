@@ -61,7 +61,7 @@ It is especially useful for:
 - **Data grid** with grouping, filtering, and export to Excel, CSV, and Parquet
 - **Multi-connection management** for multiple database sessions
 - **Netezza-first database support** for IBM Netezza Performance Server
-- **Other database engines** (Postgres, DB2, Oracle, DuckDB, MySQL, SQLite) are **coming soon / work in progress** and should not yet be considered generally supported
+- **Other database engines** (Postgres, DB2, Oracle, DuckDB, MySQL) are **coming soon / work in progress** and should not yet be considered generally supported; SQLite is supported for native browsing, SQL execution, and SQLite-specific DDL/diagnostics
 - **Self-contained ReadyToRun** release packages for deployment without a separately installed .NET runtime
 
 > The hierarchical DataGrid is provided by the official `ProDataGrid` NuGet package and is restored automatically during the normal build.

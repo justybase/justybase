@@ -4,6 +4,7 @@ using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
+using JustyBase.SqliteDriver;
 using System.Text;
 
 namespace JustyBase.Services.Database;
@@ -49,7 +50,19 @@ internal interface IDatabaseSchemaItem
             return string.Empty;
         }
         string sql = "";
-        if (optionName.StartsWith("DDL_TABLE", StringComparison.Ordinal))
+        if (optionName == "SQLITE_INTEGRITY_CHECK" && dbService is Sqlite sqlite)
+        {
+            sql = sqlite.GetIntegrityCheckSql(SCHEMA);
+        }
+        else if (optionName == "SQLITE_FOREIGN_KEY_CHECK" && dbService is Sqlite sqliteForeignKeys)
+        {
+            sql = sqliteForeignKeys.GetForeignKeyCheckSql(SCHEMA);
+        }
+        else if (optionName == "SQLITE_DATABASE_INFO" && dbService is Sqlite sqliteInfo)
+        {
+            sql = sqliteInfo.GetDatabaseInfoSql();
+        }
+        else if (optionName.StartsWith("DDL_TABLE", StringComparison.Ordinal))
         {
             sql = await dbService.GetCreateTableText(DATABASE, SCHEMA, ITEM_NAME);
         }
@@ -152,6 +165,20 @@ internal interface IDatabaseSchemaItem
             foreach (var item in objects)
             {
                 await dbService.GetCreateIndexTextStringBuilder(stringBuilder, DATABASE, SCHEMA, item.Name);
+            }
+            sql = stringBuilder.ToString();
+        }
+        else if (optionName.StartsWith("DDL_TRIGGER", StringComparison.Ordinal))
+        {
+            sql = await dbService.GetCreateTriggerText(DATABASE, SCHEMA, ITEM_NAME);
+        }
+        else if (optionName.StartsWith("DDL_ALL_TRIGGERS", StringComparison.Ordinal))
+        {
+            var objects = dbService.GetDbObjects(DATABASE, SCHEMA, "", TypeInDatabaseEnum.Trigger);
+            StringBuilder stringBuilder = new();
+            foreach (var item in objects)
+            {
+                await dbService.GetCreateTriggerTextStringBuilder(stringBuilder, DATABASE, SCHEMA, item.Name);
             }
             sql = stringBuilder.ToString();
         }
@@ -287,7 +314,11 @@ internal interface IDatabaseSchemaItem
         }
         else if (optionName.StartsWith("DROP", StringComparison.Ordinal))
         {
-            sql = dbService.GetDrop(ITEM_NAME, DATABASE, SCHEMA);
+            sql = optionName.StartsWith("DROP_INDEX", StringComparison.Ordinal)
+                ? $"DROP INDEX IF EXISTS {QuoteSqliteObject(SCHEMA, ITEM_NAME)};"
+                : optionName.StartsWith("DROP_TRIGGER", StringComparison.Ordinal)
+                    ? $"DROP TRIGGER IF EXISTS {QuoteSqliteObject(SCHEMA, ITEM_NAME)};"
+                    : dbService.GetDrop(ITEM_NAME, DATABASE, SCHEMA);
         }
         else if (optionName.StartsWith("EMPTY", StringComparison.Ordinal))
         {
@@ -306,5 +337,11 @@ internal interface IDatabaseSchemaItem
         return sql;
 
     }
+
+    private static string QuoteSqliteObject(string schema, string name)
+        => $"{QuoteIdentifier(schema)}.{QuoteIdentifier(name)}";
+
+    private static string QuoteIdentifier(string value)
+        => $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
 
 }

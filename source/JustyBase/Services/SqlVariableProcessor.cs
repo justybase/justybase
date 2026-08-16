@@ -115,6 +115,10 @@ public class SqlVariableProcessor : ISqlVariableProcessor
                     IDatabaseService service = await Task.Run(() => _databaseServiceResolver.GetDatabaseService(_generalApplicationData, selectedConnectionName));
                     con = service.GetConnection(null);
                     con.Open();
+                    if (service is IDatabaseConnectionConfigurator configurator)
+                    {
+                        configurator.ConfigureOpenConnection(con);
+                    }
                 }
             if (val.StartsWith("SQL_RESULT[", StringComparison.Ordinal))
                 {

@@ -31,6 +31,7 @@ public static class DatabaseServiceHelpers
         _typeInDatabaseToNameInSchema[(int)TypeInDatabaseEnum.Fluid] = "Fluid";
         _typeInDatabaseToNameInSchema[(int)TypeInDatabaseEnum.Index] = "Index";
         _typeInDatabaseToNameInSchema[(int)TypeInDatabaseEnum.Partition] = "Partition";
+        _typeInDatabaseToNameInSchema[(int)TypeInDatabaseEnum.Trigger] = "Trigger";
         _schemaNameToTypeInDatabaseEnum = new Dictionary<string, TypeInDatabaseEnum>(enumElements);
         for (int i = 0; i < enumElements; i++)
         {
@@ -74,6 +75,7 @@ public static class DatabaseServiceHelpers
             "AGGREGATE" => TypeInDatabaseEnum.thisAggregate,
             "FLUID" => TypeInDatabaseEnum.Fluid,
             "INDEX" => TypeInDatabaseEnum.Index,
+            "TRIGGER" => TypeInDatabaseEnum.Trigger,
             "PARTITION" => TypeInDatabaseEnum.Partition,
             "PARTITION TABLE" => TypeInDatabaseEnum.Partition,
             _ => TypeInDatabaseEnum.otherNoneGroup

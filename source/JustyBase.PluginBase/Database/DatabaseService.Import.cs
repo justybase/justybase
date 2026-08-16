@@ -18,6 +18,10 @@ public abstract partial class DatabaseService
             }
 
             conn.Open();
+            if (this is IDatabaseConnectionConfigurator configurator)
+            {
+                configurator.ConfigureOpenConnection(conn);
+            }
             if (!tableExists)
             {
                 string[] headers = importJob.ReturnHeadersWithDataTypes(this.DatabaseType.ToDatabaseKind());

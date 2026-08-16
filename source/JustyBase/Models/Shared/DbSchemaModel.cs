@@ -90,6 +90,11 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                     itemsCollection.Insert(7, ("Indexes", "indexes", TypeInDatabaseEnum.baseIndexes));
                     itemsCollection.Insert(8, ("Partitions", "partitions", TypeInDatabaseEnum.basePartitions));
                 }
+                else if (databaseTypeEnum == DatabaseTypeEnum.Sqlite)
+                {
+                    itemsCollection.Add(("Indexes", "indexes", TypeInDatabaseEnum.baseIndexes));
+                    itemsCollection.Add(("Triggers", "triggers", TypeInDatabaseEnum.baseTriggers));
+                }
 
                 foreach (var item in itemsCollection)
                 {
@@ -162,12 +167,31 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                     LoadDbObjectChildren(newNodeCollection, TypeInDatabaseEnum.Partition, "partition");
                 }
                 break;
+            case TypeInDatabaseEnum.baseTriggers:
+                if (Parent?.ActualTypeInDatabase == TypeInDatabaseEnum.Table && Parent.Name is not null)
+                {
+                    LoadDbObjectChildren(
+                        newNodeCollection,
+                        TypeInDatabaseEnum.Trigger,
+                        "trigger",
+                        relatedToParentTableName: Parent.Name);
+                }
+                else
+                {
+                    LoadDbObjectChildren(newNodeCollection, TypeInDatabaseEnum.Trigger, "trigger");
+                }
+                break;
             case TypeInDatabaseEnum.Table:
                 AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.columnInTables, "Columns", "columns");
                 if (databaseTypeEnum == DatabaseTypeEnum.PostgreSql)
                 {
                     AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.baseIndexes, "Indexes", "indexes", parentObjectName: Name);
                     AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.basePartitions, "Partitions", "partitions", parentObjectName: Name);
+                }
+                else if (databaseTypeEnum == DatabaseTypeEnum.Sqlite)
+                {
+                    AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.baseIndexes, "Indexes", "indexes", parentObjectName: Name);
+                    AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.baseTriggers, "Triggers", "triggers", parentObjectName: Name);
                 }
                 if (databaseTypeEnum == DatabaseTypeEnum.NetezzaSQL)
                 {
@@ -360,6 +384,11 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                     return true;
                 }
 
+                if (!string.IsNullOrWhiteSpace(o.ParentObjectName))
+                {
+                    return o.ParentObjectName.Equals(relatedToParentTableName, StringComparison.OrdinalIgnoreCase);
+                }
+
                 var fullNameToken = $"{CurrentSchema}.{relatedToParentTableName}";
                 return !string.IsNullOrWhiteSpace(o.Desc)
                     && o.Desc.Contains(fullNameToken, StringComparison.OrdinalIgnoreCase);
@@ -392,4 +421,3 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
         }
     }
 }
-

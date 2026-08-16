@@ -451,6 +451,18 @@ public abstract partial class DatabaseService
         await Task.CompletedTask;
     }
 
+    public async ValueTask<string> GetCreateTriggerText(string database, string schema, string triggerName)
+    {
+        StringBuilder stringBuilder = new();
+        await GetCreateTriggerTextStringBuilder(stringBuilder, database, schema, triggerName);
+        return stringBuilder.ToString();
+    }
+
+    public virtual async ValueTask GetCreateTriggerTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string triggerName)
+    {
+        await Task.CompletedTask;
+    }
+
     public async ValueTask<string> GetCreatePartitionText(string database, string schema, string partitionName)
     {
         StringBuilder stringBuilder = new();

@@ -19,6 +19,8 @@ public interface IDatabaseDdlTextService
     ValueTask GetCreateProcedureTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string tableName, bool forceFreshCode = false);
     ValueTask<string> GetCreateIndexText(string database, string schema, string indexName);
     ValueTask GetCreateIndexTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string indexName);
+    ValueTask<string> GetCreateTriggerText(string database, string schema, string triggerName);
+    ValueTask GetCreateTriggerTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string triggerName);
     ValueTask<string> GetCreatePartitionText(string database, string schema, string partitionName);
     ValueTask GetCreatePartitionTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string partitionName);
     string GetCreateSequencePatternText();

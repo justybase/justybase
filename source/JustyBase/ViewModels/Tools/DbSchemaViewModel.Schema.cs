@@ -44,6 +44,7 @@ public sealed partial class DbSchemaViewModel
     [ObservableProperty]
     public partial ObservableCollection<Control> MenuItems { get; set; }
     private ObservableCollection<Control> MenuItemsForConnections { get; set; }
+    private ObservableCollection<Control> MenuItemsForSqliteConnections { get; set; }
     private ObservableCollection<Control> MenuItemsForTableGroup { get; set; }
     private ObservableCollection<Control> MenuItemsForTable { get; set; }
     private ObservableCollection<Control> MenuItemsForTablePostgres { get; set; }
@@ -61,6 +62,8 @@ public sealed partial class DbSchemaViewModel
     private ObservableCollection<Control> MenuItemsForIndexGroups { get; set; }
     private ObservableCollection<Control> MenuItemsForPartitions { get; set; }
     private ObservableCollection<Control> MenuItemsForPartitionGroups { get; set; }
+    private ObservableCollection<Control> MenuItemsForTriggers { get; set; }
+    private ObservableCollection<Control> MenuItemsForTriggerGroups { get; set; }
     private ObservableCollection<Control> FallbackMenuItems { get; set; }
 
 
@@ -72,7 +75,9 @@ public sealed partial class DbSchemaViewModel
             case TypeInDatabaseEnum.otherNoneEntry:
                 return;
             case TypeInDatabaseEnum.Connection:
-                MenuItems = MenuItemsForConnections;
+                MenuItems = SelectedSchemaItem?.DatabaseTypeEnumValue == DatabaseTypeEnum.Sqlite
+                    ? MenuItemsForSqliteConnections
+                    : MenuItemsForConnections;
                 break;
             case TypeInDatabaseEnum.baseTables:
                 MenuItems = MenuItemsForTableGroup;
@@ -123,6 +128,12 @@ public sealed partial class DbSchemaViewModel
                 break;
             case TypeInDatabaseEnum.Partition:
                 MenuItems = MenuItemsForPartitions;
+                break;
+            case TypeInDatabaseEnum.baseTriggers:
+                MenuItems = MenuItemsForTriggerGroups;
+                break;
+            case TypeInDatabaseEnum.Trigger:
+                MenuItems = MenuItemsForTriggers;
                 break;
             default:
                 MenuItems = FallbackMenuItems;
@@ -214,6 +225,19 @@ public sealed partial class DbSchemaViewModel
             new MenuItem() { Header = "Create index template", Command = ContextMenuActionCommand, CommandParameter = "CREATE_INDEX" },
             new MenuItem() { Header = "Create index ddl to new query window", Command = ContextMenuActionCommand, CommandParameter = "DDL_INDEX" },
             new MenuItem() { Header = "Create index ddl to clipboard", Command = ContextMenuActionCommand, CommandParameter = "DDL_INDEX_CLIP" },
+            new MenuItem() { Header = "Drop index", Command = ContextMenuActionCommand, CommandParameter = "DROP_INDEX" },
+        ];
+
+        MenuItemsForTriggerGroups =
+        [
+            new MenuItem() { Header = "Create all trigger ddl to new query window", Command = ContextMenuActionCommand, CommandParameter = "DDL_ALL_TRIGGERS" },
+        ];
+
+        MenuItemsForTriggers =
+        [
+            new MenuItem() { Header = "Create trigger ddl to new query window", Command = ContextMenuActionCommand, CommandParameter = "DDL_TRIGGER" },
+            new MenuItem() { Header = "Create trigger ddl to clipboard", Command = ContextMenuActionCommand, CommandParameter = "DDL_TRIGGER_CLIP" },
+            new MenuItem() { Header = "Drop trigger", Command = ContextMenuActionCommand, CommandParameter = "DROP_TRIGGER" },
         ];
 
         MenuItemsForPartitionGroups =
@@ -249,6 +273,16 @@ public sealed partial class DbSchemaViewModel
         _connectedMenuItem = new MenuItem() { Header = "Show connected only", Command = ShowConnectedOnlyCommand };
         MenuItemsForConnections.Add(new MenuItem() { Header = "Show/hide header", Command = ShowHideHeadersCommand });
         MenuItemsForConnections.Add(_connectedMenuItem);
+
+        MenuItemsForSqliteConnections =
+        [
+            new MenuItem() { Header = "SQLite integrity check", Command = ContextMenuActionCommand, CommandParameter = "SQLITE_INTEGRITY_CHECK" },
+            new MenuItem() { Header = "SQLite foreign-key check", Command = ContextMenuActionCommand, CommandParameter = "SQLITE_FOREIGN_KEY_CHECK" },
+            new MenuItem() { Header = "SQLite database information", Command = ContextMenuActionCommand, CommandParameter = "SQLITE_DATABASE_INFO" },
+            GetMenuSeparator(),
+            new MenuItem() { Header = "Show/hide header", Command = ShowHideHeadersCommand },
+            _connectedMenuItem
+        ];
 
         MenuItemsForTableGroup =
         [

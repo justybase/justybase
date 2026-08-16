@@ -211,4 +211,130 @@ public sealed class SqliteDriverLiveTests
         }
     }
 
+    [Fact]
+    public async Task MetadataCacheIncludesIndexesTriggersForeignKeysPrimaryKeysAndAttachedCatalogs()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"justybase-sqlite-metadata-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        string databaseFile = Path.Combine(root, "main.sqlite");
+        string attachedFile = Path.Combine(root, "audit.sqlite");
+        string databaseName = Path.GetFileName(databaseFile);
+
+        try
+        {
+            var attachedService = new Sqlite("", "", "", "", attachedFile, 10);
+            using (DbConnection attachedConnection = attachedService.GetConnection(null, pooling: false))
+            {
+                attachedConnection.Open();
+                using DbCommand command = attachedConnection.CreateCommand();
+                command.CommandText = "CREATE TABLE audit_log (event_id INTEGER PRIMARY KEY, message TEXT);";
+                command.ExecuteNonQuery();
+            }
+
+            var service = new Sqlite("", "", "", root, databaseName, 10)
+            {
+                ConnectionOptions = new SqliteConnectionOptions
+                {
+                    BusyTimeoutMilliseconds = 4321,
+                    AttachedDatabases =
+                    [
+                        new SqliteAttachedDatabaseOptions
+                        {
+                            Alias = "audit",
+                            FilePath = attachedFile,
+                            ReadOnly = true
+                        }
+                    ]
+                }
+            };
+
+            using (DbConnection setup = service.GetConnection(null, pooling: false))
+            {
+                setup.Open();
+                service.ConfigureOpenConnection(setup);
+                using (DbCommand sessionInfo = setup.CreateCommand())
+                {
+                    sessionInfo.CommandText = "PRAGMA busy_timeout; PRAGMA foreign_keys;";
+                    using DbDataReader sessionReader = sessionInfo.ExecuteReader();
+                    Assert.True(sessionReader.Read());
+                    Assert.Equal(4321L, sessionReader.GetInt64(0));
+                    Assert.True(sessionReader.NextResult());
+                    Assert.True(sessionReader.Read());
+                    Assert.Equal(1L, sessionReader.GetInt64(0));
+                }
+
+                using (DbCommand readOnlyProbe = setup.CreateCommand())
+                {
+                    readOnlyProbe.CommandText = "CREATE TABLE audit.write_probe (id INTEGER);";
+                    Assert.ThrowsAny<DbException>(() => readOnlyProbe.ExecuteNonQuery());
+                }
+
+                using DbCommand command = setup.CreateCommand();
+                command.CommandText = """
+                    CREATE TABLE parent (
+                        id INTEGER PRIMARY KEY,
+                        code TEXT NOT NULL UNIQUE
+                    ) STRICT;
+                    CREATE TABLE child (
+                        id INTEGER PRIMARY KEY,
+                        parent_id INTEGER NOT NULL,
+                        value TEXT,
+                        FOREIGN KEY(parent_id) REFERENCES parent(id)
+                    );
+                    CREATE INDEX idx_child_value ON child(value DESC) WHERE value IS NOT NULL;
+                    CREATE TRIGGER child_after_insert
+                    AFTER INSERT ON child
+                    BEGIN
+                        UPDATE parent SET code = code WHERE id = NEW.parent_id;
+                    END;
+                    CREATE VIEW child_view AS SELECT id, value FROM child;
+                    CREATE VIRTUAL TABLE child_fts USING fts5(value);
+                    """;
+                command.ExecuteNonQuery();
+            }
+
+            service.CacheMainDictionary();
+
+            Assert.Contains("main", service.GetSchemas(databaseName, ""));
+            Assert.Contains("audit", service.GetSchemas(databaseName, ""));
+
+            var indexes = service.GetDbObjects(databaseName, "main", "", TypeInDatabaseEnum.Index).ToList();
+            var index = Assert.Single(indexes, item => item.Name == "idx_child_value");
+            Assert.Equal(TypeInDatabaseEnum.Index, index.TypeInDatabase);
+            Assert.Equal("child", index.ParentObjectName);
+            Assert.Contains("partial", index.Desc, StringComparison.OrdinalIgnoreCase);
+
+            var triggers = service.GetDbObjects(databaseName, "main", "", TypeInDatabaseEnum.Trigger).ToList();
+            var trigger = Assert.Single(triggers, item => item.Name == "child_after_insert");
+            Assert.Equal("child", trigger.ParentObjectName);
+            Assert.Contains("trigger", trigger.Desc, StringComparison.OrdinalIgnoreCase);
+
+            var primaryKeyColumns = service.GetColumns(databaseName, "main", "child", "")
+                .Where(column => column.IsPrimaryKey)
+                .ToList();
+            Assert.Equal(["id"], primaryKeyColumns.Select(column => column.Name));
+            Assert.Equal(1, primaryKeyColumns.Single().PrimaryKeyOrdinal);
+
+            var snapshot = service.GetSchemaSnapshot(databaseName, "main");
+            Assert.Contains(snapshot.Tables, table => table.Name == "parent" && table.Strict);
+            Assert.Contains(snapshot.Tables, table => table.Name == "child_fts" && table.Module == "fts5");
+            Assert.Contains(snapshot.Indexes, item => item.Name == "idx_child_value" && item.IsPartial);
+            Assert.Contains(snapshot.ForeignKeys["child"], item => item.ReferencedTable == "parent");
+
+            var attachedTables = service.GetDbObjects(databaseName, "audit", "", TypeInDatabaseEnum.Table).ToList();
+            Assert.Contains(attachedTables, item => item.Name == "audit_log");
+
+            string triggerDdl = await service.GetCreateTriggerText(databaseName, "main", "child_after_insert");
+            Assert.Contains("CREATE TRIGGER", triggerDdl, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("UPDATE parent", triggerDdl, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
 }

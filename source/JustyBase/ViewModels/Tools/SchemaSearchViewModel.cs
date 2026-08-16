@@ -172,7 +172,8 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
                                     TypeInDatabaseEnum.Function,
                                     TypeInDatabaseEnum.Fluid,
                                     TypeInDatabaseEnum.Index,
-                                    TypeInDatabaseEnum.Partition
+                                    TypeInDatabaseEnum.Partition,
+                                    TypeInDatabaseEnum.Trigger
                                 };
 
                                 for (int i = 0; i < obejctType.Length; i++)

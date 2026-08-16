@@ -102,7 +102,7 @@ public abstract partial class DatabaseService
         }
     }
 
-    public IEnumerable<DatabaseColumn> GetColumns(string? database, string? schema, string? table, string filter)
+    public virtual IEnumerable<DatabaseColumn> GetColumns(string? database, string? schema, string? table, string filter)
     {
         if (table is null)
         {
@@ -227,6 +227,7 @@ public abstract partial class DatabaseService
             procedureName,
             getDatabases: GetDatabases,
             getConnection: GetConnection,
+            configureConnection: ConfigureOpenConnection,
             createCommandFromConnection: CreateCommandFromConnection,
             getObjectCode: GetObjectCode,
             isTypeInDatabaseSupported: IsTypeInDatabaseSupported,

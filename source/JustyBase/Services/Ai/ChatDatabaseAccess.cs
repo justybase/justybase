@@ -99,6 +99,10 @@ public sealed class ChatDatabaseAccess : IChatDatabaseAccess
     {
         await using var connection = _service.GetConnection(databaseName, pooling: false);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        if (_service is IDatabaseConnectionConfigurator configurator)
+        {
+            configurator.ConfigureOpenConnection(connection);
+        }
         await using var command = _service.CreateCommandFromConnection(connection);
         command.CommandText = sql;
         return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);

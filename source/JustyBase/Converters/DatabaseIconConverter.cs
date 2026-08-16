@@ -121,7 +121,9 @@ public sealed class DatabaseIconConverter : IValueConverter
             TypeInDatabaseEnum.dbase => connectionType is { } ct
                 ? GetBitmapFromEnum(ct)
                 : _databaseIcon16,
-            TypeInDatabaseEnum.Schema => _schemaIcon16,
+            TypeInDatabaseEnum.Schema => connectionType is { } ct
+                ? GetBitmapFromEnum(ct)
+                : _schemaIcon16,
             TypeInDatabaseEnum.Table => _tableIcon16,
             TypeInDatabaseEnum.View => _viewIcon16,
             TypeInDatabaseEnum.baseTables => _tableGroupIcon16,
@@ -137,6 +139,7 @@ public sealed class DatabaseIconConverter : IValueConverter
             TypeInDatabaseEnum.baseAggregates => _aggGroupIcon16,
             TypeInDatabaseEnum.baseIndexes => _indexGroupIcon16,
             TypeInDatabaseEnum.Index => _indexIcon16,
+            TypeInDatabaseEnum.baseTriggers or TypeInDatabaseEnum.Trigger => _indexIcon16,
             TypeInDatabaseEnum.basePartitions => _partitionGroupIcon16,
             TypeInDatabaseEnum.Partition => _partitionIcon16,
             TypeInDatabaseEnum.columnInTables => _columnsIcon16,
@@ -157,7 +160,9 @@ public sealed class DatabaseIconConverter : IValueConverter
                 {
                     var bitmap = GetBitmapFromTypeInDatabase(
                         node.ActualTypeInDatabase,
-                        node.ActualTypeInDatabase is TypeInDatabaseEnum.Connection or TypeInDatabaseEnum.dbase
+                        node.ActualTypeInDatabase is TypeInDatabaseEnum.Connection
+                            or TypeInDatabaseEnum.dbase
+                            or TypeInDatabaseEnum.Schema
                             ? node.DatabaseTypeEnumValue
                             : null);
                     if (bitmap is not null)

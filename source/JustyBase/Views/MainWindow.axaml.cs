@@ -42,6 +42,7 @@ public partial class MainWindow : Window
     private void MainWindow_Loaded(object? sender, EventArgs e)
     {
         _notificationManagerProvider.SetWindow(this);
+        (DataContext as MainWindowViewModel)?.StartAutomaticUpdateCheck();
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)

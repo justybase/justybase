@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)] [string] $Version,
-    [Parameter(Mandatory = $true)] [string] $OutputRoot
+    [Parameter(Mandatory = $true)] [string] $OutputRoot,
+    [Parameter(Mandatory = $false)] [string] $GitHubToken = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -42,9 +43,44 @@ if (Test-Path $runtimeRoot) {
 }
 Get-ChildItem $publish -Recurse -Include '*.pdb', '*.dbg' -File -ErrorAction SilentlyContinue | Remove-Item -Force
 
+# Download the latest prerelease feed before packing so vpk can generate deltas.
+# A first release, an unavailable GitHub API, or an offline local build may still
+# produce a valid full package, so this step is intentionally best effort.
+$githubRepoUrl = 'https://github.com/justybase/justybase'
+$downloadArgs = @(
+    'download', 'github',
+    '--repoUrl', $githubRepoUrl,
+    '--outputDir', $velopack,
+    '--channel', 'win',
+    '--pre'
+)
+if (-not [string]::IsNullOrWhiteSpace($GitHubToken)) {
+    $downloadArgs += @('--token', $GitHubToken)
+}
+try {
+    & vpk @downloadArgs
+    if ($LASTEXITCODE -ne 0) { throw "vpk download exited with code $LASTEXITCODE" }
+}
+catch {
+    Write-Warning "Could not download the previous GitHub release; continuing with a full package: $($_.Exception.Message)"
+}
+
 vpk pack -u JustyBase -v $Version -p $publish -e JustyBase.exe `
-    --packAuthors 'JustyBase' --packTitle 'JustyBase' -o $velopack `
+    --packAuthors 'JustyBase' --packTitle 'JustyBase' --channel win -o $velopack `
     -i $icon --releaseNotes $releaseNotes
+
+$feed = Join-Path $velopack 'releases.win.json'
+$fullPackage = Get-ChildItem $velopack -Filter "JustyBase-$Version-full.nupkg" -File | Select-Object -First 1
+if (-not (Test-Path $feed)) { throw 'Velopack did not produce releases.win.json' }
+if ($null -eq $fullPackage) { throw "Velopack did not produce JustyBase-$Version-full.nupkg" }
+
+$feedDocument = Get-Content $feed -Raw | ConvertFrom-Json
+$feedAsset = @($feedDocument.Assets) |
+    Where-Object { $_.PackageId -eq 'JustyBase' -and $_.Version -eq $Version -and $_.Type -eq 'Full' } |
+    Select-Object -First 1
+if ($null -eq $feedAsset) { throw "Velopack feed does not contain the full package for version $Version" }
+if ($feedAsset.FileName -ne $fullPackage.Name) { throw 'Velopack feed filename does not match the generated full package' }
+if ([int64]$feedAsset.Size -ne $fullPackage.Length) { throw 'Velopack feed size does not match the generated full package' }
 
 $setupSource = Get-ChildItem $velopack -Filter '*-Setup.exe' -File | Select-Object -First 1
 if ($null -eq $setupSource) { throw 'Velopack did not produce a Setup.exe' }

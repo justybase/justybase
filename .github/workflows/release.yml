@@ -51,6 +51,8 @@ jobs:
     name: Windows x64 self-contained ReadyToRun package
     needs: [prepare, quality]
     runs-on: windows-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: JustyBase
@@ -73,13 +75,14 @@ jobs:
       - name: Install Velopack CLI
         shell: pwsh
         run: |
-          dotnet tool install --global vpk
+          dotnet tool install --global vpk --version 1.2.0
           "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Build Windows packages
         shell: pwsh
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
-        run: .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts
+          GITHUB_TOKEN: ${{ github.token }}
+        run: .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts -GitHubToken $env:GITHUB_TOKEN
       - name: Upload Windows packages
         uses: actions/upload-artifact@v4
         with:
@@ -87,6 +90,13 @@ jobs:
           path: |
             JustyBase/artifacts/*-self-contained.zip
             JustyBase/artifacts/*-self-contained-Setup.exe
+          if-no-files-found: error
+
+      - name: Upload Windows Velopack packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-velopack
+          path: JustyBase/artifacts/velopack/*
           if-no-files-found: error
 
   linux:
@@ -175,9 +185,23 @@ jobs:
       - name: Download release packages
         uses: actions/download-artifact@v4
         with:
-          pattern: release-*
-          path: dist
-          merge-multiple: true
+          name: release-windows-self-contained
+          path: dist/windows
+      - name: Download Windows Velopack packages
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows-velopack
+          path: dist/velopack
+      - name: Download Linux package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-linux-self-contained
+          path: dist/linux
+      - name: Download macOS package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-osx-arm64
+          path: dist/macos
       - name: Validate release assets
         shell: bash
         env:
@@ -190,21 +214,34 @@ jobs:
             "JustyBase-${VERSION}-linux-x64-self-contained.zip"
             "JustyBase-${VERSION}-macos-arm64-self-contained.zip"
           )
-          for file in "${expected[@]}"; do
-            test -s "dist/$file" || { echo "Missing release asset: $file" >&2; exit 1; }
+          for file in "${expected[0]}" "${expected[1]}"; do
+            test -s "dist/windows/$file" || { echo "Missing release asset: $file" >&2; exit 1; }
           done
+          test -s "dist/linux/${expected[2]}" || { echo "Missing release asset: ${expected[2]}" >&2; exit 1; }
+          test -s "dist/macos/${expected[3]}" || { echo "Missing release asset: ${expected[3]}" >&2; exit 1; }
+          test -s dist/velopack/releases.win.json || { echo 'Missing Velopack release feed' >&2; exit 1; }
+          test -s "dist/velopack/JustyBase-${VERSION}-full.nupkg" || { echo 'Missing Velopack full package' >&2; exit 1; }
           if find dist -type f \( -name '*.pdb' -o -name '*.dbg' -o -name '*.log' \) -print -quit | grep -q .; then
             echo 'Debug/log files found in release assets' >&2
             exit 1
           fi
-          for archive in dist/*.zip; do
+          while IFS= read -r -d '' archive; do
             unzip -tqq "$archive"
             if unzip -Z1 "$archive" | grep -Eiq '(^|/)[^/]+\.(pdb|dbg|log)$'; then
               echo "Debug/log file found inside $archive" >&2
               exit 1
             fi
-          done
-      - name: Create or update prerelease with gh
+          done < <(find dist -type f -name '*.zip' -print0)
+      - name: Setup .NET for Velopack upload
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install Velopack CLI
+        shell: bash
+        run: |
+          dotnet tool install --global vpk --version 1.2.0
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+      - name: Create or update prerelease with Velopack
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -219,6 +256,24 @@ jobs:
               --notes-file source/JustyBase/ReleaseNotes.md \
               --prerelease
           fi
-          while IFS= read -r -d '' asset; do
-            gh release upload "$TAG" "$asset" --repo "$GITHUB_REPOSITORY" --clobber
-          done < <(find dist -maxdepth 1 -type f -print0)
+          vpk upload github \
+            --outputDir dist/velopack \
+            --channel win \
+            --repoUrl "https://github.com/$GITHUB_REPOSITORY" \
+            --token "$GH_TOKEN" \
+            --tag "$TAG" \
+            --releaseName "JustyBase $VERSION" \
+            --pre --merge --publish
+          gh release edit "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "JustyBase $VERSION" \
+            --notes-file source/JustyBase/ReleaseNotes.md
+          gh release upload "$TAG" \
+            "dist/windows/JustyBase-${VERSION}-win-x64-self-contained-Setup.exe" \
+            "dist/windows/JustyBase-${VERSION}-win-x64-self-contained.zip" \
+            "dist/linux/JustyBase-${VERSION}-linux-x64-self-contained.zip" \
+            "dist/macos/JustyBase-${VERSION}-macos-arm64-self-contained.zip" \
+            --repo "$GITHUB_REPOSITORY" --clobber
+          assets="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          grep -Fx 'releases.win.json' <<<"$assets"
+          grep -Fx "JustyBase-${VERSION}-full.nupkg" <<<"$assets"

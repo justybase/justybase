@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Root MIT `LICENSE` (+ EN/PL copies), restored `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`
 - `docs/ARCHITECTURE.md` — public layering and SQL run overview
 - ProDataGrid 12.0.5 NuGet dependency
-- Removed the configurable update feed path from the app configuration surface
+- Velopack updates now use GitHub Releases directly; the feed URL remains fixed to the public JustyBase repository
 - ISP split: `IDatabaseConnectionInfo`, `IDatabaseSchemaQueryService`, `IDatabaseDdlTextService` under umbrella `IDatabaseService`
 - Portfolio tests: product Avalonia headless smokes, `SqlResultsViewModel` / `SqlFoldingStrategy` / Sqlite smoke, formatter/linter goldens
 - `SqliteProductPipelineTests` — connect → run → results → CSV export without Netezza (via `DatabaseServiceHelpers` + Microsoft.Data.Sqlite)

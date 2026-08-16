@@ -30,6 +30,7 @@ using JustyBase.NetezzaSqlParser.Visitor;
 using Microsoft.Extensions.DependencyInjection;
 using SqlEditor.Avalonia.AvaloniaSpecificHelpers;
 using HostSimpleLogger = JustyBase.PluginCommon.Contracts.ISimpleLogger;
+using JustyBase.Services.Updates;
 
 namespace JustyBase;
 
@@ -80,6 +81,7 @@ public static class ServiceCollectionExtensions
             generalApplicationDataState.IsReady = true;
             return generalApplicationData;
         });
+        collection.AddSingleton<IApplicationUpdateService, ApplicationUpdateService>();
         collection.AddSingleton<IAvaloniaSpecificHelpers, AvaloniaSpecificHelpers>();
         collection.AddSingleton<IMainWindowActivationService, MainWindowActivationService>();
         collection.AddSingleton<IDockableCleanupService, DockableCleanupService>();

@@ -7,6 +7,7 @@ using JustyBase.Public.Lib.Services;
 using JustyBase.QuickOpen;
 using JustyBase.Services;
 using JustyBase.Services.Documents;
+using JustyBase.Services.Updates;
 using JustyBase.ViewModels.Documents;
 using JustyBase.ViewModels.Tools;
 using JustyBase.Views.OtherDialogs;
@@ -23,6 +24,8 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IDockableCleanupService _dockableCleanupService;
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly ISqlDocumentUiServices _sqlDocumentUiServices;
+    private readonly IApplicationUpdateService _applicationUpdateService;
+    private int _automaticUpdateCheckStarted;
 
     [ObservableProperty]
     public partial IRootDock? Layout { get; set; }
@@ -39,6 +42,78 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task ShowAbout()
     {
         await _messageForUserTools.ShowAboutDialogAsync();
+    }
+
+    [RelayCommand]
+    private Task CheckForUpdatesAsync()
+    {
+        return RunUpdateCheckAsync(manual: true);
+    }
+
+    public void StartAutomaticUpdateCheck()
+    {
+        if (Interlocked.Exchange(ref _automaticUpdateCheckStarted, 1) != 0)
+        {
+            return;
+        }
+
+        _ = RunUpdateCheckAsync(manual: false);
+    }
+
+    private async Task RunUpdateCheckAsync(bool manual)
+    {
+        ApplicationUpdateResult result = await _applicationUpdateService
+            .CheckAndDownloadAsync(manual)
+            .ConfigureAwait(false);
+
+        switch (result.Status)
+        {
+            case ApplicationUpdateStatus.Downloaded:
+            case ApplicationUpdateStatus.PendingRestart:
+                await PromptToRestartForUpdateAsync(result).ConfigureAwait(false);
+                break;
+
+            case ApplicationUpdateStatus.NoUpdate when manual:
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    "You are using the latest available version.",
+                    "Updates");
+                break;
+
+            case ApplicationUpdateStatus.Unsupported when manual:
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    "Automatic updates are available only for a Velopack-installed Windows build.",
+                    "Updates");
+                break;
+
+            case ApplicationUpdateStatus.Failed when manual:
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    result.ErrorMessage ?? "The update check failed.",
+                    "Updates");
+                break;
+        }
+    }
+
+    private async Task PromptToRestartForUpdateAsync(ApplicationUpdateResult result)
+    {
+        string version = result.AvailableVersion ?? "the new version";
+        bool restart = await _messageForUserTools.ShowConfirmationDialogAsync(
+            $"Version {version} has been downloaded. Restart JustyBase now to apply the update?",
+            "Update ready").ConfigureAwait(false);
+        if (!restart)
+        {
+            return;
+        }
+
+        _dockFactory.SaveStartupSqlAndFiles();
+        _generalApplicationData.SaveConfig();
+
+        string[] restartArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();
+        if (!_applicationUpdateService.ApplyPendingUpdateAndRestart(restartArgs))
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance(
+                "The downloaded update is no longer available. Please check for updates again.",
+                "Updates");
+        }
     }
 
     [RelayCommand]
@@ -369,7 +444,8 @@ public partial class MainWindowViewModel : ObservableObject
         IMainWindowActivationService mainWindowActivationService,
         IDockableCleanupService dockableCleanupService,
         IMessageForUserTools messageForUserTools,
-        ISqlDocumentUiServices sqlDocumentUiServices)
+        ISqlDocumentUiServices sqlDocumentUiServices,
+        IApplicationUpdateService applicationUpdateService)
     {
         _dockFactory = dockFactory;
         _avaloniaSpecificHelpers = avaloniaSpecificHelpers;
@@ -378,6 +454,7 @@ public partial class MainWindowViewModel : ObservableObject
         _dockableCleanupService = dockableCleanupService;
         _messageForUserTools = messageForUserTools;
         _sqlDocumentUiServices = sqlDocumentUiServices;
+        _applicationUpdateService = applicationUpdateService;
 
         CharAtMessage = "";
         ConfigureDockFactoryBindings();

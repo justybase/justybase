@@ -49,7 +49,8 @@ public sealed class AppOptions
     public bool DoGcCollect { get; set; }//remove ?
     public int LayoutNum { get; set; } = 1;
     public bool UseSplashScreen { get; set; } = true;
-    public bool AutoDownloadUpdate { get; set; }
+    public bool AutoDownloadUpdate { get; set; } = true;
+    public DateTimeOffset? LastUpdateCheckUtc { get; set; }
     public bool AutoDownloadPlugins { get; set; } = true;
     public bool AllowToLoadPlugins { get; set; } = true;
     public bool UpdateMitigateNextGenFirewalls { get; set; } // palo alto

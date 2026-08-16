@@ -37,6 +37,8 @@ public static class ServiceCollectionExtensions
 {
     public static void AddCommonServices(this IServiceCollection collection)
     {
+        var generalApplicationDataState = new GeneralApplicationDataInitializationState();
+
         collection.AddSingleton<IEncryptionHelper, WindowsLinuxEncryptionHelper>();
         collection.AddSingleton<IThemeManager, FluentThemeManager>();
         collection.AddSingleton<IOtherHelpers, OtherHelpers>();
@@ -48,6 +50,13 @@ public static class ServiceCollectionExtensions
                 {
                     try
                     {
+                        // GeneralApplicationData receives this logger in its constructor. Do not
+                        // resolve the same service while that constructor is still running.
+                        if (!generalApplicationDataState.IsReady)
+                        {
+                            return false;
+                        }
+
                         return sp.GetService<IGeneralApplicationData>()?.Config.EnableFileLogging == true;
                     }
                     catch
@@ -61,7 +70,16 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IDockViewModelFactory, DockViewModelFactory>();
         collection.AddTransient<ISnippetEditorService, SnippetEditorService>();
         collection.AddTransient<SnippetControlViewModel>();
-        collection.AddSingleton<IGeneralApplicationData, GeneralApplicationData>();
+        collection.AddSingleton<IGeneralApplicationData>(sp =>
+        {
+            var generalApplicationData = new GeneralApplicationData(
+                sp.GetRequiredService<IMessageForUserTools>(),
+                sp.GetRequiredService<IOtherHelpers>(),
+                sp.GetRequiredService<HostSimpleLogger>(),
+                sp.GetRequiredService<IEncryptionHelper>());
+            generalApplicationDataState.IsReady = true;
+            return generalApplicationData;
+        });
         collection.AddSingleton<IAvaloniaSpecificHelpers, AvaloniaSpecificHelpers>();
         collection.AddSingleton<IMainWindowActivationService, MainWindowActivationService>();
         collection.AddSingleton<IDockableCleanupService, DockableCleanupService>();
@@ -219,5 +237,10 @@ public static class ServiceCollectionExtensions
         // SqlResultsView services aggregator for DI
         collection.AddSingleton<ISqlResultsViewServices, SqlResultsViewServices>();
 
+    }
+
+    private sealed class GeneralApplicationDataInitializationState
+    {
+        public volatile bool IsReady;
     }
 }

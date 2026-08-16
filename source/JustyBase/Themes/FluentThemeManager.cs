@@ -109,13 +109,6 @@ public class FluentThemeManager : IThemeManager
         }
     }
 
-    //private static readonly Styles SimpleAccentsLight = 
-    //    AvaloniaXamlLoader.Load(new Uri("avares://JustyBase/Themes/SimpleAccentsLight.axaml")) as Styles;
-
-    //private static readonly Styles SimpleAccentsDark = 
-    //    AvaloniaXamlLoader.Load(new Uri("avares://JustyBase/Themes/SimpleAccentsDark.axaml")) as Styles;
-
-
     public static bool IsLight => GetgeneralAppData.Config.ThemeNum == 0;
     public static bool IsDark => !IsLight;
 
@@ -293,16 +286,3 @@ public class FluentThemeManager : IThemeManager
         _ => null
     };
 }
-
-//SimpleAccentsDark
-//<SolidColorBrush x:Key="DockApplicationAccentBrushLow" Color="{DynamicResource SystemAccentColorDark1}" />
-//<SolidColorBrush x:Key="DockApplicationAccentBrushMed" Color="{DynamicResource SystemAccentColorDark2}" />
-//<SolidColorBrush x:Key="DockApplicationAccentBrushHigh" Color="{DynamicResource SystemAccentColorDark3}" />
-//<SolidColorBrush x:Key="DockApplicationAccentBrushIndicator" Color="{DynamicResource SystemAccentColorDark1}" />
-
-//SimpleAccentsLight
-//<SolidColorBrush x:Key="DockApplicationAccentBrushLow" Color="{DynamicResource SystemAccentColorLight1}" />
-//<SolidColorBrush x:Key="DockApplicationAccentBrushMed" Color="{DynamicResource SystemAccentColorLight2}" />
-//<SolidColorBrush x:Key="DockApplicationAccentBrushHigh" Color="{DynamicResource SystemAccentColorLight3}" />
-//<SolidColorBrush x:Key="DockApplicationAccentBrushIndicator" Color="{DynamicResource SystemAccentColorLight1}" />
-

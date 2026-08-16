@@ -470,7 +470,7 @@ public partial class MainWindowViewModel : ObservableObject
 #pragma warning restore CS8618
 
 #if DEBUG
-    private void DebugFactoryEvents(DockFactory factory)
+    private static void DebugFactoryEvents(DockFactory factory)
     {
         factory.ActiveDockableChanged += (_, args) =>
         {
@@ -527,14 +527,6 @@ public partial class MainWindowViewModel : ObservableObject
             Debug.WriteLine($"[WindowClosed] Title='{args.Window?.Title}'");
         };
 
-        factory.WindowClosing += (_, args) =>
-        {
-            // NOTE: Set to True to cancel window closing.
-#if false
-                args.Cancel = true;
-#endif      
-        };
-
         factory.WindowAdded += (_, args) =>
         {
             Debug.WriteLine($"[WindowAdded] Title='{args.Window?.Title}'");
@@ -548,10 +540,6 @@ public partial class MainWindowViewModel : ObservableObject
 
         factory.WindowMoveDragBegin += (_, args) =>
         {
-            // NOTE: Set to True to cancel window dragging.
-#if false
-                args.Cancel = true;
-#endif
             Debug.WriteLine($"[WindowMoveDragBegin] Title='{args.Window?.Title}', Cancel={args.Cancel}, X='{args.Window?.X}', Y='{args.Window?.Y}'");
         };
 
@@ -566,11 +554,4 @@ public partial class MainWindowViewModel : ObservableObject
         };
     }
 #endif
-    //public void CloseLayout()
-    //{
-    //    if (Layout is IDock)
-    //    {
-    //        _dockFactory.SaveStartupSqlAndFiles();
-    //    }
-    //}
 }

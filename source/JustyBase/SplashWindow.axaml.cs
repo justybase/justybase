@@ -102,16 +102,24 @@ public partial class SplashWindow : Window
     private static void SetFileTypeAssociation()
     {
         if (!OperatingSystem.IsWindows()) return;
-        var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JustyBase", "current", "JustyBase.exe") + " \"%1\"";
-        if ((string)Registry.GetValue("HKEY_CURRENT_USER\\Software\\Classes\\.sql", "", "JustyBase")! == "JustyBase")
-            return;
+        try
+        {
+            var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JustyBase", "current", "JustyBase.exe") + " \"%1\"";
+            if ((string)Registry.GetValue("HKEY_CURRENT_USER\\Software\\Classes\\.sql", "", "JustyBase")! == "JustyBase")
+                return;
 
-        Registry.SetValue("HKEY_CURRENT_USER\\Software\\Classes\\JustyBase", "", "sql");
-        Registry.SetValue("HKEY_CURRENT_USER\\Software\\Classes\\JustyBase", "sql files", "sql");
-        Registry.SetValue("HKEY_CURRENT_USER\\Software\\Classes\\JustyBase\\shell\\open\\command", "", path);
-        Registry.SetValue("HKEY_CURRENT_USER\\Software\\Classes\\.sql", "", "JustyBase");
+            Registry.SetValue("HKEY_CURRENT_USER\\Software\\Classes\\JustyBase", "", "sql");
+            Registry.SetValue("HKEY_CURRENT_USER\\Software\\Classes\\JustyBase", "sql files", "sql");
+            Registry.SetValue("HKEY_CURRENT_USER\\Software\\Classes\\JustyBase\\shell\\open\\command", "", path);
+            Registry.SetValue("HKEY_CURRENT_USER\\Software\\Classes\\.sql", "", "JustyBase");
 
-        // This call notifies Windows that it needs to redo the file associations and icons
-        _ = SHChangeNotify(0x08000000, 0x2000, IntPtr.Zero, IntPtr.Zero);
+            // This call notifies Windows that it needs to redo the file associations and icons
+            _ = SHChangeNotify(0x08000000, 0x2000, IntPtr.Zero, IntPtr.Zero);
+        }
+        catch (Exception ex)
+        {
+            // File association is optional; group policies may deny HKCU writes.
+            System.Diagnostics.Debug.WriteLine($"Could not register .sql file association: {ex.Message}");
+        }
     }
 }

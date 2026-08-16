@@ -53,9 +53,9 @@ public sealed class NetezzaSessionMonitorService
         _databaseServiceResolver = databaseServiceResolver;
     }
 
-    public string BuildSessionSnapshotSql() => NetezzaSystemSql.SessionMonitorSnapshotSql;
+    public static string BuildSessionSnapshotSql() => NetezzaSystemSql.SessionMonitorSnapshotSql;
 
-    public string BuildSkewSnapshotSql(string qualifiedTable) =>
+    public static string BuildSkewSnapshotSql(string qualifiedTable) =>
         NetezzaSystemSql.GetTableSkewByDatasliceSql(qualifiedTable);
 
     public async Task<IReadOnlyList<NetezzaSessionInfo>> GetSessionsAsync(string connectionName, CancellationToken cancellationToken = default)
@@ -96,10 +96,7 @@ public sealed class NetezzaSessionMonitorService
 
     public async Task KillSessionAsync(string connectionName, long sessionId, CancellationToken cancellationToken = default)
     {
-        if (sessionId < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(sessionId));
-        }
+        ArgumentOutOfRangeException.ThrowIfNegative(sessionId);
 
         await Task.Run(() =>
         {

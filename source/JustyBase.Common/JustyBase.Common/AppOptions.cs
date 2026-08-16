@@ -29,8 +29,8 @@ public sealed class AppOptions
     public bool? CloseUndocked { get; set; } = true;
     public bool CollapseFoldingOnStartup { get; set; } = true;
     /// <summary>When true, errors/crashes are appended to local <c>errors.log</c>. Default off.</summary>
-    public bool EnableFileLogging { get; set; } = false;
-    public int ThemeNum { get; set; } = 0;
+    public bool EnableFileLogging { get; set; }
+    public int ThemeNum { get; set; }
     public string? ConnectionNameInSchemaSearch { get; set; }
     public bool CaseSensitive { get; set; }
     public bool SearchInSource { get; set; }
@@ -38,21 +38,21 @@ public sealed class AppOptions
     public bool RegexMode { get; set; }
     public bool RefreshOnStartupInSchemaSearch { get; set; }
     public bool SingleLineTabs { get; set; }
-    public bool AutocompleteOnReturn { get; set; } = false;
-    public bool ConfirmDocumentClosing { get; set; } = false;
+    public bool AutocompleteOnReturn { get; set; }
+    public bool ConfirmDocumentClosing { get; set; }
     public double ControlContentThemeFontSize { get; set; } = 12.0;
     public double CompletitionFontSize { get; set; } = 13.0;
     public int DefaultFontSizeForDocuments { get; set; } = 13;
     public string DocumentFontName { get; set; } = "Cascadia Code";
     public double LineSpacing { get; set; } = 1.0;
     public bool ShowDetailsButton { get; set; } = true;
-    public bool DoGcCollect { get; set; } = false;//remove ?
+    public bool DoGcCollect { get; set; }//remove ?
     public int LayoutNum { get; set; } = 1;
     public bool UseSplashScreen { get; set; } = true;
-    public bool AutoDownloadUpdate { get; set; } = false;
+    public bool AutoDownloadUpdate { get; set; }
     public bool AutoDownloadPlugins { get; set; } = true;
     public bool AllowToLoadPlugins { get; set; } = true;
-    public bool UpdateMitigateNextGenFirewalls { get; set; } = false; // palo alto
+    public bool UpdateMitigateNextGenFirewalls { get; set; } // palo alto
     public int LimitHistoryMonths { get; set; } = 6;
 
     /// <summary>Master switch for SQL linter analysis.</summary>
@@ -267,7 +267,7 @@ public sealed class AppOptions
     public const string TYPO_SNIPET_TXT = "typo";
     public const string STANDARD_SNIPET_TXT = "standard";
 
-    public bool ResetPlugins { get; set; } = false;
+    public bool ResetPlugins { get; set; }
 
     public void AddDefaultValues()
     {

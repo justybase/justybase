@@ -434,6 +434,8 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
             {
                     new Image
                     {
+                        Width = 16,
+                        Height = 16,
                         [!Image.SourceProperty] = CompiledBindingFactory.OneWay<DbSchemaModel, DbSchemaModel>(
                             nameof(DbSchemaModel.Self),
                             item => item.Self,

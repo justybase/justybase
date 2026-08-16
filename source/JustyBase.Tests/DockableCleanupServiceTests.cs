@@ -28,6 +28,18 @@ public sealed class DockableCleanupServiceTests
     }
 
     [Fact]
+    public void CleanupDockable_WhenDockableIsDisposable_DisposesIt()
+    {
+        var dockable = new Mock<IDockable>();
+        var disposable = dockable.As<IDisposable>();
+        var sut = new DockableCleanupService();
+
+        sut.CleanupDockable(dockable.Object, null);
+
+        disposable.Verify(x => x.Dispose(), Times.Once);
+    }
+
+    [Fact]
     public void CleanupDockable_WhenDockableIsSqlDocument_ClearsRelatedResults()
     {
         var offlineTabData = CreateOfflineTabData("doc-1", string.Empty);

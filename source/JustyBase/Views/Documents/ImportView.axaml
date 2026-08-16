@@ -74,7 +74,7 @@
 								<ComboBox.ItemTemplate>
 									<DataTemplate x:DataType="m2:ConnectionItem">
 										<StackPanel Orientation="Horizontal">
-											<Image Source="{Binding DatabaseType, Converter={StaticResource databaseIconConverter}}"/>
+										<Image Width="16" Height="16" Source="{Binding DatabaseType, Converter={StaticResource databaseIconConverter}}"/>
 											<TextBlock Text="{Binding Name}" Margin="8 0 0 0"/>
 										</StackPanel>
 									</DataTemplate>

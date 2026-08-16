@@ -22,6 +22,11 @@ public sealed class DockableCleanupService : IDockableCleanupService
             cleanableViewModel.DoCleanup();
         }
 
+        if (dockable is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+
         if (dockable is SqlDocumentViewModel sqlDocumentViewModel)
         {
             clearSqlDocumentResults?.Invoke(sqlDocumentViewModel.Id);

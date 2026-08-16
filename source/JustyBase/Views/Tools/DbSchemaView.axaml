@@ -28,6 +28,7 @@
 			<DataTemplate x:Key="DbSchemaNameTemplate" x:DataType="models:DbSchemaModel">
 				<StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="2,1,2,1">
 					<Image Source="{Binding Self, Converter={StaticResource databaseIconConverter}}"
+						   Width="16" Height="16"
 						   Margin="0"
 						   VerticalAlignment="Center"
 						   Stretch="None"/>

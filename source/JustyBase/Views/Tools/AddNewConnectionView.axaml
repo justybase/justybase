@@ -34,7 +34,7 @@
 				<ComboBox.ItemTemplate>
 					<DataTemplate x:DataType="m2:ConnectionItem">
 						<StackPanel Orientation="Horizontal" Spacing="6">
-							<Image Source="{Binding DatabaseType, Converter={StaticResource databaseIconConverter}}"/>
+							<Image Width="16" Height="16" Source="{Binding DatabaseType, Converter={StaticResource databaseIconConverter}}"/>
 							<TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
 						</StackPanel>
 					</DataTemplate>
@@ -83,7 +83,7 @@
 				<ComboBox.ItemTemplate>
 					<DataTemplate x:DataType="sys:String">
 						<StackPanel Orientation="Horizontal">
-							<Image Source="{Binding ., Converter={StaticResource databaseIconConverter}}"></Image>
+							<Image Width="16" Height="16" Source="{Binding ., Converter={StaticResource databaseIconConverter}}"></Image>
 							<TextBlock Text="{Binding .}" Margin="8 0 0 0" Padding="0"></TextBlock>
 						</StackPanel>
 					</DataTemplate>

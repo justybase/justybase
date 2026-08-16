@@ -1130,7 +1130,7 @@ public sealed partial class GitViewModel : Tool, IDisposable
         await RefreshAsync().ConfigureAwait(false);
     }
 
-    private IEnumerable<string> GetSearchRoots()
+    private List<string> GetSearchRoots()
     {
         var roots = new List<string>();
         foreach (string path in _generalApplicationData.Config.StartsFolderPaths)

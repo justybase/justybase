@@ -41,7 +41,7 @@ public class SqlExecutionService : ISqlExecutionService
     public async Task ExecuteSqlAsync(
         ISqlExecutionBridge bridge,
         SqlDocumentViewModelHelper.SqlExecutionPlan executionPlan,
-        int actualqlobalQueryNum,
+        int globalQueryNumber,
         int globalAbortUBound,
         string localTitle,
         string option,
@@ -210,12 +210,12 @@ public class SqlExecutionService : ISqlExecutionService
                     {
                         using var cmd = con.CreateCommand();
 
-                        bridge.TrackQueryState(actualqlobalQueryNum, cmd, SqlCommandState.created);
+                        bridge.TrackQueryState(globalQueryNumber, cmd, SqlCommandState.created);
                         SetTimeoutForCommand(bridge, localTitle, actualDatabaseService, cmd, executionPlan.ForcedTimeout);
 
                         cmd.CommandText = sql;
 
-                        if (actualqlobalQueryNum < globalAbortUBound)
+                        if (globalQueryNumber < globalAbortUBound)
                         {
                             return;
                         }
@@ -256,7 +256,7 @@ public class SqlExecutionService : ISqlExecutionService
                         }
                         catch (Exception exx1)
                         {
-                            bool isCancelled = actualqlobalQueryNum < globalAbortUBound
+                            bool isCancelled = globalQueryNumber < globalAbortUBound
                                 || (exx1.Message?.StartsWith("ERROR: Query was cancelled", StringComparison.Ordinal) == true);
 
                             if (!retriedAfterReconnect
@@ -317,7 +317,7 @@ public class SqlExecutionService : ISqlExecutionService
                         }
                         finally
                         {
-                            bridge.TrackQueryState(actualqlobalQueryNum, cmd, SqlCommandState.finished);
+                            bridge.TrackQueryState(globalQueryNumber, cmd, SqlCommandState.finished);
                         }
                     }
                 }
@@ -345,7 +345,7 @@ public class SqlExecutionService : ISqlExecutionService
                     }
                 }
 
-                bridge.TrackQueryState(actualqlobalQueryNum, cmd, SqlCommandState.started);
+                bridge.TrackQueryState(globalQueryNumber, cmd, SqlCommandState.started);
 
                 CommandBehavior cb = CommandBehavior.SequentialAccess;
             if (option.StartsWith(".csv", StringComparison.Ordinal))
@@ -354,9 +354,9 @@ public class SqlExecutionService : ISqlExecutionService
                 }
 
                 var rdr = cmd.ExecuteReader(cb);
-                bridge.TrackQueryState(actualqlobalQueryNum, cmd, SqlCommandState.executed);
+                bridge.TrackQueryState(globalQueryNumber, cmd, SqlCommandState.executed);
 
-                if (actualqlobalQueryNum < globalAbortUBound)
+                if (globalQueryNumber < globalAbortUBound)
                 {
                     rdr.Dispose();
                     return null;
@@ -390,7 +390,7 @@ public class SqlExecutionService : ISqlExecutionService
                 {
             if (string.IsNullOrEmpty(forceAnotherOption) && option.StartsWith("Grid", StringComparison.Ordinal) && rdr.FieldCount > 0)
                     {
-                        bridge.HandleStandardGrid(actualDatabaseService, $"{localTitle}_{currentLocalSqlNumber}", query, null, executionPlan.TabsWithRows, actualqlobalQueryNum, rdr, cmd, shortQuery);
+                        bridge.HandleStandardGrid(actualDatabaseService, $"{localTitle}_{currentLocalSqlNumber}", query, null, executionPlan.TabsWithRows, globalQueryNumber, rdr, cmd, shortQuery);
                     }
             else if ((forceAnotherOption == "@expXlsx" || option.StartsWith(".xlsb", StringComparison.Ordinal)) && !string.IsNullOrWhiteSpace(filePathToExport))
                     {
@@ -406,7 +406,7 @@ public class SqlExecutionService : ISqlExecutionService
                         bridge.HandleAnotherResult(null, rdr);
                     }
 
-                    if (actualqlobalQueryNum < globalAbortUBound)
+                    if (globalQueryNumber < globalAbortUBound)
                     {
                         break;
                     }
@@ -518,7 +518,7 @@ public class SqlExecutionService : ISqlExecutionService
                     }
                 }
 
-                bridge.ErrorMessageToUi(localTitle, null, actualqlobalQueryNum, actualDatabaseService, currentLocalSqlNumber, sql, cmd, exx1);
+                bridge.ErrorMessageToUi(localTitle, null, globalQueryNumber, actualDatabaseService, currentLocalSqlNumber, sql, cmd, exx1);
             }
 
             void FinalizeExecution()

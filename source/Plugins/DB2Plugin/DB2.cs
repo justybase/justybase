@@ -781,7 +781,7 @@ public sealed class DB2DatabaseService : DatabaseService
         }
         if (remarks != null)
         {
-            sb.AppendLine($"COMMENT ON TABLE {clearSchema}.{clearTableName} IS '{remarks.Replace("'", "'")}';");
+            sb.AppendLine($"COMMENT ON TABLE {clearSchema}.{clearTableName} IS '{remarks.Replace("'", "''")}';");
         }
         // COMMENT ON CONSTRAINT TEST.EMPLOYEE.RED IS 'DDDD';
 
@@ -805,7 +805,7 @@ public sealed class DB2DatabaseService : DatabaseService
         {
             if (columnsOfTable[i].Desc is not null)
             {
-                sb.AppendLine($"COMMENT ON COLUMN {clearSchema}.{clearTableName}.{columnsOfTable[i].Name} IS '{columnsOfTable[i].Desc?.Replace("'", "'")}';");
+                sb.AppendLine($"COMMENT ON COLUMN {clearSchema}.{clearTableName}.{columnsOfTable[i].Name} IS '{columnsOfTable[i].Desc?.Replace("'", "''")}';");
             }
         }
 

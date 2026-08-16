@@ -288,7 +288,7 @@ public partial class CodeTextEditor : TextEditor
         // We still want to insert the character that was typed.
     }
 
-    private DispatcherTimer? _sqlCompletionTimer = null;
+    private DispatcherTimer? _sqlCompletionTimer;
 
     private void OnTextEntered(object? sender, TextCompositionEventArgs e)
     {

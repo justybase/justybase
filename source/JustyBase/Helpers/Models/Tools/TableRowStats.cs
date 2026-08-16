@@ -2,9 +2,9 @@
 
 public sealed class TableRowStats
 {
-    public decimal Sum { get; set; } = 0;
-    public int NotNullCnt { get; set; } = 0;
-    public int DistinctCnt { get; set; } = 0;
+    public decimal Sum { get; set; }
+    public int NotNullCnt { get; set; }
+    public int DistinctCnt { get; set; }
     public decimal? MinOfColumn { get; set; } = decimal.MaxValue;
     public decimal? MaxOfColumn { get; set; } = decimal.MinValue;
     public TableRowStats(TableOfSqlResults table, IEnumerable<TableRow> rows, int columnIndex)

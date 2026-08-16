@@ -54,20 +54,7 @@ public sealed class MySql : DatabaseService
         throw new NotImplementedException();
     }
 
-    protected override List<(string, string)> GetDatabases()
-    {
-        var databases = new List<(string, string)>();
-        using (var con = GetConnection(Database) as MySqlConnection)
-        {
-            if (con is not null)
-            {
-                con.Open();
-                using var cmd = con.CreateCommand();
-                databases.Add((con.Database, "def"));
-            }
-        }
-        return databases;
-    }
+    protected override string DefaultDatabaseSchema => "def";
     //https://dev.mysql.com/doc/refman/8.0/en/information-schema-general-table-reference.html
     protected override string? GetExternalTableSql(string database)
     {
@@ -87,10 +74,8 @@ public sealed class MySql : DatabaseService
                 , C.COLUMN_NAME
                 , C.COLUMN_COMMENT
                 , C.COLUMN_TYPE
+                , CASE WHEN C.IS_NULLABLE = 'NO' THEN 1 ELSE 0 END AS IS_NOT_NULL
                 , C.COLUMN_DEFAULT
-                , C.TABLE_NAME
-                , C.TABLE_SCHEMA
-                , C.TABLE_CATALOG
             FROM INFORMATION_SCHEMA.COLUMNS C
             JOIN
             (

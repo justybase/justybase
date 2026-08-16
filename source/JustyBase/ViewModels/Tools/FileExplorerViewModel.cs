@@ -245,7 +245,7 @@ public partial class FileExplorerViewModel : Tool
     public partial FileTreeNodeModel? SelectedTreeItem { get; set; }
 
     private const int SearchFileSizeLimit = 10 * 1024 * 1024;
-    private bool SearchInFiles = false;
+    private bool SearchInFiles;
     private async Task DoSearchInFiles()
     {
         SearchInProgress = true;
@@ -258,7 +258,7 @@ public partial class FileExplorerViewModel : Tool
             {
                 try
                 {
-                    string ext = System.IO.Path.GetExtension(item.Name).ToLower();
+                    string ext = System.IO.Path.GetExtension(item.Name).ToLowerInvariant();
                     if (item.Type != "File")
                     {
                         item.IsFounded = false;
@@ -341,7 +341,7 @@ public partial class FileExplorerViewModel : Tool
 
     public void OpenTxtPreviewFile(string path)
     {
-        string ext = Path.GetExtension(path).ToLower();
+        string ext = Path.GetExtension(path).ToLowerInvariant();
         bool supportedExtension = IGeneralApplicationData.REGISTERED_EXTENSIONS.ContainsKey(ext);
         if (supportedExtension)
         {
@@ -447,7 +447,7 @@ public partial class FileExplorerViewModel : Tool
     }
 
 
-    private string GetShortStart(List<string> list)
+    private static string GetShortStart(List<string> list)
     {
         if (list is null || list.Count == 0)
         {
@@ -582,7 +582,7 @@ public partial class FileExplorerViewModel : Tool
 
                             foreach ((string FullName, DateTime LastWriteTime, long Length) in files)
                             {
-                                string ext = System.IO.Path.GetExtension(FullName).ToLower();
+                                string ext = System.IO.Path.GetExtension(FullName).ToLowerInvariant();
                                 if (ext is not null && (IGeneralApplicationData.REGISTERED_EXTENSIONS.ContainsKey(ext) || IGeneralApplicationData.ADDITIONAL_EXTENSIONS.Contains(ext))
                                 )
                                 {
@@ -719,15 +719,7 @@ public partial class FileExplorerViewModel : Tool
         setter(item, (TValue)value);
     }
 
-    //private IControl FileCheckTemplate(FileTreeNodeModel node, INameScope ns)
-    //{
-    //    return new CheckBox
-    //    {
-    //        MinWidth = 0,
-    //        [!CheckBox.IsCheckedProperty] = new Binding(nameof(FileTreeNodeModel.IsChecked)),
-    //    };
-    //}
-    private Control FileNameTemplate(FileTreeNodeModel node, INameScope ns)
+    private StackPanel FileNameTemplate(FileTreeNodeModel node, INameScope ns)
     {
         return new StackPanel
         {
@@ -741,8 +733,12 @@ public partial class FileExplorerViewModel : Tool
                         {
                             Bindings =
                             {
-                                new Binding(nameof(node.IsDirectory)),
-                                new Binding(nameof(node.IsExpanded)),
+                                CompiledBindingFactory.OneWay<FileTreeNodeModel, bool>(
+                                    nameof(FileTreeNodeModel.IsDirectory),
+                                    item => item.IsDirectory),
+                                CompiledBindingFactory.OneWay<FileTreeNodeModel, bool>(
+                                    nameof(FileTreeNodeModel.IsExpanded),
+                                    item => item.IsExpanded),
                             },
                             Converter = _folderIconConverter,
                         },
@@ -751,7 +747,9 @@ public partial class FileExplorerViewModel : Tool
                     },
                     new TextBlock
                     {
-                        [!TextBlock.TextProperty] = new Binding(nameof(FileTreeNodeModel.Name)),
+                        [!TextBlock.TextProperty] = CompiledBindingFactory.OneWay<FileTreeNodeModel, string>(
+                            nameof(FileTreeNodeModel.Name),
+                            item => item.Name),
                         VerticalAlignment = VerticalAlignment.Center,
                     }
                 }
@@ -769,4 +767,3 @@ public sealed class SearchItem
     public DateTime? LastWriteTime { get; set; }
     public bool IsFounded { get; set; }
 }
-

@@ -4,7 +4,7 @@ namespace JustyBase.Views.OtherDialogs;
 
 public partial class FileDiffWindow : Window
 {
-    private bool _isSyncingScroll = false;
+    private bool _isSyncingScroll;
 
     public FileDiffWindow()
     {

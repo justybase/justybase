@@ -63,9 +63,9 @@ public class SqlCodeFormatterService : ISqlCodeFormatterService
     public async IAsyncEnumerable<CompletionDataSql> GetWordsList(
         string input, 
         Dictionary<string, List<string>> aliasDbTable,
-        Dictionary<string, List<string>> subqueryHints,
-        Dictionary<string, List<string>> withHints,
-        Dictionary<string, List<string>> tempTableHints)
+        Dictionary<string, List<string>> subqueriesHints,
+        Dictionary<string, List<string>> withs,
+        Dictionary<string, List<string>> tempTables)
     {
         if (string.IsNullOrEmpty(SelectedConnectionName))
         {
@@ -78,7 +78,7 @@ public class SqlCodeFormatterService : ISqlCodeFormatterService
             yield return new CompletionDataSql("", "", false, Glyph.None, null);
         }
 
-        var wordsList = _autocompleteService.GetWordsList(input, aliasDbTable, subqueryHints, withHints, tempTableHints,
+        var wordsList = _autocompleteService.GetWordsList(input, aliasDbTable, subqueriesHints, withs, tempTables,
             _databaseService, SelectedDatabase);
             
         foreach (var item in wordsList)

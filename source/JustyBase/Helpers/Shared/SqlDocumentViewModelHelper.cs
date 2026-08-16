@@ -94,7 +94,7 @@ public static partial class SqlDocumentViewModelHelper
         var toAsk = new List<string>();
         foreach (Match match in rxParam.Matches(query.CreateCleanSql()).Cast<Match>())
         {
-            var variableTxt = match.Groups["param"].Value.ToUpper();
+            var variableTxt = match.Groups["param"].Value.ToUpperInvariant();
             if (!toAsk.Contains(variableTxt))
             {
                 toAsk.Add(variableTxt);

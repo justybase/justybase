@@ -16,7 +16,7 @@ public sealed class ResultGridSearchService : IResultGridSearchService
     {
         if (resultsTable is null)
         {
-            throw new ArgumentNullException(nameof(resultsTable));
+            ArgumentNullException.ThrowIfNull(resultsTable);
         }
 
         if (resultsTable.Rows is null || resultsTable.Rows.Count == 0 || resultsTable.Headers.Count == 0)

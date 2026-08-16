@@ -40,7 +40,7 @@ public sealed class CompletionDataSql(
 
     public object Description { get; } = BuildTip(desc, detailText, descriptionText);
 
-    public double Priority { get; } = 0;
+    public double Priority { get; }
 
     public bool AutocompleteOnReturn { get; set; }
 

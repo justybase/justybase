@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
 using JustyBase.Converters;
+using JustyBase.Helpers;
 using JustyBase.NetezzaDdl;
 using JustyBase.Models.Tools;
 using JustyBase.PluginCommon.Contracts;
@@ -17,7 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 
 namespace JustyBase.ViewModels.Tools;
-public sealed partial class DbSchemaViewModel : Tool
+public sealed partial class DbSchemaViewModel : Tool, IDisposable
 {
     public HierarchicalModel<DbSchemaModel> SchemaModel { get; }
     public ObservableCollection<DataGridColumnDefinition> ColumnDefinitions { get; }
@@ -109,7 +110,8 @@ public sealed partial class DbSchemaViewModel : Tool
                         cancellationToken.ThrowIfCancellationRequested();
                         FocusAndBringSelectionIntoView?.Invoke();
                     },
-                    DispatcherPriority.Loaded);
+                    DispatcherPriority.Loaded,
+                    cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -146,7 +148,7 @@ public sealed partial class DbSchemaViewModel : Tool
         }
     }
 
-    private MenuItem GetMenuSeparator() => new() { Header = "-" };
+    private static MenuItem GetMenuSeparator() => new() { Header = "-" };
 
     private void ShowConnectedOnly()
     {
@@ -421,7 +423,7 @@ public sealed partial class DbSchemaViewModel : Tool
         OnPropertyChanged(nameof(SchemaModel));
     }
 
-    private Control DbItemTemplate(DbSchemaModel node, INameScope ns)
+    private static StackPanel DbItemTemplate(DbSchemaModel node, INameScope ns)
     {
         var target = new StackPanel
         {
@@ -432,12 +434,10 @@ public sealed partial class DbSchemaViewModel : Tool
             {
                     new Image
                     {
-                        [!Image.SourceProperty] =
-                        //new Binding(nameof(node.TypeInDatabase))
-                        new Binding(nameof(node.Self))
-                        {
-                            Converter = App.Current.Resources["databaseIconConverter"] as DatabaseIconConverter
-                        },
+                        [!Image.SourceProperty] = CompiledBindingFactory.OneWay<DbSchemaModel, DbSchemaModel>(
+                            nameof(DbSchemaModel.Self),
+                            item => item.Self,
+                            App.Current.Resources["databaseIconConverter"] as DatabaseIconConverter),
                         //Source = SelectBitmap(node),
                         Margin = new Thickness(0, 0, 4, 0),
                         VerticalAlignment = VerticalAlignment.Center,
@@ -448,38 +448,20 @@ public sealed partial class DbSchemaViewModel : Tool
                         Child =
                         new TextBlock
                         {
-                            [!TextBlock.TextProperty] = new Binding(nameof(DbSchemaModel.Name)),
+                            [!TextBlock.TextProperty] = CompiledBindingFactory.OneWay<DbSchemaModel, string>(
+                                nameof(DbSchemaModel.Name),
+                                item => item.Name),
                             VerticalAlignment = VerticalAlignment.Center,
                         },
-                        [!ToolTip.TipProperty] = new Binding(nameof(DbSchemaModel.ToolTipText))
+                        [!ToolTip.TipProperty] = CompiledBindingFactory.OneWay<DbSchemaModel, string>(
+                            nameof(DbSchemaModel.ToolTipText),
+                            item => item.ToolTipText)
                     }
                 }
         };
 
         return target;
     }
-    //private Control DbEditItemTemplate(DbSchemaModel node, INameScope ns)
-    //{
-    //    if (node.ActualTypeInDatabase != TypeInDatabaseEnum.ColumnComment || node.DatabaseTypeEnumValue != DatabaseTypeEnum.NetezzaSQL)
-    //    {
-    //        return DbItemTemplate(node, ns);
-    //    }
-
-    //    var target = new TextBox
-    //    {
-    //        [!TextBox.TextProperty] = new Binding(nameof(DbSchemaModel.Name)),
-    //        VerticalAlignment = VerticalAlignment.Center,
-    //        HorizontalAlignment= HorizontalAlignment.Center,
-    //        Padding = new Thickness(0.0),
-    //        Margin = new Thickness(3,1),
-    //        Height = 24,
-    //        MinHeight = 24,
-    //        FontSize= 12
-    //    };
-
-    //    return target;
-    //}
-
     private static DataGridBindingDefinition CreateNodeBinding<TValue>(string name, Func<DbSchemaModel, TValue> getter)
     {
         return CreateBinding<HierarchicalNode, TValue>(
@@ -529,6 +511,12 @@ public sealed partial class DbSchemaViewModel : Tool
             return;
         }
         setter(item, (TValue)value);
+    }
+
+    public void Dispose()
+    {
+        _revealGate.Dispose();
+        GC.SuppressFinalize(this);
     }
 
 

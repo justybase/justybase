@@ -311,7 +311,7 @@ public sealed class QuickOpenSearchService
         return list;
     }
 
-    private static IReadOnlyList<QuickOpenHit> OrderContentHits(IEnumerable<QuickOpenHit> hits)
+    private static QuickOpenHit[] OrderContentHits(IEnumerable<QuickOpenHit> hits)
         => hits
             .OrderBy(h => h.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(h => h.LineNumber ?? 0)
@@ -439,7 +439,7 @@ public sealed class QuickOpenSearchService
         }
     }
 
-    private static IReadOnlyList<string> NormalizeRoots(IReadOnlyList<string> roots)
+    private static string[] NormalizeRoots(IReadOnlyList<string> roots)
         => roots
             .Where(r => !string.IsNullOrWhiteSpace(r))
             .Select(NormalizePath)

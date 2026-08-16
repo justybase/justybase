@@ -216,7 +216,7 @@ public partial class SqlResultsFastViewModel : Tool
                 }
             }
         }
-    } = 0;
+    }
 }
 
 

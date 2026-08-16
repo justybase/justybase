@@ -17,7 +17,7 @@ partial class SettingsViewModel
         _dispatcherTimer?.Stop();
     }
 
-    private void ApplyThemeMode(bool isDark)
+    private static void ApplyThemeMode(bool isDark)
     {
         FluentThemeManager.StaticFluentThemeManager?.Switch(isDark ? 1 : 0);
         SqlCodeEditorHelpers.ResetStyle(isDark);

@@ -8,7 +8,7 @@ namespace JustyBase.Helpers;
 internal sealed class DBReaderWithMessagesTable : DbDataReader
 {
     private readonly Action<int>? _action;
-    private readonly IList<TableRow> _rows;
+    private readonly BulkObservableCollection<TableRow> _rows;
     private readonly List<string> _headers;
     private readonly int _fieldCount;
     private readonly int _rowsCnt;
@@ -170,7 +170,7 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
 
     public override bool NextResult() => false;
 
-    private int _readedRowNumber = 0;
+    private int _readedRowNumber;
     public override bool Read()
     {
         if (++_readedRowNumber % 10_000 == 0)

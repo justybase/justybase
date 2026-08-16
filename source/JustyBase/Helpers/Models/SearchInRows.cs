@@ -106,7 +106,7 @@ public sealed class SearchInRows
         _currentResultsTable.RebuildRowIndexMap();
     }
 
-    private void SearchInRowsLocal(int A, int B, ICollection<TableRow> matches)
+    private void SearchInRowsLocal(int A, int B, List<TableRow> matches)
     {
         Span<char> charBuffer = stackalloc char[50];
         for (int i = A; i < B; i++)

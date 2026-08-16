@@ -27,8 +27,8 @@ public partial class DocumentBaseVM : Document, IDeferredContentPresentation
     public ICommand? TabCopyFullFilePathCommand => SqlDocument?.CopyFullFilePathCommand;
     public bool IsImport => this is ImportViewModel;
     public bool IsEtl => this is EtlViewModel;
-    private bool _skipCloseQuestion = false;
-    private readonly bool _confirmDocumentClosing = false;
+    private bool _skipCloseQuestion;
+    private readonly bool _confirmDocumentClosing;
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly IDocumentCloseDecisionService _documentCloseDecisionService;
     public IActiveDocumentManager ActiveDocumentManager { get; }
@@ -78,4 +78,3 @@ public partial class DocumentBaseVM : Document, IDeferredContentPresentation
         Factory.CloseDockable(this);
     }
 }
-

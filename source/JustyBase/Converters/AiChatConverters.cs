@@ -48,7 +48,9 @@ public class RoleToAlignmentConverter : IValueConverter
     {
         if (value is string role)
         {
-            return role.ToLower() == "user" ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+            return string.Equals(role, "user", StringComparison.OrdinalIgnoreCase)
+                ? HorizontalAlignment.Right
+                : HorizontalAlignment.Left;
         }
         return HorizontalAlignment.Left;
     }
@@ -67,7 +69,7 @@ public class RoleToBrushConverter : IValueConverter
     {
         if (value is string role)
         {
-            bool isUser = role.ToLower() == "user";
+            bool isUser = string.Equals(role, "user", StringComparison.OrdinalIgnoreCase);
             
             // Use theme-aware colors
             if (isUser)
@@ -99,7 +101,7 @@ public class RoleToForegroundConverter : IValueConverter
     {
         if (value is string role)
         {
-            bool isUser = role.ToLower() == "user";
+            bool isUser = string.Equals(role, "user", StringComparison.OrdinalIgnoreCase);
             
             // User messages - white text on blue
             // Assistant messages - black/dark text on light background

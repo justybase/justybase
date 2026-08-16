@@ -1,5 +1,6 @@
 using System.Collections;
 using System.ComponentModel;
+using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Controls.DataGridFiltering;
 using Avalonia.Controls.DataGridSearching;
@@ -46,9 +47,9 @@ public sealed class CascadingDistinctValueFilterFlyout : Flyout
             return;
         }
 
-        object columnId = Column.ColumnKey ?? Convert.ToString(Column.Header) ?? "column";
+        object columnId = Column.ColumnKey ?? Convert.ToString(Column.Header, CultureInfo.InvariantCulture) ?? "column";
         IFilteringModel filteringModel = grid.FilteringModel;
-        string label = Convert.ToString(Column.Header) ?? "Values";
+        string label = Convert.ToString(Column.Header, CultureInfo.InvariantCulture) ?? "Values";
         string? propertyPath = Column.SortMemberPath;
 
         if (_context is null ||

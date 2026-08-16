@@ -43,7 +43,7 @@ public sealed partial class DbSchemaModel
         };
     }
 
-    private bool _childrenLoaded = false;
+    private bool _childrenLoaded;
     private Task? _loadChildrenTask;
 
     public void ClearChildren()

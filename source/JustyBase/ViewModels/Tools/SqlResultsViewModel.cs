@@ -441,7 +441,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
     [ObservableProperty]
     public partial IList SelectedItems { get; set; }
 
-    private int _selInd = 0;
+    private int _selInd;
     public int SelInd
     {
         get => _selInd;
@@ -788,7 +788,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
             OnPropertyChanged(nameof(this.Title));
 
         }
-    } = false;
+    }
 
 
     private readonly Lock _lock = new();
@@ -802,4 +802,3 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         await Clipboard?.SetTextAsync(text);
     }
 }
-

@@ -209,7 +209,7 @@ public sealed class CascadingDistinctValueFilterContext : IFilterDistinctValuesC
         for (int i = 0; i < _allOptions.Count; i++)
         {
             CascadingDistinctValueFilterOption option = _allOptions[i];
-            if (search is null || option.Display.IndexOf(search, StringComparison.CurrentCultureIgnoreCase) >= 0)
+            if (search is null || option.Display.Contains(search, StringComparison.CurrentCultureIgnoreCase))
             {
                 Options.Add(option);
             }

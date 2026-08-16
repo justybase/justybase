@@ -17,7 +17,7 @@ public sealed class HistoryService(
         Path.Combine(Path.GetDirectoryName(IGeneralApplicationData.HistoryDatFilePath)!, "history.favorites.json"),
         Path.Combine(Path.GetDirectoryName(IGeneralApplicationData.HistoryDatFilePath)!, "history.runs.json"));
 
-    private List<HistoryEntry>? _historyEntries = null;
+    private List<HistoryEntry>? _historyEntries;
     private HashSet<string>? _favoriteKeys;
     private Dictionary<string, HistoryRunMeta>? _runMetaByKey;
 

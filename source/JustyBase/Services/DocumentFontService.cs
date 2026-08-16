@@ -30,7 +30,7 @@ public sealed class DocumentFontService : IDocumentFontService
             font => string.Equals(font.Name, fontName, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static IReadOnlyList<FontFamily> BuildUniqueByName(IEnumerable<FontFamily> fonts)
+    private static List<FontFamily> BuildUniqueByName(IEnumerable<FontFamily> fonts)
     {
         return fonts
             .GroupBy(static font => font.Name, StringComparer.OrdinalIgnoreCase)
@@ -38,7 +38,7 @@ public sealed class DocumentFontService : IDocumentFontService
             .ToList();
     }
 
-    private static IEnumerable<FontFamily> GetRuntimeFonts()
+    private static List<FontFamily> GetRuntimeFonts()
     {
         var availableFonts = new List<FontFamily>();
         if (App.Current?.Resources["JetBrainsMono"] is FontFamily customFont)

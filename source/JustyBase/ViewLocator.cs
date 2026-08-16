@@ -4,6 +4,7 @@ using Avalonia.Data;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Dock.Model.Core;
+using JustyBase.Helpers;
 using JustyBase.Models.Tools;
 using JustyBase.Services;
 using JustyBase.ViewModels.Documents;
@@ -77,7 +78,9 @@ public class ViewLocator : IDataTemplate, IRecyclingDataTemplate
         {
             return new TextBox
             {
-                [!TextBox.TextProperty] = new Binding(nameof(DbSchemaModel.Name)),
+                [!TextBox.TextProperty] = CompiledBindingFactory.OneWay<DbSchemaModel, string>(
+                    nameof(DbSchemaModel.Name),
+                    node => node.Name),
                 VerticalAlignment = VerticalAlignment.Center
             };
         }

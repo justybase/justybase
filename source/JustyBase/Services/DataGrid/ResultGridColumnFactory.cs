@@ -66,7 +66,7 @@ public static class ResultGridColumnFactory
         };
     }
 
-    private static DataGridBoundColumn CreateCheckBoxColumn(
+    private static CustomDataGridCheckBoxColumn CreateCheckBoxColumn(
         TableOfSqlResults table,
         int index,
         FuncDataTemplate<object> headerTemplate,

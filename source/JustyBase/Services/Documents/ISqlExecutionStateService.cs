@@ -22,10 +22,10 @@ public class SqlExecutionStateService : ISqlExecutionStateService
     private readonly ISimpleLogger _logger;
     private readonly ConcurrentDictionary<int, QueryInfo> _queriesDic = new();
 
-    private int _globalQueryNumber = 0;
+    private int _globalQueryNumber;
     public int GlobalQueryNumber => _globalQueryNumber;
 
-    public int GlobalAbortUpperBound { get; set; } = 0;
+    public int GlobalAbortUpperBound { get; set; }
 
     public int ActiveTasksCount
     {

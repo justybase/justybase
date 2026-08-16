@@ -260,6 +260,14 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
             else { schema = segs[0]; table = segs[1]; }
         }
 
+        if (_dialect == SqlDialect.Sqlite)
+        {
+            if (string.IsNullOrWhiteSpace(database))
+                database = _databaseNameProvider?.Invoke() ?? "";
+            if (string.IsNullOrWhiteSpace(schema))
+                schema = "main";
+        }
+
         if (string.IsNullOrWhiteSpace(table)) return false;
         _ensureTableColumns(database, schema, table);
         return true;

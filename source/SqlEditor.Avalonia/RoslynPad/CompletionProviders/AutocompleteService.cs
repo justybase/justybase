@@ -27,6 +27,13 @@ public sealed class AutocompleteService
         {
             yield break;
         }
+
+        string? EffectiveSchema(string? schemaName)
+            => databaseService.DatabaseType == DatabaseTypeEnum.Sqlite
+                && string.IsNullOrWhiteSpace(schemaName)
+                ? "main"
+                : schemaName;
+
         bool TYPE3_DB_SCHEMA_OBJECT = ((databaseService.AutoCompletDatabaseMode & CurrentAutoCompletDatabaseMode.DatabaseSchemaTable) != CurrentAutoCompletDatabaseMode.NotSet);// DB.SCHEMA.TABLE type
         bool TYPE2_SCHEMA_OBJECT = ((databaseService.AutoCompletDatabaseMode & CurrentAutoCompletDatabaseMode.SchemaTable) != CurrentAutoCompletDatabaseMode.NotSet);// SCHEMA.TABLE type
         bool TYPE_SCHEMA_OPTIONAL = ((databaseService.AutoCompletDatabaseMode & CurrentAutoCompletDatabaseMode.DatabaseAndSchemaOptional) != CurrentAutoCompletDatabaseMode.NotSet);
@@ -215,7 +222,7 @@ public sealed class AutocompleteService
 
                     //handle "word", WORD, word, Word etc. in netezza.
                     db1 = databaseService.CleanSqlWord(db1, databaseService.AutoCompletDatabaseMode);
-                    sch1 = databaseService.CleanSqlWord(sch1, databaseService.AutoCompletDatabaseMode);
+                    sch1 = databaseService.CleanSqlWord(EffectiveSchema(sch1), databaseService.AutoCompletDatabaseMode);
                     obj1 = databaseService.CleanSqlWord(obj1, databaseService.AutoCompletDatabaseMode);
 
                     foreach (var item in databaseService.GetColumns(db1, sch1, obj1, lastWord))
@@ -303,6 +310,8 @@ public sealed class AutocompleteService
                         out var partDatabase, out var partSchema, out var partObject))
                     continue;
 
+                partSchema = EffectiveSchema(partSchema);
+
                 foreach (var alias in aliasDbTable[item])
                 {
                     var alias2 = alias == "" ? partObject : alias;
@@ -372,4 +381,3 @@ public sealed class AutocompleteService
     }
 
 }
-

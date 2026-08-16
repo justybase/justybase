@@ -38,9 +38,6 @@
 					   Margin="0 5 0 0"
 					   Name="versionTb" 
 					   Text="{Binding CurrentVersionText}"/>
-			<StackPanel Grid.Column="0" Margin="0 15 0 0" Orientation="Horizontal" HorizontalAlignment="Center">
-				<Button Command="{Binding DownloadPluginsCommand}">Download plugins</Button>
-			</StackPanel>
 		</StackPanel>
 	</Grid>
 </Window>

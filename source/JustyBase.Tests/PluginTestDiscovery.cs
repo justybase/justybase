@@ -15,6 +15,11 @@ internal static class PluginTestDiscovery
         }
     }
 
+    public static IEnumerable<object[]> GetConcreteCoreDatabaseTypeCases()
+    {
+        yield return [typeof(JustyBase.SqliteDriver.Sqlite)];
+    }
+
     public static List<Assembly> GetPluginAssembliesFromOutput()
     {
         var pluginPaths = Directory.GetFiles(AppContext.BaseDirectory, "*Plugin.dll", SearchOption.TopDirectoryOnly)

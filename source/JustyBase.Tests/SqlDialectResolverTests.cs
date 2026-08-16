@@ -12,10 +12,10 @@ public sealed class SqlDialectResolverTests
     [InlineData(DatabaseTypeEnum.Oracle, SqlDialect.Netezza)]
     [InlineData(DatabaseTypeEnum.PostgreSql, SqlDialect.Netezza)]
     [InlineData(DatabaseTypeEnum.MySql, SqlDialect.Netezza)]
-    [InlineData(DatabaseTypeEnum.Sqlite, SqlDialect.Netezza)]
+    [InlineData(DatabaseTypeEnum.Sqlite, SqlDialect.Sqlite)]
     [InlineData(DatabaseTypeEnum.DuckDB, SqlDialect.Netezza)]
     [InlineData(DatabaseTypeEnum.NotSupportedDatabase, SqlDialect.Netezza)]
-    public void ForDatabaseType_MapsDb2AndDefaultsOthers(DatabaseTypeEnum databaseType, SqlDialect expected)
+    public void ForDatabaseType_MapsNativeDialectsAndDefaultsOthers(DatabaseTypeEnum databaseType, SqlDialect expected)
     {
         Assert.Equal(expected, SqlDialectResolver.ForDatabaseType(databaseType));
     }

@@ -7,12 +7,12 @@ namespace JustyBase.Common.Helpers;
 public sealed class OtherHelpers : IOtherHelpers
 {
 
-    private static readonly List<string> _pluginsList = ["SqlitePlugin", "DuckDBPlugin", "MySqlPlugin",
+    private static readonly List<string> _pluginsList = ["DuckDBPlugin", "MySqlPlugin",
             "PostgresPlugin", "OraclePlugin", "DB2Plugin" ];
     public async Task DownloadAllPlugins(string pluginDirectory, string downloadBasePath)
     {
 #if AOT
-        return Task.CompletedTask;
+        return;
 #else
         if (Directory.Exists(pluginDirectory))
         {

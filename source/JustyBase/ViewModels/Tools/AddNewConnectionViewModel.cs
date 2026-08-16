@@ -1,5 +1,4 @@
-﻿using CommunityToolkit.Mvvm.Input;
-using Dock.Model.Core;
+﻿using Dock.Model.Core;
 using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
 
@@ -10,11 +9,9 @@ public sealed partial class AddNewConnectionViewModel : Tool
     public AddNewConnectionViewModel(IFactory factory, IGeneralApplicationData generalApplicationData)
     {
         _generalApplicationData = generalApplicationData;
+        _simpleLogger = JustyBase.PluginCommon.Contracts.ISimpleLogger.EmptyLogger;
         this.Factory = factory;
-        AddNewCommand = new RelayCommand(AddNew);
-        DeleteCommand = new RelayCommand(Delete);
-        RefreshConnectionsCommand = new RelayCommand(RefreshConnections);
-        CloneConnectionCommand = new RelayCommand(CloneConnection);
+        InitializeCommandsAndSamples();
     }
 
     private void RefreshConnections()

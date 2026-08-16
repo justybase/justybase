@@ -377,6 +377,10 @@ public abstract partial class DatabaseService
             {
                 columnNotNull = intNotNull > 0;
             }
+            else if (notNull is long longNotNull) // SQLite returns Int64 for 0/1
+            {
+                columnNotNull = longNotNull > 0;
+            }
 
             if (prevObjId != -1 && prevObjId != obejctId)
             {
@@ -400,6 +404,13 @@ public abstract partial class DatabaseService
             cmd.Dispose();
         }
     }
-    protected abstract List<(string databaseName, string defaultSchema)> GetDatabases();
+    protected virtual string DefaultDatabaseSchema => "SCHEMA";
+
+    protected virtual List<(string databaseName, string defaultSchema)> GetDatabases()
+    {
+        using var con = GetConnection(Database);
+        con.Open();
+        return [(con.Database, DefaultDatabaseSchema)];
+    }
 
 }

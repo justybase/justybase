@@ -31,7 +31,7 @@ public partial class DbSchemaView : UserControl
             {
                 DataContext = vmX
             },
-            Width = 420,
+            Width = 520,
             MinWidth = 400,
             SizeToContent = SizeToContent.Height,
             Title = "Connections",
@@ -58,7 +58,7 @@ public partial class DbSchemaView : UserControl
         var wn = new Window()
         {
             Content = new AddNewConnectionView() { DataContext = vmX },
-            Width = 400,
+            Width = 520,
             MinWidth = 380,
             SizeToContent = SizeToContent.Height,
             Title = "Add connection",

@@ -5,6 +5,7 @@
 			 xmlns:vm="using:JustyBase.ViewModels.Tools"
 			 xmlns:sys="using:System"
 			 xmlns:m2="using:JustyBase.Common.Models"
+			 xmlns:sample="using:JustyBase.SqliteDriver.Samples"
              mc:Ignorable="d" d:DesignWidth="340" d:DesignHeight="520"
 			 x:DataType="vm:AddNewConnectionViewModel"
              x:Class="JustyBase.Views.Tools.AddNewConnectionView">
@@ -41,6 +42,7 @@
 			</ComboBox>
 		<Grid ColumnSpacing="12" RowSpacing="6">
 			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto"/>
 				<RowDefinition Height="Auto"/>
 				<RowDefinition Height="Auto"/>
 				<RowDefinition Height="Auto"/>
@@ -120,7 +122,46 @@
 			<TextBox Name="tbPassword"  Grid.Row="7" Grid.Column="1" PasswordChar="*" Text="{Binding Pass}"
 					 VerticalAlignment="Center"
 					 ToolTip.Tip="database user password, ask your database administrator if you don't know what to type"/>
-			<StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2"
+			<Border Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2"
+					IsVisible="{Binding IsSqliteSampleVisible}"
+					BorderBrush="{DynamicResource SystemAccentColor}"
+					BorderThickness="1"
+					CornerRadius="4"
+					Padding="10,8">
+				<StackPanel Spacing="7">
+					<CheckBox Content="Create sample database"
+							  IsChecked="{Binding CreateSampleDatabase}"/>
+					<ComboBox ItemsSource="{Binding SqliteSamplePacks}"
+							  SelectedItem="{Binding SelectedSqliteSamplePack}"
+							  IsEnabled="{Binding CreateSampleDatabase}">
+						<ComboBox.ItemTemplate>
+							<DataTemplate x:DataType="sample:SqliteSamplePack">
+								<TextBlock Text="{Binding DisplayName}"/>
+							</DataTemplate>
+						</ComboBox.ItemTemplate>
+					</ComboBox>
+					<TextBlock Text="{Binding SelectedSqliteSampleDescription}"
+							   TextWrapping="Wrap"
+							   Opacity="0.8"/>
+					<ScrollViewer MaxHeight="190"
+								  IsEnabled="{Binding CreateSampleDatabase}">
+						<ItemsControl ItemsSource="{Binding SqliteSampleObjects}">
+							<ItemsControl.ItemTemplate>
+								<DataTemplate x:DataType="vm:SqliteSampleObjectOption">
+									<CheckBox IsChecked="{Binding IsSelected}"
+											  HorizontalContentAlignment="Stretch">
+										<StackPanel Orientation="Horizontal" Spacing="8">
+											<TextBlock Text="{Binding KindDisplayName}" Width="120"/>
+											<TextBlock Text="{Binding DisplayName}"/>
+										</StackPanel>
+									</CheckBox>
+								</DataTemplate>
+							</ItemsControl.ItemTemplate>
+						</ItemsControl>
+					</ScrollViewer>
+				</StackPanel>
+			</Border>
+			<StackPanel Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2"
 						Orientation="Horizontal"
 						HorizontalAlignment="Center"
 						Spacing="10"

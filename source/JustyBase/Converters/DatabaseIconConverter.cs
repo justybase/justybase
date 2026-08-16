@@ -46,14 +46,14 @@ public sealed class DatabaseIconConverter : IValueConverter
         if (_databaseIcon16 is null)
         {
             _databaseIcon16 = App.Current.Resources["GeneralDbBitmap"] as Bitmap;
-            _netezzaIcon16 = _databaseIcon16;
-            _oracleIcon16 = _databaseIcon16;
-            _db2Icon16 = _databaseIcon16;
-            _sqliteIcon16 = _databaseIcon16;
-            _duckDbIcon = _databaseIcon16;
-            _mySqlIcon = _databaseIcon16;
-            _msSqlIcon16 = _databaseIcon16;
-            _postgreIcon16 = _databaseIcon16;
+            _netezzaIcon16 = App.Current.Resources["NetezzaDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _oracleIcon16 = App.Current.Resources["OracleDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _db2Icon16 = App.Current.Resources["Db2DbBitmap"] as Bitmap ?? _databaseIcon16;
+            _sqliteIcon16 = App.Current.Resources["SqliteDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _duckDbIcon = App.Current.Resources["DuckDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _mySqlIcon = App.Current.Resources["MySqlDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _msSqlIcon16 = App.Current.Resources["MsSqlDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _postgreIcon16 = App.Current.Resources["PostgreSqlDbBitmap"] as Bitmap ?? _databaseIcon16;
 
             _tableIcon16 = App.Current.Resources["TableBitmap"] as Bitmap;
             _viewIcon16 = App.Current.Resources["ViewBitmap"] as Bitmap;
@@ -118,7 +118,9 @@ public sealed class DatabaseIconConverter : IValueConverter
             TypeInDatabaseEnum.Connection => connectionType is { } ct
                 ? GetBitmapFromEnum(ct)
                 : _databaseIcon16,
-            TypeInDatabaseEnum.dbase => _databaseIcon16,
+            TypeInDatabaseEnum.dbase => connectionType is { } ct
+                ? GetBitmapFromEnum(ct)
+                : _databaseIcon16,
             TypeInDatabaseEnum.Schema => _schemaIcon16,
             TypeInDatabaseEnum.Table => _tableIcon16,
             TypeInDatabaseEnum.View => _viewIcon16,
@@ -155,7 +157,7 @@ public sealed class DatabaseIconConverter : IValueConverter
                 {
                     var bitmap = GetBitmapFromTypeInDatabase(
                         node.ActualTypeInDatabase,
-                        node.ActualTypeInDatabase == TypeInDatabaseEnum.Connection
+                        node.ActualTypeInDatabase is TypeInDatabaseEnum.Connection or TypeInDatabaseEnum.dbase
                             ? node.DatabaseTypeEnumValue
                             : null);
                     if (bitmap is not null)

@@ -81,7 +81,6 @@ public static class PluginLoadHelper
                 //@$"{pluginsLocation}OraclePlugin\bin\Debug\net10.0\OraclePlugin.dll",
                 @$"{pluginsLocation}DB2Plugin\bin\Debug\net10.0\DB2Plugin.dll",
                 @$"{pluginsLocation}PostgresPlugin\bin\Debug\net10.0\PostgresPlugin.dll",
-                @$"{pluginsLocation}SqlitePlugin\bin\Debug\net10.0\SqlitePlugin.dll",
                 @$"{pluginsLocation}DuckDBPlugin\bin\Debug\net10.0\DuckDBPlugin.dll",
                 @$"{pluginsLocation}MySqlPlugin\bin\Debug\net10.0\MySqlPlugin.dll",
                 ];
@@ -93,7 +92,8 @@ public static class PluginLoadHelper
 #else
             foreach (var dir in Directory.GetDirectories(pluginsLocation))
             {
-                foreach (var file in Directory.GetFiles(dir, "*Plugin.dll"))
+                foreach (var file in Directory.GetFiles(dir, "*Plugin.dll")
+                    .Where(file => !Path.GetFileName(file).Equals("SqlitePlugin.dll", StringComparison.OrdinalIgnoreCase)))
                 {
                     var pluginAssembly = PluginLoadHelper.LoadPlugin(file);
                     PluginLoadHelper.InstallSpecificDatabaseService(pluginAssembly);

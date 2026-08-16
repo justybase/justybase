@@ -87,6 +87,14 @@
 		<FontFamily x:Key="JetBrainsMonoItalic">avares://JustyBase/Assets/Fonts/JetBrainsMono-Italic.ttf#JetBrains Mono</FontFamily>
 		
 		<Bitmap x:Key="GeneralDbBitmap">avares://JustyBase/Assets/SchemaIcons/database.png</Bitmap>
+		<Bitmap x:Key="NetezzaDbBitmap">avares://JustyBase/Assets/DatabaseIcons/NetezzaIcons/netezza_icon16.png</Bitmap>
+		<Bitmap x:Key="OracleDbBitmap">avares://JustyBase/Assets/DatabaseIcons/OracleIcons/oracle_icon16.png</Bitmap>
+		<Bitmap x:Key="Db2DbBitmap">avares://JustyBase/Assets/DatabaseIcons/DB2Icons/db2_icon16.png</Bitmap>
+		<Bitmap x:Key="SqliteDbBitmap">avares://JustyBase/Assets/DatabaseIcons/SQLiteIcons/sqlite_icon16.png</Bitmap>
+		<Bitmap x:Key="DuckDbBitmap">avares://JustyBase/Assets/DatabaseIcons/DuckDb/DuckDb16.png</Bitmap>
+		<Bitmap x:Key="MySqlDbBitmap">avares://JustyBase/Assets/DatabaseIcons/MySqlIcons/MySql16.png</Bitmap>
+		<Bitmap x:Key="MsSqlDbBitmap">avares://JustyBase/Assets/DatabaseIcons/MsSqlIcons/mssql_icon16.png</Bitmap>
+		<Bitmap x:Key="PostgreSqlDbBitmap">avares://JustyBase/Assets/DatabaseIcons/PostgresIcons/Postgre_icon16.png</Bitmap>
 		<Bitmap x:Key="FileBitmap">avares://JustyBase/Assets/file.png</Bitmap>
 		<Bitmap x:Key="FolderBitmap">avares://JustyBase/Assets/folder.png</Bitmap>
 		<Bitmap x:Key="FolderOpened">avares://JustyBase/Assets/folder-open.png</Bitmap>
@@ -384,8 +392,7 @@
 <!--<StyleInclude Source="avares://Dock.Avalonia/Themes/DockFluentTheme.axaml" />
 		<StyleInclude Source="avares://JustyBase/Themes/FluentDark.axaml" />
 		<StyleInclude Source="avares://JustyBase/Themes/FluentLight.axaml" />
-		<StyleInclude Source="avares://JustyBase/Themes/SimpleAccentsLight.axaml" />
-		<StyleInclude Source="avares://JustyBase/Themes/SimpleAccentsDark.axaml" />-->
+-->
 <!--<FluentTheme>
 			<FluentTheme.Palettes>
 				<ColorPaletteResources x:Key="Light" Accent="Red" AltHigh="White" AltLow="White" AltMedium="White" AltMediumHigh="White" AltMediumLow="White" BaseHigh="Black" BaseLow="#ffeeceff" BaseMedium="#ffa987bc" BaseMediumHigh="#ff7b5890" BaseMediumLow="#ff9270a6" ChromeAltLow="#ff7b5890" ChromeBlackHigh="Black" ChromeBlackLow="#ffeeceff" ChromeBlackMedium="#ff7b5890" ChromeBlackMediumLow="#ffa987bc" ChromeDisabledHigh="#ffeeceff" ChromeDisabledLow="#ffa987bc" ChromeGray="#ff9270a6" ChromeHigh="#ffeeceff" ChromeLow="#fffeeaff" ChromeMedium="#fffbe4ff" ChromeMediumLow="#fffeeaff" ChromeWhite="White" ListLow="#fffbe4ff" ListMedium="#ffeeceff" RegionColor="#fffef6ff" />

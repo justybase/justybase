@@ -9,6 +9,19 @@ namespace JustyBase.Tests;
 public sealed class PluginConventionTests
 {
     [Theory]
+    [MemberData(nameof(PluginTestDiscovery.GetConcreteCoreDatabaseTypeCases), MemberType = typeof(PluginTestDiscovery))]
+    public void CoreDatabaseDrivers_ShouldExposeDatabaseContract(Type databaseType)
+    {
+        var whoIAmConstField = databaseType.GetField(nameof(IDatabaseService.WHO_I_AM_CONST), BindingFlags.Public | BindingFlags.Static);
+        Assert.NotNull(whoIAmConstField);
+        Assert.Equal(typeof(DatabaseTypeEnum), whoIAmConstField.FieldType);
+
+        var instance = PluginTestDiscovery.CreateInstance(databaseType);
+        Assert.Equal(DatabaseTypeEnum.Sqlite, instance.DatabaseType);
+        Assert.Equal(DatabaseTypeEnum.Sqlite, PluginTestDiscovery.GetWhoIAmConstValue(whoIAmConstField));
+    }
+
+    [Theory]
     [MemberData(nameof(PluginTestDiscovery.GetConcreteDatabasePluginTypeCases), MemberType = typeof(PluginTestDiscovery))]
     public void ConcreteDatabasePlugins_ShouldExposeWhoIAmConst_AndAssignDatabaseType(Type pluginType)
     {

@@ -21,7 +21,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
     public ISimpleLogger GlobalLoggerObject => _simpleLogger;
 
 
-    private static bool _pluginWasLoaded = false;
+    private static bool _pluginWasLoaded;
     public async Task LoadPluginsIfNeeded(Action? uiAction)
     {
 #if AOT
@@ -43,7 +43,6 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
 #else
                 PluginLoadHelper.LoadPlugins(IGeneralApplicationData.PluginsDirectory);
 #endif
-                //_pluginWasLoaded = true;
             }
             catch (Exception ex)
             {
@@ -73,7 +72,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
                 List<LoginDataModel> credentialsList = JsonSerializer.Deserialize(plainText, MyJsonContextLoginDataModelList.Default.ListLoginDataModel) ?? [];
                 foreach (LoginDataModel credentailItem in credentialsList)
                 {
-                    _loginTmp[credentailItem.ConnectionName.ToUpper()] = credentailItem;
+                    _loginTmp[credentailItem.ConnectionName.ToUpperInvariant()] = credentailItem;
                 }
             }
             catch (Exception ex)
@@ -110,7 +109,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
 
     public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server)
     {
-        name = name.ToUpper();
+        name = name.ToUpperInvariant();
         LoginDataModel element;
         if (LoginDataDic.TryGetValue(name, out LoginDataModel? outVal1))
         {
@@ -142,7 +141,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
 
     public bool DeleteFromLoginData(string name)
     {
-        name = name.ToUpper();
+        name = name.ToUpperInvariant();
         return LoginDataDic.Remove(name);
     }
 
@@ -292,6 +291,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
 
         //register implementations
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.NetezzaSQL, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new NetezzaDotnetPlugin.Netezza(userName, password, "5480", ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Sqlite, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new JustyBase.SqliteDriver.Sqlite(userName, password, port, ip, db, connectionTimeout));
 
 #if ORACLE
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Oracle, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new OraclePlugin.Oracle(userName, password, "", ip, db, connectionTimeout));

@@ -1,3 +1,11 @@
+# JustyBase 1.3.12
+
+- Reworked the database connection wizard with searchable driver selection, driver-aware fields, inline validation, and connection testing.
+- Added file database actions for SQLite and DuckDB: open an existing file, create a new file, or use an in-memory database.
+- Added port persistence and driver-specific default ports for database connections.
+- Moved connection testing off the UI thread so plugin loading and Netezza tests do not freeze the application.
+- Replaced blurry database icons with 128x128 assets based on the JustyBase VS Code database icons.
+
 # JustyBase 1.0.0-rc.11
 
 - SQLite schema browsing now exposes tables, views, columns, indexes, triggers, foreign keys, attached catalogs, virtual tables, and strict-table metadata.

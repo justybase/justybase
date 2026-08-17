@@ -31,8 +31,9 @@ public partial class DbSchemaView : UserControl
             {
                 DataContext = vmX
             },
-            Width = 520,
-            MinWidth = 400,
+            Width = 900,
+            MinWidth = 680,
+            MinHeight = 560,
             SizeToContent = SizeToContent.Height,
             Title = "Connections",
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -42,7 +43,7 @@ public partial class DbSchemaView : UserControl
             CornerRadius = new Avalonia.CornerRadius(5),
             ExtendClientAreaToDecorationsHint = false,
             WindowDecorations = WindowDecorations.Full,
-            CanResize = false
+            CanResize = true
         };
         vmX.CloseWindowAction = () => wn.Close();
         wn.KeyDown += Wn_KeyDown;
@@ -58,8 +59,9 @@ public partial class DbSchemaView : UserControl
         var wn = new Window()
         {
             Content = new AddNewConnectionView() { DataContext = vmX },
-            Width = 520,
-            MinWidth = 380,
+            Width = 900,
+            MinWidth = 680,
+            MinHeight = 560,
             SizeToContent = SizeToContent.Height,
             Title = "Add connection",
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
@@ -69,7 +71,7 @@ public partial class DbSchemaView : UserControl
             CornerRadius = new Avalonia.CornerRadius(5),
             ExtendClientAreaToDecorationsHint = false,
             WindowDecorations = WindowDecorations.Full,
-            CanResize = false
+            CanResize = true
         };
         vmX.CloseWindowAction = () => wn.Close();
         wn.KeyDown += Wn_KeyDown;
@@ -83,7 +85,7 @@ public partial class DbSchemaView : UserControl
 
     private static void Wn_KeyDown(object? sender, Avalonia.Input.KeyEventArgs e)
     {
-        if (e.Key is Key.Escape or Key.Return)
+        if (e.Key is Key.Escape)
         {
             (sender as Window)?.Close();
         }

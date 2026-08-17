@@ -1,14 +1,16 @@
 ﻿using Dock.Model.Core;
 using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
+using JustyBase.Services;
 
 namespace JustyBase.ViewModels.Tools;
 
 public sealed partial class AddNewConnectionViewModel : Tool
 {
-    public AddNewConnectionViewModel(IFactory factory, IGeneralApplicationData generalApplicationData)
+    public AddNewConnectionViewModel(IFactory factory, IGeneralApplicationData generalApplicationData, IAvaloniaSpecificHelpers avaloniaSpecificHelpers)
     {
         _generalApplicationData = generalApplicationData;
+        _avaloniaSpecificHelpers = avaloniaSpecificHelpers;
         _simpleLogger = JustyBase.PluginCommon.Contracts.ISimpleLogger.EmptyLogger;
         this.Factory = factory;
         InitializeCommandsAndSamples();
@@ -21,9 +23,4 @@ public sealed partial class AddNewConnectionViewModel : Tool
         dbChemaViewModel?.ResedConnectionList();
     }
 
-    public string Pass
-    {
-        get;
-        set => SetProperty(ref field, value);
-    }
 }

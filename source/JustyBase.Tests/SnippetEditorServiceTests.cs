@@ -72,7 +72,7 @@ public sealed class SnippetEditorServiceTests
         // IGeneralApplicationData
         public string SelectedTabIdFromStart { get; set; } = string.Empty;
         public string DownloadPluginsBasePath => throw new NotImplementedException();
-        public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server) => throw new NotImplementedException();
+        public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server, string? port = null) => throw new NotImplementedException();
         public bool DeleteFromLoginData(string name) => throw new NotImplementedException();
         public void SaveConfig() => throw new NotImplementedException();
         public void SaveCredentials() => throw new NotImplementedException();

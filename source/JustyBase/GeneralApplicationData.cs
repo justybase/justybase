@@ -103,11 +103,12 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
             ConnectionName = "SAMPLE_CONNECTION",
             Password = "password",
             UserName = "login",
-            Server = "123.456.7.89"
+            Server = "123.456.7.89",
+            Port = "5480"
         };
     }
 
-    public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server)
+    public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server, string? port = null)
     {
         name = name.ToUpperInvariant();
         LoginDataModel element;
@@ -131,6 +132,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         element.Password = password;
         element.UserName = userName;
         element.Server = server;
+        element.Port = port;
         // Snowflake-only fields were removed with Snowflake support; keep them
         // null on edits so stale values from old credential files do not survive.
         element.Role = null;
@@ -290,17 +292,17 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         }
 
         //register implementations
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.NetezzaSQL, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new NetezzaDotnetPlugin.Netezza(userName, password, "5480", ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.NetezzaSQL, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new NetezzaDotnetPlugin.Netezza(userName, password, string.IsNullOrWhiteSpace(port) ? "5480" : port, ip, db, connectionTimeout));
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Sqlite, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new JustyBase.SqliteDriver.Sqlite(userName, password, port, ip, db, connectionTimeout));
 
 #if ORACLE
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Oracle, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new OraclePlugin.Oracle(userName, password, "", ip, db, connectionTimeout));
 #endif
 #if POSTGRES
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.PostgreSql, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new PostgresPlugin.Postgres(userName, password,"", ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.PostgreSql, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new PostgresPlugin.Postgres(userName, password, port, ip, db, connectionTimeout));
 #endif
 #if MYSQL
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.MySql, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new MySqlPlugin.MySql(userName, password, "3306", ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.MySql, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new MySqlPlugin.MySql(userName, password, string.IsNullOrWhiteSpace(port) ? "3306" : port, ip, db, connectionTimeout));
 #endif
 #if DB2
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.DB2, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new DB2Plugin.DB2DatabaseService(userName, password, "", ip, db, connectionTimeout));

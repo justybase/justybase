@@ -7,6 +7,8 @@ public sealed class LoginDataModel
     public required string ConnectionName { get; set; }
     public required string Driver { get; set; }
     public string? Server { get; set; }
+    [JsonPropertyName("port")]
+    public string? Port { get; set; }
     public string? UserName { get; set; }
     
     /// <summary>

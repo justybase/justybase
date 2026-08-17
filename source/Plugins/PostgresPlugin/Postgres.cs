@@ -60,6 +60,10 @@ public sealed class Postgres : DatabaseService
             Timeout = CONNECTION_TIMEOUT,
             Pooling = pooling
         };
+        if (int.TryParse(Port, out int port) && port > 0)
+        {
+            builder.Port = port;
+        }
 
         var conn = new NpgsqlConnection(builder.ConnectionString);
         conn.Notice += Conn_Notice;

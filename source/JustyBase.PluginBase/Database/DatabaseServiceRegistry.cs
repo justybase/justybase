@@ -144,6 +144,7 @@ public sealed class DatabaseServiceRegistry
         {
             string? userName = loginDataModel.UserName;
             string? password = loginDataModel.Password;
+            string? port = loginDataModel.Port;
             string? ip = loginDataModel.Server;
             string? db = loginDataModel.Database;
             string driver = loginDataModel.Driver;
@@ -184,6 +185,7 @@ public sealed class DatabaseServiceRegistry
                 typedDriver,
                 userName ?? string.Empty,
                 password ?? string.Empty,
+                port ?? string.Empty,
                 ip ?? string.Empty,
                 db ?? string.Empty,
                 connectionTimeout,
@@ -248,6 +250,7 @@ public sealed class DatabaseServiceRegistry
         DatabaseTypeEnum typedDriver,
         string userName,
         string password,
+        string port,
         string ip,
         string db,
         int connectionTimeout,
@@ -264,7 +267,7 @@ public sealed class DatabaseServiceRegistry
             throw new NotSupportedException("database is not supported");
         }
 
-        IDatabaseService databaseService = creator.Invoke(userName, password, "", ip, db, connectionTimeout);
+        IDatabaseService databaseService = creator.Invoke(userName, password, port, ip, db, connectionTimeout);
         databaseService.TempDataDirectory = tempDirectory;
         return databaseService;
     }

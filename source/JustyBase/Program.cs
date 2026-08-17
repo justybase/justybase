@@ -14,14 +14,19 @@ internal class Program
     private static readonly IProgramErrorHandlingService DefaultProgramErrorHandlingService = new ProgramErrorHandlingService();
 
     // Kept for process lifetime so the kernel object is not released early (GC).
-    // ReSharper disable once NotAccessedField.Local
-    private static Mutex? _singleInstanceMutex;
+    private static SingleInstanceStartupCoordinator? _singleInstanceCoordinator;
 
     private const string SingleInstanceMutexName = @"Local\JustyBase_SingleInstance_JUST_X";
 
     [STAThread]
     public static void Main(string[] args)
     {
+        // Velopack clears this marker in Run(), so capture it before the first
+        // Velopack call. The restarted process may briefly overlap the old one.
+        bool startedByVelopackRestart = !string.IsNullOrWhiteSpace(
+            Environment.GetEnvironmentVariable("VELOPACK_RESTART"));
+        StartupTrace.Write($"start velopackRestart={startedByVelopackRestart}");
+
         // Keep the startup fallback enabled. If the updater cannot finish while
         // the app is shutting down (for example because another process still
         // holds a file), Velopack can retry the downloaded package on the next
@@ -34,8 +39,12 @@ internal class Program
 
         // Mutex is reliable for single-instance; File.Exists(pipe) races during startup
         // and while the server recreates the pipe after each client.
-        _singleInstanceMutex = new Mutex(initiallyOwned: true, SingleInstanceMutexName, out bool createdNew);
-        if (!createdNew)
+        _singleInstanceCoordinator = new SingleInstanceStartupCoordinator(
+            SingleInstanceMutexName,
+            startedByVelopackRestart);
+        StartupTrace.Write($"mutex primary={_singleInstanceCoordinator.IsPrimary} restartWaitTimedOut={_singleInstanceCoordinator.IsRestartWaitTimedOut}");
+
+        if (!_singleInstanceCoordinator.IsPrimary)
         {
             TryNotifyRunningInstance(args);
             return;

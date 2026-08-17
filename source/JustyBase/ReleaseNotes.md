@@ -1,3 +1,8 @@
+# JustyBase 1.3.16
+
+- Fixed automatic restart after a Velopack update when the previous instance still owns the single-instance mutex.
+- Added startup diagnostics for Velopack restart and single-instance coordination.
+
 # JustyBase 1.3.15
 
 - Test release for verifying the Velopack update and restart flow in an installed Windows build.

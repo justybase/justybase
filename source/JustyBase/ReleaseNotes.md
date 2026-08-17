@@ -1,3 +1,7 @@
+# JustyBase 1.3.13
+
+- Fixed database icon rendering in schema and connection lists so high-resolution icons are scaled to the control bounds instead of being clipped.
+
 # JustyBase 1.3.12
 
 - Reworked the database connection wizard with searchable driver selection, driver-aware fields, inline validation, and connection testing.

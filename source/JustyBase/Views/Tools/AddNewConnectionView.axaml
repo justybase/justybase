@@ -59,7 +59,7 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ConnectionDriverOption">
                                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="2,4">
-                                        <Image Width="20" Height="20"
+                                        <Image Width="20" Height="20" Stretch="Uniform"
                                                Source="{Binding Id, Converter={StaticResource databaseIconConverter}}"/>
                                         <StackPanel Spacing="2">
                                             <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
@@ -91,7 +91,7 @@
                                 CornerRadius="4"
                                 Padding="10">
                             <StackPanel Orientation="Horizontal" Spacing="10">
-                                <Image Width="28" Height="28"
+                                <Image Width="28" Height="28" Stretch="Uniform"
                                        Source="{Binding SelectedDriver.Id, Converter={StaticResource databaseIconConverter}}"/>
                                 <StackPanel Spacing="3">
                                     <TextBlock Text="{Binding SelectedDriver.DisplayName, FallbackValue='Select a database type'}"

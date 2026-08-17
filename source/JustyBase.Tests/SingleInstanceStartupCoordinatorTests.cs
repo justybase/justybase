@@ -6,8 +6,7 @@ public sealed class SingleInstanceStartupCoordinatorTests
     public async Task RestartWaitsUntilExistingInstanceReleasesMutex()
     {
         string mutexName = $"Local\\JustyBase_Test_{Guid.NewGuid():N}";
-        using Mutex existingInstance = new(initiallyOwned: true, mutexName, out bool createdNew);
-        Assert.True(createdNew);
+        using DedicatedMutexHolder existingInstance = new(mutexName);
 
         Task<SingleInstanceStartupCoordinator> startup = Task.Run(() =>
             new SingleInstanceStartupCoordinator(
@@ -17,7 +16,7 @@ public sealed class SingleInstanceStartupCoordinatorTests
                 retryInterval: TimeSpan.FromMilliseconds(10)));
 
         Thread.Sleep(250);
-        existingInstance.ReleaseMutex();
+        existingInstance.Release();
 
         using SingleInstanceStartupCoordinator coordinator = await startup;
         Assert.True(coordinator.IsPrimary);
@@ -28,8 +27,7 @@ public sealed class SingleInstanceStartupCoordinatorTests
     public void NormalSecondInstanceDoesNotWaitForExistingInstance()
     {
         string mutexName = $"Local\\JustyBase_Test_{Guid.NewGuid():N}";
-        using Mutex existingInstance = new(initiallyOwned: true, mutexName, out bool createdNew);
-        Assert.True(createdNew);
+        using DedicatedMutexHolder existingInstance = new(mutexName);
 
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         using SingleInstanceStartupCoordinator coordinator = new(mutexName, waitForVelopackRestart: false);
@@ -43,8 +41,7 @@ public sealed class SingleInstanceStartupCoordinatorTests
     public async Task RestartWaitTimesOutWhenExistingInstanceDoesNotReleaseMutex()
     {
         string mutexName = $"Local\\JustyBase_Test_{Guid.NewGuid():N}";
-        using Mutex existingInstance = new(initiallyOwned: true, mutexName, out bool createdNew);
-        Assert.True(createdNew);
+        using DedicatedMutexHolder existingInstance = new(mutexName);
 
         using SingleInstanceStartupCoordinator coordinator = await Task.Run(() =>
             new SingleInstanceStartupCoordinator(
@@ -55,5 +52,47 @@ public sealed class SingleInstanceStartupCoordinatorTests
 
         Assert.False(coordinator.IsPrimary);
         Assert.True(coordinator.IsRestartWaitTimedOut);
+    }
+
+    private sealed class DedicatedMutexHolder : IDisposable
+    {
+        private readonly ManualResetEventSlim _ready = new();
+        private readonly ManualResetEventSlim _release = new();
+        private readonly Thread _thread;
+        private readonly string _mutexName;
+
+        public DedicatedMutexHolder(string mutexName)
+        {
+            _mutexName = mutexName;
+            _thread = new Thread(OwnMutex)
+            {
+                IsBackground = true
+            };
+            _thread.Start();
+            _ready.Wait();
+        }
+
+        public void Release() => _release.Set();
+
+        public void Dispose()
+        {
+            _release.Set();
+            _thread.Join();
+            _ready.Dispose();
+            _release.Dispose();
+        }
+
+        private void OwnMutex()
+        {
+            using Mutex mutex = new(initiallyOwned: true, _mutexName, out bool createdNew);
+            if (!createdNew)
+            {
+                throw new InvalidOperationException("Test mutex was already created.");
+            }
+
+            _ready.Set();
+            _release.Wait();
+            mutex.ReleaseMutex();
+        }
     }
 }

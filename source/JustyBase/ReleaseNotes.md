@@ -1,3 +1,7 @@
+# JustyBase 1.3.17
+
+- Stabilized the Velopack single-instance regression test used by the release pipeline.
+
 # JustyBase 1.3.16
 
 - Fixed automatic restart after a Velopack update when the previous instance still owns the single-instance mutex.

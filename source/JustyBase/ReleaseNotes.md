@@ -1,3 +1,7 @@
+# JustyBase 1.3.15
+
+- Test release for verifying the Velopack update and restart flow in an installed Windows build.
+
 # JustyBase 1.3.14
 
 - Fixed Velopack update application so downloaded updates are retried on the next startup if the updater cannot finish during restart.

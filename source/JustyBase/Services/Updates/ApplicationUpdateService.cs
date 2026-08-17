@@ -133,8 +133,16 @@ public sealed class ApplicationUpdateService : IApplicationUpdateService, IDispo
             return false;
         }
 
-        updateManager.ApplyUpdatesAndRestart(pending, restartArgs);
-        return true;
+        try
+        {
+            updateManager.ApplyUpdatesAndRestart(pending, restartArgs);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            _simpleLogger.TrackError(exception, isCrash: false);
+            return false;
+        }
     }
 
     public void Dispose()

@@ -22,7 +22,11 @@ internal class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
+        // Keep the startup fallback enabled. If the updater cannot finish while
+        // the app is shutting down (for example because another process still
+        // holds a file), Velopack can retry the downloaded package on the next
+        // launch instead of leaving it pending forever.
+        VelopackApp.Build().Run();
         var provider = CodePagesEncodingProvider.Instance;
         Encoding.RegisterProvider(provider);
         TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;

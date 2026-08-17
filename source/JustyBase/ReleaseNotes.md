@@ -1,3 +1,8 @@
+# JustyBase 1.3.14
+
+- Fixed Velopack update application so downloaded updates are retried on the next startup if the updater cannot finish during restart.
+- Added logging for failures while applying a downloaded update.
+
 # JustyBase 1.3.13
 
 - Fixed database icon rendering in schema and connection lists so high-resolution icons are scaled to the control bounds instead of being clipped.

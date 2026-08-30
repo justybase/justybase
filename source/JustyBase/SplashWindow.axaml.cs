@@ -15,10 +15,13 @@ public partial class SplashWindow : Window
 
     public SplashWindow(Action? mainAction, ISimpleLogger simpleLogger)
     {
+        StartupTrace.Write("SplashWindow constructor start");
         InitializeComponent();
         _mainAction = mainAction;
         _simpleLogger = simpleLogger;
         SetLottie();
+        Closed += (_, _) => StartupTrace.Write("SplashWindow Closed");
+        StartupTrace.Write($"SplashWindow constructor completed waitMs={_timeToWait}");
     }
 
     private static readonly List<(int timeInMs, string assetPath)> StartupOptions =
@@ -67,27 +70,37 @@ public partial class SplashWindow : Window
 
     protected override async void OnLoaded(RoutedEventArgs e)
     {
+        StartupTrace.Write("SplashWindow OnLoaded start");
         await DummyLoad();
+        StartupTrace.Write("SplashWindow OnLoaded completed");
     }
     private int _timeToWait = 1_500;
     private async Task DummyLoad()
     {
+        StartupTrace.Write("SplashWindow DummyLoad start");
         if (OperatingSystem.IsWindows())
         {
+            StartupTrace.Write("SplashWindow before SetFileTypeAssociation");
             SetFileTypeAssociation();
+            StartupTrace.Write("SplashWindow after SetFileTypeAssociation");
         }
         // Do some background stuff here.
+        StartupTrace.Write($"SplashWindow delaying ms={_timeToWait}");
         await Task.Delay(_timeToWait);
 
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
             try
             {
+                StartupTrace.Write("SplashWindow before main callback");
                 _mainAction?.Invoke();
+                StartupTrace.Write("SplashWindow after main callback; calling Close");
                 Close();
+                StartupTrace.Write("SplashWindow Close completed");
             }
             catch (Exception ex)
             {
+                StartupTrace.WriteException("SplashWindow callback", ex);
                 _simpleLogger?.TrackError(ex, isCrash: false);
             }
         });

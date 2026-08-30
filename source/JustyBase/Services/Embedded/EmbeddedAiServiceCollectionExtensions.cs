@@ -47,6 +47,7 @@ public static class EmbeddedAiServiceCollectionExtensions
                 ? (IModelStore)new HuggingFaceMlxRepoStore(catalog, () => settings.Settings.EmbeddedChatModelId)
                 : new HuggingFaceModelStore(catalog, () => settings.Settings.EmbeddedChatModelId);
         });
+        collection.AddSingleton<IEmbeddedChatModelBootstrapService, EmbeddedChatModelBootstrapService>();
 
         // Runtime + subprocess manager.
         if (useMlx)

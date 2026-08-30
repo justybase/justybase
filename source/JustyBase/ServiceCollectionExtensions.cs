@@ -192,6 +192,10 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ILocalModelConfigurationService, LocalModelConfigurationService>();
         collection.AddSingleton<SqlExecutionErrorStore>();
         collection.AddSingleton<CodexAppServerClient>();
+        // LocalChatService depends on the concrete Copilot backend as well as the
+        // ICopilotChatService facade. Without this registration startup fails while
+        // the default dock layout creates the optional AI Chat panel.
+        collection.AddSingleton<CopilotClient>();
         collection.AddSingleton<ICopilotChatService, LocalChatService>();
 
         collection.AddEmbeddedLlamaServerServices();

@@ -22,19 +22,24 @@ public class App : Application
     private static IGeneralApplicationData _generalApplicationData;
     public override void Initialize()
     {
+        StartupTrace.Write("App.Initialize start");
         var collection = new ServiceCollection();
         collection.AddCommonServices();
         _services = collection.BuildServiceProvider();
         Program.SetServiceProvider(_services);
+        StartupTrace.Write("App.Initialize service provider built");
         // The SQL template is deliberately non-recycling. Dock's document-content cache keeps
         // one editor view per open SQL tab, preserving its visual state across tab switches.
         DataTemplates.Add(new SqlDocumentDataTemplate(_services));
         DataTemplates.Add(new ViewLocator(_services));
         _generalApplicationData = _services.GetRequiredService<IGeneralApplicationData>();
+        StartupTrace.Write($"App.Initialize general data loaded theme={_generalApplicationData.Config.ThemeNum} splash={_generalApplicationData.Config.UseSplashScreen}");
 
         _themeManager = _services.GetRequiredService<IThemeManager>();
         _themeManager.Initialize(this);
+        StartupTrace.Write("App.Initialize theme initialized; before AvaloniaXamlLoader.Load");
         AvaloniaXamlLoader.Load(this);
+        StartupTrace.Write("App.Initialize AvaloniaXamlLoader.Load completed");
 
         try
         {
@@ -55,6 +60,7 @@ public class App : Application
         }
         catch (Exception ex)
         {
+            StartupTrace.WriteException("syntax highlighting registration", ex);
             Debug.WriteLine($"Failed to register syntax highlighting: {ex.Message}");
         }
 
@@ -75,6 +81,7 @@ public class App : Application
         SemanticLineColorizer.Configure(dialect => dialect == SqlDialect.Netezza
             ? netezzaClassifier
             : new NzSemanticTokenClassifier(schema, coordinator, dialect));
+        StartupTrace.Write("App.Initialize completed");
     }
 
     private static void ApplySemanticColors(bool dark)
@@ -121,43 +128,58 @@ public class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        StartupTrace.Write($"App.OnFrameworkInitializationCompleted start lifetime={ApplicationLifetime?.GetType().FullName}");
         switch (ApplicationLifetime)
         {
             case IClassicDesktopStyleApplicationLifetime desktopLifetime:
                 {
+                    StartupTrace.Write("App.OnFrameworkInitializationCompleted desktop lifetime; resolving MainWindowViewModel");
                     var mainWindowViewModel = _services.GetRequiredService<MainWindowViewModel>();
+                    StartupTrace.Write("MainWindowViewModel resolved");
                     var notificationManagerProvider = _services.GetRequiredService<INotificationManagerProvider>();
                     var messageForUserTools = _services.GetRequiredService<IMessageForUserTools>();
                     var aboutViewModel = _services.GetRequiredService<AboutViewModel>();
+                    StartupTrace.Write("MainWindow dependencies resolved; constructing MainWindow");
 
                     var mainWindow = new MainWindow(notificationManagerProvider, messageForUserTools, aboutViewModel)
                     {
                         DataContext = mainWindowViewModel
                     };
+                    StartupTrace.Write("MainWindow constructed");
 
                     if (Debugger.IsAttached || !_generalApplicationData.Config.UseSplashScreen)
                     {
+                        StartupTrace.Write("showing MainWindow directly");
                         mainWindow.Show();
                         mainWindow.Focus();
                         desktopLifetime.MainWindow = mainWindow;
+                        StartupTrace.Write("MainWindow.Show completed and MainWindow assigned");
                     }
                     else
                     {
+                        StartupTrace.Write("showing SplashWindow before MainWindow");
                         var simpleLogger = _services.GetRequiredService<JustyBase.PluginCommon.Contracts.ISimpleLogger>();
 
                         // Splash first; show MainWindow only after it finishes.
                         desktopLifetime.MainWindow = new SplashWindow(() =>
                         {
+                            StartupTrace.Write("Splash callback start: assigning MainWindow");
                             desktopLifetime.MainWindow = mainWindow;
+                            StartupTrace.Write("Splash callback: MainWindow assigned; calling Show");
                             mainWindow.Show();
+                            StartupTrace.Write("Splash callback: Show completed; calling Activate");
                             mainWindow.Activate();
+                            StartupTrace.Write("Splash callback: Activate completed; calling Focus");
                             mainWindow.Focus();
+                            StartupTrace.Write("Splash callback completed");
                         }, simpleLogger);
+                        StartupTrace.Write("SplashWindow constructed and assigned");
                     }
                     break;
                 }
         }
 
         base.OnFrameworkInitializationCompleted();
+        StartupTrace.Write("App.OnFrameworkInitializationCompleted completed");
     }
 }

@@ -12,6 +12,7 @@ public partial class MainWindow : Window
 
     public MainWindow(INotificationManagerProvider notificationManagerProvider, IMessageForUserTools messageForUserTools, AboutViewModel aboutViewModel)
     {
+        StartupTrace.Write("MainWindow constructor start");
         _notificationManagerProvider = notificationManagerProvider;
         _messageForUserTools = messageForUserTools;
         _aboutViewModel = aboutViewModel;
@@ -20,7 +21,9 @@ public partial class MainWindow : Window
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
         Closing += MainWindow_Closing;
         Loaded += MainWindow_Loaded;
+        Closed += MainWindow_Closed;
         Program.SetUpDispatcherExceptionHandling();
+        StartupTrace.Write("MainWindow constructor completed");
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
@@ -41,12 +44,21 @@ public partial class MainWindow : Window
 
     private void MainWindow_Loaded(object? sender, EventArgs e)
     {
+        StartupTrace.Write("MainWindow Loaded");
         _notificationManagerProvider.SetWindow(this);
         (DataContext as MainWindowViewModel)?.StartAutomaticUpdateCheck();
+        StartupTrace.Write("MainWindow Loaded handler completed");
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        StartupTrace.Write($"MainWindow Closing cancel={e.Cancel}");
         (this.DataContext as MainWindowViewModel)?.WindowClosingCommand?.Execute(this);
+        StartupTrace.Write("MainWindow Closing handler completed");
+    }
+
+    private void MainWindow_Closed(object? sender, EventArgs e)
+    {
+        StartupTrace.Write("MainWindow Closed");
     }
 }

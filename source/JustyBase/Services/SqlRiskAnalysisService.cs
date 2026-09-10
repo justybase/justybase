@@ -27,6 +27,7 @@ public static class SqlRiskAnalysisService
             JustyBase.Core.Risk.SqlRiskKind.UnsafeUpdateDelete => "RISK001",
             JustyBase.Core.Risk.SqlRiskKind.MissingDistribute => "RISK002",
             JustyBase.Core.Risk.SqlRiskKind.SelectInto => "RISK003",
+            JustyBase.Core.Risk.SqlRiskKind.UnsafeDrop => "RISK004",
             _ => "RISK000"
         };
 

@@ -86,6 +86,11 @@ public class SqlExecutionService : ISqlExecutionService
 
                 FinalizeExecution();
             }
+            catch (OperationCanceledException)
+            {
+                // A nested SQL_RESULT/SQL_RECORDS_AFFECTED risk can cancel the
+                // current script after the user declines confirmation.
+            }
             catch (Exception ex)
             {
                 _sqlExecutionErrorStore.Record(ex, localTitle, selectedConnectionName, selectedDatabase);
@@ -209,6 +214,10 @@ public class SqlExecutionService : ISqlExecutionService
             async Task ExecuteSingleStatementAsync(string sql, int currentLocalSqlNumber)
             {
                 bool retriedAfterReconnect = false;
+                int sourceStatementLength = executionPlan.SourceStatementLengths is { } sourceLengths
+                    && currentLocalSqlNumber < sourceLengths.Count
+                    ? sourceLengths[currentLocalSqlNumber]
+                    : sql.Length;
                 var statementSw = Stopwatch.StartNew();
                 try
                 {
@@ -330,7 +339,7 @@ public class SqlExecutionService : ISqlExecutionService
                 }
                 finally
                 {
-                    currentSqlPositionInEditor += sql.Length + 1;
+                    currentSqlPositionInEditor += sourceStatementLength + 1;
                 }
             }
 

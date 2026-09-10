@@ -21,7 +21,15 @@ public static partial class SqlDocumentViewModelHelper
         bool TimeoutOverride,
         bool ContinueOnError,
         int? ForcedTimeout,
-        List<string> SqlStatements);
+        List<string> SqlStatements)
+    {
+        /// <summary>
+        /// Lengths of the corresponding statements in the editor source text.
+        /// The executed SQL may have different lengths after parameter expansion,
+        /// but editor diagnostics still use offsets from the original text.
+        /// </summary>
+        public IReadOnlyList<int>? SourceStatementLengths { get; init; }
+    }
 
     public const string CurrentOptionsListDROP = "Drop";
     public const string CurrentOptionsListDDL = "Ddl";
@@ -120,7 +128,12 @@ public static partial class SqlDocumentViewModelHelper
         return sqls;
     }
 
-    public static SqlExecutionPlan BuildExecutionPlan(bool singleCommandEnabled, string? option, string query, bool continueOnErrorCurrent)
+    public static SqlExecutionPlan BuildExecutionPlan(
+        bool singleCommandEnabled,
+        string? option,
+        string query,
+        bool continueOnErrorCurrent,
+        string? sourceQuery = null)
     {
         var singleCommand = ShouldRunAsSingleCommand(singleCommandEnabled, option);
         var tabsWithRows = query.StartsWith(DatabaseService.TABS_WITH_ROWS, StringComparison.Ordinal);
@@ -128,6 +141,10 @@ public static partial class SqlDocumentViewModelHelper
         var continueOnError = continueOnErrorCurrent || query.Contains(DatabaseService.CONTINUE_ON_ERROR, StringComparison.Ordinal);
         var forcedTimeout = FindForcedTimeout(query);
         var sqlStatements = ConvertSqlTextToListOfSqls(singleCommand, query);
+        var sourceStatements = ConvertSqlTextToListOfSqls(singleCommand, sourceQuery ?? query);
+        IReadOnlyList<int>? sourceStatementLengths = sourceStatements.Count == sqlStatements.Count
+            ? sourceStatements.Select(static statement => statement.Length).ToArray()
+            : null;
 
         return new SqlExecutionPlan(
             singleCommand,
@@ -135,7 +152,10 @@ public static partial class SqlDocumentViewModelHelper
             timeoutOverride,
             continueOnError,
             forcedTimeout,
-            sqlStatements);
+            sqlStatements)
+        {
+            SourceStatementLengths = sourceStatementLengths
+        };
     }
 
     private static readonly char[] _newLiness = ['\r', '\n'];

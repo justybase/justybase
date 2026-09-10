@@ -9,6 +9,7 @@ using JustyBase.Services.Documents;
 using JustyBase.ViewModels;
 using JustyBase.ViewModels.Tools;
 using JustyBase.Views;
+using JustyBase.PluginCommon.Enums;
 
 namespace JustyBase.Services;
 
@@ -18,20 +19,20 @@ public class SqlVariableProcessor : ISqlVariableProcessor
     private readonly ISimpleLogger _simpleLogger;
     private readonly VariablesViewModel _variablesViewModel;
     private readonly IAvaloniaSpecificHelpers _avaloniaSpecificHelpers;
-    private readonly IDatabaseServiceResolver _databaseServiceResolver;
+    private readonly IMessageForUserTools _messageForUserTools;
 
     public SqlVariableProcessor(
         IGeneralApplicationData generalApplicationData,
         ISimpleLogger simpleLogger,
         VariablesViewModel variablesViewModel,
         IAvaloniaSpecificHelpers avaloniaSpecificHelpers,
-        IDatabaseServiceResolver databaseServiceResolver)
+        IMessageForUserTools messageForUserTools)
     {
         _generalApplicationData = generalApplicationData;
         _simpleLogger = simpleLogger;
         _variablesViewModel = variablesViewModel;
         _avaloniaSpecificHelpers = avaloniaSpecificHelpers;
-        _databaseServiceResolver = databaseServiceResolver;
+        _messageForUserTools = messageForUserTools;
     }
 
     private object Evaluate(string expression)
@@ -97,61 +98,73 @@ public class SqlVariableProcessor : ISqlVariableProcessor
         return (query, false);
     }
 
-    public async ValueTask AddSessionVariableAsync(Match m, DbConnection? con, string localTitle, IDatabaseService? databaseService, string selectedConnectionName)
+    public async ValueTask AddSessionVariableAsync(
+        Match m,
+        DbConnection? con,
+        string localTitle,
+        IDatabaseService? databaseService,
+        string selectedConnectionName,
+        CancellationToken cancellationToken = default)
     {
         string variableValue = m.Groups["sessionValue"].Value;
         string val = ReplaceSessionVariables(variableValue);
         object val2 = val;
-        try
+
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!val.StartsWith("SQL_", StringComparison.OrdinalIgnoreCase))
         {
-            if (!val.StartsWith("SQL_", StringComparison.Ordinal))
+            val2 = Evaluate(val);
+        }
+        else if (val.StartsWith("SQL_RESULT[", StringComparison.OrdinalIgnoreCase)
+                 || val.StartsWith("SQL_RECORDS_AFFECTED[", StringComparison.OrdinalIgnoreCase))
+        {
+            if (con is null)
             {
-                val2 = Evaluate(val);
+                throw new InvalidOperationException(
+                    "SQL session-variable commands require the active execution connection.");
             }
-            else
+
+            bool scalar = val.StartsWith("SQL_RESULT[", StringComparison.OrdinalIgnoreCase);
+            string prefix = scalar ? "SQL_RESULT[" : "SQL_RECORDS_AFFECTED[";
+            if (!val.EndsWith(']') || val.Length <= prefix.Length)
             {
-                if (con is not null)
+                throw new FormatException($"Invalid {prefix[..^1]} session-variable expression.");
+            }
+
+            string sql = val[prefix.Length..^1];
+            var risks = new JustyBase.Core.Risk.SqlRiskAnalysisService().Analyze(
+                sql,
+                databaseService?.DatabaseType == DatabaseTypeEnum.NetezzaSQL ? "NetezzaSQL" : null);
+            if (risks.Count > 0)
+            {
+                string warning = string.Join(
+                    Environment.NewLine,
+                    risks.Select(risk => $"• {risk.Message}"));
+                bool confirmed = await _messageForUserTools.ShowConfirmationDialogAsync(
+                    warning,
+                    "SQL risk confirmation");
+                if (!confirmed)
                 {
-                    IDatabaseService service = await Task.Run(() => _databaseServiceResolver.GetDatabaseService(_generalApplicationData, selectedConnectionName));
-                    con = service.GetConnection(null);
-                    con.Open();
-                    if (service is IDatabaseConnectionConfigurator configurator)
-                    {
-                        configurator.ConfigureOpenConnection(con);
-                    }
-                }
-            if (val.StartsWith("SQL_RESULT[", StringComparison.Ordinal))
-                {
-                    string sql = val["SQL_RESULT[".Length..^1];
-                    using (var cmd = con.CreateCommand())
-                    {
-                        if (databaseService is not null)
-                        {
-                            SetTimeoutForCommand(localTitle, databaseService, cmd);
-                        }
-                        cmd.CommandText = sql;
-                        val2 = await Task.Run(() => cmd.ExecuteScalar());
-                    }
-                }
-            else if (val.StartsWith("SQL_RECORDS_AFFECTED[", StringComparison.Ordinal))
-                {
-                    string sql = val["SQL_RECORDS_AFFECTED[".Length..^1];
-                    using (var cmd = con.CreateCommand())
-                    {
-                        if (databaseService is not null)
-                        {
-                            SetTimeoutForCommand(localTitle, databaseService, cmd);
-                        }
-                        cmd.CommandText = sql;
-                        val2 = await Task.Run(() => cmd.ExecuteNonQuery());
-                    }
+                    // The execution service treats this as a non-error abort. In
+                    // particular, do not continue with the outer script after a
+                    // denied SQL_RESULT/SQL_RECORDS_AFFECTED command.
+                    throw new OperationCanceledException("Nested SQL risk was not confirmed.");
                 }
             }
+
+            using DbCommand cmd = con.CreateCommand();
+            if (databaseService is not null)
+            {
+                SetTimeoutForCommand(localTitle, databaseService, cmd);
+            }
+
+            cmd.CommandText = sql;
+            val2 = scalar
+                ? await Task.Run(() => cmd.ExecuteScalar(), cancellationToken).ConfigureAwait(false)
+                : await Task.Run(() => cmd.ExecuteNonQuery(), cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex)
-        {
-            _simpleLogger.TrackError(ex, isCrash: false);
-        }
+
+        cancellationToken.ThrowIfCancellationRequested();
         _variablesViewModel.AddVariableFromEditorOrByPlus(m.Groups["sessionVar"].Value[1..], val2?.ToString() ?? "");
     }
 

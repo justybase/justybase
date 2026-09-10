@@ -70,6 +70,25 @@ public class SqlExecutionServiceTests
         Assert.Equal("SELECT 2", plan.SqlStatements[1]);
     }
 
+    [Fact]
+    public void BuildExecutionPlan_PreservesSourceStatementLengthsAfterParameterExpansion()
+    {
+        const string sourceQuery = "SELECT $value; SELECT $other";
+        const string expandedQuery = "SELECT 123456789; SELECT 7";
+
+        var plan = SqlDocumentViewModelHelper.BuildExecutionPlan(
+            singleCommandEnabled: false,
+            option: "Grid",
+            query: expandedQuery,
+            continueOnErrorCurrent: false,
+            sourceQuery: sourceQuery);
+
+        Assert.Equal(
+            ["SELECT $value".Length, " SELECT $other".Length],
+            plan.SourceStatementLengths);
+        Assert.Equal(["SELECT 123456789", " SELECT 7"], plan.SqlStatements);
+    }
+
     /// <summary>
     /// SqlExecutionService implements ISqlExecutionService interface.
     /// </summary>

@@ -17,11 +17,13 @@ public sealed class SharedCoreHostAdapterTests
             UPDATE t SET a = 1;
             SELECT * INTO bak FROM t;
             CREATE TABLE x (id INT);
+            DROP TABLE x;
             """, "NetezzaSQL");
 
         Assert.Contains(issues, i => i.RuleId == "RISK001");
         Assert.Contains(issues, i => i.RuleId == "RISK003");
         Assert.Contains(issues, i => i.RuleId == "RISK002");
+        Assert.Contains(issues, i => i.RuleId == "RISK004");
     }
 
     [Fact]
@@ -52,6 +54,23 @@ public sealed class SharedCoreHostAdapterTests
         string expanded = SasMacroPreprocessor.Expand("%let name = Ada;\nSELECT &name;");
         Assert.Contains("SELECT Ada", expanded, StringComparison.Ordinal);
         Assert.DoesNotContain("%let", expanded, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SasMacroPreprocessor_removes_only_real_ampersand_declarations_for_linting()
+    {
+        const string sql = "/* declare &commented = 1; */\nDECLARE &real = 2;\n"
+                         + "SELECT 'declare &quoted = 3;' AS value;\n"
+                         + "-- declare &line = 4;\nSELECT &real;";
+
+        string authoringSql = SasMacroPreprocessor.RemoveAmpersandDeclarationsForAuthoring(sql);
+
+        Assert.Equal(sql.Length, authoringSql.Length);
+        Assert.Contains("/* declare &commented = 1; */", authoringSql, StringComparison.Ordinal);
+        Assert.Contains("SELECT 'declare &quoted = 3;' AS value;", authoringSql, StringComparison.Ordinal);
+        Assert.Contains("-- declare &line = 4;", authoringSql, StringComparison.Ordinal);
+        Assert.DoesNotContain("DECLARE &real", authoringSql, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(sql.Count(c => c is '\r' or '\n'), authoringSql.Count(c => c is '\r' or '\n'));
     }
 
     [Fact]

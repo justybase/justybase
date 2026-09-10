@@ -504,8 +504,18 @@
 									<TextBlock Classes="row-title" Text="NZ015 — Function in WHERE" />
 									<TextBlock Classes="row-desc" Text="Severity when a function wraps a column in WHERE (Zone Map)." />
 								</StackPanel>
-								<ComboBox Grid.Column="1" Classes="settings-control"
+							<ComboBox Grid.Column="1" Classes="settings-control"
 										  SelectedItem="{Binding LintSeverityNz015}"
+										  ItemsSource="{Binding LintSeverityChoices}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="NZ025 — RANDOM DISTRIBUTE" />
+									<TextBlock Classes="row-desc" Text="Severity when RANDOM distribution is used without an explicit distribution key." />
+								</StackPanel>
+								<ComboBox Grid.Column="1" Classes="settings-control"
+										  SelectedItem="{Binding LintSeverityNz025}"
 										  ItemsSource="{Binding LintSeverityChoices}" />
 							</Grid>
 							<Separator Classes="settings-sep" />

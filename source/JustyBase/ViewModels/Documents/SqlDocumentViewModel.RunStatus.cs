@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustyBase.Common.Models;
 using JustyBase.Helpers;
+using JustyBase.Helpers.Shared;
 using JustyBase.Models.Tools;
 using JustyBase.Services.Documents;
 
@@ -101,25 +102,6 @@ public sealed partial class SqlDocumentViewModel
             return;
         }
 
-        if (queryPreparation.HasSessionVariableDefinition)
-        {
-            await _sqlVariableProcessor.AddSessionVariableAsync(queryPreparation.VariableDefineMatch, null, executionSettings.LocalTitle, _databaseService, SelectedConnectionName);
-            ReturnPhase();
-            return;
-        }
-
-        var executionPlan = queryPreparation.ExecutionPlan;
-        if (executionPlan is null)
-        {
-            ReturnPhase();
-            return;
-        }
-
-        if (executionPlan.ContinueOnError != ContinueOnError)
-        {
-            ContinueOnError = executionPlan.ContinueOnError;
-        }
-
         if (sqlEditor.ErrorWaningsPahse1())
         {
             return;
@@ -132,6 +114,22 @@ public sealed partial class SqlDocumentViewModel
             return;
         }
         string query = askRes.Query;
+
+        // Build the plan after replacing $parameters. The old plan was based on
+        // the pre-dialog text, so a parameter containing a semicolon or a control
+        // marker could otherwise execute a different statement list than the one
+        // shown in the confirmation/result flow.
+        var executionPlan = SqlDocumentViewModelHelper.BuildExecutionPlan(
+            SingleCommand,
+            option,
+            query,
+            ContinueOnError,
+            sourceQuery: queryPreparation.Query);
+
+        if (executionPlan.ContinueOnError != ContinueOnError)
+        {
+            ContinueOnError = executionPlan.ContinueOnError;
+        }
 
         int actualqlobalQueryNum = _executionServices.ExecutionStateService.RegisterNewQuery();
         LogMessage? currentLogMessage = null;

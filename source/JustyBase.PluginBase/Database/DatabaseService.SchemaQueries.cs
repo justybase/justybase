@@ -238,11 +238,12 @@ public abstract partial class DatabaseService
     private string? GetProcedureSource(string database, string schema, string procedureName, int procedureId)
     {
         string? res = null;
-        if (database is not null && _procedureDictCache.TryGetValue(database, out var schemas)
-            && schema is not null && schemas.TryGetValue(schema, out var procedures)
-            && procedureName is not null && procedures.TryGetValue(procedureName, out var procedure))
+        lock (_procedureDictCache)
         {
-            if (procedure.Id == procedureId || procedure.Id == -1)
+            if (database is not null && _procedureDictCache.TryGetValue(database, out var schemas)
+                && schema is not null && schemas.TryGetValue(schema, out var procedures)
+                && procedureName is not null && procedures.TryGetValue(procedureName, out var procedure)
+                && (procedure.Id == procedureId || procedure.Id == -1))
             {
                 res = procedure.ProcedureSource;
             }
@@ -270,10 +271,13 @@ public abstract partial class DatabaseService
                     }
                     break;
                 case TypeInDatabaseEnum.Synonym:
-                    if (_synonymTableDictCache.TryGetValue(database, out var tmp1) && schema is not null && tmp1.TryGetValue(schema, out var tmp2)
-                        && itemNameOrSignature is not null && tmp2.TryGetValue(itemNameOrSignature, out var finalX))
+                    lock (_synonymTableDictCache)
                     {
-                        res = finalX.RefObjNamePart3;
+                        if (_synonymTableDictCache.TryGetValue(database, out var tmp1) && schema is not null && tmp1.TryGetValue(schema, out var tmp2)
+                            && itemNameOrSignature is not null && tmp2.TryGetValue(itemNameOrSignature, out var finalX))
+                        {
+                            res = finalX.RefObjNamePart3;
+                        }
                     }
                     break;
                 default:
@@ -303,12 +307,14 @@ public abstract partial class DatabaseService
     private string? GetViewSource(string database, string schema, string procedureName)
     {
         string? res = null;
-        if (database is not null && _viewDictCache.TryGetValue(database, out var schemas)
-            && schema is not null && schemas.TryGetValue(schema, out var procedures)
-            && procedureName is not null && procedures.TryGetValue(procedureName, out var view)
-            )
+        lock (_viewDictCache)
         {
-            res = view.ViewSource;
+            if (database is not null && _viewDictCache.TryGetValue(database, out var schemas)
+                && schema is not null && schemas.TryGetValue(schema, out var procedures)
+                && procedureName is not null && procedures.TryGetValue(procedureName, out var view))
+            {
+                res = view.ViewSource;
+            }
         }
         return res;
     }

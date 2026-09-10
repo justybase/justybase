@@ -142,9 +142,6 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
         RefreshEnabled = false;
         GridEnabled = false;
 
-        SchemaSearchItemCollections.Clear();
-        _allItems.Clear();
-        
         try
         {
             if (_generalApplicationData.LoginDataDic.ContainsKey(ConnectionName))
@@ -253,6 +250,11 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
                         await _service.CacheAllObjects(new TypeInDatabaseEnum[] { TypeInDatabaseEnum.Procedure,
                             TypeInDatabaseEnum.View, TypeInDatabaseEnum.ExternalTable, TypeInDatabaseEnum.Synonym
                     });
+
+                        // Source text is loaded after the metadata list. Re-run the
+                        // filter now that IsItemSourceContains can see the fresh cache;
+                        // otherwise source-only matches appear only after a later edit.
+                        await ApplyFilter();
                     }
                 }
                 else

@@ -45,6 +45,7 @@ public sealed class NzLinterService : IDisposable
     private int _suppressTextChanged;
     // Document tracking
     private string _documentUri = string.Empty;
+    private string? _activeDatabase;
 
     public NzLinterService(SqlDiagnosticsViewModel diagnosticsVm,
         IDatabaseServiceResolver databaseServiceResolver,
@@ -138,8 +139,14 @@ public sealed class NzLinterService : IDisposable
         _ = ScheduleAnalyzeAsync();
     }
 
-    public void AttachToEditor(SqlCodeEditor editor, string? documentUri = null, SqlDialect dialect = SqlDialect.Netezza)
+    public void AttachToEditor(
+        SqlCodeEditor editor,
+        string? documentUri = null,
+        SqlDialect dialect = SqlDialect.Netezza,
+        string? activeDatabase = null)
     {
+        string? normalizedActiveDatabase = NormalizeDatabase(activeDatabase);
+
         // Cancel any in-flight lint before swapping editors / parse sessions.
         lock (_lock)
         {
@@ -157,7 +164,8 @@ public sealed class NzLinterService : IDisposable
             bool dialectChanged = _documentDialect != dialect;
             if (!dialectChanged
                 && _attachedEditor == editor
-                && string.Equals(_documentUri, documentUri ?? _documentUri, StringComparison.Ordinal))
+                && string.Equals(_documentUri, documentUri ?? _documentUri, StringComparison.Ordinal)
+                && string.Equals(_activeDatabase, normalizedActiveDatabase, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
@@ -165,6 +173,7 @@ public sealed class NzLinterService : IDisposable
             oldEditor = _attachedEditor;
             _attachedEditor = editor;
             _documentDialect = dialect;
+            _activeDatabase = normalizedActiveDatabase;
             // Stable per-document URI avoids LRU eviction/dispose of in-use parse sessions
             // when the same document gets a new editor control instance.
             _documentUri = string.IsNullOrWhiteSpace(documentUri)
@@ -233,6 +242,31 @@ public sealed class NzLinterService : IDisposable
     }
 
     /// <summary>
+    /// Updates the database context used by Netezza semantic lint rules when the
+    /// connection/database selector changes without replacing the editor.
+    /// </summary>
+    public void SetActiveDatabase(string? activeDatabase, string documentUri)
+    {
+        string? normalized = NormalizeDatabase(activeDatabase);
+        lock (_lock)
+        {
+            if (_attachedEditor is null
+                || !string.Equals(_documentUri, documentUri, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            if (string.Equals(_activeDatabase, normalized, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            _activeDatabase = normalized;
+        }
+
+        InvalidateAttachedDocumentLintCache();
+        _ = ScheduleAnalyzeAsync();
+    }
+
+    /// <summary>
     /// Applies minimal severity toggles from <see cref="JustyBase.Common.AppOptions"/> when available.
     /// </summary>
     public void ApplyLintSeveritySettings(JustyBase.Common.AppOptions? options = null)
@@ -265,6 +299,7 @@ public sealed class NzLinterService : IDisposable
             Registry.SetSeverity("SQL046", RuleSeverityConfig.Off);
             Registry.SetSeverity("NZ013", RuleSeverityConfig.Off);
             Registry.SetSeverity("NZ015", RuleSeverityConfig.Off);
+            Registry.SetSeverity("NZ025", RuleSeverityConfig.Off);
             Registry.SetSeverity("NZ102", RuleSeverityConfig.Off);
             return;
         }
@@ -283,6 +318,7 @@ public sealed class NzLinterService : IDisposable
         SetRuleSeverity("SQL046", options.LintSeverityNz012);
         SetRuleSeverity("NZ013", options.LintSeverityNz013);
         SetRuleSeverity("NZ015", options.LintSeverityNz015);
+        SetRuleSeverity("NZ025", options.LintSeverityNz025);
         SetRuleSeverity("NZ102", options.LintSeverityNz102);
     }
 
@@ -636,6 +672,11 @@ public sealed class NzLinterService : IDisposable
             var capturedSql = sql;
             var capturedEditor = editor;
             var capturedUri = documentUri;
+            string? capturedActiveDatabase;
+            lock (_lock)
+            {
+                capturedActiveDatabase = _activeDatabase;
+            }
             var epoch = Volatile.Read(ref _metadataEpoch);
             var schemaEpoch = _schemaProvider?.MetadataEpoch ?? 0;
             var capturedToken = cancellationToken;
@@ -684,12 +725,15 @@ public sealed class NzLinterService : IDisposable
 
                 if (capturedToken.IsCancellationRequested) return null;
 
-                int lineCount = SqlPerformancePolicy.ResolveLineCountForLintGate(capturedSql, knownLineCount);
+                string authoringSql = SasMacroPreprocessor.RemoveAmpersandDeclarationsForAuthoring(capturedSql);
+                int lineCount = SqlPerformancePolicy.ResolveLineCountForLintGate(authoringSql, knownLineCount);
+                string lintDocumentUri = BuildLintDocumentUri(capturedUri, capturedActiveDatabase);
 
                 var config = new LintConfig(
-                    Sql: capturedSql,
+                    Sql: authoringSql,
                     Schema: _schemaProvider,
-                    DocumentUri: capturedUri,
+                    DocumentUri: lintDocumentUri,
+                    ActiveDatabase: capturedActiveDatabase,
                     MetadataEpoch: CombineMetadataEpoch(epoch, schemaEpoch),
                     CancellationToken: capturedToken
                 );
@@ -703,7 +747,7 @@ public sealed class NzLinterService : IDisposable
 
                     if (SqlPerformancePolicy.ShouldRunCheapLintOnly(lineCount, capturedSql.Length))
                     {
-                        var cheapIssues = _lintEngine.RunCheapRules(capturedSql);
+                        var cheapIssues = _lintEngine.RunCheapRules(authoringSql);
                         cheapIssues.Add(new LintIssue(
                             "LINT001",
                             $"Document exceeds {SqlPerformancePolicy.CheapLintOnlyCharLimit:N0} characters — semantic validation skipped (cheap rules only)",
@@ -712,7 +756,7 @@ public sealed class NzLinterService : IDisposable
                         return new LintResult(cheapIssues, _lintEngine.Queue.CheapRules.Count, 0, 0, false);
                     }
 
-                    _parsingCoordinator.GetOrCreate(capturedUri, _documentDialect).Parse(capturedSql);
+                    _parsingCoordinator.GetOrCreate(capturedUri, _documentDialect).Parse(authoringSql);
                     return _lintEngine.RunFullLint(config);
                 }
                 catch (OperationCanceledException)
@@ -797,9 +841,20 @@ public sealed class NzLinterService : IDisposable
         lock (_lock)
         {
             if (!string.IsNullOrEmpty(_documentUri))
+            {
                 _lintEngine.InvalidateDocument(_documentUri);
+                _lintEngine.InvalidateDocument(BuildLintDocumentUri(_documentUri, _activeDatabase));
+            }
         }
     }
+
+    private static string? NormalizeDatabase(string? database)
+        => string.IsNullOrWhiteSpace(database) ? null : database.Trim();
+
+    private static string BuildLintDocumentUri(string documentUri, string? activeDatabase)
+        => string.IsNullOrEmpty(activeDatabase)
+            ? documentUri
+            : $"{documentUri}|active-database:{activeDatabase}";
 
     private static int CombineMetadataEpoch(int serviceEpoch, int schemaEpoch) =>
         HashCode.Combine(serviceEpoch, schemaEpoch);

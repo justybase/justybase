@@ -78,6 +78,8 @@ public sealed class AppOptions
     public string LintSeverityNz013 { get; set; } = "Warning";
     /// <summary>Severity for NZ015 (function in WHERE).</summary>
     public string LintSeverityNz015 { get; set; } = "Warning";
+    /// <summary>Severity for NZ025 (random distribution key).</summary>
+    public string LintSeverityNz025 { get; set; } = "Warning";
     /// <summary>Severity for NZ102 (JOIN without ON).</summary>
     public string LintSeverityNz102 { get; set; } = "Warning";
 

@@ -131,12 +131,26 @@ internal sealed class DatabaseCacheManager
     {
         return Task.Run(() =>
         {
-            // Hold CacheLock only for cache invalidation — not for DB I/O / Parallel.ForEach.
-            // Per-dictionary locks already protect fills below (and CacheMainDictionary can proceed).
+            bool cacheProcedures = typeInDatabaseArr.Contains(TypeInDatabaseEnum.Procedure);
+            bool cacheViews = typeInDatabaseArr.Contains(TypeInDatabaseEnum.View);
+            bool cacheSynonyms = typeInDatabaseArr.Contains(TypeInDatabaseEnum.Synonym);
+
+            // Keep the last complete source snapshot visible while the refresh is
+            // reading databases. A failed refresh must not publish an empty or
+            // partial procedure/view/synonym cache.
+            var stagedProcedures = new Dictionary<string, Dictionary<string, Dictionary<string, ProcedureCachedInfo>>>();
+            var stagedViews = new Dictionary<string, Dictionary<string, Dictionary<string, ViewCachedInfo>>>();
+            var stagedSynonyms = new Dictionary<string, Dictionary<string, Dictionary<string, SynonymCachedInfo>>>();
+            int failures = 0;
+
+            // External-table data is owned by the Netezza implementation and has no
+            // snapshot API in the legacy contract, so retain its existing invalidation
+            // behavior. The other source types use the staged commit below.
             lock (CacheLock)
             {
                 Action? clearExternalTableCache = netezza is null ? null : netezza.ClearExternalTableCache;
-                ClearCache(typeInDatabaseArr, clearExternalTableCache);
+                if (typeInDatabaseArr.Contains(TypeInDatabaseEnum.ExternalTable))
+                    clearExternalTableCache?.Invoke();
             }
 
             Parallel.ForEach(getDatabases(databaseName), new ParallelOptions { MaxDegreeOfParallelism = 4 }, database =>
@@ -190,9 +204,9 @@ internal sealed class DatabaseCacheManager
                                         string? arguments = rdr.GetValue(7) as string;
                                         string? language = rdr.GetValue(8) as string;
 
-                                        lock (_procedureDictCache)
+                                        lock (stagedProcedures)
                                         {
-                                            ref var databaseItem = ref CollectionsMarshal.GetValueRefOrAddDefault(_procedureDictCache, database, out _);
+                                            ref var databaseItem = ref CollectionsMarshal.GetValueRefOrAddDefault(stagedProcedures, database, out _);
                                             databaseItem ??= [];
                                             ref var schemaItem = ref CollectionsMarshal.GetValueRefOrAddDefault(databaseItem, schema, out _);
                                             schemaItem ??= [];
@@ -220,9 +234,9 @@ internal sealed class DatabaseCacheManager
                                     string? viewName = rdr.GetString(1);
                                     string? source = rdr.GetString(2);
 
-                                    lock (_viewDictCache)
+                                    lock (stagedViews)
                                     {
-                                        ref var databaseItem = ref CollectionsMarshal.GetValueRefOrAddDefault(_viewDictCache, database, out _);
+                                        ref var databaseItem = ref CollectionsMarshal.GetValueRefOrAddDefault(stagedViews, database, out _);
                                         databaseItem ??= [];
                                         ref var schemaItem = ref CollectionsMarshal.GetValueRefOrAddDefault(databaseItem!, schema!, out _);
                                         schemaItem ??= [];
@@ -244,9 +258,9 @@ internal sealed class DatabaseCacheManager
                                     string refObjNamePart1 = rdr.GetValue(3) as string ?? "PROBLEM";
                                     string refObjNamePart2 = rdr.GetValue(4) as string ?? "PROBLEM";
 
-                                    lock (_synonymTableDictCache)
+                                    lock (stagedSynonyms)
                                     {
-                                        ref var databaseItem = ref CollectionsMarshal.GetValueRefOrAddDefault(_synonymTableDictCache, database, out _);
+                                        ref var databaseItem = ref CollectionsMarshal.GetValueRefOrAddDefault(stagedSynonyms, database, out _);
                                         databaseItem ??= [];
                                         ref var schemaItem = ref CollectionsMarshal.GetValueRefOrAddDefault(databaseItem!, schema!, out _);
                                         schemaItem ??= [];
@@ -258,6 +272,7 @@ internal sealed class DatabaseCacheManager
                         }
                         catch (Exception ex)
                         {
+                            Interlocked.Increment(ref failures);
                             logger?.TrackError(ex, isCrash: false);
                         }
                     }
@@ -279,10 +294,36 @@ internal sealed class DatabaseCacheManager
                 }
                 catch (Exception ex)
                 {
+                    Interlocked.Increment(ref failures);
                     logger?.TrackError(ex, isCrash: false);
                 }
             });
+
+            if (Volatile.Read(ref failures) == 0)
+            {
+                lock (CacheLock)
+                {
+                    if (cacheProcedures)
+                        ReplaceCache(_procedureDictCache, stagedProcedures);
+                    if (cacheViews)
+                        ReplaceCache(_viewDictCache, stagedViews);
+                    if (cacheSynonyms)
+                        ReplaceCache(_synonymTableDictCache, stagedSynonyms);
+                }
+            }
         });
+    }
+
+    private static void ReplaceCache<TValue>(
+        Dictionary<string, Dictionary<string, Dictionary<string, TValue>>> target,
+        Dictionary<string, Dictionary<string, Dictionary<string, TValue>>> staged)
+    {
+        lock (target)
+        {
+            target.Clear();
+            foreach (var (database, schemas) in staged)
+                target[database] = schemas;
+        }
     }
 
     public void ClearMainCache()

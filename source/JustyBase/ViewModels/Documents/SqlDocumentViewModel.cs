@@ -269,7 +269,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
                     : InlineCompletionController.DefaultDebounceMs),
             BuildFimSchemaHintProvider(documentUri));
         _completionEngine?.SetDocumentUri(documentUri);
-        _linterService?.AttachToEditor(value, documentUri, _documentDialect);
+        _linterService?.AttachToEditor(value, documentUri, _documentDialect, SelectedDatabase);
         if (contentWasSet)
         {
             // One intentional pass after attach — text was set before handlers were wired.
@@ -1026,6 +1026,11 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     [ObservableProperty]
     public partial string SelectedDatabase { get; set; }
 
+    partial void OnSelectedDatabaseChanged(string value)
+    {
+        _linterService?.SetActiveDatabase(value, $"sql-doc-{Id}");
+    }
+
     private int _selectedConnectionIndex;
 
     public int SelectedConnectionIndex
@@ -1086,7 +1091,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             return;
 
         SqlEditor.SetSqlDialect(dialect);
-        _linterService?.AttachToEditor(SqlEditor, $"sql-doc-{Id}", dialect);
+        _linterService?.AttachToEditor(SqlEditor, $"sql-doc-{Id}", dialect, SelectedDatabase);
     }
 
     [ObservableProperty]

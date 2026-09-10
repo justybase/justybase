@@ -302,6 +302,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         LintSeverityNz012 = _generalApplicationData.Config.LintSeverityNz012;
         LintSeverityNz013 = _generalApplicationData.Config.LintSeverityNz013;
         LintSeverityNz015 = _generalApplicationData.Config.LintSeverityNz015;
+        LintSeverityNz025 = _generalApplicationData.Config.LintSeverityNz025;
         LintSeverityNz102 = _generalApplicationData.Config.LintSeverityNz102;
 
         LimitHistoryMonths = _generalApplicationData.Config.LimitHistoryMonths;
@@ -2327,6 +2328,17 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         {
             SetProperty(ref field, value);
             _generalApplicationData.Config.LintSeverityNz015 = value;
+            ApplyLintSeverities();
+        }
+    }
+
+    public string LintSeverityNz025
+    {
+        get;
+        set
+        {
+            SetProperty(ref field, value);
+            _generalApplicationData.Config.LintSeverityNz025 = value;
             ApplyLintSeverities();
         }
     }

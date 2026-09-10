@@ -11,13 +11,14 @@ JustyBase (UI host: Views, ViewModels, app services)
   ├─ JustyBase.Common            # config, contracts, shared models
   ├─ JustyBase.PluginCommon      # IDatabaseService and plugin contracts
   ├─ JustyBase.PluginBase        # DatabaseService base + plugin loader
-  └─ Plugins/*                   # Netezza, Postgres, MySQL, ...
+  └─ Plugins/*                   # Netezza, Excel File SQL, Access, Postgres, MySQL, ...
 ```
 
 External:
 
 - **ProDataGrid** — NuGet dependency for DataGrid / hierarchical schema tree
 - **JustyBase.NetezzaSql** packages (or local sibling) — parser, DDL, catalog SQL
+- **JustyBase.UCanAccessCs** — local sibling provider used by `AccessPlugin` for Access file I/O and SQL execution
 
 ## UI composition
 

@@ -12,9 +12,17 @@ public sealed class DatabaseServiceContractTests
         var quotedName = service.QuoteNameIfNeeded("bad name");
         var escapedQuotesName = service.QuoteNameIfNeeded("A\"B");
 
-        Assert.StartsWith("\"", quotedName, StringComparison.Ordinal);
-        Assert.EndsWith("\"", quotedName, StringComparison.Ordinal);
-        Assert.Contains("\"\"", escapedQuotesName, StringComparison.Ordinal);
+        if (service.DatabaseType == DatabaseTypeEnum.Access)
+        {
+            Assert.Equal("[bad name]", quotedName);
+            Assert.Equal("[A\"B]", escapedQuotesName);
+        }
+        else
+        {
+            Assert.StartsWith("\"", quotedName, StringComparison.Ordinal);
+            Assert.EndsWith("\"", quotedName, StringComparison.Ordinal);
+            Assert.Contains("\"\"", escapedQuotesName, StringComparison.Ordinal);
+        }
     }
 
     [Theory]
@@ -48,7 +56,10 @@ public sealed class DatabaseServiceContractTests
         var service = PluginTestDiscovery.CreateInstance(pluginType);
         var result = service.QuoteNameIfNeeded("SAFE_NAME_123");
 
-        Assert.Equal("SAFE_NAME_123", result.Trim('"'));
+        string unquoted = service.DatabaseType == DatabaseTypeEnum.Access
+            ? result.Trim('[', ']')
+            : result.Trim('"');
+        Assert.Equal("SAFE_NAME_123", unquoted);
     }
 
     [Theory]

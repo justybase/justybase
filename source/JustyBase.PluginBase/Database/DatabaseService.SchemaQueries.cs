@@ -324,9 +324,9 @@ public abstract partial class DatabaseService
 
     protected virtual void LoadDatabaseObject(string database, DbConnection con)
     {
-        var cmd = CreateCommandFromConnection(con);
+        using var cmd = CreateCommandFromConnection(con);
         cmd.CommandText = GetSqlTablesAndOtherObjects(database);
-        var rdr = cmd.ExecuteReader();
+        using var rdr = cmd.ExecuteReader();
         var acualDb = _databaseSchemaTable[database];
         while (rdr.Read())
         {
@@ -342,24 +342,16 @@ public abstract partial class DatabaseService
             _ = acualDb.TryAdd(schema, []); // no StringComparer.OrdinalIgnoreCase by purpouse
             acualDb[schema][objNme] = new DatabaseObject(objId, objNme, desc, dbType, databaseObjectType, owner, crtTime);
         }
-        if (DatabaseType == DatabaseTypeEnum.PostgreSql)
-        {
-            cmd.Dispose();
-        }
-        if (DatabaseType == DatabaseTypeEnum.MySql)
-        {
-            rdr.Close();
-        }
     }
 
     protected virtual void LoadColumns(string database, DbConnection con)
     {
         var currentDic = new Dictionary<int, ColumnInterval>();
 
-        var cmd = CreateCommandFromConnection(con);
+        using var cmd = CreateCommandFromConnection(con);
 
         cmd.CommandText = GetSqlOfColumns(database);
-        var rdr = cmd.ExecuteReader();
+        using var rdr = cmd.ExecuteReader();
 
         List<DatabaseColumn> tempCols = [];
         int num = 0;
@@ -405,10 +397,6 @@ public abstract partial class DatabaseService
         {
             DatabaseTableIdColumnIntervalSpan[database] = currentDic;
             DatabaseColumnsList[database] = tempCols.ToArray();
-        }
-        if (DatabaseType == DatabaseTypeEnum.PostgreSql)
-        {
-            cmd.Dispose();
         }
     }
     protected virtual string DefaultDatabaseSchema => "SCHEMA";

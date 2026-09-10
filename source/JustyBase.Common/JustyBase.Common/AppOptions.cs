@@ -422,6 +422,7 @@ public sealed class AppOptions
                 {"declare",(STANDARD_SNIPET_TXT,"declare variable","declare &${name} = ${value};${Caret}", "declare") },
                 {"REGEXP_LIKE",(STANDARD_SNIPET_TXT,"REGEXP_LIKE","REGEXP_LIKE('${input}','${pattern}')${Caret}", "REGEXP_LIKE") },
                 {"@export xlsb",(STANDARD_SNIPET_TXT,"export to excel file",$"@expXlsx: SELECT * FROM ${{tableName}} -> {desktopPath}\\${{fileName}}.xlsb${{Caret}};", "export") },
+                {"@export xlsx",(STANDARD_SNIPET_TXT,"export to xlsx file",$"@expXlsx: SELECT * FROM ${{tableName}} -> {desktopPath}\\${{fileName}}.xlsx${{Caret}};", "export") },
                 {"@export csv",(STANDARD_SNIPET_TXT,"export to csv",$"@expCsv: SELECT * FROM ${{tableName}} -> {desktopPath}\\${{fileName}}.csv${{Caret}};", "export") },
 
                 {"@export csv/parquet full", (STANDARD_SNIPET_TXT,"export to csv/parquet with options",

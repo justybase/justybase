@@ -106,6 +106,8 @@ public sealed class DatabaseIconConverter : IValueConverter
             DatabaseTypeEnum.MsSqlTrusted => _msSqlIcon16,
             DatabaseTypeEnum.PostgreSql => _postgreIcon16,
             DatabaseTypeEnum.Oracle => _oracleIcon16,
+            DatabaseTypeEnum.Excel => _duckDbIcon,
+            DatabaseTypeEnum.Access => _sqliteIcon16,
             DatabaseTypeEnum.NotSupportedDatabase => _defaultIcon,
             _ => _defaultIcon
         };

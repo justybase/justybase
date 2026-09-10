@@ -7,6 +7,8 @@ public class SqlExportPathHelperTests
     [Theory]
     [InlineData(".xlsb", "excel files", "*.xlsb", "xlsb")]
     [InlineData(".xlsb (compressed)", "excel files", "*.xlsb", "xlsb")]
+    [InlineData(".xlsx", "excel files", "*.xlsx", "xlsx")]
+    [InlineData(".xlsx (compressed)", "excel files", "*.xlsx", "xlsx")]
     [InlineData(".parquet", "parquet files", "*.parquet", "parquet")]
     [InlineData(".parquet (columnar)", "parquet files", "*.parquet", "parquet")]
     public void ResolveExportSpec_NonCsvFormats(string option, string expectedLabel, string expectedPattern, string expectedExt)

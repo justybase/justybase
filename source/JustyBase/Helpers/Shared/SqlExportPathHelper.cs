@@ -18,6 +18,11 @@ public static class SqlExportPathHelper
             return new ExportFileSpec("excel files", "*.xlsb", "xlsb");
         }
 
+        if (option.StartsWith(".xlsx", StringComparison.Ordinal))
+        {
+            return new ExportFileSpec("excel files", "*.xlsx", "xlsx");
+        }
+
         if (option.StartsWith(".parquet", StringComparison.Ordinal))
         {
             return new ExportFileSpec("parquet files", "*.parquet", "parquet");

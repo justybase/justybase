@@ -32,6 +32,8 @@
     <JustyBaseLocalImportExportProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.ImportExport\JustyBase.ImportExport.csproj</JustyBaseLocalImportExportProject>
     <JustyBaseLocalAiProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Ai\JustyBase.Ai.csproj</JustyBaseLocalAiProject>
     <JustyBaseLocalAiEmbeddedProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Ai.Embedded\JustyBase.Ai.Embedded.csproj</JustyBaseLocalAiEmbeddedProject>
+    <JustyBaseLocalUCanAccessProject>$(JustyBaseLibrariesRoot)JustyBase.UCanAccessCs\src\UCanAccess\UCanAccess.csproj</JustyBaseLocalUCanAccessProject>
+    <JustyBaseLocalUCanAccessCryptoProject>$(JustyBaseLibrariesRoot)JustyBase.UCanAccessCs\src\UCanAccess.AccessCrypto\UCanAccess.AccessCrypto.csproj</JustyBaseLocalUCanAccessCryptoProject>
     <UseLocalJustyBaseLibraries Condition="'$(UseLocalJustyBaseLibraries)' == ''
       and Exists('$(JustyBaseLocalNetezzaProject)')
       and Exists('$(JustyBaseLocalNetezzaSqlParserProject)')

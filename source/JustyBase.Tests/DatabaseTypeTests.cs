@@ -13,6 +13,8 @@ public class DatabaseTypeEnumTests
     [InlineData("DB2", DatabaseTypeEnum.DB2)]
     [InlineData("SQLite", DatabaseTypeEnum.Sqlite)]
     [InlineData("DuckDB", DatabaseTypeEnum.DuckDB)]
+    [InlineData("Excel", DatabaseTypeEnum.Excel)]
+    [InlineData("Access", DatabaseTypeEnum.Access)]
     public void StringToDatabaseTypeEnum_ValidDrivers_ReturnsCorrectEnum(string driver, DatabaseTypeEnum expected)
     {
         // Act

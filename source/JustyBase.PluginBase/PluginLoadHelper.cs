@@ -56,7 +56,7 @@ public static class PluginLoadHelper
             }
 
             var activatorFunc = (string userName, string password, string port, string ip, string db, int connectionTimeout)
-                => Activator.CreateInstance(type, userName, password, "5480", ip, db, connectionTimeout) as IDatabaseService;
+                => Activator.CreateInstance(type, userName, password, port, ip, db, connectionTimeout) as IDatabaseService;
             DatabaseServiceHelpers.AddDatabaseImplementation(databaseType, activatorFunc);
         }
     }
@@ -83,9 +83,15 @@ public static class PluginLoadHelper
                 @$"{pluginsLocation}PostgresPlugin\bin\Debug\net10.0\PostgresPlugin.dll",
                 @$"{pluginsLocation}DuckDBPlugin\bin\Debug\net10.0\DuckDBPlugin.dll",
                 @$"{pluginsLocation}MySqlPlugin\bin\Debug\net10.0\MySqlPlugin.dll",
+                @$"{pluginsLocation}ExcelPlugin\bin\Debug\net10.0\ExcelPlugin.dll",
+                @$"{pluginsLocation}AccessPlugin\bin\Debug\net10.0\AccessPlugin.dll",
                 ];
             foreach (var filePath in files)
             {
+                if (!File.Exists(filePath))
+                {
+                    continue;
+                }
                 var pluginAssembly = LoadPlugin(filePath);
                 InstallSpecificDatabaseService(pluginAssembly);
             }

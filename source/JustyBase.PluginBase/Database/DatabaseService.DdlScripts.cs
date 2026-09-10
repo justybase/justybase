@@ -60,7 +60,7 @@ public abstract partial class DatabaseService
 
         return tableCl;
     }
-    public string GetTop100Select(string database, string schema, string table, bool snippetMode, bool addWhereToTextCols = false)
+    public virtual string GetTop100Select(string database, string schema, string table, bool snippetMode, bool addWhereToTextCols = false)
     {
         var cols = GetColumns(database, schema, table, "");
         var tableCl = GetQuotedTwoOrTreePartName(database, schema, table);

@@ -110,6 +110,8 @@
 		<ProjectReference Include="..\JustyBase.Public.Lib\JustyBase.Public.Lib.csproj" />
 		<ProjectReference Include="..\Drivers\SqliteDriver\SqliteDriver.csproj" />
 		<ProjectReference Include="..\Plugins\NetezzaDotnetPlugin\NetezzaDotnetPlugin.csproj" />
+		<ProjectReference Include="..\Plugins\ExcelPlugin\ExcelPlugin.csproj" />
+		<ProjectReference Include="..\Plugins\AccessPlugin\AccessPlugin.csproj" />
 		<ProjectReference Include="..\SqlEditor.Avalonia\SqlEditor.Avalonia.csproj" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' == 'true'">

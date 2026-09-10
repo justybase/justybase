@@ -408,7 +408,9 @@ public class SqlExecutionService : ISqlExecutionService
                     {
                         bridge.HandleStandardGrid(actualDatabaseService, $"{localTitle}_{currentLocalSqlNumber}", query, null, executionPlan.TabsWithRows, globalQueryNumber, rdr, cmd, shortQuery);
                     }
-            else if ((forceAnotherOption == "@expXlsx" || option.StartsWith(".xlsb", StringComparison.Ordinal)) && !string.IsNullOrWhiteSpace(filePathToExport))
+            else if ((forceAnotherOption == "@expXlsx"
+                || option.StartsWith(".xlsb", StringComparison.Ordinal)
+                || option.StartsWith(".xlsx", StringComparison.Ordinal)) && !string.IsNullOrWhiteSpace(filePathToExport))
                     {
                         await HandleExcelExportAsync(rdr, sql);
                     }

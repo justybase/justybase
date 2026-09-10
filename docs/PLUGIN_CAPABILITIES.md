@@ -11,6 +11,8 @@ JustyBase is **Netezza-first**. Other engines are available with uneven maturity
 | **DuckDB** | **experimental** | Yes | Yes | Yes | Partial | Loaded as optional plugin DLL |
 | **MySQL** | **stub** | Yes | Partial | Yes | No | Minimal surface; many DDL helpers throw |
 | **SQLite** | **stable** | Yes | Yes | Yes | Yes | Native catalog browsing, indexes, triggers, foreign keys, ATTACH, SQLite DDL and diagnostics |
+| **Excel File SQL** | **experimental** | Yes | Yes | Yes | Read-only materialization | `.xlsx` and `.xlsb` worksheets are exposed as DuckDB-backed tables; export supports separate `.xlsx`/`.xlsb` result tabs |
+| **Microsoft Access** | **experimental** | Yes | Yes | Yes | Partial | `.mdb`/`.accdb` through `JustyBase.UCanAccessCs`; Access SQL editor dialect, read-only by default |
 
 **Maturity legend**
 
@@ -18,7 +20,7 @@ JustyBase is **Netezza-first**. Other engines are available with uneven maturity
 - **experimental** — works for many flows; expect gaps and rough edges
 - **stub** — connection / query smoke only; do not expect feature parity
 
-SQLite and DuckDB may be loaded via the plugin directory rather than the default in-process registration list.
+SQLite, DuckDB, Excel File SQL and Microsoft Access may be loaded via the plugin directory rather than the default in-process registration list.
 
 SQLite support covers the native SQLite object model rather than a table-editor abstraction: databases and attached catalogs,
 tables, views, columns (including primary-key/generated/hidden flags), indexes (unique/partial/expression/order/collation metadata),

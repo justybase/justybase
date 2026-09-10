@@ -14,6 +14,8 @@ public sealed class SqlDialectResolverTests
     [InlineData(DatabaseTypeEnum.MySql, SqlDialect.Netezza)]
     [InlineData(DatabaseTypeEnum.Sqlite, SqlDialect.Sqlite)]
     [InlineData(DatabaseTypeEnum.DuckDB, SqlDialect.Netezza)]
+    [InlineData(DatabaseTypeEnum.Excel, SqlDialect.Sqlite)]
+    [InlineData(DatabaseTypeEnum.Access, SqlDialect.Access)]
     [InlineData(DatabaseTypeEnum.NotSupportedDatabase, SqlDialect.Netezza)]
     public void ForDatabaseType_MapsNativeDialectsAndDefaultsOthers(DatabaseTypeEnum databaseType, SqlDialect expected)
     {

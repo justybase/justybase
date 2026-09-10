@@ -47,6 +47,10 @@ public record DbTypeWithSize(DbSimpleType DatabaseTypeSimple)
         DatabaseTypeEnum.PostgreSql => "VARCHAR",
         DatabaseTypeEnum.DuckDB => "TEXT",
         DatabaseTypeEnum.MySql => "TEXT",
+        // Excel is materialized through DuckDB and Access uses TEXT for its
+        // variable-length text columns in the generic import/type chooser.
+        DatabaseTypeEnum.Excel => "TEXT",
+        DatabaseTypeEnum.Access => "TEXT",
         _ => throw new NotImplementedException()
     };
 

@@ -130,16 +130,18 @@
                             <Button Content="Open existing file"
                                     Command="{Binding OpenDatabaseFileCommand}"/>
                             <Button Content="Create new file"
-                                    Command="{Binding CreateDatabaseFileCommand}"/>
+                                    Command="{Binding CreateDatabaseFileCommand}"
+                                    IsVisible="{Binding CanCreateFile}"/>
                             <Button Content="Use :memory:"
-                                    Command="{Binding UseMemoryDatabaseCommand}"/>
+                                    Command="{Binding UseMemoryDatabaseCommand}"
+                                    IsVisible="{Binding CanUseMemory}"/>
                         </StackPanel>
                         <TextBlock Text="{Binding DatabaseFileHint}"
                                    IsVisible="{Binding IsFileDatabase}"
                                    Classes="muted"
                                    FontSize="11"/>
 
-                        <Border IsVisible="{Binding IsAuthenticationVisible}"
+                        <Border IsVisible="{Binding IsCredentialsVisible}"
                                 BorderBrush="{DynamicResource ThemeBorderLowBrush}"
                                 BorderThickness="1"
                                 CornerRadius="4"
@@ -149,11 +151,16 @@
                                 <TextBlock Text="Authentication" FontWeight="SemiBold"/>
                                 <TextBlock Text="Credentials are stored in the encrypted application credentials file."
                                            Classes="muted" FontSize="11"/>
-                                <TextBlock Text="Username" Classes="formLabel"/>
-                                <TextBox Text="{Binding UserName}" PlaceholderText="Database user"/>
-                                <TextBlock Text="{Binding UserNameError}" Classes="fieldError" IsVisible="{Binding HasUserNameError}"/>
+                                <StackPanel IsVisible="{Binding IsAuthenticationVisible}" Spacing="4">
+                                    <TextBlock Text="Username" Classes="formLabel"/>
+                                    <TextBox Text="{Binding UserName}" PlaceholderText="Database user"/>
+                                    <TextBlock Text="{Binding UserNameError}" Classes="fieldError" IsVisible="{Binding HasUserNameError}"/>
+                                </StackPanel>
                                 <TextBlock Text="Password" Classes="formLabel"/>
                                 <TextBox Text="{Binding Pass}" PasswordChar="*" PlaceholderText="Password"/>
+                                <CheckBox Content="Open Access database read-only"
+                                          IsVisible="{Binding IsAccess}"
+                                          IsChecked="{Binding AccessReadOnly}"/>
                             </StackPanel>
                         </Border>
 

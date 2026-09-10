@@ -62,6 +62,8 @@ public class DatabaseServiceHelpersTests
     [InlineData("SQLite", DatabaseTypeEnum.Sqlite)]
     [InlineData("DuckDB", DatabaseTypeEnum.DuckDB)]
     [InlineData("DB2", DatabaseTypeEnum.DB2)]
+    [InlineData("Excel", DatabaseTypeEnum.Excel)]
+    [InlineData("Access", DatabaseTypeEnum.Access)]
     [InlineData("Unknown", DatabaseTypeEnum.NotSupportedDatabase)]
     public void StringToDatabaseTypeEnum_MapsCorrectly(string? input, DatabaseTypeEnum expected)
     {
@@ -84,6 +86,8 @@ public class DatabaseServiceHelpersTests
         Assert.Contains("Postgres", drivers);
         Assert.Contains("Oracle", drivers);
         Assert.Contains("MySQL", drivers);
+        Assert.Contains("Excel", drivers);
+        Assert.Contains("Access", drivers);
     }
 
     [Fact]

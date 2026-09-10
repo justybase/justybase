@@ -15,6 +15,11 @@ public static class DatabaseKindMapping
         DatabaseTypeEnum.PostgreSql => DatabaseKind.PostgreSql,
         DatabaseTypeEnum.DuckDB => DatabaseKind.DuckDb,
         DatabaseTypeEnum.MySql => DatabaseKind.MySql,
+        // Excel is materialized into DuckDB and Access is mirrored through
+        // UCanAccess/SQLite. These mappings are used only by the generic
+        // import/type rendering contract.
+        DatabaseTypeEnum.Excel => DatabaseKind.DuckDb,
+        DatabaseTypeEnum.Access => DatabaseKind.Sqlite,
         _ => DatabaseKind.Netezza
     };
 

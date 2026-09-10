@@ -41,6 +41,7 @@
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter="Grid" Gesture="F5"/>
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter="Grid|SingleBath" Gesture="Ctrl+F5"/>
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter=".xlsb" Gesture="Ctrl+F7"/>
+			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter=".xlsx" Gesture="Ctrl+Shift+F7"/>
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter=".csv" Gesture="Ctrl+F8"/>
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter=".csv.zst" Gesture="Ctrl+F9"/>
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter=".csv.br" Gesture="Ctrl+F10"/>
@@ -77,6 +78,7 @@
 							<MenuItem Header="Run query" HotKey="F5" InputGesture="F5" Command="{Binding RunSqlCommand}" CommandParameter="Grid"/>
 							<MenuItem Header="Run as single command" HotKey="Ctrl+F5" InputGesture="Ctrl+F5" Command="{Binding RunSqlCommand}" CommandParameter="Grid|SingleBath"/>
 							<MenuItem Header="Run to excel" HotKey="Ctrl+F7" InputGesture="Ctrl+F7" Command="{Binding RunSqlCommand}" CommandParameter=".xlsb"/>
+							<MenuItem Header="Run to xlsx" HotKey="Ctrl+Shift+F7" InputGesture="Ctrl+Shift+F7" Command="{Binding RunSqlCommand}" CommandParameter=".xlsx"/>
 							<MenuItem Header="Run to csv" HotKey="Ctrl+F8" InputGesture="Ctrl+F8" Command="{Binding RunSqlCommand}" CommandParameter=".csv"/>
 							<MenuItem Header="Run to csv zstd"  HotKey="Ctrl+F9" InputGesture="Ctrl+F9" Command="{Binding RunSqlCommand}" CommandParameter=".csv.zst"/>
 							<MenuItem Header="Run to csv brotli"  HotKey="Ctrl+F10" InputGesture="Ctrl+F10" Command="{Binding RunSqlCommand}" CommandParameter=".csv.br"/>
@@ -168,7 +170,8 @@
 					<MenuItem Header="Fix in AI Chat" Command="{Binding SendToAiChatCommand}" IsVisible="{Binding IsAiChatEnabled}"/>
 					<Separator/>
 					<MenuItem Header="Export">
-						<MenuItem Header="excel" Command="{Binding RunSqlCommand}" CommandParameter=".xlsb"/>
+						<MenuItem Header="xlsb" Command="{Binding RunSqlCommand}" CommandParameter=".xlsb"/>
+						<MenuItem Header="xlsx" Command="{Binding RunSqlCommand}" CommandParameter=".xlsx"/>
 						<MenuItem Header="csv" Command="{Binding RunSqlCommand}" CommandParameter=".csv"/>
 					</MenuItem>
 					<MenuItem Header="text -> $text" Command="{Binding ReplaceVariableCommand}"/>

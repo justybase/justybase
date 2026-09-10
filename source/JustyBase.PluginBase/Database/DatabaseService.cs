@@ -96,7 +96,7 @@ public abstract partial class DatabaseService : IDatabaseService, IDatabaseWithS
     }
 
     public bool PrefrerUpperCase = true;
-    public string QuoteNameIfNeeded(string word)
+    public virtual string QuoteNameIfNeeded(string word)
     {
         if (!word.IsGoodName(PrefrerUpperCase))
         {

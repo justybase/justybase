@@ -66,6 +66,11 @@ jobs:
         with:
           repository: justybase/JustyBase.NetezzaSql
           path: JustyBase.NetezzaSql
+      - name: Checkout UCanAccess provider
+        uses: actions/checkout@v4
+        with:
+          repository: justybase/JustyBase.UCanAccessCs
+          path: JustyBase.UCanAccessCs
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -116,6 +121,11 @@ jobs:
         with:
           repository: justybase/JustyBase.NetezzaSql
           path: JustyBase.NetezzaSql
+      - name: Checkout UCanAccess provider
+        uses: actions/checkout@v4
+        with:
+          repository: justybase/JustyBase.UCanAccessCs
+          path: JustyBase.UCanAccessCs
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -156,6 +166,11 @@ jobs:
         with:
           repository: justybase/JustyBase.NetezzaSql
           path: JustyBase.NetezzaSql
+      - name: Checkout UCanAccess provider
+        uses: actions/checkout@v4
+        with:
+          repository: justybase/JustyBase.UCanAccessCs
+          path: JustyBase.UCanAccessCs
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:

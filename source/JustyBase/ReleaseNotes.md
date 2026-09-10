@@ -1,3 +1,10 @@
+# JustyBase 1.3.19
+
+- Added SQL querying for `.xlsx` and `.xlsb` workbooks through the Excel file driver.
+- Added `.xlsx` and `.xlsb` result export with each result set written to a separate worksheet.
+- Added a dedicated Microsoft Access driver and SQL dialect for `.mdb` and `.accdb` files, backed by `JustyBase.UCanAccessCs`.
+- Added Access read-only connection settings and schema/column metadata browsing.
+
 # JustyBase 1.3.17
 
 - Stabilized the Velopack single-instance regression test used by the release pipeline.

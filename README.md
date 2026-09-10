@@ -61,7 +61,9 @@ It is especially useful for:
 - **Data grid** with grouping, filtering, and export to Excel, CSV, and Parquet
 - **Multi-connection management** for multiple database sessions
 - **Netezza-first database support** for IBM Netezza Performance Server
-- **Other database engines** (Postgres, DB2, Oracle, DuckDB, MySQL) are **coming soon / work in progress** and should not yet be considered generally supported; SQLite is supported for native browsing, SQL execution, and SQLite-specific DDL/diagnostics
+- **Excel File SQL** for `.xlsx` and `.xlsb` workbooks, with each worksheet exposed as a SQL table and exports to separate `.xlsx`/`.xlsb` result tabs
+- **Microsoft Access** `.mdb`/`.accdb` support through the local pure-.NET UCanAccess provider and a dedicated Access SQL dialect
+- **Other database engines** (Postgres, DB2, Oracle, DuckDB, MySQL) remain experimental or work in progress; SQLite is supported for native browsing, SQL execution, and SQLite-specific DDL/diagnostics
 - **Self-contained ReadyToRun** release packages for deployment without a separately installed .NET runtime
 
 > The hierarchical DataGrid is provided by the official `ProDataGrid` NuGet package and is restored automatically during the normal build.
@@ -123,6 +125,8 @@ cd source/JustyBase
 dotnet run
 ```
 
+Access support requires the sibling checkout `../JustyBase.UCanAccessCs`; place it next to this repository before restoring the solution. The CI workflows check it out automatically.
+
 On first launch, add an IBM Netezza connection from the schema or connections UI, open a SQL document, and execute a query. Other database connectors are under active development and are not part of the current support commitment.
 
 ### Dependencies
@@ -131,6 +135,7 @@ On first launch, add an IBM Netezza connection from the schema or connections UI
 |------------|--------------------|
 | **ProDataGrid** | NuGet package `ProDataGrid` version `12.0.5`. |
 | **JustyBase.Netezza\*** | Local `../JustyBase.NetezzaSql` sibling when present (also in `JustyBase.slnx`); otherwise NuGet fallback (`*-*`). CI clones the sibling automatically and forces `UseLocalJustyBaseLibraries=true`. Pin with `-p:JustyBaseNetezzaLibsPackageVersion=...` or force NuGet with `-p:UseLocalJustyBaseLibraries=false`. |
+| **JustyBase.UCanAccessCs** | Local `../JustyBase.UCanAccessCs` sibling, referenced by `AccessPlugin` for `.mdb`/`.accdb` execution and optional encrypted-ACCDB support. |
 
 ### AI and data privacy
 

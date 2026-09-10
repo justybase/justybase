@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Excel File SQL plugin for querying `.xlsx` and `.xlsb` worksheets as SQL tables, plus multi-result export to separate `.xlsx`/`.xlsb` worksheets
+- Microsoft Access plugin using the local `JustyBase.UCanAccessCs` provider, including the Access SQL dialect and read-only connection option
 - Root MIT `LICENSE` (+ EN/PL copies), restored `CONTRIBUTING.md`, `SECURITY.md`, `CHANGELOG.md`
 - `docs/ARCHITECTURE.md` — public layering and SQL run overview
 - ProDataGrid 12.0.5 NuGet dependency

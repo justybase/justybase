@@ -10,5 +10,7 @@ public enum DatabaseTypeEnum
     Sqlite,
     PostgreSql,
     DuckDB,
-    MySql
+    MySql,
+    Excel,
+    Access
 }

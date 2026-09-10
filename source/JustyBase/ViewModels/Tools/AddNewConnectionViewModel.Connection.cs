@@ -33,6 +33,8 @@ public sealed partial class AddNewConnectionViewModel
         new("MsSqlTrusted", "SQL Server (Windows)", "SQL Server using Windows authentication", "1433", false, false),
         new("SQLite", "SQLite", "Local database file", string.Empty, false, true),
         new("DuckDB", "DuckDB", "Local analytical database file", string.Empty, false, true),
+        new("Excel", "Excel / File SQL", "Query XLSX and XLSB workbooks with SQL", string.Empty, false, true),
+        new("Access", "Microsoft Access", "Query and edit MDB and ACCDB files", string.Empty, false, true),
     ];
 
     public AddNewConnectionViewModel(IFactory factory, IGeneralApplicationData generalApplicationData, IMessageForUserTools messageForUserTools, ISimpleLogger simpleLogger, IAvaloniaSpecificHelpers avaloniaSpecificHelpers)
@@ -166,6 +168,7 @@ public sealed partial class AddNewConnectionViewModel
                 throw new InvalidOperationException("The connection could not be saved.");
             }
 
+            ApplySelectedDriverOptions(connectionName);
             _generalApplicationData.SaveConfig();
             Refresh(saved);
             CloseWindowAction?.Invoke();
@@ -207,13 +210,15 @@ public sealed partial class AddNewConnectionViewModel
                 Warehouse = original.Warehouse,
                 Role = original.Role,
                 DefaultIndex = original.DefaultIndex,
-                SqliteOptions = original.SqliteOptions
+                SqliteOptions = original.SqliteOptions,
+                AccessOptions = original.AccessOptions
             }
             : null;
 
         try
         {
             _generalApplicationData.AddToOrEditLoginData(connectionName, Database, SelectedDriver!.Id, Pass, UserName, Server, Port);
+            ApplySelectedDriverOptions(connectionName);
             DatabaseServiceHelpers.RemoveCachedConnection(connectionName);
             await Task.Run(async () =>
             {
@@ -320,6 +325,7 @@ public sealed partial class AddNewConnectionViewModel
 
         string cloneName = ConName.Trim() + "_Clone";
         _generalApplicationData.AddToOrEditLoginData(cloneName, Database, SelectedDriver!.Id, Pass, UserName, Server, Port);
+        ApplySelectedDriverOptions(cloneName.ToUpperInvariant());
         _generalApplicationData.SaveConfig();
         Refresh(true);
         if (ConnectionList.Any())
@@ -367,19 +373,35 @@ public sealed partial class AddNewConnectionViewModel
     public ObservableCollection<SqliteSampleObjectOption> SqliteSampleObjects { get; } = [];
 
     public bool IsSqlite => SelectedDriver?.Id == "SQLite";
+    public bool IsAccess => SelectedDriver?.Id == "Access";
+    public bool IsExcel => SelectedDriver?.Id == "Excel";
     public bool IsPortVisible => SelectedDriver is not null && !SelectedDriver.UsesFilePath;
     public bool IsAuthenticationVisible => SelectedDriver?.RequiresAuthentication == true;
+    public bool IsCredentialsVisible => IsAuthenticationVisible || IsAccess;
     public bool IsDatabaseVisible => SelectedDriver is not null;
     public bool IsFileDatabase => SelectedDriver?.UsesFilePath == true;
+    public bool CanCreateFile => IsSqlite || SelectedDriver?.Id == "DuckDB";
+    public bool CanUseMemory => CanCreateFile;
     public bool IsSqliteSampleVisible => !ShowExistings && IsSqlite;
     public string ServerLabel => SelectedDriver?.UsesFilePath == true ? "Folder (optional)" : "Host";
     public string DatabaseLabel => SelectedDriver?.UsesFilePath == true ? "Database file" : "Database";
-    public string ServerWatermark => SelectedDriver?.UsesFilePath == true ? "Optional folder or :memory:" : "db.example.com";
-    public string DatabaseWatermark => SelectedDriver?.UsesFilePath == true ? "Path to .db file" : "Database name";
+    public string ServerWatermark => SelectedDriver?.UsesFilePath == true ? "Optional folder" : "db.example.com";
+    public string DatabaseWatermark => SelectedDriver?.Id switch
+    {
+        "Excel" => "Path to .xlsx or .xlsb",
+        "Access" => "Path to .mdb or .accdb",
+        _ when SelectedDriver?.UsesFilePath == true => "Path to .db file",
+        _ => "Database name"
+    };
     public string DatabaseFileHint => Database.Equals(":memory:", StringComparison.OrdinalIgnoreCase)
         ? "The database will live only for the duration of the session."
         : string.IsNullOrWhiteSpace(Database)
-            ? "Choose an existing file, create a new one, or use an in-memory database."
+            ? SelectedDriver?.Id switch
+            {
+                "Excel" => "Choose an .xlsx or .xlsb workbook.",
+                "Access" => "Choose an .mdb or .accdb database.",
+                _ => "Choose an existing file, create a new one, or use an in-memory database."
+            }
             : Database;
     public string SelectedSqliteSampleDescription => SelectedSqliteSamplePack?.Description ?? string.Empty;
     public ObservableCollection<ConnectionItem> ConnectionList => SqlDocumentViewModelHelper.ConnectionsList;
@@ -402,6 +424,7 @@ public sealed partial class AddNewConnectionViewModel
             Database = data.Database ?? string.Empty;
             UserName = data.UserName ?? string.Empty;
             Pass = data.Password ?? string.Empty;
+            AccessReadOnly = data.AccessOptions?.ReadOnly ?? true;
         }
     }
 
@@ -416,10 +439,15 @@ public sealed partial class AddNewConnectionViewModel
         _previousDriverDefaultPort = value?.DefaultPort ?? string.Empty;
         CreateSampleDatabase = value?.Id != "SQLite" ? false : CreateSampleDatabase;
         OnPropertyChanged(nameof(IsSqlite));
+        OnPropertyChanged(nameof(IsAccess));
+        OnPropertyChanged(nameof(IsExcel));
         OnPropertyChanged(nameof(IsPortVisible));
         OnPropertyChanged(nameof(IsAuthenticationVisible));
+        OnPropertyChanged(nameof(IsCredentialsVisible));
         OnPropertyChanged(nameof(IsDatabaseVisible));
         OnPropertyChanged(nameof(IsFileDatabase));
+        OnPropertyChanged(nameof(CanCreateFile));
+        OnPropertyChanged(nameof(CanUseMemory));
         OnPropertyChanged(nameof(IsSqliteSampleVisible));
         OnPropertyChanged(nameof(ServerLabel));
         OnPropertyChanged(nameof(DatabaseLabel));
@@ -458,6 +486,7 @@ public sealed partial class AddNewConnectionViewModel
             Database = string.Empty;
             UserName = string.Empty;
             Pass = string.Empty;
+            AccessReadOnly = true;
             HasConnectionTestResult = false;
             ConnectionTestStatus = string.Empty;
             ConnectionTestDetails = string.Empty;
@@ -492,6 +521,9 @@ public sealed partial class AddNewConnectionViewModel
         ValidateForm();
     }
     partial void OnUserNameChanged(string value) => ValidateForm();
+
+    [ObservableProperty]
+    public partial bool AccessReadOnly { get; set; } = true;
 
     private void ValidateForm(bool checkDuplicate = false)
     {
@@ -549,9 +581,14 @@ public sealed partial class AddNewConnectionViewModel
             return;
         }
 
-        string[] patterns = IsSqlite
-            ? ["*.db", "*.sqlite", "*.sqlite3"]
-            : ["*.duckdb", "*.db"];
+        string[] patterns = SelectedDriver?.Id switch
+        {
+            "SQLite" => ["*.db", "*.sqlite", "*.sqlite3"],
+            "DuckDB" => ["*.duckdb", "*.db"],
+            "Excel" => ["*.xlsx", "*.xlsb"],
+            "Access" => ["*.mdb", "*.accdb"],
+            _ => []
+        };
         IReadOnlyList<IStorageFile> files = await storageProvider.OpenFilePickerAsync(
             new FilePickerOpenOptions
             {
@@ -576,6 +613,11 @@ public sealed partial class AddNewConnectionViewModel
 
     private async Task CreateDatabaseFileAsync()
     {
+        if (!CanCreateFile)
+        {
+            return;
+        }
+
         IStorageProvider? storageProvider = _avaloniaSpecificHelpers.GetStorageProvider();
         if (storageProvider is null)
         {
@@ -604,6 +646,11 @@ public sealed partial class AddNewConnectionViewModel
 
     private void UseMemoryDatabase()
     {
+        if (!CanUseMemory)
+        {
+            return;
+        }
+
         Server = string.Empty;
         Database = ":memory:";
         HasConnectionTestResult = false;
@@ -635,5 +682,17 @@ public sealed partial class AddNewConnectionViewModel
         {
             SqliteSampleObjects.Add(new SqliteSampleObjectOption(definition) { IsSelected = true });
         }
+    }
+
+    private void ApplySelectedDriverOptions(string connectionName)
+    {
+        if (!_generalApplicationData.LoginDataDic.TryGetValue(connectionName, out LoginDataModel? loginData))
+        {
+            return;
+        }
+
+        loginData.AccessOptions = IsAccess
+            ? new AccessConnectionOptions { ReadOnly = AccessReadOnly }
+            : null;
     }
 }

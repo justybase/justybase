@@ -92,6 +92,8 @@ public static class DatabaseServiceHelpers
         {"SQLite", DatabaseTypeEnum.Sqlite},
         {"DuckDB", DatabaseTypeEnum.DuckDB},
         {"MySQL", DatabaseTypeEnum.MySql},
+        {"Excel", DatabaseTypeEnum.Excel},
+        {"Access", DatabaseTypeEnum.Access},
     };
 
     public static List<string> GetSupportedDriversNames()

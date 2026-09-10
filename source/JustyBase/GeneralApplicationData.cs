@@ -294,6 +294,8 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         //register implementations
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.NetezzaSQL, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new NetezzaDotnetPlugin.Netezza(userName, password, string.IsNullOrWhiteSpace(port) ? "5480" : port, ip, db, connectionTimeout));
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Sqlite, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new JustyBase.SqliteDriver.Sqlite(userName, password, port, ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Excel, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new ExcelPlugin.Excel(userName, password, port, ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Access, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new AccessPlugin.Access(userName, password, port, ip, db, connectionTimeout));
 
 #if ORACLE
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Oracle, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new OraclePlugin.Oracle(userName, password, "", ip, db, connectionTimeout));

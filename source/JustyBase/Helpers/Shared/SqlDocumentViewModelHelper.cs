@@ -92,6 +92,7 @@ public static partial class SqlDocumentViewModelHelper
         }
 
         return option.StartsWith(".xlsb", StringComparison.Ordinal)
+            || option.StartsWith(".xlsx", StringComparison.Ordinal)
             || option.Contains(".csv", StringComparison.Ordinal)
             || option.StartsWith(".parquet", StringComparison.Ordinal);
     }

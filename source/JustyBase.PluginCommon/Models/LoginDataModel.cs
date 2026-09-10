@@ -25,6 +25,9 @@ public sealed class LoginDataModel
     public int? DefaultIndex { get; set; }
     [JsonPropertyName("sqliteOptions")]
     public SqliteConnectionOptions? SqliteOptions { get; set; }
+
+    [JsonPropertyName("accessOptions")]
+    public AccessConnectionOptions? AccessOptions { get; set; }
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]
@@ -36,6 +39,7 @@ public partial class MyJsonContextLoginDataModelList : JsonSerializerContext
 [JsonSerializable(typeof(LoginDataModel))]
 [JsonSerializable(typeof(SqliteConnectionOptions))]
 [JsonSerializable(typeof(SqliteAttachedDatabaseOptions))]
+[JsonSerializable(typeof(AccessConnectionOptions))]
 public partial class MyJsonContextLoginDataModel : JsonSerializerContext
 {
 }

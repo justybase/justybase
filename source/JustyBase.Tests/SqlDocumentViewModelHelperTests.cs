@@ -53,6 +53,7 @@ public class SqlDocumentViewModelHelperTests
 
     [Theory]
     [InlineData(".xlsb", true)]
+    [InlineData(".xlsx", true)]
     [InlineData(".parquet", true)]
     [InlineData(".csv", true)]
     [InlineData(".csv.gz", true)]

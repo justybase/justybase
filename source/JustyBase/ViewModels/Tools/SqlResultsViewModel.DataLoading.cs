@@ -283,7 +283,7 @@ partial class SqlResultsViewModel
                 }
 
                 GridCollectionView = new Avalonia.Collections.DataGridCollectionView(CurrentResultsTable.FilteredRows);
-                ViewBridge?.ResumeGridBinding();
+                ViewBridge?.ResumeGridBinding(clearSelection: true);
                 GridVisible = true;
                 DataLoadingInProgress = false;
                 LoadingPlaceholderMessage = "";

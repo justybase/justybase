@@ -30,5 +30,5 @@ public interface ISqlResultsViewBridge
     /// <summary>
     /// Re-attach DataGrid to the current collection view after bulk load completes.
     /// </summary>
-    void ResumeGridBinding();
+    void ResumeGridBinding(bool clearSelection = false);
 }

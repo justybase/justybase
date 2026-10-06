@@ -1,5 +1,6 @@
 using Avalonia.Xaml.Interactivity;
 using JustyBase.Models;
+using JustyBase.Services.DataGrid;
 using JustyBase.ViewModels.Tools;
 
 namespace JustyBase.Behaviors;
@@ -9,6 +10,7 @@ public sealed class ColumnHeaderContext
     public required DataFormat<string> ColumnNameDataFormat { get; init; }
     public required Dictionary<string, int> PinnedColumns { get; init; }
     public required DataGrid DataGrid { get; init; }
+    public required IResultGridColumnReorderService ReorderService { get; init; }
     public required StreamGeometry PinIcon { get; init; }
     public required StreamGeometry UnpinIcon { get; init; }
     public SqlResultsViewModel? ViewModel { get; init; }
@@ -218,10 +220,12 @@ public static class ColumnHeaderFactory
         {
             if (e.DataTransfer.TryGetValue(ctx.ColumnNameDataFormat) is string sourceColName)
             {
+                var targetHeader = table.Headers[index];
                 var sourceCol = ctx.DataGrid.Columns.FirstOrDefault(c => c.Header?.ToString() == sourceColName);
-                var targetCol = ctx.DataGrid.Columns.FirstOrDefault(c => c.Header?.ToString() == table.Headers[index]);
+                var targetCol = ctx.DataGrid.Columns.FirstOrDefault(c => c.Header?.ToString() == targetHeader);
 
-                if (sourceCol != null && targetCol != null && sourceCol != targetCol)
+                if (sourceCol != null && targetCol != null
+                    && ctx.ReorderService.CanReorderHeaders(sourceColName, targetHeader))
                 {
                     int sourceIndex = sourceCol.DisplayIndex;
                     int targetIndex = targetCol.DisplayIndex;
@@ -229,12 +233,11 @@ public static class ColumnHeaderFactory
                     var pos = e.GetPosition(grid);
                     bool insertAfter = pos.X > (grid.Bounds.Width / 2.0);
 
-                    int newDisplayIndex = insertAfter ? targetIndex + 1 : targetIndex;
-                    if (sourceIndex < newDisplayIndex)
-                        newDisplayIndex--;
-
-                    newDisplayIndex = Math.Max(0, Math.Min(newDisplayIndex, ctx.DataGrid.Columns.Count - 1));
-                    sourceCol.DisplayIndex = newDisplayIndex;
+                    sourceCol.DisplayIndex = ctx.ReorderService.CalculateNewDisplayIndex(
+                        sourceIndex,
+                        targetIndex,
+                        insertAfter,
+                        ctx.DataGrid.Columns.Count);
 
                     ctx.RefreshSummaryRowWidths?.Invoke();
                 }

@@ -1,4 +1,4 @@
-using Avalonia.Collections;
+﻿using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.DataGridFiltering;
 using Avalonia.Controls.Primitives;
@@ -11,8 +11,7 @@ using JustyBase.Services.DataGrid;
 namespace JustyBase.HeadlessTests;
 
 /// <summary>
-/// Experimental coverage for the built-in distinct-value column filter
-/// (ProDataGrid #318) wired into the real results view.
+/// Coverage for the results-grid column filter wired into the real view.
 /// </summary>
 public sealed class BuiltInColumnFilterHeadlessTests : HeadlessSessionTestBase
 {
@@ -140,6 +139,33 @@ public sealed class BuiltInColumnFilterHeadlessTests : HeadlessSessionTestBase
     });
 
     [Fact]
+    public Task DistinctFilterFlyout_ExcludesOwnFilterWhenBuildingOptions() => RunOnUi(() =>
+    {
+        var table = CreateResultTable();
+        var grid = CreateFilterGrid(table);
+        var window = new Window { Width = 600, Height = 400, Content = grid };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        grid.FilteringModel.SetOrUpdate(new FilteringDescriptor(
+            columnId: "col0",
+            @operator: FilteringOperator.In,
+            propertyPath: "Fields[0]",
+            values: new object[] { "Name1", "Name2" }));
+        Dispatcher.UIThread.RunJobs();
+
+        var column = grid.Columns[0];
+        FindHeader(grid, column).TryShowFilterFlyout();
+        Dispatcher.UIThread.RunJobs();
+        var context = ((CascadingDistinctValueFilterFlyout)column.FilterFlyout!).Context!;
+
+        Assert.Equal(100, context.Options.Count);
+        Assert.Equal(2, context.Options.Count(option => option.IsSelected));
+        Assert.Equal(2, grid.ItemsSource.Cast<object>().Count());
+
+        window.Close();
+    });
+
+    [Fact]
     public Task DistinctFilterFlyout_ClearAll_RemovesColumnDescriptor() => RunOnUi(() =>
     {
         var table = CreateResultTable();
@@ -155,10 +181,128 @@ public sealed class BuiltInColumnFilterHeadlessTests : HeadlessSessionTestBase
 
         flyout.Context!.Options[0].IsSelected = true;
         Dispatcher.UIThread.RunJobs();
+        Assert.Empty(grid.FilteringModel.Descriptors);
+        Assert.Equal(100, grid.ItemsSource.Cast<object>().Count());
+
+        flyout.Context.OkCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
         Assert.Single(grid.FilteringModel.Descriptors);
         Assert.Single(grid.ItemsSource.Cast<object>());
 
         flyout.Context.ClearAllCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Single(grid.FilteringModel.Descriptors);
+        Assert.Single(grid.ItemsSource.Cast<object>());
+
+        flyout.Context.OkCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Empty(grid.FilteringModel.Descriptors);
+        Assert.Equal(100, grid.ItemsSource.Cast<object>().Count());
+        window.Close();
+    });
+
+    [Fact]
+    public Task DistinctFilterFlyout_Cancel_DiscardsPendingSelection() => RunOnUi(() =>
+    {
+        var table = CreateResultTable();
+        var grid = CreateFilterGrid(table);
+        var window = new Window { Width = 600, Height = 400, Content = grid };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var column = grid.Columns[0];
+        FindHeader(grid, column).TryShowFilterFlyout();
+        Dispatcher.UIThread.RunJobs();
+        var flyout = (CascadingDistinctValueFilterFlyout)column.FilterFlyout!;
+        flyout.Context!.Options[0].IsSelected = true;
+        flyout.Context.CancelCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Empty(grid.FilteringModel.Descriptors);
+        Assert.Equal(100, grid.ItemsSource.Cast<object>().Count());
+        window.Close();
+    });
+
+    [Fact]
+    public Task DistinctFilterFlyout_Cancel_PreservesPreviouslyAppliedCondition() => RunOnUi(() =>
+    {
+        var table = CreateResultTable();
+        var grid = CreateFilterGrid(table);
+        var window = new Window { Width = 600, Height = 400, Content = grid };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+        grid.FilteringModel.SetOrUpdate(new FilteringDescriptor(
+            columnId: "col1",
+            @operator: FilteringOperator.GreaterThanOrEqual,
+            propertyPath: "Fields[1]",
+            value: 90));
+        Dispatcher.UIThread.RunJobs();
+
+        var column = grid.Columns[1];
+        FindHeader(grid, column).TryShowFilterFlyout();
+        Dispatcher.UIThread.RunJobs();
+        var context = ((CascadingDistinctValueFilterFlyout)column.FilterFlyout!).Context!;
+        Assert.Equal("90", context.ValueFilterText);
+        context.ValueFilterText = "50";
+        Assert.Equal(10, grid.ItemsSource.Cast<object>().Count());
+
+        context.CancelCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(10, grid.ItemsSource.Cast<object>().Count());
+        Assert.Equal(90, Assert.IsType<int>(Assert.Single(grid.FilteringModel.Descriptors).Value));
+        window.Close();
+    });
+
+    [Fact]
+    public Task DistinctFilterFlyout_BetweenCondition_AppliesTypedRangeOnOk() => RunOnUi(() =>
+    {
+        var table = CreateResultTable();
+        var grid = CreateFilterGrid(table);
+        var window = new Window { Width = 600, Height = 400, Content = grid };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var column = grid.Columns[1];
+        FindHeader(grid, column).TryShowFilterFlyout();
+        Dispatcher.UIThread.RunJobs();
+        var context = ((CascadingDistinctValueFilterFlyout)column.FilterFlyout!).Context!;
+        context.UseCondition = true;
+        context.SelectedOperatorChoice = context.AvailableOperators.Single(choice => choice.Label == "Between");
+        context.ValueFilterText = "2";
+        context.ValueFilterText2 = "20";
+        Assert.True(context.CanApply);
+
+        context.OkCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(19, grid.ItemsSource.Cast<object>().Count());
+        Assert.Equal(FilteringOperator.Between, Assert.Single(grid.FilteringModel.Descriptors).Operator);
+        window.Close();
+    });
+
+    [Fact]
+    public Task DistinctFilterFlyout_InvalidCondition_CannotReplaceActiveFilter() => RunOnUi(() =>
+    {
+        var table = CreateResultTable();
+        var grid = CreateFilterGrid(table);
+        var window = new Window { Width = 600, Height = 400, Content = grid };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var column = grid.Columns[1];
+        FindHeader(grid, column).TryShowFilterFlyout();
+        Dispatcher.UIThread.RunJobs();
+        var flyout = (CascadingDistinctValueFilterFlyout)column.FilterFlyout!;
+        var context = flyout.Context!;
+        context.UseCondition = true;
+        context.SelectedOperatorChoice = context.AvailableOperators.Single(choice => choice.Label == "Greater than");
+        context.ValueFilterText = "not-a-number";
+
+        Assert.True(context.HasValueFilterError);
+        Assert.False(context.CanApply);
+        context.OkCommand.Execute(null);
         Dispatcher.UIThread.RunJobs();
 
         Assert.Empty(grid.FilteringModel.Descriptors);
@@ -185,6 +329,58 @@ public sealed class BuiltInColumnFilterHeadlessTests : HeadlessSessionTestBase
         Assert.Equal(11, flyout.Context.Options.Count);
         Assert.All(flyout.Context.Options, option =>
             Assert.Contains("Name1", option.Display, StringComparison.OrdinalIgnoreCase));
+        window.Close();
+    });
+
+    [Fact]
+    public Task DistinctFilterFlyout_SelectAll_UsesVisibleSearchResultsAndWaitsForOk() => RunOnUi(() =>
+    {
+        var table = CreateResultTable();
+        var grid = CreateFilterGrid(table);
+        var window = new Window { Width = 600, Height = 400, Content = grid };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var column = grid.Columns[0];
+        FindHeader(grid, column).TryShowFilterFlyout();
+        Dispatcher.UIThread.RunJobs();
+        var context = ((CascadingDistinctValueFilterFlyout)column.FilterFlyout!).Context!;
+        context.SearchText = "Name1";
+        context.SelectAllChecked = true;
+
+        Assert.Equal(11, context.Options.Count);
+        Assert.Equal("11 of 100 selected", context.SelectionSummary);
+        Assert.Empty(grid.FilteringModel.Descriptors);
+        Assert.Equal(100, grid.ItemsSource.Cast<object>().Count());
+
+        context.OkCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(11, grid.ItemsSource.Cast<object>().Count());
+        window.Close();
+    });
+
+    [Fact]
+    public Task DistinctFilterFlyout_EmptyValue_CanBeSelectedAndApplied() => RunOnUi(() =>
+    {
+        var table = CreateResultTable();
+        table.Rows[0].Fields[0] = null!;
+        var grid = CreateFilterGrid(table);
+        var window = new Window { Width = 600, Height = 400, Content = grid };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var column = grid.Columns[0];
+        FindHeader(grid, column).TryShowFilterFlyout();
+        Dispatcher.UIThread.RunJobs();
+        var context = ((CascadingDistinctValueFilterFlyout)column.FilterFlyout!).Context!;
+        var emptyValue = Assert.Single(context.Options.Where(option => option.Display == "(Empty)"));
+        emptyValue.IsSelected = true;
+        context.OkCommand.Execute(null);
+        Dispatcher.UIThread.RunJobs();
+
+        var row = Assert.IsType<TableRow>(Assert.Single(grid.ItemsSource.Cast<object>()));
+        Assert.Null(row.Fields[0]);
         window.Close();
     });
 

@@ -1,34 +1,14 @@
 // =============================================================================
-// TECHNICAL DEBT NOTICE - SqlResultsView.axaml.cs (~1600 lines)
-// =============================================================================
-// This file handles multiple responsibilities that should be refactored:
+// SqlResultsView code-behind — thin adapter that wires DataGrid controls to the
+// view model and to dedicated grid services. Grid logic lives elsewhere:
 //
-// 1. HEADER TEMPLATE (lines ~1360-1390) - ~30 lines
-//    - GetHeaderTemplate now uses ColumnHeaderFactory
-//    - Factory uses Xaml.Behaviors.Avalonia for drag-drop
-//    - ColumnHeaderDragBehavior, ColumnDropBehavior, ColumnPinBehavior
+//  - grouping / filter-search / selection stats / sorting : SqlResultsViewModel
+//  - copy text building                                   : IDataGridClipboardService
+//  - selection / stats / keyboard / grouping plans        : JustyBase.Services.DataGrid
+//  - column + header template construction                : SqlResultsView.Columns.cs
 //
-// 2. GROUPING FUNCTIONALITY (lines ~540-700, ~1400-1500)
-//    - Drag-drop for column grouping
-//    - Group header management
-//
-// 3. SUMMARY ROW (lines ~180-350)
-//    - Summary display and scroll sync
-//    - Uses ISummaryRowService for calculations
-//
-// 4. SEARCH/FILTER (lines ~1200-1270)
-//    - Search box functionality
-//    - Filter logic
-//
-// REFACTORING PROGRESS:
-// ✅ ISummaryRowService extracted and used
-// ✅ Removed dead rectangular selection code
-// ✅ Removed commented code
-// ✅ Header Template extracted to ColumnHeaderFactory
-// ✅ Xaml.Behaviors.Avalonia integrated for drag-drop
-// ✅ File reduced from ~2434 -> 1971 -> 1603 lines
-//
-// PRIORITY: Low - Functionality works well, refactoring is for maintainability
+// What remains here is genuine view plumbing: event wiring, control lookups,
+// flyouts, row details, summary-row presentation and bridge wiring.
 // =============================================================================
 
 using Avalonia.Collections;
@@ -64,12 +44,14 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
     private readonly IDataGridClipboardService _clipboardService;
     private readonly IResultGridGroupingService _groupingService;
     private readonly IResultGridGroupingDragService _groupingDragService;
+    private readonly IResultGridColumnReorderService _columnReorderService;
     private readonly IResultGridGroupExpandCollapseService _groupExpandCollapseService;
     private readonly IResultGridStatsService _statsService;
     private readonly IResultGridKeyboardService _keyboardService;
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly ISimpleLogger _simpleLogger;
     private readonly Dictionary<int, double> _lastColumnWidths = [];
+    private object[] _selectedRowsBeforeBindingSuspension = [];
     private SqlResultsViewModel? _boundViewModel;
 
     public SqlResultsView(ISqlResultsViewServices services)
@@ -83,6 +65,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
         _clipboardService = services.ClipboardService;
         _groupingService = services.GroupingService;
         _groupingDragService = services.GroupingDragService;
+        _columnReorderService = services.ColumnReorderService;
         _groupExpandCollapseService = services.GroupExpandCollapseService;
         _statsService = services.StatsService;
         _keyboardService = services.KeyboardService;
@@ -162,7 +145,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
     {
         if (DataContext is SqlResultsViewModel vm && !vm.GroupedColumns.Contains(columnName))
         {
-            GroupByOneColumn(columnName);
+            vm.ToggleGroupByColumn(columnName, _groupingService);
         }
     }
 
@@ -258,28 +241,14 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
     public void MoveGroup(string sourceColName, string targetColName)
     {
-        var groupedPropertyNames = GridCollectionView.GroupDescriptions
-            .Select(static gd => gd.PropertyName)
-            .ToList();
-        if (_groupingService.TryFindMoveIndexes(
-            groupedPropertyNames,
-            CurrentResultsTable.Headers,
-            sourceColName,
-            targetColName,
-            out int sourceIndex,
-            out int targetIndex))
+        if (!_groupingDragService.TryCreateMoveRequest(sourceColName, targetColName, out var moveRequest))
         {
-            var item = GridCollectionView.GroupDescriptions[sourceIndex];
-            GridCollectionView.GroupDescriptions.RemoveAt(sourceIndex);
-            GridCollectionView.GroupDescriptions.Insert(targetIndex, item);
+            return;
+        }
 
-            RefreshGroupedColumnsState();
-             
-            // Refresh summary row layout after group reordering
-            Dispatcher.UIThread.Post(() =>
-            {
-                RefreshSummaryRowWidths();
-            }, DispatcherPriority.Input);
+        if (DataContext is SqlResultsViewModel vm)
+        {
+            vm.MoveGroup(moveRequest.SourceColumnName, moveRequest.TargetColumnName, _groupingService);
         }
     }
 
@@ -378,7 +347,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
                 return;
             }
 
-            rowsLoadingMessage.Text = $"{GridCollectionView.Count:N0} rows";
+            vm.RowsLoadingMessage = $"{GridCollectionView.Count:N0} rows";
             RefreshSummaryRowWidths();
             vm.RefreshFind();
         }, DispatcherPriority.Background);
@@ -403,8 +372,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
         if (selectionPlan.IsSingleCellSelection)
         {
-            SelectedColumnCells = [];
-            StatsText = "Selected 1 cell";
+            (DataContext as SqlResultsViewModel)?.SetSingleCellSelectionSummary();
             return;
         }
 
@@ -474,22 +442,22 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
     private void DataGrid_LoadingRow(object? sender, DataGridRowEventArgs e)
     {
+        string rowText = ResultGridRowHeaderRules.GetRowHeaderText(e.Row.Index);
         if (e.Row.Header is TextBlock tb)
         {
-            tb.Text = (e.Row.Index + 1).ToString("N0", System.Globalization.CultureInfo.CurrentCulture);
+            tb.Text = rowText;
         }
         else
         {
             e.Row.Header = new TextBlock()
             {
-                Text = (e.Row.Index + 1).ToString("N0", System.Globalization.CultureInfo.CurrentCulture),
+                Text = rowText,
                 Margin = RowHeaderMargin,
                 FontSize = 12
             };
         }
 
-        // Stripe by data index — :nth-child breaks under row virtualization/recycling.
-        e.Row.Classes.Set("odd-row", e.Row.Index % 2 == 1);
+        e.Row.Classes.Set("odd-row", ResultGridRowHeaderRules.IsOddRow(e.Row.Index));
     }
 
     private void TriggerStatsUpdate()
@@ -504,19 +472,13 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
     private void UpdateSelectedCellsStats()
     {
-        var currentResultsTable = CurrentResultsTable;
-        if (currentResultsTable is null)
+        if (DataContext is not SqlResultsViewModel vm)
         {
-            SelectedColumnCells = [];
-            StatsText = "Selected 0 cells | Sum 0.000 | Count 0 | Distinct 0 | Min - | Max -";
             return;
         }
 
         var selectedCells = ResultDataGrid.SelectedCells?.OfType<DataGridCellInfo>().ToList() ?? [];
-        var result = _statsService.CalculateStats(selectedCells, currentResultsTable);
-
-        SelectedColumnCells = result.SelectedValues;
-        StatsText = result.ToDisplayString();
+        vm.UpdateSelectionStats(selectedCells, _statsService);
     }
 
     private void RowDetailsDataGrid_Initialized(object? sender, EventArgs e)
@@ -623,6 +585,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
         }
         catch
         {
+            // Best-effort clipboard copy: the grid may be empty or the clipboard busy.
         }
     }
 
@@ -646,25 +609,13 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
             }
         }
 
-        string text;
-        var selectedItems = ResultDataGrid.SelectedItems;
         var columnHeaders = ResultDataGrid.Columns.Select(c => c.Header?.ToString() ?? "").ToList();
-
-        if (selectedItems.Count > 1)
-        {
-            text = _clipboardService.BuildMultiRowText(columnHeaders, selectedItems);
-        }
-        else if (ResultDataGrid.SelectedItem is TableRow tableRow)
-        {
-            var header = ResultDataGrid.CurrentColumn.Header?.ToString();
-            text = header is not null
-                ? _clipboardService.BuildSingleCellText(tableRow, header, CurrentResultsTable)
-                : string.Empty;
-        }
-        else
-        {
-            text = string.Empty;
-        }
+        string text = _clipboardService.BuildCopyWithHeadersText(
+            columnHeaders,
+            ResultDataGrid.SelectedItems,
+            ResultDataGrid.SelectedItem,
+            ResultDataGrid.CurrentColumn?.Header?.ToString(),
+            CurrentResultsTable);
         Copy1Command.Execute(text);
     }
 
@@ -677,203 +628,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
     {
         if (DataContext is SqlResultsViewModel vm && !vm.SearchInProgress)
         {
-            _searchService.ScheduleSearch(MakeSearch);
-        }
-    }
-
-    private bool? ContainsGeneralSearch => generalSearchToggle.GetValue(ToggleSwitch.IsCheckedProperty);//generalSearchToggle.IsChecked;
-    private string SearchText => searchBox.GetValue(TextBox.TextProperty);// searchBox.Text;
-    private void MakeSearch()
-    {
-        if (DataContext is not SqlResultsViewModel vm
-            || vm.SearchInProgress
-            || CurrentResultsTable is null
-            || CurrentResultsTable.Rows is null
-            || CurrentResultsTable.Rows.Count <= 0
-            || CurrentResultsTable.Headers.Count <= 0)
-        {
-            return;
-        }
-
-        vm.SearchInProgress = true;
-        try
-        {
-            // Detach so FilteredRows mutations do not layout against a live DataGrid.
-            ((ISqlResultsViewBridge)this).SuspendGridBinding();
-
-            _searchService.ApplySearch(CurrentResultsTable, SearchText, null, ContainsGeneralSearch == true);
-
-            if (SelectedItems.Count > 5_000)
-            {
-                SelectedItems.Clear();
-            }
-
-            vm.GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows);
-
-            rowsLoadingMessage.Text = $"{vm.GridCollectionView.Count:N0} rows";
-            RefreshSummaryRowWidths();
-            vm.RefreshFind();
-            _summaryScrollService.InvalidateRowHeaderWidthCache();
-        }
-        finally
-        {
-            ((ISqlResultsViewBridge)this).ResumeGridBinding();
-            vm.SearchInProgress = false;
-        }
-    }
-
-
-
-    private void DataGrid_Initialized(object? sender, System.EventArgs e)
-    {
-        RefreshDataGridColumns();
-    }
-
-    private bool _refreshingColumns;
-
-    /// <summary>
-    /// Refreshes DataGrid columns when data changes. Called from DataGrid_Initialized and OnCurrentResultsTableChanged.
-    /// </summary>
-    internal void RefreshDataGridColumns()
-    {
-        if (_refreshingColumns) return;
-        if (CurrentResultsTable is null || ResultDataGrid is null || CurrentResultsTable.Headers.Count == 0)
-        {
-            return;
-        }
-
-        _refreshingColumns = true;
-        try
-        {
-            // Clear existing columns to handle both new and recycled views
-            ResultDataGrid.Columns.Clear();
-            _pinnedColumns.Clear();
-            _summaryScrollService.InvalidateRowHeaderWidthCache();
-
-            // Update autocomplete items
-            if (columnAutoComplet is not null)
-            {
-                List<string> headersListCopy = new(CurrentResultsTable.Headers);
-                headersListCopy.Sort();
-                columnAutoComplet.ItemsSource = headersListCopy;
-            }
-
-            // Recreate columns
-            List<IValueConverter> valueConverters = [];
-            for (var i = 0; i < CurrentResultsTable.Headers.Count; ++i)
-            {
-                FuncDataTemplate<object> headerTemplate = GetHeaderTemplate(CurrentResultsTable, i, i);
-
-                DataGridBoundColumn col = ResultGridColumnFactory.CreateColumn(CurrentResultsTable, i, headerTemplate, _pinnedColumns, valueConverters);
-                ResultDataGrid.Columns.Add(col);
-            }
-            ResultDataGrid.FrozenColumnCount = _pinnedColumns.Count;
-        }
-        finally
-        {
-            _refreshingColumns = false;
-        }
-    }
-
-    private readonly Dictionary<string, int> _pinnedColumns = [];
-
-    // This payload is consumed only by JustyBase. An application format keeps it
-    // available to the in-process drop target on every Avalonia platform.
-    private readonly DataFormat<string> _columnNameDataFormat =
-        DataFormat.CreateStringApplicationFormat("JustyBase.ColumnName");
-    private readonly List<string> _groupedCols = [];
-    
-    private FuncDataTemplate<object> GetHeaderTemplate(TableOfSqlResults table, int index, int savedI)
-    {
-        return new FuncDataTemplate<object>((_, _) =>
-        {
-            var ctx = new ColumnHeaderContext
-            {
-                ColumnNameDataFormat = _columnNameDataFormat,
-                PinnedColumns = _pinnedColumns,
-                DataGrid = ResultDataGrid,
-                PinIcon = this.Resources["btPinData"] as StreamGeometry ?? throw new InvalidOperationException("btPinData resource not found"),
-                UnpinIcon = this.Resources["btPinData2"] as StreamGeometry ?? throw new InvalidOperationException("btPinData2 resource not found"),
-                ViewModel = DataContext as SqlResultsViewModel,
-                RefreshSummaryRowWidths = RefreshSummaryRowWidths,
-                SavedIndex = savedI
-            };
-            return ColumnHeaderFactory.CreateHeaderControl(table, index, ctx);
-        });
-    }
-
-    [RelayCommand]
-    private void GroupByOneColumn(string name)
-    {
-        if (GridCollectionView.Count >= 1_000_000)
-        {
-            _messageForUserTools.ShowSimpleMessageBoxInstance("to many items");
-            return;
-        }
-        var groupedPropertyNames = GridCollectionView.GroupDescriptions
-            .Select(static gd => gd.PropertyName)
-            .ToList();
-        var togglePlan = _groupingService.BuildTogglePlan(name, CurrentResultsTable.Headers, groupedPropertyNames);
-        if (togglePlan.Action == GroupingToggleAction.None)
-        {
-            return;
-        }
-
-        if (togglePlan.Action == GroupingToggleAction.Remove)
-        {
-            if ((uint)togglePlan.ExistingIndex < (uint)GridCollectionView.GroupDescriptions.Count)
-            {
-                GridCollectionView.GroupDescriptions.RemoveAt(togglePlan.ExistingIndex);
-            }
-        }
-        else
-        {
-            // Add sort description for grouping - DataGridCollectionView will handle sorting automatically
-            var dataGridSortDescription = DataGridSortDescription.FromPath(togglePlan.PropertyName, ListSortDirection.Ascending);
-            GridCollectionView.SortDescriptions.Add(dataGridSortDescription);
-
-            var group = new DataGridPathGroupDescription(togglePlan.PropertyName)
-            {
-                ValueConverter = new ForGroupValueConverter()
-            };
-            GridCollectionView.GroupDescriptions.Add(group);
-        }
-        RefreshGroupedColumnsState();
-         
-        // Refresh summary row layout after grouping changes
-        // Post to dispatcher to allow DataGrid layout to update first (headers shifting)
-        Dispatcher.UIThread.Post(() =>
-        {
-            RefreshSummaryRowWidths();
-        }, DispatcherPriority.Input);
-    }
-
-    private void RefreshGroupedColumnsState()
-    {
-        _groupedCols.Clear();
-        foreach (var groupDescription in GridCollectionView.GroupDescriptions)
-        {
-            _groupedCols.Add(groupDescription.PropertyName);
-        }
-
-        UpdateViewModelGroupedColumns();
-    }
-
-    /// <summary>
-    /// Updates the ViewModel's GroupedColumns collection based on current grouping state
-    /// </summary>
-    private void UpdateViewModelGroupedColumns()
-    {
-        if (DataContext is not SqlResultsViewModel vm || CurrentResultsTable is null)
-        {
-            return;
-        }
-
-        vm.GroupedColumns.Clear();
-        var groupedColumns = _groupingService.ToGroupedColumnNames(_groupedCols, CurrentResultsTable.Headers);
-        foreach (var groupedColumn in groupedColumns)
-        {
-            vm.GroupedColumns.Add(groupedColumn);
+            _searchService.ScheduleSearch(() => vm.ApplyFilterSearch(_searchService));
         }
     }
 
@@ -882,56 +637,57 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
     /// </summary>
     private void RemoveGroupByColumnName(string columnName)
     {
-        GroupByOneColumn(columnName);
+        if (DataContext is SqlResultsViewModel vm)
+        {
+            vm.ToggleGroupByColumn(columnName, _groupingService);
+        }
     }
 
     private void ResultDataGrid_Sorting(object? sender, DataGridColumnEventArgs e)
     {
         var boundColumn = e.Column as DataGridBoundColumn;
-        var cmp = boundColumn?.CustomSortComparer as CustomResultComparer;
-        if (boundColumn is not null && cmp is not null && CurrentResultsTable is not null
-            && DataContext is SqlResultsViewModel vm)
+        if (boundColumn is null || !ResultGridColumnSortRules.CanApplyCustomSort(boundColumn.CustomSortComparer))
         {
-            var newDirection = e.Column.SortDirection == ListSortDirection.Ascending
-                ? ListSortDirection.Descending
-                : ListSortDirection.Ascending;
-
-            foreach (var column in ResultDataGrid.Columns)
-            {
-                if (!ReferenceEquals(column, e.Column))
-                {
-                    column.SortDirection = null;
-                }
-            }
-            e.Column.SortDirection = newDirection;
-
-            CurrentResultsTable.ColumnsToSort.Clear();
-            CurrentResultsTable.ColumnsToSort.Add(new TableOfSqlResults.SortInfo
-            {
-                ColNumber = cmp.Index,
-                SortDirection = newDirection,
-                Comparer = cmp
-            });
-
-            ((ISqlResultsViewBridge)this).SuspendGridBinding();
-            try
-            {
-                CurrentResultsTable.SortFilteredRows();
-                vm.GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows);
-            }
-            finally
-            {
-                ((ISqlResultsViewBridge)this).ResumeGridBinding();
-            }
-
-            e.Handled = true;
+            return;
         }
+
+        if (CurrentResultsTable is null || DataContext is not SqlResultsViewModel)
+        {
+            return;
+        }
+
+        var newDirection = ResultGridColumnSortRules.NextDirection(e.Column.SortDirection);
+        ApplyColumnSort(e.Column, newDirection);
+        e.Handled = true;
+    }
+
+    private void ApplyColumnSort(DataGridColumn targetColumn, ListSortDirection direction)
+    {
+        if (targetColumn is not DataGridBoundColumn boundColumn ||
+            !ResultGridColumnSortRules.CanApplyCustomSort(boundColumn.CustomSortComparer) ||
+            CurrentResultsTable is null || DataContext is not SqlResultsViewModel vm)
+        {
+            return;
+        }
+
+        var comparer = (CustomResultComparer)boundColumn.CustomSortComparer;
+        // Single-column sort: every other column loses its glyph.
+        foreach (var otherColumn in ResultDataGrid.Columns)
+        {
+            if (!ReferenceEquals(otherColumn, targetColumn))
+            {
+                otherColumn.SortDirection = null;
+            }
+        }
+        targetColumn.SortDirection = direction;
+
+        vm.ApplyColumnSort(comparer, direction);
     }
     private void DataGrid_LoadingRowGroup(object? sender, DataGridRowGroupHeaderEventArgs e)
     {
         DataGridRowGroupHeader group = e.RowGroupHeader;
         group.IsItemCountVisible = true;
-        group.ItemCountFormat = "({0:N0} Items)";
+        group.ItemCountFormat = ResultGridRowHeaderRules.GroupItemCountFormat;
     }
 
     private void DataGrid_DoubleTapped(object sender, RoutedEventArgs e)
@@ -1016,11 +772,12 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
     {
         if (ResultDataGrid is not null)
         {
+            _selectedRowsBeforeBindingSuspension = ResultDataGrid.SelectedItems.Cast<object>().ToArray();
             ResultDataGrid.ItemsSource = null;
         }
     }
 
-    void ISqlResultsViewBridge.ResumeGridBinding()
+    void ISqlResultsViewBridge.ResumeGridBinding(bool clearSelection)
     {
         if (ResultDataGrid is null)
         {
@@ -1029,7 +786,45 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
         if (DataContext is SqlResultsViewModel vm)
         {
+            var selectedRows = _selectedRowsBeforeBindingSuspension;
+            _selectedRowsBeforeBindingSuspension = [];
+
             ResultDataGrid.ItemsSource = vm.GridCollectionView;
+            // ProDataGrid selects row 0 when ItemsSource is reattached, even if
+            // there was no selection before. Reapply the prior selection by row
+            // identity so sorting/filtering does not select a different first row.
+            vm.SelInd = -1;
+            if (clearSelection)
+            {
+                ResultDataGrid.SelectedItems.Clear();
+                return;
+            }
+            if (selectedRows.Length > 0)
+            {
+                // Use FilteredRows as the visible-row set: DataGridCollectionView
+                // enumeration may yield group objects when GroupDescriptions are set.
+                HashSet<object> visibleRows;
+                var filteredRows = vm.CurrentResultsTable?.FilteredRows;
+                if (filteredRows is not null)
+                {
+                    visibleRows = new HashSet<object>(filteredRows.Cast<object>(), ReferenceEqualityComparer.Instance);
+                }
+                else
+                {
+                    visibleRows = vm.GridCollectionView
+                        .OfType<TableRow>()
+                        .Cast<object>()
+                        .ToHashSet(ReferenceEqualityComparer.Instance);
+                }
+
+                foreach (var selectedRow in selectedRows)
+                {
+                    if (selectedRow is not null && visibleRows.Contains(selectedRow))
+                    {
+                        ResultDataGrid.SelectedItems.Add(selectedRow);
+                    }
+                }
+            }
         }
     }
 }

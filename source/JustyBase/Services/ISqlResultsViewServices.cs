@@ -19,6 +19,7 @@ public interface ISqlResultsViewServices
     IDataGridClipboardService ClipboardService { get; }
     IResultGridGroupingService GroupingService { get; }
     IResultGridGroupingDragService GroupingDragService { get; }
+    IResultGridColumnReorderService ColumnReorderService { get; }
     IResultGridGroupExpandCollapseService GroupExpandCollapseService { get; }
     IResultGridStatsService StatsService { get; }
     IResultGridKeyboardService KeyboardService { get; }

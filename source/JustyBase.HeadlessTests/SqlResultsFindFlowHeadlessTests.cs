@@ -34,7 +34,8 @@ public sealed class SqlResultsFindFlowHeadlessTests : HeadlessSessionTestBase
             Mock.Of<IMessageForUserTools>(),
             ISimpleLogger.EmptyLogger,
             Mock.Of<IResultGridActionRoutingService>(),
-            Mock.Of<IActiveDocumentManager>());
+            Mock.Of<IActiveDocumentManager>(),
+            new DataGridClipboardService());
 
         var table = vm.CurrentResultsTable;
         table.Headers.Add("A");
@@ -57,6 +58,7 @@ public sealed class SqlResultsFindFlowHeadlessTests : HeadlessSessionTestBase
             Mock.Of<IDataGridClipboardService>(),
             Mock.Of<IResultGridGroupingService>(),
             Mock.Of<IResultGridGroupingDragService>(),
+            new ResultGridColumnReorderService(),
             Mock.Of<IResultGridGroupExpandCollapseService>(),
             Mock.Of<IResultGridStatsService>(),
             new ResultGridKeyboardService(),

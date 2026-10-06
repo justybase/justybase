@@ -110,4 +110,123 @@ public sealed class DataGridClipboardService : IDataGridClipboardService
             return StringExtension.ConvertAsSqlCompatybile(obj);
         }
     }
+
+    /// <inheritdoc />
+    public string BuildCopyWithHeadersText(
+        IReadOnlyList<string> columnHeaders,
+        IList selectedItems,
+        object? selectedItem,
+        string? currentColumnHeader,
+        TableOfSqlResults? table)
+    {
+        if (selectedItems.Count > 1)
+        {
+            return BuildMultiRowText(columnHeaders, selectedItems);
+        }
+
+        if (selectedItem is TableRow tableRow && currentColumnHeader is not null && table is not null)
+        {
+            return BuildSingleCellText(tableRow, currentColumnHeader, table);
+        }
+
+        return string.Empty;
+    }
+
+    /// <inheritdoc />
+    public string BuildSelectedCellsColumnText(IEnumerable<object?>? cells)
+    {
+        if (cells is null)
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+        foreach (var cell in cells)
+        {
+            sb.AppendLine(cell?.ToString());
+        }
+
+        return sb.ToString();
+    }
+
+    /// <inheritdoc />
+    public string BuildSelectedRangeText(
+        IReadOnlyList<string> columnHeaders,
+        IEnumerable<TableRow> rows,
+        int fromColumn,
+        int toColumn)
+    {
+        if (columnHeaders is null || columnHeaders.Count == 0 || rows is null)
+        {
+            return string.Empty;
+        }
+
+        int first = Math.Min(fromColumn, toColumn);
+        int last = Math.Max(fromColumn, toColumn);
+
+        // PrevCols may hold stale indexes after reorder/hide/remove columns or a new query.
+        if (last < 0 || first >= columnHeaders.Count)
+        {
+            return string.Empty;
+        }
+
+        first = Math.Max(first, 0);
+        last = Math.Min(last, columnHeaders.Count - 1);
+        if (first > last)
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+
+        for (int i = first; i <= last; i++)
+        {
+            sb.Append(columnHeaders[i]);
+            // Header cells are all followed by a tab, including the last one.
+            sb.Append('\t');
+        }
+        sb.AppendLine();
+
+        foreach (var row in rows)
+        {
+            if (row?.Fields is not { } fields)
+            {
+                continue;
+            }
+            for (int i = first; i <= last; i++)
+            {
+                if (i < fields.Length)
+                {
+                    sb.Append(fields[i]);
+                }
+                if (i < last)
+                {
+                    sb.Append('\t');
+                }
+            }
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
+    /// <inheritdoc />
+    public string BuildRowValuesText(TableRow row)
+    {
+        object[] fields = row.Fields;
+
+        var sb = new StringBuilder();
+        sb.Append("VALUES (");
+        for (int i = 0; i < fields.Length; i++)
+        {
+            sb.Append(StringExtension.ConvertAsSqlCompatybile(fields[i]));
+            if (i < fields.Length - 1)
+            {
+                sb.Append(',');
+            }
+        }
+        sb.Append(')');
+
+        return sb.ToString();
+    }
 }

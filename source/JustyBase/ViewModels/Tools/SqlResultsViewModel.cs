@@ -121,17 +121,20 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
     private readonly ISimpleLogger _simpleLogger;
     private readonly IResultGridActionRoutingService _actionRoutingService;
     private readonly IActiveDocumentManager _activeDocumentManager;
+    private readonly IDataGridClipboardService _dataGridClipboardService;
 
     public IClipboardService Clipboard => _clipboardService;
     public SqlResultsViewModel(IFactory factory, IAvaloniaSpecificHelpers avaloniaSpecificHelpers, IClipboardService clipboardService,
         IGeneralApplicationData generalApplicationData, IMessageForUserTools messageForUserTools,
         ISimpleLogger simpleLogger,
         IResultGridActionRoutingService actionRoutingService,
-        IActiveDocumentManager activeDocumentManager
+        IActiveDocumentManager activeDocumentManager,
+        IDataGridClipboardService dataGridClipboardService
         )
     {
         Factory = factory;
         _activeDocumentManager = activeDocumentManager;
+        _dataGridClipboardService = dataGridClipboardService;
         _avaloniaSpecificHelpers = avaloniaSpecificHelpers;
         _clipboardService = clipboardService;
         _generalApplicationData = generalApplicationData;
@@ -183,52 +186,6 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
     public string SQL { get; set; }
 
 
-    [RelayCommand]
-    private async Task ExportAllResults()
-    {
-        string randomName = await _messageForUserTools.ShowAskForFileNameDialogAsync();
-
-        var filePathToExport = Path.Combine(IGeneralApplicationData.DataDirectory, $"{randomName}{_resultHelperService.DefaultExcelExtension}");
-        List<(DbDataReader, string)> listOfResults = [];
-
-        if (!_generalApplicationData.TryGetDocumentById(this.RelatedSqlDocumentId, out var docRes))
-        {
-            _messageForUserTools.ShowSimpleMessageBoxInstance("ExportAllResults - error", "Warning");
-            return;
-        }
-
-        List<SqlResultsViewModel> results = _activeDocumentManager.GetDocumentResults(docRes.HotDocumentViewModelAsT<SqlDocumentViewModel>());
-        if (results is null || results.Count == 0)
-        {
-            return;
-        }
-        foreach (var item in results)
-        {
-            listOfResults.Add((new DBReaderWithMessagesTable(item.CurrentResultsTable, null), item.SQL));
-        }
-
-        if (listOfResults.Count > 0)
-        {
-            try
-            {
-                await _resultHelperService.CreateXlsbOrXlsxFile(filePathToExport, listOfResults);
-            }
-            finally
-            {
-                foreach (var (reader, _) in listOfResults)
-                    reader.Dispose();
-            }
-            try
-            {
-                await _avaloniaSpecificHelpers.CopyFileToClipboard(filePathToExport);
-            }
-            catch (Exception ex)
-            {
-                _simpleLogger.TrackError(ex, isCrash: true);
-            }
-        }
-    }
-
     private bool _doCollapseInNextCollapseAction = true;
 
     [RelayCommand]
@@ -245,189 +202,6 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         _doCollapseInNextCollapseAction = !_doCollapseInNextCollapseAction;
     }
 
-    [RelayCommand]
-    private async Task ActionFromButton(string whatAction)
-    {
-        bool canceled = false;
-        ResultGridToolbarAction action = _actionRoutingService.Resolve(whatAction);
-        if (_actionRoutingService.RequiresTableReader(action))
-        {
-            using var rdr = new DBReaderWithMessagesTable(CurrentResultsTable, null);
-            if (CurrentResultsTable.TypeCodes is null)
-            {
-                ShowFlyoutCommand?.Execute("ERROR");
-                return;
-            }
-
-            string randomName = StringExtension.RandomSuffix();
-
-            string filePathToExport = Path.Combine(IGeneralApplicationData.DataDirectory, $"{randomName}{_resultHelperService.DefaultExcelExtension}");
-            if (action is ResultGridToolbarAction.CopyAsCsvClipboard or ResultGridToolbarAction.CopyAsCsvClipboardHeaders)
-            {
-                using StringWriter stringWriter = new StringWriter();
-
-                bool headers = action == ResultGridToolbarAction.CopyAsCsvClipboardHeaders;
-                try
-                {
-                    _resultHelperService.CreateCsvFile(stringWriter, rdr, headers);
-                }
-                catch (Exception ex)
-                {
-                    _simpleLogger.LogAndShowError(ex, _messageForUserTools);
-                }
-
-                await _clipboardService.SetTextAsync(stringWriter.ToString());
-            }
-            else if (action is ResultGridToolbarAction.CopyAsExcelFileClipboard
-                     or ResultGridToolbarAction.OpenAsExcelFileClipboard
-                     or ResultGridToolbarAction.SaveAsExcelFile)
-            {
-                if (action == ResultGridToolbarAction.CopyAsExcelFileClipboard)
-                {
-                    randomName = await _messageForUserTools.ShowAskForFileNameDialogAsync(showInTaskbar: false);
-                    filePathToExport = Path.Combine(IGeneralApplicationData.DataDirectory, $"{randomName}{_resultHelperService.DefaultExcelExtension}");
-                    if (String.IsNullOrWhiteSpace(randomName))
-                    {
-                        canceled = true;
-                    }
-                }
-                else if (action == ResultGridToolbarAction.SaveAsExcelFile)
-                {
-                    var saveFile = await _avaloniaSpecificHelpers.GetStorageProvider().SaveFilePickerAsync(
-                        new FilePickerSaveOptions()
-                        {
-                            FileTypeChoices =
-                            [
-                                new("excel file") { Patterns = [".xlsb"] },
-                                new("excel file") { Patterns = [".xlsx"] },
-                                new("csv file") { Patterns = [".csv"] },
-                                new("zstd csv file") { Patterns = [".csv.zst"] },
-                                new("parquet file") { Patterns = [".parquet"] },
-                                new("zipped csv file") { Patterns = [".csv.zip"] },
-                                new("brotli csv file") { Patterns = [".csv.br"] },
-                                new("gzip csv file") { Patterns = [".csv.gz"] },
-                            ],
-                            DefaultExtension = ".xlsb",
-                            ShowOverwritePrompt = true
-                        }
-                    );
-
-                    if (saveFile is null)
-                    {
-                        return;
-                    }
-                    filePathToExport = saveFile.Path.LocalPath;
-                }
-
-                if (string.IsNullOrWhiteSpace(filePathToExport))
-                {
-                    return;
-                }
-
-                if (!canceled)
-                {
-                    await _resultHelperService.CreateExcelFileAsync(filePathToExport, rdr, SQL);
-
-                    if (action == ResultGridToolbarAction.CopyAsExcelFileClipboard)
-                    {
-                        try
-                        {
-                            await _avaloniaSpecificHelpers.CopyFileToClipboard(filePathToExport);
-                        }
-                        catch (Exception ex)
-                        {
-                            _simpleLogger.TrackError(ex, isCrash: false);
-                        }
-                    }
-                    else if (action == ResultGridToolbarAction.OpenAsExcelFileClipboard)
-                    {
-                        _messageForUserTools.OpenInExplorerHelper(filePathToExport.Replace("/", "\\").Replace("\\\\", "\\"));
-                    }
-                }
-            }
-            else if (action == ResultGridToolbarAction.CopyAsHtml)
-            {
-                using var dataTransfer = new DataTransfer();
-                DataFormat<byte[]> _customBinaryDataFormat = DataFormat.CreateBytesPlatformFormat("HTML Format");
-                dataTransfer.Add(DataTransferItem.Create(_customBinaryDataFormat, CopyHtmlOrTextClipboard.GetHtmlBytesOfTable(CurrentResultsTable)));
-                await _avaloniaSpecificHelpers.GetClipboard().SetDataAsync(dataTransfer);
-            }
-            else if (action == ResultGridToolbarAction.CopySelectedCellsCurrentColumn)
-            {
-                StringBuilder sb = new();
-                foreach (var item in SelectedColumnCells)
-                {
-                    sb.AppendLine(item?.ToString());
-                }
-                await _clipboardService.SetTextAsync(sb.ToString());
-            }
-            else if (action == ResultGridToolbarAction.CopySelectedCellsCurrentColumnRange)
-            {
-                StringBuilder sb = new();
-
-                if (PrevCols.TryDequeue(out int prev1) && PrevCols.TryDequeue(out int prev2))
-                {
-                    for (int i = Math.Min(prev1, prev2); i <= Math.Max(prev1, prev2); i++)
-                    {
-                        sb.Append(CurrentResultsTable.Headers[i]);
-                        if (i <= Math.Max(prev1, prev2))
-                        {
-                            sb.Append('\t');
-                        }
-                    }
-                    sb.AppendLine();
-                    foreach (var row in SelectedItems.OfType<TableRow>())
-                    {
-                        object[] fileds = row?.Fields;
-                        for (int i = Math.Min(prev1, prev2); i <= Math.Max(prev1, prev2); i++)
-                        {
-                            object o = fileds[i];
-                            sb.Append(o);
-                            if (i < Math.Max(prev1, prev2))
-                            {
-                                sb.Append('\t');
-                            }
-                        }
-                        sb.AppendLine();
-                    }
-
-                    await _clipboardService.SetTextAsync(sb.ToString());
-                }
-            }
-            else if (action == ResultGridToolbarAction.CopyRowValues)
-            {
-                IList selectedRows = SelectedItems;
-                if (selectedRows.Count == 1)
-                {
-                    StringBuilder sb = new();
-
-                    sb.Append("VALUES (");
-                    var row = (selectedRows[0] as TableRow);
-                    object[] fileds = row?.Fields;
-                    for (int i = 0; i < fileds.Length; i++)
-                    {
-                        object o = fileds[i];
-                        var item = StringExtension.ConvertAsSqlCompatybile(o);
-                        sb.Append(item);
-                        if (i < fileds.Length - 1)
-                        {
-                            sb.Append(',');
-                        }
-                    }
-                    sb.Append(')');
-                    await _clipboardService.SetTextAsync(sb.ToString());
-                }
-            }
-        }
-
-        if (canceled)
-        {
-            return;
-        }
-
-
-        ShowFlyoutCommand?.Execute(whatAction);
-    }
     public ICommand ShowFlyoutCommand { get; set; } // !!! Mode=OneWayToSource
     public ICommand ChangeColumVisiblityCommand { get; set; } // !!! Mode=OneWayToSource
 
@@ -441,7 +215,9 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
     [ObservableProperty]
     public partial IList SelectedItems { get; set; }
 
-    private int _selInd;
+    // DataGrid.SelectedIndex uses -1 for no selection. Keeping that as the
+    // initial value prevents the first loaded result row from being selected.
+    private int _selInd = -1;
     public int SelInd
     {
         get => _selInd;
@@ -675,6 +451,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         }
         catch (OperationCanceledException)
         {
+            // Expected when a newer find request supersedes this one; nothing to report.
         }
     }
 

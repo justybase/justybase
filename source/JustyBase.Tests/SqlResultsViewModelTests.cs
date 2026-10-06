@@ -144,6 +144,7 @@ public sealed class SqlResultsViewModelTests
             Mock.Of<IMessageForUserTools>(),
             ISimpleLogger.EmptyLogger,
             Mock.Of<IResultGridActionRoutingService>(),
-            Mock.Of<IActiveDocumentManager>());
+            Mock.Of<IActiveDocumentManager>(),
+            new DataGridClipboardService());
     }
 }

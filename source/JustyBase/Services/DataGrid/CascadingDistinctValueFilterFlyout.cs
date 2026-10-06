@@ -1,6 +1,7 @@
 using System.Collections;
 using System.ComponentModel;
 using System.Globalization;
+using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.DataGridFiltering;
 using Avalonia.Controls.DataGridSearching;
@@ -12,8 +13,7 @@ using DataGridControl = Avalonia.Controls.DataGrid;
 namespace JustyBase.Services.DataGrid;
 
 /// <summary>
-/// Experimental distinct-value flyout that reads options from the current
-/// filtered view instead of the unfiltered source collection.
+/// Distinct-value and comparison filter flyout for a results-grid column.
 /// </summary>
 public sealed class CascadingDistinctValueFilterFlyout : Flyout
 {
@@ -23,6 +23,7 @@ public sealed class CascadingDistinctValueFilterFlyout : Flyout
     private IDataGridColumnValueAccessor? _contextAccessor;
     private IEqualityComparer? _contextComparer;
     private Func<object?, string>? _contextFormatter;
+    private TypeCode? _contextTypeCode;
 
     public DataGridColumn? Column { get; set; }
 
@@ -32,9 +33,13 @@ public sealed class CascadingDistinctValueFilterFlyout : Flyout
 
     public Func<object?, string>? DisplayFormatter { get; set; }
 
+    public TypeCode? ColumnTypeCode { get; set; }
+
     public string? LastError { get; private set; }
 
     public CascadingDistinctValueFilterContext? Context => _context;
+
+    public event Action<ListSortDirection>? SortRequested;
 
     protected override void OnOpening(CancelEventArgs args)
     {
@@ -57,7 +62,8 @@ public sealed class CascadingDistinctValueFilterFlyout : Flyout
             !Equals(_contextColumnId, columnId) ||
             !ReferenceEquals(_contextAccessor, ValueAccessor) ||
             !ReferenceEquals(_contextComparer, ValueComparer) ||
-            !ReferenceEquals(_contextFormatter, DisplayFormatter))
+            !ReferenceEquals(_contextFormatter, DisplayFormatter) ||
+            _contextTypeCode != ColumnTypeCode)
         {
             _context = new CascadingDistinctValueFilterContext(
                 filteringModel,
@@ -66,21 +72,70 @@ public sealed class CascadingDistinctValueFilterFlyout : Flyout
                 label,
                 propertyPath,
                 ValueComparer,
-                DisplayFormatter);
+                DisplayFormatter,
+                ColumnTypeCode);
+            _context.SortRequested += OnSortRequested;
+            _context.CloseRequested += Hide;
+            _context.RevertRequested += Hide;
             _contextModel = filteringModel;
             _contextColumnId = columnId;
             _contextAccessor = ValueAccessor;
             _contextComparer = ValueComparer;
             _contextFormatter = DisplayFormatter;
+            _contextTypeCode = ColumnTypeCode;
         }
 
-        // The current collection view enumerates rows after its active filter.
-        // Passing it directly makes distinct options dependent on other columns.
-        _context.Refresh(grid.ItemsSource as IEnumerable);
+        // Temporarily remove this column's own descriptor while rebuilding the
+        // value list. This keeps options dependent on other columns, but lets a
+        // user add values that the current column filter had hidden.
+        RefreshContextWithoutOwnFilter(grid, _context, columnId, propertyPath);
         Content = _context;
         ResolveResources(grid);
         LastError = null;
         base.OnOpening(args);
+    }
+
+    private void OnSortRequested(ListSortDirection direction)
+    {
+        SortRequested?.Invoke(direction);
+        Hide();
+    }
+
+    private static void RefreshContextWithoutOwnFilter(
+        DataGridControl grid,
+        CascadingDistinctValueFilterContext context,
+        object columnId,
+        string? propertyPath)
+    {
+        FilteringDescriptor? ownDescriptor = grid.FilteringModel.Descriptors.FirstOrDefault(descriptor =>
+            Equals(descriptor.ColumnId, columnId) ||
+            !string.IsNullOrEmpty(propertyPath) && string.Equals(descriptor.PropertyPath, propertyPath, StringComparison.Ordinal));
+
+        if (ownDescriptor is null)
+        {
+            context.Refresh(grid.ItemsSource as IEnumerable);
+            return;
+        }
+
+        grid.FilteringModel.Remove(ownDescriptor.ColumnId);
+        try
+        {
+            RefreshCollectionView(grid);
+            context.Refresh(grid.ItemsSource as IEnumerable, ownDescriptor);
+        }
+        finally
+        {
+            grid.FilteringModel.SetOrUpdate(ownDescriptor);
+            RefreshCollectionView(grid);
+        }
+    }
+
+    private static void RefreshCollectionView(DataGridControl grid)
+    {
+        if (grid.ItemsSource is DataGridCollectionView collectionView)
+        {
+            collectionView.Refresh();
+        }
     }
 
     private void ResolveResources(DataGridControl grid)

@@ -62,6 +62,7 @@ public static class ResultGridColumnFactory
         {
             Column = col,
             ValueAccessor = valueAccessor,
+            ColumnTypeCode = table.TypeCodes[index],
             Placement = PlacementMode.Bottom
         };
     }

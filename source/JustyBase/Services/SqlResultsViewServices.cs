@@ -19,6 +19,7 @@ public sealed class SqlResultsViewServices : ISqlResultsViewServices
     public IDataGridClipboardService ClipboardService { get; }
     public IResultGridGroupingService GroupingService { get; }
     public IResultGridGroupingDragService GroupingDragService { get; }
+    public IResultGridColumnReorderService ColumnReorderService { get; }
     public IResultGridGroupExpandCollapseService GroupExpandCollapseService { get; }
     public IResultGridStatsService StatsService { get; }
     public IResultGridKeyboardService KeyboardService { get; }
@@ -35,6 +36,7 @@ public sealed class SqlResultsViewServices : ISqlResultsViewServices
         IDataGridClipboardService clipboardService,
         IResultGridGroupingService groupingService,
         IResultGridGroupingDragService groupingDragService,
+        IResultGridColumnReorderService columnReorderService,
         IResultGridGroupExpandCollapseService groupExpandCollapseService,
         IResultGridStatsService statsService,
         IResultGridKeyboardService keyboardService,
@@ -50,6 +52,7 @@ public sealed class SqlResultsViewServices : ISqlResultsViewServices
         ClipboardService = clipboardService;
         GroupingService = groupingService;
         GroupingDragService = groupingDragService;
+        ColumnReorderService = columnReorderService;
         GroupExpandCollapseService = groupExpandCollapseService;
         StatsService = statsService;
         KeyboardService = keyboardService;

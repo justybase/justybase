@@ -23,7 +23,7 @@ public sealed class AppOptionsFimSettingsStore : IFimSettingsStore
         var copy = Map(_generalApplicationData.Config);
         mutate(copy);
         Apply(_generalApplicationData.Config, copy);
-        _generalApplicationData.SaveConfig();
+        _generalApplicationData.SaveAppConfig();
     }
 
     private static FimSettings Map(JustyBase.Common.AppOptions config)

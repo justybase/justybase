@@ -23,7 +23,7 @@ public sealed class AppOptionsChatSettingsStore : IChatSettingsStore
         var copy = Map(_generalApplicationData.Config);
         mutate(copy);
         Apply(_generalApplicationData.Config, copy);
-        _generalApplicationData.SaveConfig();
+        _generalApplicationData.SaveAppConfig();
     }
 
     private static ChatSettings Map(JustyBase.Common.AppOptions config)

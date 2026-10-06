@@ -1432,23 +1432,6 @@
 					<TextBlock Classes="section-caption" Text="PLUGINS" />
 					<Border Classes="settings-card">
 						<StackPanel>
-							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
-								<StackPanel Grid.Column="0">
-									<TextBlock Classes="row-title" Text="Allow loading plugins" />
-									<TextBlock Classes="row-desc" Text="Enable loading database and extension plugins." />
-								</StackPanel>
-								<ToggleSwitch Grid.Column="1" Classes="settings-control"
-											  IsChecked="{Binding AllowToLoadPlugins}" />
-							</Grid>
-							<Separator Classes="settings-sep" />
-							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
-								<StackPanel Grid.Column="0">
-									<TextBlock Classes="row-title" Text="Auto-download plugins" />
-									<TextBlock Classes="row-desc" Text="Download plugin updates automatically." />
-								</StackPanel>
-								<ToggleSwitch Grid.Column="1" Classes="settings-control"
-											  IsChecked="{Binding AutoDownloadPlugins}" />
-							</Grid>
 						</StackPanel>
 					</Border>
 

@@ -377,7 +377,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.MySql, options => new MySqlPlugin.MySql(options with { Port = string.IsNullOrWhiteSpace(options.Port) ? "3306" : options.Port }));
 #endif
 #if DB2
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.DB2, options => new DB2Plugin.DB2DatabaseService(options with { Port = "" }));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.DB2, options => new DB2Plugin.DB2DatabaseService(options with { Port = string.IsNullOrWhiteSpace(options.Port) ? "50000" : options.Port }));
 #endif
 #if DUCKDB
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.DuckDB, options => new DuckDBPlugin.DuckDB(options));

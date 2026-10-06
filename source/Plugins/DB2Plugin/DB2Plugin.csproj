@@ -9,8 +9,11 @@
 	 <Copyright>JustyBaseTeam</Copyright>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Net.IBM.Data.Db2" Version="10.0.0.300" />
+  <ItemGroup Condition="'$(UseLocalDb2Driver)' == 'true'">
+    <ProjectReference Include="$(JustyBaseLocalDb2Project)" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(UseLocalDb2Driver)' != 'true'">
+    <PackageReference Include="JustyBase.Db2" Version="$(JustyBaseDb2PackageVersion)" />
   </ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\..\JustyBase.PluginBase\JustyBase.PluginBase.csproj">

@@ -89,7 +89,13 @@
               <MenuItem Header="Pull" Command="{Binding PullCommand}"/>
               <MenuItem Header="Push" Command="{Binding PushCommand}"/>
               <MenuItem Header="Sync" Command="{Binding SyncCommand}"/>
+              <MenuItem Header="Fetch" Command="{Binding FetchCommand}"/>
               <MenuItem Header="Stage All" Command="{Binding StageAllCommand}"/>
+              <Separator/>
+              <MenuItem Header="Stash All Changes…" Command="{Binding StashSaveCommand}"
+                        ToolTip.Tip="Stash incl. untracked files"/>
+              <MenuItem Header="Undo Last Commit" Command="{Binding UndoLastCommitCommand}"
+                        ToolTip.Tip="Soft reset HEAD~1, changes stay staged"/>
               <Separator/>
               <MenuItem Header="Branch">
                 <MenuItem Header="Create Branch…" Command="{Binding PromptCreateBranchCommand}"/>
@@ -107,6 +113,15 @@
                     <ControlTheme TargetType="MenuItem" x:DataType="sys:String">
                       <Setter Property="Header" Value="{Binding}"/>
                       <Setter Property="Command" Value="{Binding #GitRoot.((vm:GitViewModel)DataContext).CheckoutBranchCommand}"/>
+                      <Setter Property="CommandParameter" Value="{Binding}"/>
+                    </ControlTheme>
+                  </MenuItem.ItemContainerTheme>
+                </MenuItem>
+                <MenuItem Header="Delete Branch…" ItemsSource="{Binding Branches}">
+                  <MenuItem.ItemContainerTheme>
+                    <ControlTheme TargetType="MenuItem" x:DataType="sys:String">
+                      <Setter Property="Header" Value="{Binding}"/>
+                      <Setter Property="Command" Value="{Binding #GitRoot.((vm:GitViewModel)DataContext).DeleteBranchCommand}"/>
                       <Setter Property="CommandParameter" Value="{Binding}"/>
                     </ControlTheme>
                   </MenuItem.ItemContainerTheme>
@@ -149,7 +164,7 @@
                   Margin="0,6,0,0"
                   VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
-      <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
       <Border Grid.Row="0" IsVisible="{Binding ShowEmptyState}" Padding="6" BorderThickness="1"
               BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}">
         <TextBlock TextWrapping="Wrap" Opacity="0.8" FontSize="12"
@@ -157,41 +172,58 @@
       </Border>
 
       <StackPanel Grid.Row="1" Spacing="4" Margin="0,4,0,0">
-        <TextBlock FontWeight="SemiBold" FontSize="12" Text="Commit message"/>
-        <Grid ColumnDefinitions="*,Auto">
-          <TextBox Grid.Column="0"
-                   AcceptsReturn="True"
-                   TextWrapping="Wrap"
-                   MinHeight="48"
-                   MaxHeight="100"
-                   PlaceholderText="Message (Ctrl+Enter to commit…)"
-                   Text="{Binding CommitMessage}"/>
-          <Button Grid.Column="1"
-                  Margin="4,0,0,0"
-                  Padding="6"
-                  Width="30"
-                  Height="30"
-                  MinWidth="30"
-                  MinHeight="30"
-                  VerticalAlignment="Top"
-                  Command="{Binding GenerateCommitMessageCommand}"
-                  IsVisible="{Binding CanShowGenerateCommitMessage}"
-                  IsEnabled="{Binding !IsGeneratingCommitMessage}"
-                  ToolTip.Tip="Generate commit message with embedded AI model">
-            <PathIcon Width="16" Height="16" Data="{StaticResource AiSparklesIconPath}"/>
-          </Button>
-        </Grid>
+        <!-- VS Code style: single-line message, AI sparkles inside-right -->
+        <TextBox AcceptsReturn="False"
+                 MinHeight="32"
+                 CornerRadius="4"
+                 Padding="8,6"
+                 VerticalContentAlignment="Center"
+                 PlaceholderText="Message (Ctrl+Enter to commit ...)"
+                 Text="{Binding CommitMessage}">
+          <TextBox.KeyBindings>
+            <KeyBinding Gesture="Ctrl+Enter" Command="{Binding CommitCommand}"/>
+            <KeyBinding Gesture="Ctrl+Return" Command="{Binding CommitCommand}"/>
+          </TextBox.KeyBindings>
+          <TextBox.InnerRightContent>
+            <Button Classes="gitaction"
+                    Command="{Binding GenerateCommitMessageCommand}"
+                    IsVisible="{Binding CanShowGenerateCommitMessage}"
+                    IsEnabled="{Binding !IsGeneratingCommitMessage}"
+                    ToolTip.Tip="Generate commit message with embedded AI model"
+                    Focusable="False" Padding="6,2">
+              <PathIcon Width="14" Height="14" Data="{StaticResource AiSparklesIconPath}"/>
+            </Button>
+          </TextBox.InnerRightContent>
+        </TextBox>
         <TextBlock Text="Generating commit message…"
                    FontSize="11"
                    Opacity="0.75"
                    IsVisible="{Binding IsGeneratingCommitMessage}"/>
-        <Grid ColumnDefinitions="*,*" Margin="0,0,0,0">
-          <Button Grid.Column="0" Content="Commit" Command="{Binding CommitCommand}"
-                  HorizontalAlignment="Stretch" Classes="accent" MinHeight="28" Margin="0,0,2,0"/>
-          <Button Grid.Column="1" Content="Stage all &amp; commit" Command="{Binding StageAllAndCommitCommand}"
-                  HorizontalAlignment="Stretch" MinHeight="28" Margin="2,0,0,0"
-                  ToolTip.Tip="git add -A, then commit"/>
-        </Grid>
+        <!-- VS Code style split button: smart Commit + chevron for explicit variants -->
+        <SplitButton Command="{Binding CommitCommand}"
+                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                     Classes="accent" MinHeight="34" CornerRadius="4"
+                     ToolTip.Tip="{Binding CommitButtonToolTip}">
+          <SplitButton.Flyout>
+            <MenuFlyout Placement="Bottom">
+              <MenuItem Header="Commit" Command="{Binding CommitCommand}"
+                        ToolTip.Tip="Smart commit: staged, or stage all first when nothing staged"/>
+              <MenuItem Header="Commit Staged" Command="{Binding CommitStagedCommand}"
+                        ToolTip.Tip="Commit only staged changes"/>
+              <MenuItem Header="Stage all &amp; commit" Command="{Binding StageAllAndCommitCommand}"
+                        ToolTip.Tip="git add -A, then commit"/>
+              <Separator/>
+              <MenuItem Header="Amend (add staged to HEAD)" Command="{Binding AmendCommand}"/>
+              <MenuItem Header="Undo Last Commit" Command="{Binding UndoLastCommitCommand}"
+                        ToolTip.Tip="Soft reset HEAD~1, changes stay staged"/>
+            </MenuFlyout>
+          </SplitButton.Flyout>
+          <StackPanel Orientation="Horizontal" Spacing="6"
+                      HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock Text="✓" FontSize="14" VerticalAlignment="Center"/>
+            <TextBlock Text="Commit" VerticalAlignment="Center"/>
+          </StackPanel>
+        </SplitButton>
       </StackPanel>
 
       <TextBlock Grid.Row="2" FontWeight="SemiBold" FontSize="12"
@@ -267,11 +299,30 @@
           </ListBox.ContextMenu>
       </ListBox>
 
-      <TextBlock Grid.Row="6" FontWeight="SemiBold" FontSize="12" Text="Commits" Margin="0,4,0,0"/>
+      <Grid Grid.Row="6" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6" Margin="0,4,0,0">
+        <TextBlock Grid.Column="0" FontWeight="SemiBold" FontSize="12" Text="Commits" VerticalAlignment="Center"/>
+        <TextBox Grid.Column="1" Text="{Binding CommitFilter, Mode=TwoWay}"
+                 PlaceholderText="Search commits…" MinHeight="24" Padding="6,2" FontSize="11" CornerRadius="4"
+                 VerticalAlignment="Center"/>
+        <Button Grid.Column="2" Classes="gitaction" Command="{Binding LoadMoreCommitsCommand}"
+                IsVisible="{Binding HasMoreCommits}" ToolTip.Tip="Load more commits"
+                Content="More" FontSize="11" VerticalAlignment="Center"/>
+      </Grid>
       <TreeView Grid.Row="7" Classes="commit-history compact"
-                ItemsSource="{Binding Commits}"
+                ItemsSource="{Binding VisibleCommits}"
                 SelectedItem="{Binding SelectedHistoryNode}"
                 MinHeight="48">
+          <TreeView.ContextMenu>
+            <ContextMenu>
+              <MenuItem Header="Revert" Command="{Binding RevertCommitCommand}" CommandParameter="{Binding SelectedHistoryNode}"
+                        ToolTip.Tip="Create a new commit reverting this one"/>
+              <MenuItem Header="Reset here (keep changes)" Command="{Binding ResetMixedToCommitCommand}" CommandParameter="{Binding SelectedHistoryNode}"/>
+              <MenuItem Header="Reset here (discard changes)" Command="{Binding ResetHardToCommitCommand}" CommandParameter="{Binding SelectedHistoryNode}"/>
+              <Separator/>
+              <MenuItem Header="Check out (detached)" Command="{Binding CheckoutCommitCommand}" CommandParameter="{Binding SelectedHistoryNode}"/>
+              <MenuItem Header="Create branch here…" Command="{Binding CreateBranchFromCommitCommand}" CommandParameter="{Binding SelectedHistoryNode}"/>
+            </ContextMenu>
+          </TreeView.ContextMenu>
           <TreeView.DataTemplates>
             <TreeDataTemplate x:DataType="vm:GitCommitItem" ItemsSource="{Binding Files}">
               <Grid ColumnDefinitions="14,*" MinHeight="28"
@@ -388,8 +439,35 @@
         </TreeView>
 
       <TextBlock Grid.Row="8" FontWeight="SemiBold" FontSize="12"
-                 Text="{Binding TimelineFileName, StringFormat=Timeline — {0}}" Margin="0,4,0,0"/>
+                 Text="{Binding Stashes.Count, StringFormat=Stashes ({0})}" Margin="0,4,0,0"
+                 IsVisible="{Binding HasStashes}"/>
       <ListBox Grid.Row="9" Classes="compact"
+               x:Name="GitStashListBox"
+               ItemsSource="{Binding Stashes}"
+               MinHeight="32"
+               Margin="0,0,6,0"
+               IsVisible="{Binding HasStashes}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:GitStashItem">
+              <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,0,2,0" ColumnSpacing="2">
+                <TextBlock Grid.Column="0" Text="{Binding DisplayText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Classes="gitaction" Content="Pop" FontSize="10" ToolTip.Tip="Apply and drop this stash"
+                        Command="{Binding #GitStashListBox.((vm:GitViewModel)DataContext).StashPopCommand}"
+                        CommandParameter="{Binding}"/>
+                <Button Grid.Column="2" Classes="gitaction" Content="Apply" FontSize="10" ToolTip.Tip="Apply this stash, keep it"
+                        Command="{Binding #GitStashListBox.((vm:GitViewModel)DataContext).StashApplyCommand}"
+                        CommandParameter="{Binding}"/>
+                <Button Grid.Column="3" Classes="gitaction" Content="Drop" FontSize="10" ToolTip.Tip="Drop this stash"
+                        Command="{Binding #GitStashListBox.((vm:GitViewModel)DataContext).StashDropCommand}"
+                        CommandParameter="{Binding}"/>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+      </ListBox>
+
+      <TextBlock Grid.Row="10" FontWeight="SemiBold" FontSize="12"
+                 Text="{Binding TimelineFileName, StringFormat=Timeline — {0}}" Margin="0,4,0,0"/>
+      <ListBox Grid.Row="11" Classes="compact"
                ItemsSource="{Binding Timeline}"
                SelectedItem="{Binding SelectedTimelineCommit}"
                MinHeight="48">

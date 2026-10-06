@@ -29,6 +29,13 @@ public sealed class DB2DatabaseService : DatabaseService
         builder.Password = Password;
 
         builder.Server = Ip;
+        // Managed cs-db2 driver parses "host:port" from Server (ParseServer).
+        // An explicit Port is appended unless Ip already carries one
+        // ("host:port", bracketed IPv6) — mirroring the MySql plugin pattern.
+        if (!string.IsNullOrWhiteSpace(Ip) && !string.IsNullOrWhiteSpace(Port) && !Ip.Contains(':'))
+        {
+            builder.Server = $"{Ip.Trim()}:{Port.Trim()}";
+        }
         builder.Database = databaseName;
         builder.Connect_Timeout = CONNECTION_TIMEOUT;
         builder.Pooling = pooling;

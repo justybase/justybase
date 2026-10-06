@@ -68,6 +68,9 @@ It is especially useful for:
 
 > The hierarchical DataGrid is provided by the official `ProDataGrid` NuGet package and is restored automatically during the normal build.
 
+> [!WARNING]
+> **DB2 support is highly experimental — do not use it in production.** It runs on a native managed DRDA driver (`JustyBase.Db2`, sibling checkout `../cs-db2`) that is still under active development (version `0.1.0`, Db2 LUW-only, user/password authentication only). Expect connection, query, and bulk-import failures; do not point it at production databases or use production credentials, and always verify generated DDL scripts before running them elsewhere.
+
 ## Screenshots
 
 Dark theme screenshots are shown below for a consistent presentation.
@@ -136,6 +139,7 @@ On first launch, add an IBM Netezza connection from the schema or connections UI
 | **ProDataGrid** | NuGet package `ProDataGrid` version `12.0.5`. |
 | **JustyBase.Netezza\*** | Local `../JustyBase.NetezzaSql` sibling when present (also in `JustyBase.slnx`); otherwise NuGet fallback (`*-*`). CI clones the sibling automatically and forces `UseLocalJustyBaseLibraries=true`. Pin with `-p:JustyBaseNetezzaLibsPackageVersion=...` or force NuGet with `-p:UseLocalJustyBaseLibraries=false`. |
 | **JustyBase.UCanAccessCs** | Local `../JustyBase.UCanAccessCs` sibling, referenced by `AccessPlugin` for `.mdb`/`.accdb` execution and optional encrypted-ACCDB support. |
+| **JustyBase.Db2** | Local `../cs-db2` sibling when present (also in `JustyBase.slnx`); otherwise NuGet fallback (`*-*`, package not published yet — a local checkout is currently required). Pin with `-p:JustyBaseDb2PackageVersion=...` or force NuGet with `-p:UseLocalDb2Driver=false`. |
 
 ### AI and data privacy
 

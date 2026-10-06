@@ -120,12 +120,11 @@ public sealed class DatabaseIconConverter : IValueConverter
             TypeInDatabaseEnum.Connection => connectionType is { } ct
                 ? GetBitmapFromEnum(ct)
                 : _databaseIcon16,
-            TypeInDatabaseEnum.dbase => connectionType is { } ct
-                ? GetBitmapFromEnum(ct)
-                : _databaseIcon16,
-            TypeInDatabaseEnum.Schema => connectionType is { } ct
-                ? GetBitmapFromEnum(ct)
-                : _schemaIcon16,
+            // DATABASE level always uses the generic database icon,
+            // even when the vendor type is known (connection keeps vendor).
+            TypeInDatabaseEnum.dbase => _databaseIcon16,
+            // SCHEMA level always uses the generic schema icon.
+            TypeInDatabaseEnum.Schema => _schemaIcon16,
             TypeInDatabaseEnum.Table => _tableIcon16,
             TypeInDatabaseEnum.View => _viewIcon16,
             TypeInDatabaseEnum.baseTables => _tableGroupIcon16,
@@ -163,8 +162,6 @@ public sealed class DatabaseIconConverter : IValueConverter
                     var bitmap = GetBitmapFromTypeInDatabase(
                         node.ActualTypeInDatabase,
                         node.ActualTypeInDatabase is TypeInDatabaseEnum.Connection
-                            or TypeInDatabaseEnum.dbase
-                            or TypeInDatabaseEnum.Schema
                             ? node.DatabaseTypeEnumValue
                             : null);
                     if (bitmap is not null)

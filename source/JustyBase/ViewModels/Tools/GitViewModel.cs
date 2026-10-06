@@ -48,9 +48,12 @@ public sealed partial class GitViewModel : Tool, IDisposable
 
     public ObservableCollection<string> AvailableRepos { get; } = [];
     public ObservableCollection<GitCommitItem> Commits { get; } = [];
+    /// <summary>Commits filtered by <see cref="CommitFilter"/>; bound by the history TreeView.</summary>
+    public ObservableCollection<GitCommitItem> VisibleCommits { get; } = [];
     public ObservableCollection<GitCommitItem> Timeline { get; } = [];
     public ObservableCollection<string> Branches { get; } = [];
     public ObservableCollection<GitCommitFileItem> CommitFiles { get; } = [];
+    public ObservableCollection<GitStashItem> Stashes { get; } = [];
 
     [ObservableProperty]
     public partial IReadOnlyList<GitFileStatusItem> StagedChanges { get; private set; } = [];
@@ -68,14 +71,20 @@ public sealed partial class GitViewModel : Tool, IDisposable
     [NotifyPropertyChangedFor(nameof(ShowEmptyState))]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     [NotifyCanExecuteChangedFor(nameof(CommitCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CommitStagedCommand))]
     [NotifyCanExecuteChangedFor(nameof(StageAllAndCommitCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AmendCommand))]
+    [NotifyCanExecuteChangedFor(nameof(UndoLastCommitCommand))]
+    [NotifyCanExecuteChangedFor(nameof(StashSaveCommand))]
     [NotifyCanExecuteChangedFor(nameof(StageAllCommand))]
+    [NotifyCanExecuteChangedFor(nameof(FetchCommand))]
     [NotifyCanExecuteChangedFor(nameof(PullCommand))]
     [NotifyCanExecuteChangedFor(nameof(PushCommand))]
     [NotifyCanExecuteChangedFor(nameof(SyncCommand))]
     [NotifyCanExecuteChangedFor(nameof(PromptCreateBranchCommand))]
     [NotifyCanExecuteChangedFor(nameof(MergeBranchCommand))]
     [NotifyCanExecuteChangedFor(nameof(CheckoutBranchCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteBranchCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveLocalIdentityCommand))]
     [NotifyCanExecuteChangedFor(nameof(GenerateCommitMessageCommand))]
     public partial string? SelectedRepoPath { get; set; }
@@ -101,14 +110,20 @@ public sealed partial class GitViewModel : Tool, IDisposable
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     [NotifyCanExecuteChangedFor(nameof(OpenRepositoryCommand))]
     [NotifyCanExecuteChangedFor(nameof(CommitCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CommitStagedCommand))]
     [NotifyCanExecuteChangedFor(nameof(StageAllAndCommitCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AmendCommand))]
+    [NotifyCanExecuteChangedFor(nameof(UndoLastCommitCommand))]
+    [NotifyCanExecuteChangedFor(nameof(StashSaveCommand))]
     [NotifyCanExecuteChangedFor(nameof(StageAllCommand))]
+    [NotifyCanExecuteChangedFor(nameof(FetchCommand))]
     [NotifyCanExecuteChangedFor(nameof(PullCommand))]
     [NotifyCanExecuteChangedFor(nameof(PushCommand))]
     [NotifyCanExecuteChangedFor(nameof(SyncCommand))]
     [NotifyCanExecuteChangedFor(nameof(PromptCreateBranchCommand))]
     [NotifyCanExecuteChangedFor(nameof(MergeBranchCommand))]
     [NotifyCanExecuteChangedFor(nameof(CheckoutBranchCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteBranchCommand))]
     [NotifyCanExecuteChangedFor(nameof(SaveLocalIdentityCommand))]
     [NotifyCanExecuteChangedFor(nameof(GenerateCommitMessageCommand))]
     public partial bool IsBusy { get; private set; }
@@ -120,9 +135,36 @@ public sealed partial class GitViewModel : Tool, IDisposable
     public partial string? ErrorMessage { get; private set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CommitButtonToolTip))]
     [NotifyCanExecuteChangedFor(nameof(CommitCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CommitStagedCommand))]
     [NotifyCanExecuteChangedFor(nameof(StageAllAndCommitCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AmendCommand))]
     public partial string CommitMessage { get; set; } = string.Empty;
+
+    /// <summary>History filter (subject/author/hash), like the VS Code SCM search box.</summary>
+    [ObservableProperty]
+    public partial string CommitFilter { get; set; } = string.Empty;
+
+    /// <summary>How many commits the history list loads. Grows via Load more.</summary>
+    [ObservableProperty]
+    public partial int CommitPageSize { get; set; } = 50;
+
+    /// <summary>True when the log may hold more commits than currently loaded.</summary>
+    [ObservableProperty]
+    public partial bool HasMoreCommits { get; private set; }
+
+    public bool HasStashes => Stashes.Count > 0;
+
+    /// <summary>Dynamic tooltip for the primary commit button (VS Code smart-commit hint).</summary>
+    public string CommitButtonToolTip =>
+        StagedCount > 0
+            ? "Commit staged changes (Ctrl+Enter)"
+            : HasUncommittedChanges
+                ? "No staged changes — Stage all & commit (Ctrl+Enter)"
+                : "Commit (Ctrl+Enter)";
+
+    partial void OnCommitFilterChanged(string value) => ApplyCommitFilter();
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(GenerateCommitMessageCommand))]
@@ -212,6 +254,13 @@ public sealed partial class GitViewModel : Tool, IDisposable
         OnPropertyChanged(nameof(HasStagedChanges));
         OnPropertyChanged(nameof(HasUncommittedChanges));
         OnPropertyChanged(nameof(BranchDisplay));
+        OnPropertyChanged(nameof(CommitButtonToolTip));
+        CommitCommand.NotifyCanExecuteChanged();
+        CommitStagedCommand.NotifyCanExecuteChanged();
+        StageAllAndCommitCommand.NotifyCanExecuteChanged();
+        AmendCommand.NotifyCanExecuteChanged();
+        UndoLastCommitCommand.NotifyCanExecuteChanged();
+        StashSaveCommand.NotifyCanExecuteChanged();
         GenerateCommitMessageCommand.NotifyCanExecuteChanged();
     }
 
@@ -221,7 +270,33 @@ public sealed partial class GitViewModel : Tool, IDisposable
         OnPropertyChanged(nameof(HasUnstagedChanges));
         OnPropertyChanged(nameof(HasUncommittedChanges));
         OnPropertyChanged(nameof(BranchDisplay));
+        OnPropertyChanged(nameof(CommitButtonToolTip));
+        CommitCommand.NotifyCanExecuteChanged();
+        CommitStagedCommand.NotifyCanExecuteChanged();
+        StageAllAndCommitCommand.NotifyCanExecuteChanged();
+        AmendCommand.NotifyCanExecuteChanged();
+        UndoLastCommitCommand.NotifyCanExecuteChanged();
+        StashSaveCommand.NotifyCanExecuteChanged();
         GenerateCommitMessageCommand.NotifyCanExecuteChanged();
+    }
+
+    private void ApplyCommitFilter()
+    {
+        VisibleCommits.Clear();
+        string filter = (CommitFilter ?? string.Empty).Trim();
+        foreach (GitCommitItem commit in Commits)
+        {
+            if (string.IsNullOrEmpty(filter)
+                || commit.Subject.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || commit.Author.Contains(filter, StringComparison.OrdinalIgnoreCase)
+                || commit.Hash.StartsWith(filter, StringComparison.OrdinalIgnoreCase)
+                || commit.ShortHash.StartsWith(filter, StringComparison.OrdinalIgnoreCase))
+            {
+                VisibleCommits.Add(commit);
+            }
+        }
+
+        HasMoreCommits = Commits.Count >= CommitPageSize;
     }
 
     partial void OnSelectedCommitChanged(GitCommitItem? value)
@@ -417,6 +492,19 @@ public sealed partial class GitViewModel : Tool, IDisposable
         await SetBusyAsync(true).ConfigureAwait(false);
         try
         {
+            // VS Code smart-commit: nothing staged but worktree dirty -> stage all first.
+            if (StagedCount == 0 && StagedCount + UnstagedCount > 0)
+            {
+                GitCommandResult stage = await _gitService
+                    .StageAllAsync(SelectedRepoPath!, _lifetime.Token)
+                    .ConfigureAwait(false);
+                if (!stage.Succeeded)
+                {
+                    await ReportErrorAsync(Truncate(stage.CombinedOutput)).ConfigureAwait(false);
+                    return;
+                }
+            }
+
             GitCommandResult result = await _gitService
                 .CommitAsync(SelectedRepoPath!, CommitMessage.Trim(), _lifetime.Token)
                 .ConfigureAwait(false);
@@ -437,10 +525,527 @@ public sealed partial class GitViewModel : Tool, IDisposable
         }
     }
 
+    /// <summary>
+    /// VS Code smart-commit gate: message + any (staged or unstaged) changes.
+    /// Commits staged when present, otherwise stages all first.
+    /// </summary>
     private bool CanCommit() =>
         CanMutate()
         && !string.IsNullOrWhiteSpace(CommitMessage)
+        && (StagedCount + UnstagedCount) > 0;
+
+    [RelayCommand(CanExecute = nameof(CanCommitStaged))]
+    private async Task CommitStagedAsync()
+    {
+        if (!CanCommitStaged())
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .CommitAsync(SelectedRepoPath!, CommitMessage.Trim(), _lifetime.Token)
+                .ConfigureAwait(false);
+
+            if (!result.Succeeded)
+            {
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+                return;
+            }
+
+            await OnUiAsync(() => CommitMessage = string.Empty).ConfigureAwait(false);
+            await SetStatusAsync("Commit created.").ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    private bool CanCommitStaged() =>
+        CanMutate()
+        && !string.IsNullOrWhiteSpace(CommitMessage)
         && StagedCount > 0;
+
+    [RelayCommand(CanExecute = nameof(CanAmend))]
+    private async Task AmendAsync()
+    {
+        if (!CanAmend())
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            string? message = string.IsNullOrWhiteSpace(CommitMessage) ? null : CommitMessage.Trim();
+            GitCommandResult result = await _gitService
+                .AmendAsync(SelectedRepoPath!, message, _lifetime.Token)
+                .ConfigureAwait(false);
+
+            if (!result.Succeeded)
+            {
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+                return;
+            }
+
+            await OnUiAsync(() => CommitMessage = string.Empty).ConfigureAwait(false);
+            await SetStatusAsync("Commit amended.").ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    private bool CanAmend() =>
+        CanMutate() && Commits.Count > 0;
+
+    [RelayCommand(CanExecute = nameof(CanUndoLastCommit))]
+    private async Task UndoLastCommitAsync()
+    {
+        if (!CanUndoLastCommit())
+            return;
+
+        bool confirmed = await _messageForUserTools.ShowConfirmationDialogAsync(
+            "Undo the last commit? Its changes stay staged.",
+            "Undo last commit?").ConfigureAwait(false);
+        if (!confirmed)
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .UndoLastCommitAsync(SelectedRepoPath!, _lifetime.Token)
+                .ConfigureAwait(false);
+
+            if (!result.Succeeded)
+            {
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+                return;
+            }
+
+            await SetStatusAsync("Last commit undone (changes staged).").ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    private bool CanUndoLastCommit() =>
+        CanMutate() && Commits.Count > 0;
+
+    private static string? ResolveCommitHash(object? parameter, GitCommitItem? fallback = null)
+    {
+        return parameter switch
+        {
+            GitCommitItem commit => commit.Hash,
+            GitCommitFileItem file when !string.IsNullOrWhiteSpace(file.CommitHash) => file.CommitHash,
+            string hash when !string.IsNullOrWhiteSpace(hash) => hash,
+            _ => fallback?.Hash,
+        };
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task RevertCommitAsync(object? parameter)
+    {
+        string? hash = ResolveCommitHash(parameter, SelectedCommit);
+        if (!CanMutate() || string.IsNullOrWhiteSpace(hash))
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .RevertAsync(SelectedRepoPath!, hash!, _lifetime.Token)
+                .ConfigureAwait(false);
+            if (!result.Succeeded)
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+            else
+            {
+                await SetStatusAsync("Commit reverted.").ConfigureAwait(false);
+                await RefreshAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task ResetMixedToCommitAsync(object? parameter)
+    {
+        string? hash = ResolveCommitHash(parameter, SelectedCommit);
+        if (!CanMutate() || string.IsNullOrWhiteSpace(hash))
+            return;
+
+        bool confirmed = await _messageForUserTools.ShowConfirmationDialogAsync(
+            $"Reset branch to {hash}? Worktree keeps the changes (mixed).",
+            "Reset (mixed)?").ConfigureAwait(false);
+        if (!confirmed)
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .ResetAsync(SelectedRepoPath!, hash!, JustyBase.Core.Git.GitResetMode.Mixed, _lifetime.Token)
+                .ConfigureAwait(false);
+            if (!result.Succeeded)
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+            else
+            {
+                await SetStatusAsync("Reset (mixed) done.").ConfigureAwait(false);
+                await RefreshAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task ResetHardToCommitAsync(object? parameter)
+    {
+        string? hash = ResolveCommitHash(parameter, SelectedCommit);
+        if (!CanMutate() || string.IsNullOrWhiteSpace(hash))
+            return;
+
+        bool confirmed = await _messageForUserTools.ShowConfirmationDialogAsync(
+            $"Hard reset to {hash}? Uncommitted changes will be LOST.",
+            "Reset (hard)?").ConfigureAwait(false);
+        if (!confirmed)
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .ResetAsync(SelectedRepoPath!, hash!, JustyBase.Core.Git.GitResetMode.Hard, _lifetime.Token)
+                .ConfigureAwait(false);
+            if (!result.Succeeded)
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+            else
+            {
+                await SetStatusAsync("Reset (hard) done.").ConfigureAwait(false);
+                await RefreshAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task CheckoutCommitAsync(object? parameter)
+    {
+        string? hash = ResolveCommitHash(parameter, SelectedCommit);
+        if (!CanMutate() || string.IsNullOrWhiteSpace(hash))
+            return;
+
+        bool confirmed = await _messageForUserTools.ShowConfirmationDialogAsync(
+            $"Check out {hash}? You enter detached HEAD. Commit or create a branch to keep changes.",
+            "Check out commit?").ConfigureAwait(false);
+        if (!confirmed)
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .CheckoutAsync(SelectedRepoPath!, hash!, _lifetime.Token)
+                .ConfigureAwait(false);
+            if (!result.Succeeded)
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+            else
+            {
+                await SetStatusAsync("Checked out commit (detached).").ConfigureAwait(false);
+                await RefreshAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task CreateBranchFromCommitAsync(object? parameter)
+    {
+        string? hash = ResolveCommitHash(parameter, SelectedCommit);
+        if (!CanMutate() || string.IsNullOrWhiteSpace(hash))
+            return;
+
+        string? name = await _messageForUserTools.ShowAskForFileNameDialogAsync().ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .CreateBranchAsync(SelectedRepoPath!, name.Trim(), checkout: true, _lifetime.Token, startPoint: hash)
+                .ConfigureAwait(false);
+            if (!result.Succeeded)
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+            else
+            {
+                await SetStatusAsync($"Created and checked out '{name.Trim()}'.").ConfigureAwait(false);
+                await RefreshAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task DeleteBranchAsync(object? parameter)
+    {
+        if (!CanMutate() || parameter is not string branchName || string.IsNullOrWhiteSpace(branchName))
+            return;
+
+        string name = branchName.Trim();
+        bool confirmed = await _messageForUserTools.ShowConfirmationDialogAsync(
+            $"Delete branch '{name}'?",
+            "Delete branch?").ConfigureAwait(false);
+        if (!confirmed)
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .DeleteBranchAsync(SelectedRepoPath!, name, force: false, _lifetime.Token)
+                .ConfigureAwait(false);
+            if (!result.Succeeded)
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+            else
+            {
+                await SetStatusAsync($"Deleted branch '{name}'.").ConfigureAwait(false);
+                await RefreshAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task FetchAsync()
+    {
+        if (!CanMutate())
+            return;
+
+        await SetBusyAsync(true, "Fetching…").ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService.FetchAsync(SelectedRepoPath!, _lifetime.Token).ConfigureAwait(false);
+            if (!result.Succeeded)
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+            else
+                await SetStatusAsync("Fetch completed.").ConfigureAwait(false);
+            await RefreshAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task LoadMoreCommitsAsync()
+    {
+        if (!CanMutate())
+            return;
+
+        CommitPageSize += 50;
+        await RefreshCommitsAsync().ConfigureAwait(false);
+    }
+
+    private async Task RefreshCommitsAsync()
+    {
+        if (!IsGitAvailable || string.IsNullOrWhiteSpace(SelectedRepoPath))
+            return;
+
+        try
+        {
+            string repo = SelectedRepoPath;
+            IReadOnlyList<GitCommitInfo> commits = await _gitService
+                .GetCommitsAsync(repo, CommitPageSize, _lifetime.Token)
+                .ConfigureAwait(false);
+            string? upstream = await _gitService.GetUpstreamBranchAsync(repo, _lifetime.Token).ConfigureAwait(false);
+            GitRepoStatus status = await _gitService.GetStatusAsync(repo, _lifetime.Token).ConfigureAwait(false);
+
+            await OnUiAsync(() =>
+            {
+                string? previousHash = _selectedCommitHash;
+                Commits.Clear();
+                for (int i = 0; i < commits.Count; i++)
+                {
+                    bool isHead = i == 0;
+                    Commits.Add(GitCommitItem.From(
+                        commits[i],
+                        isCurrent: isHead,
+                        branchLabel: isHead ? status.BranchName : null,
+                        upstreamLabel: isHead ? upstream : null));
+                }
+
+                ApplyCommitFilter();
+                AmendCommand.NotifyCanExecuteChanged();
+                UndoLastCommitCommand.NotifyCanExecuteChanged();
+
+                GitCommitItem? reloadCommit = previousHash is null
+                    ? null
+                    : Commits.FirstOrDefault(c =>
+                        string.Equals(c.Hash, previousHash, StringComparison.OrdinalIgnoreCase));
+                if (reloadCommit is not null)
+                {
+                    SelectedCommit = reloadCommit;
+                    SelectedHistoryNode = reloadCommit;
+                }
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            await ReportErrorAsync(ex.Message).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanStashSave))]
+    private async Task StashSaveAsync()
+    {
+        if (!CanStashSave())
+            return;
+
+        string? message = await _messageForUserTools.ShowAskForFileNameDialogAsync().ConfigureAwait(false);
+        if (message is null)
+            return;
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .StashSaveAsync(SelectedRepoPath!, message, includeUntracked: true, _lifetime.Token)
+                .ConfigureAwait(false);
+            if (!result.Succeeded)
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+            else
+            {
+                await SetStatusAsync("Changes stashed.").ConfigureAwait(false);
+                await RefreshAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    private bool CanStashSave() =>
+        CanMutate() && (StagedCount + UnstagedCount) > 0;
+
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task StashPopAsync(object? parameter)
+    {
+        string? stashRef = ResolveStashRef(parameter);
+        if (!CanMutate() || string.IsNullOrWhiteSpace(stashRef))
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .StashPopAsync(SelectedRepoPath!, stashRef!, _lifetime.Token)
+                .ConfigureAwait(false);
+            if (!result.Succeeded)
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+            else
+            {
+                await SetStatusAsync("Stash popped.").ConfigureAwait(false);
+                await RefreshAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task StashApplyAsync(object? parameter)
+    {
+        string? stashRef = ResolveStashRef(parameter);
+        if (!CanMutate() || string.IsNullOrWhiteSpace(stashRef))
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .StashApplyAsync(SelectedRepoPath!, stashRef!, _lifetime.Token)
+                .ConfigureAwait(false);
+            if (!result.Succeeded)
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+            else
+            {
+                await SetStatusAsync("Stash applied.").ConfigureAwait(false);
+                await RefreshAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanMutate))]
+    private async Task StashDropAsync(object? parameter)
+    {
+        string? stashRef = ResolveStashRef(parameter);
+        if (!CanMutate() || string.IsNullOrWhiteSpace(stashRef))
+            return;
+
+        bool confirmed = await _messageForUserTools.ShowConfirmationDialogAsync(
+            $"Drop {stashRef}? This cannot be undone.",
+            "Drop stash?").ConfigureAwait(false);
+        if (!confirmed)
+            return;
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            GitCommandResult result = await _gitService
+                .StashDropAsync(SelectedRepoPath!, stashRef!, _lifetime.Token)
+                .ConfigureAwait(false);
+            if (!result.Succeeded)
+                await ReportErrorAsync(Truncate(result.CombinedOutput)).ConfigureAwait(false);
+            else
+            {
+                await SetStatusAsync("Stash dropped.").ConfigureAwait(false);
+                await RefreshAsync().ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    private static string? ResolveStashRef(object? parameter) =>
+        parameter switch
+        {
+            GitStashItem stash => stash.Ref,
+            string stashRef when !string.IsNullOrWhiteSpace(stashRef) => stashRef,
+            _ => null,
+        };
 
     [RelayCommand(CanExecute = nameof(CanStageAllAndCommit))]
     private async Task StageAllAndCommitAsync()
@@ -448,25 +1053,16 @@ public sealed partial class GitViewModel : Tool, IDisposable
         if (!CanStageAllAndCommit())
             return;
 
-        if (string.IsNullOrWhiteSpace(CommitMessage))
-        {
-            await ReportErrorAsync("Enter a commit message first.").ConfigureAwait(false);
-            return;
-        }
-
         await SetBusyAsync(true).ConfigureAwait(false);
         try
         {
-            if (StagedCount + UnstagedCount > 0)
+            GitCommandResult stage = await _gitService
+                .StageAllAsync(SelectedRepoPath!, _lifetime.Token)
+                .ConfigureAwait(false);
+            if (!stage.Succeeded)
             {
-                GitCommandResult stage = await _gitService
-                    .StageAllAsync(SelectedRepoPath!, _lifetime.Token)
-                    .ConfigureAwait(false);
-                if (!stage.Succeeded)
-                {
-                    await ReportErrorAsync(Truncate(stage.CombinedOutput)).ConfigureAwait(false);
-                    return;
-                }
+                await ReportErrorAsync(Truncate(stage.CombinedOutput)).ConfigureAwait(false);
+                return;
             }
 
             GitCommandResult result = await _gitService
@@ -491,6 +1087,7 @@ public sealed partial class GitViewModel : Tool, IDisposable
 
     private bool CanStageAllAndCommit() =>
         CanMutate()
+        && !string.IsNullOrWhiteSpace(CommitMessage)
         && (StagedCount + UnstagedCount) > 0;
 
     [RelayCommand(CanExecute = nameof(CanGenerateCommitMessage))]
@@ -1072,6 +1669,10 @@ public sealed partial class GitViewModel : Tool, IDisposable
                 SelectedRepoPath = null;
                 ApplyStatusFiles([]);
                 Commits.Clear();
+                VisibleCommits.Clear();
+                HasMoreCommits = false;
+                Stashes.Clear();
+                OnPropertyChanged(nameof(HasStashes));
                 Timeline.Clear();
                 CommitFiles.Clear();
                 _selectedCommitHash = null;
@@ -1205,6 +1806,10 @@ public sealed partial class GitViewModel : Tool, IDisposable
             {
                 ApplyStatusFiles([]);
                 Commits.Clear();
+                VisibleCommits.Clear();
+                HasMoreCommits = false;
+                Stashes.Clear();
+                OnPropertyChanged(nameof(HasStashes));
                 Timeline.Clear();
                 CommitFiles.Clear();
                 _selectedCommitHash = null;
@@ -1220,11 +1825,13 @@ public sealed partial class GitViewModel : Tool, IDisposable
         try
         {
             string repo = SelectedRepoPath;
+            int pageSize = CommitPageSize;
             GitRepoStatus status = await _gitService.GetStatusAsync(repo, _lifetime.Token).ConfigureAwait(false);
-            IReadOnlyList<GitCommitInfo> commits = await _gitService.GetCommitsAsync(repo, 50, _lifetime.Token).ConfigureAwait(false);
+            IReadOnlyList<GitCommitInfo> commits = await _gitService.GetCommitsAsync(repo, pageSize, _lifetime.Token).ConfigureAwait(false);
             IReadOnlyList<GitBranchInfo> branches = await _gitService.GetBranchesAsync(repo, _lifetime.Token).ConfigureAwait(false);
             GitUserIdentity identity = await _gitService.GetUserIdentityAsync(repo, _lifetime.Token).ConfigureAwait(false);
             string? upstream = await _gitService.GetUpstreamBranchAsync(repo, _lifetime.Token).ConfigureAwait(false);
+            IReadOnlyList<GitStashInfo> stashes = await _gitService.GetStashesAsync(repo, _lifetime.Token).ConfigureAwait(false);
 
             if (version != _refreshVersion)
                 return;
@@ -1257,12 +1864,23 @@ public sealed partial class GitViewModel : Tool, IDisposable
                         Branches.Add(branch.Name);
                 }
 
+                Stashes.Clear();
+                foreach (GitStashInfo stash in stashes)
+                    Stashes.Add(GitStashItem.From(stash));
+                OnPropertyChanged(nameof(HasStashes));
+
+                ApplyCommitFilter();
+
                 int total = StagedCount + UnstagedCount;
                 StatusMessage = total == 0
                     ? $"On {BranchName} — clean"
                     : $"On {BranchName} — {StagedCount} staged, {UnstagedCount} change(s)";
                 CommitCommand.NotifyCanExecuteChanged();
+                CommitStagedCommand.NotifyCanExecuteChanged();
                 StageAllAndCommitCommand.NotifyCanExecuteChanged();
+                AmendCommand.NotifyCanExecuteChanged();
+                UndoLastCommitCommand.NotifyCanExecuteChanged();
+                StashSaveCommand.NotifyCanExecuteChanged();
 
                 reloadCommit = previousHash is null
                     ? null
@@ -1454,7 +2072,11 @@ public sealed partial class GitViewModel : Tool, IDisposable
                     ? $"On {BranchName} — clean"
                     : $"On {BranchName} — {StagedCount} staged, {UnstagedCount} change(s)";
                 CommitCommand.NotifyCanExecuteChanged();
+                CommitStagedCommand.NotifyCanExecuteChanged();
                 StageAllAndCommitCommand.NotifyCanExecuteChanged();
+                AmendCommand.NotifyCanExecuteChanged();
+                UndoLastCommitCommand.NotifyCanExecuteChanged();
+                StashSaveCommand.NotifyCanExecuteChanged();
             }).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -1829,6 +2451,21 @@ public sealed class GitCommitFileItem
         OriginalPath = file.OriginalPath,
         StatusCode = file.StatusCode,
         CommitHash = commitHash
+    };
+
+    public override string ToString() => DisplayText;
+}
+
+public sealed class GitStashItem
+{
+    public required string Ref { get; init; }
+    public string Message { get; init; } = string.Empty;
+    public string DisplayText => string.IsNullOrWhiteSpace(Message) ? Ref : $"{Ref}: {Message}";
+
+    public static GitStashItem From(GitStashInfo stash) => new()
+    {
+        Ref = stash.Ref,
+        Message = stash.Message
     };
 
     public override string ToString() => DisplayText;

@@ -43,6 +43,10 @@
     <Project Path="../JustyBase.NetezzaSql/JustyBase.Core/JustyBase.Core.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.ImportExport/JustyBase.ImportExport.csproj" />
   </Folder>
+  <Folder Name="/JustyBase.Db2/">
+    <!-- Prefer local ProjectReference when the optional sibling checkout is present. -->
+    <Project Path="../cs-db2/src/Db2.Driver/Db2.Driver.csproj" />
+  </Folder>
   <Project Path="..\JustyBase.NetezzaSql\JustyBase.Ai\JustyBase.Ai.csproj" />
   <Project Path="..\JustyBase.NetezzaSql\JustyBase.Ai.Embedded\JustyBase.Ai.Embedded.csproj" />
   <Project Path="source/JustyBase.PluginBase/JustyBase.PluginBase.csproj" />

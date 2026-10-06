@@ -15,6 +15,10 @@
 		<StreamGeometry x:Key="ExplorerNewFolderPath">M20 6h-8l-2-2H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z</StreamGeometry>
 		<conv:DirectoryOpenToVisibleConverter x:Key="DirOpenVis"/>
 		<conv:ExplorerSelectionConverter x:Key="ExplorerSel"/>
+		<conv:FileExtensionGlyphConverter x:Key="ExtGlyph"/>
+		<conv:FileExtensionBrushConverter x:Key="ExtBrush"/>
+		<conv:FileExtensionHasBadgeConverter x:Key="ExtHasBadge"/>
+		<conv:FileBadgeVisibilityConverter x:Key="ExtVis"/>
 		<!-- Recursive VS Code Explorer node (manual twisty: Fluent hides the
 		     chevron for not-yet-loaded lazy nodes, so TreeView is unusable here) -->
 		<DataTemplate x:Key="ExplorerNodeTemplate" x:DataType="models:FileTreeNodeModel">
@@ -22,7 +26,7 @@
 				<!-- Outer = hover fill + gestures; inner = selection fill.
 				     Split because a local Background binding would override
 				     the :pointerover style setter. -->
-				<Border Classes="explorerRowOuter" Padding="2,1,4,1"
+				<Border Classes="explorerRowOuter" Padding="4,3,6,3" MinHeight="22"
 						PointerPressed="ExplorerRow_PointerPressed"
 						DoubleTapped="ExplorerRow_DoubleTapped">
 					<Border.ContextMenu>
@@ -49,22 +53,22 @@
 									  Command="{Binding $parent[UserControl].((vm:FileExplorerViewModel)DataContext).RefreshTreeCommand}"/>
 						</ContextMenu>
 					</Border.ContextMenu>
-					<Border CornerRadius="3">
+					<Border CornerRadius="4">
 						<Border.Background>
 							<MultiBinding Converter="{StaticResource ExplorerSel}">
 								<Binding Path="Path"/>
 								<Binding Path="$parent[UserControl].((vm:FileExplorerViewModel)DataContext).SelectedTreeItem.Path"/>
 							</MultiBinding>
 						</Border.Background>
-					<Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="4">
+					<Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="6">
 						<ToggleButton Grid.Column="0" Classes="twisty"
 									  IsVisible="{Binding HasChildren}"
 									  IsChecked="{Binding IsExpanded, Mode=TwoWay}"
 									  Focusable="False" ToolTip.Tip="Expand / collapse">
 							<Panel>
-								<PathIcon Data="{StaticResource ChevronDownPath}" Width="9" Height="9"
+								<PathIcon Data="{StaticResource ChevronDownPath}" Width="10" Height="10"
 										 IsVisible="{Binding IsExpanded}"/>
-								<PathIcon Data="{StaticResource ChevronDownPath}" Width="9" Height="9"
+								<PathIcon Data="{StaticResource ChevronDownPath}" Width="10" Height="10"
 										 IsVisible="{Binding !IsExpanded}"
 										 RenderTransformOrigin="50%,50%">
 									<PathIcon.RenderTransform>
@@ -73,10 +77,32 @@
 								</PathIcon>
 							</Panel>
 						</ToggleButton>
-						<Grid Grid.Column="1">
-							<Image Source="avares://JustyBase/Assets/file.png" Width="14" Height="14"
-								   IsVisible="{Binding !IsDirectory}"/>
-							<Image Source="avares://JustyBase/Assets/folder.png" Width="14" Height="14">
+						<Grid Grid.Column="1" Width="16" Height="16" VerticalAlignment="Center">
+							<!-- Generic file icon: only when no badge glyph for this extension -->
+							<Image Source="avares://JustyBase/Assets/file.png" Width="16" Height="16"
+								   VerticalAlignment="Center" HorizontalAlignment="Center">
+								<Image.IsVisible>
+									<MultiBinding Converter="{StaticResource ExtVis}" ConverterParameter="generic">
+										<Binding Path="!IsDirectory"/>
+										<Binding Path="Path" Converter="{StaticResource ExtHasBadge}"/>
+									</MultiBinding>
+								</Image.IsVisible>
+							</Image>
+							<!-- VS Code style badge: colored glyph per extension -->
+							<TextBlock Text="{Binding Path, Converter={StaticResource ExtGlyph}}"
+									   Foreground="{Binding Path, Converter={StaticResource ExtBrush}}"
+									   FontSize="8" FontWeight="Bold"
+									   VerticalAlignment="Center" HorizontalAlignment="Center"
+									   TextAlignment="Center" Width="16">
+								<TextBlock.IsVisible>
+									<MultiBinding Converter="{StaticResource ExtVis}" ConverterParameter="badge">
+										<Binding Path="!IsDirectory"/>
+										<Binding Path="Path" Converter="{StaticResource ExtHasBadge}"/>
+									</MultiBinding>
+								</TextBlock.IsVisible>
+							</TextBlock>
+							<Image Source="avares://JustyBase/Assets/folder.png" Width="16" Height="16"
+								   VerticalAlignment="Center" HorizontalAlignment="Center">
 								<Image.IsVisible>
 									<MultiBinding Converter="{StaticResource DirOpenVis}" ConverterParameter="closed">
 										<Binding Path="IsDirectory"/>
@@ -84,7 +110,8 @@
 									</MultiBinding>
 								</Image.IsVisible>
 							</Image>
-							<Image Source="avares://JustyBase/Assets/folder-open.png" Width="14" Height="14">
+							<Image Source="avares://JustyBase/Assets/folder-open.png" Width="16" Height="16"
+								   VerticalAlignment="Center" HorizontalAlignment="Center">
 								<Image.IsVisible>
 									<MultiBinding Converter="{StaticResource DirOpenVis}" ConverterParameter="open">
 										<Binding Path="IsDirectory"/>
@@ -93,14 +120,14 @@
 								</Image.IsVisible>
 							</Image>
 						</Grid>
-						<TextBlock Grid.Column="2" Text="{Binding Name}" FontSize="12"
+						<TextBlock Grid.Column="2" Text="{Binding Name}" FontSize="13"
 								   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
 								   ToolTip.Tip="{Binding Path, Converter={StaticResource FileMetaTip}}"/>
 					</Grid>
 					</Border>
 				</Border>
 				<ItemsControl ItemsSource="{Binding Children}" IsVisible="{Binding IsExpanded}"
-							  Margin="14,0,0,0" ItemTemplate="{StaticResource ExplorerNodeTemplate}"/>
+							  Margin="16,0,0,0" ItemTemplate="{StaticResource ExplorerNodeTemplate}"/>
 			</StackPanel>
 		</DataTemplate>
 	</UserControl.Resources>
@@ -119,7 +146,7 @@
 		<!-- VS Code Explorer row: hover fill (selection fill is bound inside) -->
 		<Style Selector="Border.explorerRowOuter">
 			<Setter Property="Background" Value="Transparent"/>
-			<Setter Property="CornerRadius" Value="3"/>
+			<Setter Property="CornerRadius" Value="4"/>
 		</Style>
 		<Style Selector="Border.explorerRowOuter:pointerover">
 			<Setter Property="Background" Value="#14888888"/>
@@ -130,14 +157,14 @@
 			<Setter Property="BorderThickness" Value="0"/>
 			<Setter Property="Padding" Value="1"/>
 			<Setter Property="MinWidth" Value="16"/>
-			<Setter Property="MinHeight" Value="20"/>
+			<Setter Property="MinHeight" Value="22"/>
 			<Setter Property="HorizontalContentAlignment" Value="Center"/>
 			<Setter Property="VerticalContentAlignment" Value="Center"/>
 		</Style>
 	</UserControl.Styles>
 	<Grid Focusable="True" RowDefinitions="Auto,*">
 		<!-- VS Code EXPLORER section -->
-		<Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="8,8,8,4">
+		<Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="8,8,8,6">
 			<TextBlock Grid.Column="0" Text="EXPLORER" FontSize="11" FontWeight="SemiBold"
 					   Opacity="0.75" VerticalAlignment="Center"/>
 			<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
@@ -155,7 +182,7 @@
 				</Button>
 			</StackPanel>
 		</Grid>
-		<ScrollViewer Name="ExplorerTreeArea" Grid.Row="1" Margin="4,0,4,4"
+		<ScrollViewer Name="ExplorerTreeArea" Grid.Row="1" Margin="4,0,4,4" Padding="0,0,4,0"
 					  HorizontalScrollBarVisibility="Disabled"
 					  VerticalScrollBarVisibility="Auto">
 			<ItemsControl ItemsSource="{Binding TreeRoots}"

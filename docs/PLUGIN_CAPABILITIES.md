@@ -5,7 +5,7 @@ JustyBase is **Netezza-first**. Other engines are available with uneven maturity
 | Engine | Maturity | Connect | Schema browse | Run SELECT | DDL / scripts helpers | Notes |
 |--------|----------|---------|---------------|------------|------------------------|-------|
 | **Netezza (dotnet)** | **stable** | Yes | Yes | Yes | Yes | Primary product path |
-| **DB2** | **stable** | Yes | Yes | Yes | Yes | External tables not implemented |
+| **DB2** | **experimental** | Yes | Yes | Yes | Yes | Highly experimental: in-development managed DRDA driver (`JustyBase.Db2` 0.1.0, LUW-only). Do not use in production. External tables not implemented |
 | **Postgres** | **stable** | Yes | Yes | Yes | Yes | External tables / synonyms incomplete |
 | **Oracle** | **experimental** | Yes | Yes | Yes | Partial | Some catalog queries still stubbed |
 | **DuckDB** | **experimental** | Yes | Yes | Yes | Partial | Loaded as optional plugin DLL |

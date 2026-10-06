@@ -43,7 +43,7 @@ public interface ISqlRunPreparationService
     SqlRunStartValidationResult ValidateRunStart(bool hasSqlEditor, int selectedConnectionIndex);
     SqlRunExecutionSettings CreateExecutionSettings(bool keepConnectionOpen, bool doPooling, string localTitle, string? option);
     SqlRunQueryPreparationResult PrepareQuery(string query, int currentSqlPositionInEditor, string? option, bool singleCommand, bool continueOnError);
-    Task<IDatabaseService?> InitializeDatabaseServiceAsync(string selectedConnectionName, Func<Task> loadPluginsIfNeededAsync);
+    Task<IDatabaseService?> InitializeDatabaseServiceAsync(string selectedConnectionName);
 }
 
 public sealed class SqlRunPreparationService : ISqlRunPreparationService
@@ -96,13 +96,8 @@ public sealed class SqlRunPreparationService : ISqlRunPreparationService
         return new(true, query, currentSqlPositionInEditor, variableDefineMatch, executionPlan);
     }
 
-    public async Task<IDatabaseService?> InitializeDatabaseServiceAsync(string selectedConnectionName, Func<Task> loadPluginsIfNeededAsync)
+    public async Task<IDatabaseService?> InitializeDatabaseServiceAsync(string selectedConnectionName)
     {
-        if (!_databaseServiceResolver.IsDriverRegistered(_generalApplicationData, selectedConnectionName))
-        {
-            await loadPluginsIfNeededAsync();
-        }
-
         return await Task.Run(() => _databaseServiceResolver.GetDatabaseService(_generalApplicationData, selectedConnectionName, delayCache: false));
     }
 }

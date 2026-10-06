@@ -15,7 +15,7 @@ namespace JustyBase.SqliteDriver;
 
 public sealed class Sqlite : DatabaseService, ILoginDataAwareDatabaseService, IDatabaseConnectionConfigurator
 {
-    public const DatabaseTypeEnum WHO_I_AM_CONST = DatabaseTypeEnum.Sqlite;
+    public override DatabaseTypeEnum DatabaseType => DatabaseTypeEnum.Sqlite;
 
     private readonly Lock _memoryConnectionLock = new();
     private SqliteConnection? _memoryConnection;
@@ -26,10 +26,9 @@ public sealed class Sqlite : DatabaseService, ILoginDataAwareDatabaseService, ID
 
     public SqliteConnectionOptions ConnectionOptions { get; set; } = new();
 
-    public Sqlite(string username, string password, string port, string ip, string db, int connectionTimeout)
-        : base(username, password, port, ip, db, connectionTimeout)
+    public Sqlite(DbConnectionOptions options)
+        : base(options)
     {
-        DatabaseType = WHO_I_AM_CONST;
         AutoCompletDatabaseMode = CurrentAutoCompletDatabaseMode.DatabaseSchemaTable
             | CurrentAutoCompletDatabaseMode.SchemaTable
             | CurrentAutoCompletDatabaseMode.SchemaOptional
@@ -923,9 +922,6 @@ public sealed class Sqlite : DatabaseService, ILoginDataAwareDatabaseService, ID
 
     private static string QuoteQualifiedIdentifier(string identifier)
         => string.Join('.', identifier.Split('.', StringSplitOptions.RemoveEmptyEntries).Select(QuoteIdentifier));
-
-    private static string EscapeSqlLiteral(string value)
-        => value.Replace("'", "''", StringComparison.Ordinal);
 
     private static string FormatColumnDefinition(string definition, string columnName)
     {

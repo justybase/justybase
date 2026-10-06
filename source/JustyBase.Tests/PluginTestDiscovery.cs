@@ -1,5 +1,6 @@
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
 using System.Reflection;
 
@@ -45,39 +46,11 @@ internal static class PluginTestDiscovery
 
     public static IDatabaseService CreateInstance(Type pluginType)
     {
-        var constructor = pluginType.GetConstructor([typeof(string), typeof(string), typeof(string), typeof(string), typeof(string), typeof(int)]);
+        var constructor = pluginType.GetConstructor([typeof(DbConnectionOptions)]);
         Assert.NotNull(constructor);
 
-        var instance = constructor.Invoke(new object[] { "user", "password", "5480", "127.0.0.1", "database", 1 });
+        var instance = constructor.Invoke([new DbConnectionOptions("user", "password", "5480", "127.0.0.1", "database", 1)]);
         return Assert.IsAssignableFrom<IDatabaseService>(instance);
-    }
-
-    public static DatabaseTypeEnum GetWhoIAmConstValue(FieldInfo whoIAmConstField)
-    {
-        var value = whoIAmConstField.IsLiteral
-            ? whoIAmConstField.GetRawConstantValue()
-            : whoIAmConstField.GetValue(null);
-
-        if (value is DatabaseTypeEnum databaseType)
-        {
-            return databaseType;
-        }
-
-        if (value is int enumInt)
-        {
-            return (DatabaseTypeEnum)enumInt;
-        }
-
-        throw new InvalidOperationException($"Field {whoIAmConstField.Name} is not a valid {nameof(DatabaseTypeEnum)} constant.");
-    }
-
-    public static Dictionary<DatabaseTypeEnum, Func<string, string, string, string, string, int, IDatabaseService>> GetRegisteredImplementations()
-    {
-        var field = typeof(DatabaseServiceRegistry).GetField("_implementations", BindingFlags.NonPublic | BindingFlags.Instance);
-        Assert.NotNull(field);
-
-        var value = field.GetValue(DatabaseServiceRegistry.Shared);
-        return Assert.IsType<Dictionary<DatabaseTypeEnum, Func<string, string, string, string, string, int, IDatabaseService>>>(value);
     }
 
     private static Assembly LoadAssembly(string assemblyPath)

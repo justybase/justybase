@@ -14,8 +14,10 @@ public sealed class NetezzaSchemaLoaderAdapterTests
 {
     private sealed class TestableNetezza : NetezzaCommonClass
     {
+        public override DatabaseTypeEnum DatabaseType => DatabaseTypeEnum.NetezzaSQL;
+
         public TestableNetezza()
-            : base("user", "password", "5480", "host", "db", 10)
+            : base(new DbConnectionOptions("user", "password", "5480", "host", "db", 10))
         {
         }
 

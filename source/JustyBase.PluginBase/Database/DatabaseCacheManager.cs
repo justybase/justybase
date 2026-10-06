@@ -285,6 +285,7 @@ internal sealed class DatabaseCacheManager
                         }
                         catch
                         {
+                            // Connection already torn down by the timeout path; close is best-effort.
                         }
                     });
 

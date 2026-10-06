@@ -1,4 +1,5 @@
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.SqliteDriver;
 using JustyBase.SqliteDriver.Samples;
 using Microsoft.Data.Sqlite;
@@ -69,7 +70,7 @@ public sealed class SqliteSampleDatabaseBuilderTests
                 Assert.Equal(1L, (long)triggerAudit.ExecuteScalar()!);
             }
 
-            var service = new Sqlite(string.Empty, string.Empty, string.Empty, root, Path.GetFileName(databaseFile), 10);
+            var service = new Sqlite(new DbConnectionOptions(Ip: root, Database: Path.GetFileName(databaseFile), ConnectionTimeout: 10));
             using (var driverConnection = service.GetConnection(null, pooling: false))
             {
                 driverConnection.Open();

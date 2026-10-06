@@ -2,6 +2,7 @@ using JustyBase.PluginDatabaseBase.Database;
 using System.Data.Common;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Contracts;
+using JustyBase.PluginCommon.Models;
 using JustyBase.Netezza;
 using JustyBase.NetezzaCatalogSql;
 using NetezzaBase;
@@ -11,10 +12,10 @@ namespace NetezzaDotnetPlugin;
 
 public sealed class Netezza : NetezzaCommonClass, INetezza, INetezzaDotnet
 {
-    public const DatabaseTypeEnum WHO_I_AM_CONST = DatabaseTypeEnum.NetezzaSQL;
-    public Netezza(string username, string password, string port, string ip, string db, int connectionTimeout) : base(username, password, port, ip, db, connectionTimeout)
+    public override DatabaseTypeEnum DatabaseType => DatabaseTypeEnum.NetezzaSQL;
+
+    public Netezza(DbConnectionOptions options) : base(options)
     {
-        DatabaseType = WHO_I_AM_CONST;
     }
 
     protected override string DriverName => "dotnet";

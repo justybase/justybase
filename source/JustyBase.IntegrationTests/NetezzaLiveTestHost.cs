@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.Data.Common;
 using JustyBase.NetezzaDriver;
+using JustyBase.PluginCommon.Models;
 using Xunit.Sdk;
 using NetezzaService = NetezzaDotnetPlugin.Netezza;
 
@@ -38,7 +39,15 @@ internal static class NetezzaLiveTestHost
     public static NetezzaService CreateService()
     {
         Env env = s_env.Value;
-        return new NetezzaService(env.User, env.Password, env.Port.ToString(CultureInfo.InvariantCulture), env.Host, env.Database, connectionTimeout: 15);
+        return new NetezzaService(new DbConnectionOptions
+        {
+            Username = env.User,
+            Password = env.Password,
+            Port = env.Port.ToString(CultureInfo.InvariantCulture),
+            Ip = env.Host,
+            Database = env.Database,
+            ConnectionTimeout = 15,
+        });
     }
 
     public static string CreateLogDirectory()

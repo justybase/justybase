@@ -4,6 +4,7 @@ using JustyBase.Helpers.Importers;
 using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
 using Oracle.ManagedDataAccess.Client;
 
@@ -11,10 +12,10 @@ namespace OraclePlugin;
 
 public sealed class Oracle : DatabaseService
 {
-    public const DatabaseTypeEnum WHO_I_AM_CONST = DatabaseTypeEnum.Oracle;
-    public Oracle(string username, string password, string port, string ip, string db, int connectionTimeout) : base(username, password, port, ip, db, connectionTimeout)
+    public override DatabaseTypeEnum DatabaseType => DatabaseTypeEnum.Oracle;
+
+    public Oracle(DbConnectionOptions options) : base(options)
     {
-        DatabaseType = WHO_I_AM_CONST;
         AutoCompletDatabaseMode = CurrentAutoCompletDatabaseMode.SchemaTable;
         preferDatabaseInCodes = false;
     }

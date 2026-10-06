@@ -51,8 +51,6 @@ public sealed class AppOptions
     public bool UseSplashScreen { get; set; } = true;
     public bool AutoDownloadUpdate { get; set; } = true;
     public DateTimeOffset? LastUpdateCheckUtc { get; set; }
-    public bool AutoDownloadPlugins { get; set; } = true;
-    public bool AllowToLoadPlugins { get; set; } = true;
     public bool UpdateMitigateNextGenFirewalls { get; set; } // palo alto
     public int LimitHistoryMonths { get; set; } = 6;
 
@@ -269,8 +267,6 @@ public sealed class AppOptions
     public const string FAST_SNIPET_TXT = "fast";
     public const string TYPO_SNIPET_TXT = "typo";
     public const string STANDARD_SNIPET_TXT = "standard";
-
-    public bool ResetPlugins { get; set; }
 
     public void AddDefaultValues()
     {

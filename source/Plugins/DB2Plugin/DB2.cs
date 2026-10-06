@@ -12,10 +12,10 @@ namespace DB2Plugin;
 
 public sealed class DB2DatabaseService : DatabaseService
 {
-    public const DatabaseTypeEnum WHO_I_AM_CONST = DatabaseTypeEnum.DB2;
-    public DB2DatabaseService(string username, string password, string port, string ip, string db, int connectionTimeout) : base(username, password, port, ip, db, connectionTimeout)
+    public override DatabaseTypeEnum DatabaseType => DatabaseTypeEnum.DB2;
+
+    public DB2DatabaseService(DbConnectionOptions options) : base(options)
     {
-        DatabaseType = WHO_I_AM_CONST;
         AutoCompletDatabaseMode = CurrentAutoCompletDatabaseMode.SchemaTable;
         preferDatabaseInCodes = false;
     }
@@ -776,12 +776,12 @@ public sealed class DB2DatabaseService : DatabaseService
             sb.AppendLine($"ALTER TABLE {clearSchema}.{clearTableName} ADD CONSTRAINT {clearPk} PRIMARY KEY({string.Join(",", pkCols)}){pkEnforced}{pkTrusted};");
             if (pkComment is not null)
             {
-                sb.AppendLine($"COMMENT ON CONSTRAINT {clearSchema}.{clearTableName}.{clearPk}  IS '{pkComment.Replace("'", "''")}';");
+                sb.AppendLine($"COMMENT ON CONSTRAINT {clearSchema}.{clearTableName}.{clearPk}  IS '{EscapeSqlLiteral(pkComment)}';");
             }
         }
         if (remarks != null)
         {
-            sb.AppendLine($"COMMENT ON TABLE {clearSchema}.{clearTableName} IS '{remarks.Replace("'", "''")}';");
+            sb.AppendLine($"COMMENT ON TABLE {clearSchema}.{clearTableName} IS '{EscapeSqlLiteral(remarks)}';");
         }
         // COMMENT ON CONSTRAINT TEST.EMPLOYEE.RED IS 'DDDD';
 
@@ -792,7 +792,7 @@ public sealed class DB2DatabaseService : DatabaseService
 
             if (fkComments[item.Key] != null)
             {
-                sb.AppendLine($"COMMENT ON CONSTRAINT {clearSchema}.{clearTableName}.{item.Key}  IS '{fkComments[item.Key]?.Replace("'", "''")}';");
+                sb.AppendLine($"COMMENT ON CONSTRAINT {clearSchema}.{clearTableName}.{item.Key}  IS '{EscapeSqlLiteral(fkComments[item.Key]!)}';");
             }
         }
 
@@ -805,7 +805,7 @@ public sealed class DB2DatabaseService : DatabaseService
         {
             if (columnsOfTable[i].Desc is not null)
             {
-                sb.AppendLine($"COMMENT ON COLUMN {clearSchema}.{clearTableName}.{columnsOfTable[i].Name} IS '{columnsOfTable[i].Desc?.Replace("'", "''")}';");
+                sb.AppendLine($"COMMENT ON COLUMN {clearSchema}.{clearTableName}.{columnsOfTable[i].Name} IS '{EscapeSqlLiteral(columnsOfTable[i].Desc!)}';");
             }
         }
 

@@ -1,4 +1,5 @@
 ﻿using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
 using MySql.Data.MySqlClient;
 using System.Data.Common;
@@ -9,11 +10,10 @@ namespace MySqlPlugin;
 
 public sealed class MySql : DatabaseService
 {
-    public const DatabaseTypeEnum WHO_I_AM_CONST = DatabaseTypeEnum.MySql;
+    public override DatabaseTypeEnum DatabaseType => DatabaseTypeEnum.MySql;
 
-    public MySql(string username, string password, string port, string ip, string db, int connectionTimeout) : base(username, password, port, ip, db, connectionTimeout)
+    public MySql(DbConnectionOptions options) : base(options)
     {
-        DatabaseType = WHO_I_AM_CONST;
         AutoCompletDatabaseMode = CurrentAutoCompletDatabaseMode.SchemaTable
             | CurrentAutoCompletDatabaseMode.SchemaOptional
             | CurrentAutoCompletDatabaseMode.DatabaseAndSchemaOptional

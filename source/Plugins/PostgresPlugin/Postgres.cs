@@ -1,6 +1,7 @@
 using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
 using Npgsql;
 using System.Data.Common;
@@ -10,7 +11,7 @@ namespace PostgresPlugin;
 
 public sealed class Postgres : DatabaseService
 {
-    public const DatabaseTypeEnum WHO_I_AM_CONST = DatabaseTypeEnum.PostgreSql;
+    public override DatabaseTypeEnum DatabaseType => DatabaseTypeEnum.PostgreSql;
 
     private const string ColumnsSql =
         """
@@ -39,10 +40,9 @@ public sealed class Postgres : DatabaseService
         ORDER BY c.oid, col.ordinal_position;
         """;
 
-    public Postgres(string username, string password, string port, string ip, string db, int connectionTimeout)
-        : base(username, password, port, ip, db, connectionTimeout)
+    public Postgres(DbConnectionOptions options)
+        : base(options)
     {
-        DatabaseType = WHO_I_AM_CONST;
         AutoCompletDatabaseMode = CurrentAutoCompletDatabaseMode.DatabaseSchemaTable | CurrentAutoCompletDatabaseMode.SchemaTable;
         PrefrerUpperCase = false;
     }
@@ -872,32 +872,4 @@ public sealed class Postgres : DatabaseService
         return result;
     }
 
-    private static void AppendSqlStatements(StringBuilder sb, IReadOnlyList<string> statements)
-    {
-        if (statements.Count == 0)
-        {
-            return;
-        }
-
-        foreach (string statement in statements)
-        {
-            sb.AppendLine(statement);
-        }
-    }
-
-    private static string EnsureSqlStatement(string ddl)
-    {
-        string trimmed = ddl.TrimEnd();
-        if (trimmed.EndsWith(';'))
-        {
-            return trimmed;
-        }
-
-        return trimmed + ";";
-    }
-
-    private static string EscapeSqlLiteral(string value)
-    {
-        return value.Replace("'", "''");
-    }
 }

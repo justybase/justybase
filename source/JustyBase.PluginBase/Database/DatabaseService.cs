@@ -1,5 +1,6 @@
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.PluginCommons;
 using System.Data.Common;
 
@@ -16,7 +17,7 @@ public abstract partial class DatabaseService : IDatabaseService, IDatabaseWithS
     public string TempDataDirectory { get; set; } = string.Empty;
     public ISimpleLogger Logger { get; set; } = ISimpleLogger.EmptyLogger;
     public CurrentAutoCompletDatabaseMode AutoCompletDatabaseMode { get; init; }
-    public DatabaseTypeEnum DatabaseType { get; init; } = DatabaseTypeEnum.NotSupportedDatabase;
+    public abstract DatabaseTypeEnum DatabaseType { get; }
 
     private DbConnection? _connection;
     public DbConnection Connection
@@ -54,16 +55,17 @@ public abstract partial class DatabaseService : IDatabaseService, IDatabaseWithS
 
     public DatabaseConnectedLevel ConnectedLevel { get; set; } = DatabaseConnectedLevel.NotConnected;
 
-    protected DatabaseService(string username, string password, string port, string ip, string db, int connectionTimeout)
+    protected DatabaseService(DbConnectionOptions options)
     {
-        Username = username;
-        Password = password;
-        Port = port;
-        Ip = ip;
-        Database = db;
-        if (connectionTimeout > 0)
+        ArgumentNullException.ThrowIfNull(options);
+        Username = options.Username;
+        Password = options.Password;
+        Port = options.Port;
+        Ip = options.Ip;
+        Database = options.Database;
+        if (options.ConnectionTimeout > 0)
         {
-            CONNECTION_TIMEOUT = connectionTimeout;
+            CONNECTION_TIMEOUT = options.ConnectionTimeout;
         }
 
         _cacheManager = new DatabaseCacheManager(

@@ -211,7 +211,7 @@ public abstract partial class DatabaseService
         }
         else
         {
-            return comment.Replace("'", "''");
+            return EscapeSqlLiteral(comment);
         }
     }
     public virtual bool IsTypeInDatabaseSupported(TypeInDatabaseEnum typeInDatabase)

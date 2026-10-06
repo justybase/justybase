@@ -6,7 +6,7 @@ namespace JustyBase.PluginCommon.Contracts;
 
 public interface IDatabaseWithSpecificImportService
 {
-    public DatabaseTypeEnum DatabaseType { get; init; }
+    public DatabaseTypeEnum DatabaseType { get; }
 
     Task DbSpecificImportPart(IImportJob importJob, string randName, Action<string>? progress,
         bool tableExists = false);

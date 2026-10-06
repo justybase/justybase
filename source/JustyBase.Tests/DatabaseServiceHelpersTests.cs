@@ -131,4 +131,56 @@ public class DatabaseServiceHelpersTests
         databaseService.Verify(service => service.ClearCachedData(), Times.Once);
         Assert.Equal(DatabaseConnectedLevel.NotConnected, DatabaseServiceHelpers.GetDatabaseConnectedLevel(connectionName));
     }
+
+    [Fact]
+    public void GetDatabaseService_MixedCaseNames_ReturnSameCachedInstance()
+    {
+        // Regression test for A.2: LoginDataDic is OrdinalIgnoreCase, so the
+        // service cache must be too — otherwise "MyConn"/"MYCONN" silently
+        // create two services and two sets of pooled connections.
+        string connectionName = $"MixedCase-{Guid.NewGuid():N}";
+        var databaseService = new Mock<IDatabaseService>();
+        databaseService.SetupAllProperties();
+        databaseService.Setup(service => service.ClearCachedData());
+
+        try
+        {
+            IDatabaseService? lower = DatabaseServiceHelpers.GetDatabaseService(
+                null, connectionName.ToLowerInvariant(), ownDatabaseService: databaseService.Object);
+            IDatabaseService? upper = DatabaseServiceHelpers.GetDatabaseService(
+                null, connectionName.ToUpperInvariant(), ownDatabaseService: databaseService.Object);
+
+            Assert.NotNull(lower);
+            Assert.Same(lower, upper);
+        }
+        finally
+        {
+            DatabaseServiceHelpers.RemoveCachedConnection(connectionName);
+        }
+    }
+
+    [Fact]
+    public void RemoveCachedConnection_MixedCase_RemovesService()
+    {
+        string connectionName = $"MixedRemove-{Guid.NewGuid():N}";
+        var databaseService = new Mock<IDatabaseService>();
+        databaseService.SetupAllProperties();
+        databaseService.Setup(service => service.ClearCachedData());
+
+        try
+        {
+            DatabaseServiceHelpers.GetDatabaseService(null, connectionName, ownDatabaseService: databaseService.Object);
+
+            DatabaseServiceHelpers.RemoveCachedConnection(connectionName.ToUpperInvariant());
+
+            databaseService.Verify(service => service.ClearCachedData(), Times.Once);
+            Assert.Equal(
+                DatabaseConnectedLevel.NotConnected,
+                DatabaseServiceHelpers.GetDatabaseConnectedLevel(connectionName.ToLowerInvariant()));
+        }
+        finally
+        {
+            DatabaseServiceHelpers.RemoveCachedConnection(connectionName);
+        }
+    }
 }

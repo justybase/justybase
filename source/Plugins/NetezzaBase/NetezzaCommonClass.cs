@@ -16,12 +16,12 @@ using JustyBase.PluginDatabaseBase.Models;
 
 namespace NetezzaBase;
 
-public class NetezzaCommonClass : DatabaseService, INetezza
+public abstract class NetezzaCommonClass : DatabaseService, INetezza
 {
     private readonly NetezzaDdlBuilder _ddlBuilder;
     private readonly NetezzaDdlTextBuilder _ddlTextBuilder = new();
 
-    public NetezzaCommonClass(string username, string password, string port, string ip, string db, int connectionTimeout) : base(username, password, port, ip, db, connectionTimeout)
+    protected NetezzaCommonClass(DbConnectionOptions options) : base(options)
     {
         AutoCompletDatabaseMode = CurrentAutoCompletDatabaseMode.DatabaseSchemaTable |
             CurrentAutoCompletDatabaseMode.SchemaOptional |

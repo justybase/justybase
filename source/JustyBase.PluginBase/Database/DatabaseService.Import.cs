@@ -47,7 +47,7 @@ public abstract partial class DatabaseService
                     values ??= new object[reader.FieldCount];
                     reader.GetValues(values);
                     var valuesList = values.Select(v => v == DBNull.Value || v == null ? "NULL" :
-                        v is string ? $"'{v.ToString()?.Replace("'", "''")}'" :
+                        v is string ? $"'{EscapeSqlLiteral(v.ToString()!)}'" :
                         v is DateTime dt ? $"'{dt:yyyy-MM-dd HH:mm:ss}'" :
                         v.ToString()).ToList();
 

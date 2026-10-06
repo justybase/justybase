@@ -4,8 +4,14 @@ namespace JustyBase.PluginCommon.Contracts;
 
 public interface IDatabaseInfo
 {
-    Task LoadPluginsIfNeeded(Action? uiAction);
     ISimpleLogger GlobalLoggerObject { get; }
-    Dictionary<string, LoginDataModel> LoginDataDic { get; }
+
+    /// <summary>
+    /// Point-in-time snapshot of saved connections. The returned dictionary is
+    /// a copy: mutating it has no effect. Use
+    /// <c>IGeneralApplicationData.AddToOrEditLoginData</c> /
+    /// <c>DeleteFromLoginData</c> / <c>SetAccessOptions</c> for mutations.
+    /// </summary>
+    IReadOnlyDictionary<string, LoginDataModel> LoginDataDic { get; }
     string GetDataDir();
 }

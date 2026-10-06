@@ -159,8 +159,7 @@ public sealed partial class SqlDocumentViewModel
                         }
                     },
                     newDatabase => SelectedDatabase = newDatabase,
-                    currentLogMessage),
-                () => _generalApplicationData.LoadPluginsIfNeeded(PluginsDownloadInfo));
+                    currentLogMessage));
         }
         finally
         {

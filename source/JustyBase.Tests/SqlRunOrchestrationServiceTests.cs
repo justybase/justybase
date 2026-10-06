@@ -14,7 +14,7 @@ public sealed class SqlRunOrchestrationServiceTests
     {
         var runPreparationService = new Mock<ISqlRunPreparationService>();
         runPreparationService
-            .Setup(x => x.InitializeDatabaseServiceAsync("main", It.IsAny<Func<Task>>()))
+            .Setup(x => x.InitializeDatabaseServiceAsync("main"))
             .ReturnsAsync((IDatabaseService?)null);
 
         var executionService = new Mock<ISqlExecutionService>(MockBehavior.Strict);
@@ -29,7 +29,7 @@ public sealed class SqlRunOrchestrationServiceTests
             executionStateService,
             resultDispatcherService);
 
-        var result = await sut.ExecuteAsync(request, () => Task.CompletedTask);
+        var result = await sut.ExecuteAsync(request);
 
         Assert.Equal(SqlRunOrchestrationStatus.MissingConnection, result.Status);
         resultDispatcherService.Verify(
@@ -52,7 +52,7 @@ public sealed class SqlRunOrchestrationServiceTests
 
         var runPreparationService = new Mock<ISqlRunPreparationService>();
         runPreparationService
-            .Setup(x => x.InitializeDatabaseServiceAsync("main", It.IsAny<Func<Task>>()))
+            .Setup(x => x.InitializeDatabaseServiceAsync("main"))
             .ReturnsAsync(databaseService.Object);
 
         var executionStateService = new Mock<ISqlExecutionStateService>();
@@ -93,7 +93,7 @@ public sealed class SqlRunOrchestrationServiceTests
             executionService,
             executionStateService);
 
-        var result = await sut.ExecuteAsync(request, () => Task.CompletedTask);
+        var result = await sut.ExecuteAsync(request);
 
         Assert.Equal(SqlRunOrchestrationStatus.Completed, result.Status);
         Assert.Equal(["MAIN"], addedDatabases);
@@ -110,7 +110,7 @@ public sealed class SqlRunOrchestrationServiceTests
 
         var runPreparationService = new Mock<ISqlRunPreparationService>();
         runPreparationService
-            .Setup(x => x.InitializeDatabaseServiceAsync("main", It.IsAny<Func<Task>>()))
+            .Setup(x => x.InitializeDatabaseServiceAsync("main"))
             .ReturnsAsync(databaseService.Object);
 
         var executionStateService = new Mock<ISqlExecutionStateService>();
@@ -149,7 +149,7 @@ public sealed class SqlRunOrchestrationServiceTests
             simpleLogger: simpleLogger,
             messageForUserTools: messageForUserTools);
 
-        var result = await sut.ExecuteAsync(request, () => Task.CompletedTask);
+        var result = await sut.ExecuteAsync(request);
 
         Assert.Equal(SqlRunOrchestrationStatus.Failed, result.Status);
         simpleLogger.Verify(x => x.TrackError(exception, false), Times.Once);

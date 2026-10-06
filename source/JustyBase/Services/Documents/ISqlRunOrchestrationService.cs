@@ -38,7 +38,7 @@ public sealed record SqlRunOrchestrationResult(SqlRunOrchestrationStatus Status)
 
 public interface ISqlRunOrchestrationService
 {
-    Task<SqlRunOrchestrationResult> ExecuteAsync(SqlRunOrchestrationRequest request, Func<Task> loadPluginsIfNeededAsync);
+    Task<SqlRunOrchestrationResult> ExecuteAsync(SqlRunOrchestrationRequest request);
 }
 
 public sealed class SqlRunOrchestrationService : ISqlRunOrchestrationService
@@ -72,13 +72,12 @@ public sealed class SqlRunOrchestrationService : ISqlRunOrchestrationService
         _messageForUserTools = messageForUserTools;
     }
 
-    public async Task<SqlRunOrchestrationResult> ExecuteAsync(SqlRunOrchestrationRequest request, Func<Task> loadPluginsIfNeededAsync)
+    public async Task<SqlRunOrchestrationResult> ExecuteAsync(SqlRunOrchestrationRequest request)
     {
         try
         {
             IDatabaseService? actualDatabaseService = await _runPreparationService.InitializeDatabaseServiceAsync(
-                request.SelectedConnectionName,
-                loadPluginsIfNeededAsync);
+                request.SelectedConnectionName);
 
             if (actualDatabaseService is null)
             {

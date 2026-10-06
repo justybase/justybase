@@ -81,7 +81,7 @@ public sealed class FileDatabasePluginTests
                 File.WriteAllBytes(workbookPath, workbook.ToArray());
             }
 
-            var service = new Excel(string.Empty, string.Empty, string.Empty, string.Empty, workbookPath, 15)
+            var service = new Excel(new DbConnectionOptions(Database: workbookPath, ConnectionTimeout: 15))
             {
                 TempDataDirectory = root
             };
@@ -119,7 +119,7 @@ public sealed class FileDatabasePluginTests
     [Fact]
     public void AccessPlugin_GeneratesAccessTopSyntaxWithoutSyntheticSchema()
     {
-        var service = new Access(string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, 15);
+        var service = new Access(new DbConnectionOptions(ConnectionTimeout: 15));
 
         Assert.Equal(
             "SELECT TOP 100 * FROM [t_people];",
@@ -140,7 +140,7 @@ public sealed class FileDatabasePluginTests
             return;
         }
 
-        var service = new Access(string.Empty, string.Empty, string.Empty, string.Empty, fixture, 15)
+        var service = new Access(new DbConnectionOptions(Database: fixture, ConnectionTimeout: 15))
         {
             TempDataDirectory = Path.GetTempPath()
         };

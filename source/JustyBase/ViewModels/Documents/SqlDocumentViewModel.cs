@@ -61,6 +61,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private readonly InMemorySchemaProvider? _parserSchema;
     private readonly DocumentParsingCoordinator? _parsingCoordinator;
     private readonly ISqlDbWordListProvider? _wordListProvider;
+    private readonly JustyBase.Services.Ai.IAiChatNavigator? _aiChatNavigator;
     private readonly FimEditorAttachment _fimAttachment;
     private readonly Queue<string> _pendingSnippetTexts = [];
     private int _cleanupStarted;
@@ -84,9 +85,10 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
           NzCompletionEngine? completionEngine = null,
           InMemorySchemaProvider? parserSchema = null,
           DocumentParsingCoordinator? parsingCoordinator = null,
-          FimInlineCompletionBridge? fimBridge = null,
-          ISqlDbWordListProvider? wordListProvider = null
-           )
+           FimInlineCompletionBridge? fimBridge = null,
+           ISqlDbWordListProvider? wordListProvider = null,
+           JustyBase.Services.Ai.IAiChatNavigator? aiChatNavigator = null
+            )
         : base(generalApplicationData, messageForUserTools, documentCloseDecisionService, activeDocumentManager)
     {
         // SQL documents can be reordered as tabs, but never split or floated. A single document
@@ -108,6 +110,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         _parserSchema = parserSchema;
         _parsingCoordinator = parsingCoordinator;
         _wordListProvider = wordListProvider;
+        _aiChatNavigator = aiChatNavigator;
         _fimAttachment = new FimEditorAttachment(fimBridge);
         this.Factory = factory;
         _sqlVariableProcessor = sqlVariableProcessor;
@@ -127,23 +130,70 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         WordWrap = false;
 
 
-        CutCommand = new RelayCommand(() => SqlEditor?.Cut());
-        CopyCommand = new RelayCommand(() => SqlEditor?.Copy());
+        CutCommand = new RelayCommand(() =>
+        {
+            if (EditorAdapter is not null)
+            {
+                EditorAdapter.Cut();
+            }
+            else
+            {
+                SqlEditor?.Cut();
+            }
+        });
+        CopyCommand = new RelayCommand(() =>
+        {
+            if (EditorAdapter is not null)
+            {
+                EditorAdapter.Copy();
+            }
+            else
+            {
+                SqlEditor?.Copy();
+            }
+        });
         CopyWithFormatsCommand = new AsyncRelayCommand(CopyWithFormats);
         PasteCommand = new RelayCommand(() =>
         {
-            SqlEditor?.Paste();
+            if (EditorAdapter is not null)
+            {
+                EditorAdapter.Paste();
+            }
+            else
+            {
+                SqlEditor?.Paste();
+            }
         });
-        UndoCommand = new RelayCommand(() => SqlEditor?.Undo());
-        RedoCommand = new RelayCommand(() => SqlEditor?.Redo());
+        UndoCommand = new RelayCommand(() =>
+        {
+            if (EditorAdapter is not null)
+            {
+                EditorAdapter.Undo();
+            }
+            else
+            {
+                SqlEditor?.Undo();
+            }
+        });
+        RedoCommand = new RelayCommand(() =>
+        {
+            if (EditorAdapter is not null)
+            {
+                EditorAdapter.Redo();
+            }
+            else
+            {
+                SqlEditor?.Redo();
+            }
+        });
         ContinueOnError = false;
         IsRunEnabled = true;
         PeriodicIntervalText = "00:00:10";
         VmSharedPreparation();
         InsertTextAction = InsertTextRequest;
 
-        GetCurrentTextFunc = () => SqlEditor?.Text ?? string.Empty;
-        GetCurrentTextDispatcherFunc = () => JustyBase.Helpers.UiThreadMarshal.InvokeAsync(() => SqlEditor?.Text ?? string.Empty);
+        GetCurrentTextFunc = () => EditorAdapter?.Text ?? SqlEditor?.Text ?? string.Empty;
+        GetCurrentTextDispatcherFunc = () => JustyBase.Helpers.UiThreadMarshal.InvokeAsync(() => EditorAdapter?.Text ?? SqlEditor?.Text ?? string.Empty);
         OnFileChangedExternalDispatcher = info => { _ = _uiServices.ShowFileDiffDialogAsync(info); };
         UiThreadInvoker = action => Dispatcher.UIThread.Post(action);
     }
@@ -152,6 +202,14 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         string textToInsert = rawMode
             ? data?.ToString() ?? string.Empty
             : StringExtension.ConvertAsSqlCompatybile(data);
+
+        // F2: prefer UI-free adapter; fall back to concrete control for legacy view wiring.
+        if (EditorAdapter is not null)
+        {
+            EditorAdapter.SelectedText = string.Empty;
+            EditorAdapter.Insert(EditorAdapter.CaretOffset, textToInsert);
+            return;
+        }
 
         var editor = SqlEditor;
         if (editor?.Document is null)
@@ -168,6 +226,13 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
     [ObservableProperty]
     public partial SqlCodeEditor SqlEditor { get; set; }
+
+    /// <summary>
+    /// F2: UI-free facade over <see cref="SqlEditor"/>. New document logic should
+    /// prefer this over the concrete control so VMs are unit-testable.
+    /// Synced in <c>OnSqlEditorChanged</c>; null until the view attaches.
+    /// </summary>
+    public JustyBase.Editor.IEditorAdapter? EditorAdapter { get; private set; }
 
     private SqlCodeEditor? _wiredSqlEditor;
     /// <summary>True after first content hydrate (disk load / offline text / empty). Tab switch must not re-load.</summary>
@@ -225,6 +290,8 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
         DetachSqlEditorHandlers(previous);
         _wiredSqlEditor = value;
+        // F2: keep the UI-free adapter in sync for testable logic paths.
+        EditorAdapter = value is null ? null : new JustyBase.Editor.SqlCodeEditorAdapter(value);
 
         // Populate text before Initialize / AttachToEditor so Document.Text assignment does not
         // fire SemanticLineColorizer.WarmCache or NzLinterService.OnTextChanged as a side effect
@@ -520,6 +587,13 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             return;
         }
 
+        // F1: prefer DI navigator; fall back to ServiceLocator for legacy manual constructions.
+        if (_aiChatNavigator is not null)
+        {
+            await _aiChatNavigator.SendToAiChatAsync();
+            return;
+        }
+
         var aiChatVm = Program.ServiceProvider?.GetService<AiChatViewModel>();
         if (aiChatVm is not null)
             await aiChatVm.SendToAiChatAsync();
@@ -610,11 +684,6 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
                 PeriodicIntervalText = "00:00:10";
             }
         };
-    }
-
-    private void PluginsDownloadInfo()
-    {
-        _uiServices.ToggleMainWindowEnabled();
     }
 
     private async Task<string?> GetPathFromUser(string? ft, string? pattern, string? defaultExtension)

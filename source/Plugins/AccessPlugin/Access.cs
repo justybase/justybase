@@ -16,17 +16,16 @@ namespace AccessPlugin;
 /// </summary>
 public sealed class Access : DatabaseService, ILoginDataAwareDatabaseService
 {
-    public const DatabaseTypeEnum WHO_I_AM_CONST = DatabaseTypeEnum.Access;
+    public override DatabaseTypeEnum DatabaseType => DatabaseTypeEnum.Access;
 
     private readonly Dictionary<string, Dictionary<string, Dictionary<string, DatabaseColumn[]>>> _columns =
         new(StringComparer.OrdinalIgnoreCase);
 
     public AccessConnectionOptions ConnectionOptions { get; private set; } = new();
 
-    public Access(string username, string password, string port, string ip, string db, int connectionTimeout)
-        : base(username, password, port, ip, db, connectionTimeout)
+    public Access(DbConnectionOptions options)
+        : base(options)
     {
-        DatabaseType = WHO_I_AM_CONST;
         AutoCompletDatabaseMode = CurrentAutoCompletDatabaseMode.SchemaTable
             | CurrentAutoCompletDatabaseMode.SchemaOptional
             | CurrentAutoCompletDatabaseMode.DatabaseAndSchemaOptional;

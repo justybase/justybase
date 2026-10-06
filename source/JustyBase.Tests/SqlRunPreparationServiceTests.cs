@@ -102,14 +102,12 @@ public sealed class SqlRunPreparationServiceTests
     }
 
     [Fact]
-    public async Task InitializeDatabaseServiceAsync_WhenDriverIsMissing_LoadsPluginsBeforeResolvingService()
+    public async Task InitializeDatabaseServiceAsync_ResolvesServiceWithoutRuntimePluginLoading()
     {
         var appData = new Mock<IGeneralApplicationData>();
         var resolver = new Mock<IDatabaseServiceResolver>();
         var dbService = new Mock<IDatabaseService>().Object;
-        bool pluginsLoaded = false;
 
-        resolver.Setup(r => r.IsDriverRegistered(appData.Object, "main")).Returns(false);
         resolver.Setup(r => r.GetDatabaseService(
                 appData.Object,
                 "main",
@@ -120,55 +118,10 @@ public sealed class SqlRunPreparationServiceTests
 
         var service = CreateService(appData, resolver);
 
-        var result = await service.InitializeDatabaseServiceAsync(
-            "main",
-            () =>
-            {
-                pluginsLoaded = true;
-                return Task.CompletedTask;
-            });
+        var result = await service.InitializeDatabaseServiceAsync("main");
 
-        Assert.True(pluginsLoaded);
         Assert.Same(dbService, result);
-        resolver.Verify(r => r.IsDriverRegistered(appData.Object, "main"), Times.Once);
-        resolver.Verify(r => r.GetDatabaseService(
-            appData.Object,
-            "main",
-            false,
-            It.IsAny<bool>(),
-            It.IsAny<Action<string>?>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task InitializeDatabaseServiceAsync_WhenDriverIsAlreadyRegistered_SkipsPluginLoading()
-    {
-        var appData = new Mock<IGeneralApplicationData>();
-        var resolver = new Mock<IDatabaseServiceResolver>();
-        var dbService = new Mock<IDatabaseService>().Object;
-        bool pluginsLoaded = false;
-
-        resolver.Setup(r => r.IsDriverRegistered(appData.Object, "main")).Returns(true);
-        resolver.Setup(r => r.GetDatabaseService(
-                appData.Object,
-                "main",
-                false,
-                It.IsAny<bool>(),
-                It.IsAny<Action<string>?>()))
-            .Returns(dbService);
-
-        var service = CreateService(appData, resolver);
-
-        var result = await service.InitializeDatabaseServiceAsync(
-            "main",
-            () =>
-            {
-                pluginsLoaded = true;
-                return Task.CompletedTask;
-            });
-
-        Assert.False(pluginsLoaded);
-        Assert.Same(dbService, result);
-        resolver.Verify(r => r.IsDriverRegistered(appData.Object, "main"), Times.Once);
+        resolver.Verify(r => r.IsDriverRegistered(It.IsAny<IGeneralApplicationData>(), It.IsAny<string>()), Times.Never);
         resolver.Verify(r => r.GetDatabaseService(
             appData.Object,
             "main",

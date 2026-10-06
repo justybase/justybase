@@ -19,7 +19,7 @@ public sealed class SqliteDriverLiveTests
     [InlineData("file::memory:?cache=shared")]
     public async Task InMemoryConnectionsRemainUsableAfterCallerDisposesConnection(string dataSource)
     {
-        var service = new Sqlite(string.Empty, string.Empty, string.Empty, string.Empty, dataSource, 10);
+        var service = new Sqlite(new DbConnectionOptions(Database: dataSource, ConnectionTimeout: 10));
 
         using (DbConnection setup = service.GetConnection(null, pooling: false))
         {
@@ -53,7 +53,7 @@ public sealed class SqliteDriverLiveTests
 
         try
         {
-            var service = new Sqlite("", "", "", root, databaseName, 10);
+            var service = new Sqlite(new DbConnectionOptions(Ip: root, Database: databaseName, ConnectionTimeout: 10));
             using (DbConnection setup = service.GetConnection(null, pooling: false))
             {
                 setup.Open();
@@ -222,7 +222,7 @@ public sealed class SqliteDriverLiveTests
 
         try
         {
-            var attachedService = new Sqlite("", "", "", "", attachedFile, 10);
+            var attachedService = new Sqlite(new DbConnectionOptions(Database: attachedFile, ConnectionTimeout: 10));
             using (DbConnection attachedConnection = attachedService.GetConnection(null, pooling: false))
             {
                 attachedConnection.Open();
@@ -231,7 +231,7 @@ public sealed class SqliteDriverLiveTests
                 command.ExecuteNonQuery();
             }
 
-            var service = new Sqlite("", "", "", root, databaseName, 10)
+            var service = new Sqlite(new DbConnectionOptions(Ip: root, Database: databaseName, ConnectionTimeout: 10))
             {
                 ConnectionOptions = new SqliteConnectionOptions
                 {

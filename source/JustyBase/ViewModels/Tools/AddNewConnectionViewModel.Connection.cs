@@ -21,28 +21,39 @@ public sealed partial class AddNewConnectionViewModel
     private readonly IAvaloniaSpecificHelpers _avaloniaSpecificHelpers;
     private readonly IMessageForUserTools? _messageForUserTools;
     private readonly ISimpleLogger _simpleLogger;
+    private readonly Services.Documents.IDatabaseServiceResolver? _resolver;
     private string _previousDriverDefaultPort = string.Empty;
 
     private static readonly IReadOnlyList<ConnectionDriverOption> _driversList =
     [
+#if POSTGRES
         new("Postgres", "PostgreSQL", "Open-source relational database", "5432", true, false),
+#endif
+#if MYSQL
         new("MySQL", "MySQL", "Popular relational database", "3306", true, false),
+#endif
+#if ORACLE
         new("Oracle", "Oracle", "Enterprise relational database", "1521", true, false),
+#endif
+#if DB2
         new("DB2", "IBM Db2", "IBM relational database", "50000", true, false),
+#endif
         new("NetezzaSQL", "Netezza", "Analytics and data warehouse database", "5480", true, false),
-        new("MsSqlTrusted", "SQL Server (Windows)", "SQL Server using Windows authentication", "1433", false, false),
         new("SQLite", "SQLite", "Local database file", string.Empty, false, true),
+#if DUCKDB
         new("DuckDB", "DuckDB", "Local analytical database file", string.Empty, false, true),
+#endif
         new("Excel", "Excel / File SQL", "Query XLSX and XLSB workbooks with SQL", string.Empty, false, true),
         new("Access", "Microsoft Access", "Query and edit MDB and ACCDB files", string.Empty, false, true),
     ];
 
-    public AddNewConnectionViewModel(IFactory factory, IGeneralApplicationData generalApplicationData, IMessageForUserTools messageForUserTools, ISimpleLogger simpleLogger, IAvaloniaSpecificHelpers avaloniaSpecificHelpers)
+    public AddNewConnectionViewModel(IFactory factory, IGeneralApplicationData generalApplicationData, IMessageForUserTools messageForUserTools, ISimpleLogger simpleLogger, IAvaloniaSpecificHelpers avaloniaSpecificHelpers, Services.Documents.IDatabaseServiceResolver? resolver = null)
     {
         _generalApplicationData = generalApplicationData;
         _avaloniaSpecificHelpers = avaloniaSpecificHelpers;
         _messageForUserTools = messageForUserTools;
         _simpleLogger = simpleLogger;
+        _resolver = resolver;
         this.Factory = factory;
 
         InitializeCommandsAndSamples();
@@ -182,6 +193,13 @@ public sealed partial class AddNewConnectionViewModel
 
     private async Task TestConnectionAsync()
     {
+        // Re-entrancy guard: AsyncRelayCommand CanExecute is advisory; a second
+        // click or Enter key while a test is in flight must not start another probe.
+        if (IsTestingConnection)
+        {
+            return;
+        }
+
         ValidateForm();
         if (!CanTest)
         {
@@ -194,40 +212,44 @@ public sealed partial class AddNewConnectionViewModel
         ConnectionTestDetails = string.Empty;
         NotifyCommandState();
 
+        // Build an in-memory probe from the form. The live LoginDataDic is never
+        // touched here: mutating it (and restoring in finally) raced with
+        // SaveConfig on window close / unobserved-exception handler and could
+        // persist half-tested credentials.
         string connectionName = ConName.Trim().ToUpperInvariant();
-        bool hadOriginal = _generalApplicationData.LoginDataDic.TryGetValue(connectionName, out LoginDataModel? original);
-        LoginDataModel? snapshot = hadOriginal && original is not null
-            ? new LoginDataModel
-            {
-                ConnectionName = original.ConnectionName,
-                Driver = original.Driver,
-                Server = original.Server,
-                Port = original.Port,
-                UserName = original.UserName,
-                Password = original.Password,
-                Database = original.Database,
-                Schema = original.Schema,
-                Warehouse = original.Warehouse,
-                Role = original.Role,
-                DefaultIndex = original.DefaultIndex,
-                SqliteOptions = original.SqliteOptions,
-                AccessOptions = original.AccessOptions
-            }
-            : null;
+        var probe = new LoginDataModel
+        {
+            ConnectionName = connectionName,
+            Driver = SelectedDriver!.Id,
+            Database = Database,
+            Server = Server,
+            Port = Port,
+            UserName = UserName,
+            Password = Pass,
+            AccessOptions = IsAccess
+                ? new AccessConnectionOptions { ReadOnly = AccessReadOnly }
+                : null,
+        };
 
         try
         {
-            _generalApplicationData.AddToOrEditLoginData(connectionName, Database, SelectedDriver!.Id, Pass, UserName, Server, Port);
-            ApplySelectedDriverOptions(connectionName);
-            DatabaseServiceHelpers.RemoveCachedConnection(connectionName);
+            // Off the UI thread. The transient service never touches the shared
+            // registry cache and never triggers CacheMainDictionary /
+            // SchemaCacheLoaded, so a slow/unreachable host cannot freeze the UI
+            // via the static CacheLock or background schema fan-out.
+            // Outer WaitAsync is a safety net for providers that ignore the
+            // OpenAsync CancellationToken (ODBC/UCanAccess/DuckDB): the UI
+            // unblocks after ~20s even if the worker thread is still stuck in
+            // a native connect.
             await Task.Run(async () =>
             {
-                IDatabaseService? service = DatabaseServiceHelpers.GetDatabaseService(
-                    _generalApplicationData,
-                    connectionName,
-                    forceRefresh: true,
-                    delayCache: true,
-                    connectionTimeout: 15);
+                IDatabaseService? service = _resolver is not null
+                    ? _resolver.CreateTransientService(_generalApplicationData, probe, connectionTimeout: 15)
+                    : DatabaseServiceHelpers.CreateTransientService(
+                        probe,
+                        _generalApplicationData.GetDataDir(),
+                        connectionTimeout: 15,
+                        logger: _simpleLogger);
                 if (service is null)
                 {
                     throw new InvalidOperationException("The selected database driver is not available.");
@@ -235,40 +257,38 @@ public sealed partial class AddNewConnectionViewModel
 
                 await using DbConnection connection = service.GetConnection(null, pooling: false);
                 using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(15));
-                await connection.OpenAsync(timeout.Token);
+                await connection.OpenAsync(timeout.Token).ConfigureAwait(false);
                 if (service is IDatabaseConnectionConfigurator configurator)
                 {
                     configurator.ConfigureOpenConnection(connection);
                 }
-            });
+            }).WaitAsync(TimeSpan.FromSeconds(20));
 
             ConnectionTestIsSuccess = true;
             ConnectionTestStatus = "Connection successful";
             ConnectionTestDetails = $"Connected to {SelectedDriver.DisplayName}.";
         }
+        catch (TimeoutException)
+        {
+            ConnectionTestIsSuccess = false;
+            ConnectionTestStatus = "Connection timed out";
+            ConnectionTestDetails = "The database did not respond within 20 seconds.";
+        }
         catch (OperationCanceledException)
         {
+            ConnectionTestIsSuccess = false;
             ConnectionTestStatus = "Connection timed out";
             ConnectionTestDetails = "The database did not respond within 15 seconds.";
         }
         catch (Exception ex)
         {
             _simpleLogger.TrackError(ex, isCrash: false);
+            ConnectionTestIsSuccess = false;
             ConnectionTestStatus = "Connection failed";
             ConnectionTestDetails = ex.Message;
         }
         finally
         {
-            DatabaseServiceHelpers.RemoveCachedConnection(connectionName);
-            if (snapshot is not null)
-            {
-                _generalApplicationData.LoginDataDic[connectionName] = snapshot;
-            }
-            else
-            {
-                _generalApplicationData.LoginDataDic.Remove(connectionName);
-            }
-
             HasConnectionTestResult = true;
             IsTestingConnection = false;
             NotifyCommandState();
@@ -686,13 +706,8 @@ public sealed partial class AddNewConnectionViewModel
 
     private void ApplySelectedDriverOptions(string connectionName)
     {
-        if (!_generalApplicationData.LoginDataDic.TryGetValue(connectionName, out LoginDataModel? loginData))
-        {
-            return;
-        }
-
-        loginData.AccessOptions = IsAccess
-            ? new AccessConnectionOptions { ReadOnly = AccessReadOnly }
-            : null;
+        _generalApplicationData.SetAccessOptions(
+            connectionName,
+            IsAccess ? new AccessConnectionOptions { ReadOnly = AccessReadOnly } : null);
     }
 }

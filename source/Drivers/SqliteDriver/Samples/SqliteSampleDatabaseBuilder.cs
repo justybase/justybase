@@ -1,4 +1,5 @@
 using System.Data.Common;
+using JustyBase.PluginCommon.Models;
 
 namespace JustyBase.SqliteDriver.Samples;
 
@@ -40,7 +41,7 @@ public static class SqliteSampleDatabaseBuilder
             throw new InvalidOperationException("The selected sample does not contain any database objects to create.");
         }
 
-        var service = new Sqlite(string.Empty, string.Empty, string.Empty, server, database, 30);
+        var service = new Sqlite(new DbConnectionOptions(Ip: server, Database: database, ConnectionTimeout: 30));
         await using DbConnection connection = service.GetConnection(null, pooling: false);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using DbTransaction transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);

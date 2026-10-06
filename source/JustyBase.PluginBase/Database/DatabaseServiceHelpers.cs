@@ -1,5 +1,6 @@
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 
 namespace JustyBase.PluginDatabaseBase.Database;
 
@@ -122,8 +123,8 @@ public static class DatabaseServiceHelpers
 
     public static void AddDatabaseImplementation(
         DatabaseTypeEnum databaseTypeEnum,
-        Func<string, string, string, string, string, int, IDatabaseService> ctorOfDbService)
-        => Registry.AddDatabaseImplementation(databaseTypeEnum, ctorOfDbService);
+        DatabaseServiceFactory factory)
+        => Registry.AddDatabaseImplementation(databaseTypeEnum, factory);
 
     public static IDatabaseService? GetDatabaseService(
         IDatabaseInfo? databaseInfo,
@@ -141,6 +142,17 @@ public static class DatabaseServiceHelpers
             connectionTimeout,
             messageAction,
             ownDatabaseService);
+
+    /// <summary>
+    /// Builds a transient (non-cached) service for connection testing.
+    /// No shared cache, no background <c>CacheMainDictionary</c>, no UI-blocking side effects.
+    /// </summary>
+    public static IDatabaseService CreateTransientService(
+        LoginDataModel loginData,
+        string dataDirectory,
+        int connectionTimeout = 15,
+        ISimpleLogger? logger = null)
+        => Registry.CreateTransientService(loginData, dataDirectory, connectionTimeout, logger);
 
     public static bool IsDriverRegistered(IDatabaseInfo? databaseInfo, string connectionName)
         => Registry.IsDriverRegistered(databaseInfo, connectionName);

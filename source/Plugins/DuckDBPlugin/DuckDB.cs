@@ -1,5 +1,6 @@
 ﻿using DuckDB.NET.Data;
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
 using System.Data.Common;
 using System.Text;
@@ -7,10 +8,10 @@ using System.Text;
 namespace DuckDBPlugin;
 public sealed class DuckDB : DatabaseService
 {
-    public const DatabaseTypeEnum WHO_I_AM_CONST = DatabaseTypeEnum.DuckDB;
-    public DuckDB(string username, string password, string port, string ip, string db, int connectionTimeout) : base(username, password, port, ip, db, connectionTimeout)
+    public override DatabaseTypeEnum DatabaseType => DatabaseTypeEnum.DuckDB;
+
+    public DuckDB(DbConnectionOptions options) : base(options)
     {
-        DatabaseType = WHO_I_AM_CONST;
         AutoCompletDatabaseMode = CurrentAutoCompletDatabaseMode.SchemaTable
             | CurrentAutoCompletDatabaseMode.SchemaOptional
             | CurrentAutoCompletDatabaseMode.DatabaseAndSchemaOptional

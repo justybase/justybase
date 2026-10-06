@@ -64,7 +64,8 @@ public sealed class SqlDocumentActivationTests
             messageForUserTools.Object,
             ISimpleLogger.EmptyLogger,
             Mock.Of<IResultGridActionRoutingService>(),
-            Mock.Of<IActiveDocumentManager>())
+            Mock.Of<IActiveDocumentManager>(),
+            new DataGridClipboardService())
         {
             Id = "result-1",
             RelatedSqlDocumentId = "doc-results",

@@ -1,5 +1,6 @@
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 
 namespace JustyBase.PluginDatabaseBase.Database;
 
@@ -36,22 +37,35 @@ public sealed class DatabaseServiceRegistry
     /// </summary>
     public static DatabaseServiceRegistry UseSharedInstance() => Shared;
 
-    private readonly Dictionary<string, IDatabaseService> _cachedDbServices = [];
+    private readonly Dictionary<string, IDatabaseService> _cachedDbServices = new(StringComparer.OrdinalIgnoreCase);
     private readonly Lock _lockCachedDbServices = new();
-    private readonly Dictionary<DatabaseTypeEnum, Func<string, string, string, string, string, int, IDatabaseService>> _implementations = [];
+    private readonly Dictionary<DatabaseTypeEnum, DatabaseServiceFactory> _implementations = [];
     private readonly Lock _lockImplementations = new();
 
     public event Action? SchemaCacheLoaded;
 
     private void NotifySchemaCacheLoaded() => SchemaCacheLoaded?.Invoke();
 
+    /// <summary>
+    /// Single normalization point for connection names. Credentials storage
+    /// (<c>LoginDataDic</c>) is case-insensitive, so the service cache must be
+    /// too — otherwise "MyConn" and "MYCONN" silently create two services and
+    /// two sets of pooled connections for one saved connection.
+    /// </summary>
+    internal static string NormalizeConnectionName(string connectionName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionName);
+        return connectionName.Trim().ToUpperInvariant();
+    }
+
     public void AddDatabaseImplementation(
         DatabaseTypeEnum databaseTypeEnum,
-        Func<string, string, string, string, string, int, IDatabaseService> ctorOfDbService)
+        DatabaseServiceFactory factory)
     {
+        ArgumentNullException.ThrowIfNull(factory);
         lock (_lockImplementations)
         {
-            _implementations[databaseTypeEnum] = ctorOfDbService;
+            _implementations[databaseTypeEnum] = factory;
         }
     }
 
@@ -70,13 +84,14 @@ public sealed class DatabaseServiceRegistry
             return;
         }
 
+        string normalized = NormalizeConnectionName(connectionName);
         IDatabaseService? removedService = null;
         lock (_lockCachedDbServices)
         {
-            if (_cachedDbServices.TryGetValue(connectionName, out var cachedService))
+            if (_cachedDbServices.TryGetValue(normalized, out var cachedService))
             {
                 removedService = cachedService;
-                _cachedDbServices.Remove(connectionName);
+                _cachedDbServices.Remove(normalized);
             }
         }
 
@@ -96,7 +111,8 @@ public sealed class DatabaseServiceRegistry
 
     public DatabaseConnectedLevel GetDatabaseConnectedLevel(string connectionName)
     {
-        if (!TryGetCachedService(connectionName, out IDatabaseService? value))
+        if (string.IsNullOrWhiteSpace(connectionName)
+            || !TryGetCachedService(NormalizeConnectionName(connectionName), out IDatabaseService? value))
         {
             return DatabaseConnectedLevel.NotConnected;
         }
@@ -127,12 +143,17 @@ public sealed class DatabaseServiceRegistry
     {
         ArgumentNullException.ThrowIfNull(connectionName);
 
+        // Cache key only: LoginDataDic is case-insensitive, so "MyConn" and
+        // "MYCONN" must resolve to one cached service. The display Name and
+        // stored LoginDataModel keep the caller's original casing.
+        string cacheKey = NormalizeConnectionName(connectionName);
+
         if (forceRefresh)
         {
-            RemoveCachedConnection(connectionName);
+            RemoveCachedConnection(cacheKey);
         }
 
-        if (TryGetCachedService(connectionName, out var cachedService1))
+        if (TryGetCachedService(cacheKey, out var cachedService1))
         {
             return cachedService1;
         }
@@ -151,44 +172,15 @@ public sealed class DatabaseServiceRegistry
             loginDataModel.ConnectionName = connectionName;
 
             DatabaseTypeEnum typedDriver = DatabaseServiceHelpers.StringToDatabaseTypeEnum(driver);
-            if (!HasDatabaseImplementation(typedDriver))
-            {
-                // Avoid sync-over-async deadlock when called from UI: load plugins on a worker and wait via ManualResetEventSlim.
-                Exception? loadError = null;
-                using var done = new ManualResetEventSlim(false);
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await databaseInfo.LoadPluginsIfNeeded(null).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        loadError = ex;
-                    }
-                    finally
-                    {
-                        done.Set();
-                    }
-                });
-                if (!done.Wait(TimeSpan.FromSeconds(60))) // ManualResetEventSlim
-                {
-                    throw new TimeoutException($"Timed out loading plugins for driver '{typedDriver}'.");
-                }
-                if (loadError is not null)
-                {
-                    throw loadError;
-                }
-            }
-
             databaseService = CreateDbInstanceService(
                 typedDriver,
-                userName ?? string.Empty,
-                password ?? string.Empty,
-                port ?? string.Empty,
-                ip ?? string.Empty,
-                db ?? string.Empty,
-                connectionTimeout,
+                new DbConnectionOptions(
+                    Username: userName ?? string.Empty,
+                    Password: password ?? string.Empty,
+                    Port: port ?? string.Empty,
+                    Ip: ip ?? string.Empty,
+                    Database: db ?? string.Empty,
+                    ConnectionTimeout: connectionTimeout),
                 databaseInfo.GetDataDir());
             if (databaseService is ILoginDataAwareDatabaseService loginDataAwareDatabaseService)
             {
@@ -205,7 +197,7 @@ public sealed class DatabaseServiceRegistry
             throw new InvalidOperationException("databaseService should not be null");
         }
 
-        databaseService = CacheDatabaseService(connectionName, databaseService);
+        databaseService = CacheDatabaseService(cacheKey, databaseService);
         databaseService.Logger = databaseInfo?.GlobalLoggerObject ?? ISimpleLogger.EmptyLogger;
         databaseService.ConnectedLevel = DatabaseConnectedLevel.Connected;
         databaseService.Name = connectionName;
@@ -220,7 +212,7 @@ public sealed class DatabaseServiceRegistry
             catch (Exception ex)
             {
                 databaseService.Logger.TrackError(ex, isCrash: false);
-                RemoveCachedService(connectionName);
+                RemoveCachedService(cacheKey);
                 messageAction?.Invoke($"ERROR {ex.Message}");
                 return null;
             }
@@ -237,7 +229,7 @@ public sealed class DatabaseServiceRegistry
                 catch (Exception ex)
                 {
                     databaseService.Logger.TrackError(ex, isCrash: false);
-                    RemoveCachedService(connectionName);
+                    RemoveCachedService(cacheKey);
                     messageAction?.Invoke($"ERROR {ex.Message}");
                 }
             }).ContinueWith(static x => _ = x.Exception, TaskContinuationOptions.OnlyOnFaulted);
@@ -246,17 +238,49 @@ public sealed class DatabaseServiceRegistry
         return databaseService;
     }
 
+    /// <summary>
+    /// Builds a transient (non-cached) service for connection testing.
+    /// Unlike <see cref="GetDatabaseService"/>, it never touches the shared cache,
+    /// never triggers <c>CacheMainDictionary</c> / <see cref="SchemaCacheLoaded"/>,
+    /// and therefore has no global <c>CacheLock</c> or background schema-load side effects.
+    /// The caller owns the instance and must dispose connections it opens.
+    /// </summary>
+    public IDatabaseService CreateTransientService(
+        LoginDataModel loginData,
+        string dataDirectory,
+        int connectionTimeout = 15,
+        ISimpleLogger? logger = null)
+    {
+        ArgumentNullException.ThrowIfNull(loginData);
+
+        DatabaseTypeEnum typedDriver = DatabaseServiceHelpers.StringToDatabaseTypeEnum(loginData.Driver);
+        IDatabaseService databaseService = CreateDbInstanceService(
+            typedDriver,
+            new DbConnectionOptions(
+                Username: loginData.UserName ?? string.Empty,
+                Password: loginData.Password ?? string.Empty,
+                Port: loginData.Port ?? string.Empty,
+                Ip: loginData.Server ?? string.Empty,
+                Database: loginData.Database ?? string.Empty,
+                ConnectionTimeout: connectionTimeout > 0 ? connectionTimeout : 15),
+            dataDirectory);
+        if (databaseService is ILoginDataAwareDatabaseService loginDataAware)
+        {
+            loginDataAware.ApplyLoginData(loginData);
+        }
+
+        databaseService.Logger = logger ?? ISimpleLogger.EmptyLogger;
+        databaseService.ConnectedLevel = DatabaseConnectedLevel.NotConnected;
+        databaseService.Name = loginData.ConnectionName ?? string.Empty;
+        return databaseService;
+    }
+
     private IDatabaseService CreateDbInstanceService(
         DatabaseTypeEnum typedDriver,
-        string userName,
-        string password,
-        string port,
-        string ip,
-        string db,
-        int connectionTimeout,
+        DbConnectionOptions options,
         string tempDirectory)
     {
-        Func<string, string, string, string, string, int, IDatabaseService>? creator;
+        DatabaseServiceFactory? creator;
         lock (_lockImplementations)
         {
             _implementations.TryGetValue(typedDriver, out creator);
@@ -267,7 +291,7 @@ public sealed class DatabaseServiceRegistry
             throw new NotSupportedException("database is not supported");
         }
 
-        IDatabaseService databaseService = creator.Invoke(userName, password, port, ip, db, connectionTimeout);
+        IDatabaseService databaseService = creator(options);
         databaseService.TempDataDirectory = tempDirectory;
         return databaseService;
     }

@@ -18,7 +18,7 @@ namespace ExcelPlugin;
 /// </summary>
 public sealed class Excel : DatabaseService
 {
-    public const DatabaseTypeEnum WHO_I_AM_CONST = DatabaseTypeEnum.Excel;
+    public override DatabaseTypeEnum DatabaseType => DatabaseTypeEnum.Excel;
 
     private readonly Lock _materializationLock = new();
     private string? _sourcePath;
@@ -26,10 +26,9 @@ public sealed class Excel : DatabaseService
     private long _sourceLength = -1;
     private long _sourceWriteTicks;
 
-    public Excel(string username, string password, string port, string ip, string db, int connectionTimeout)
-        : base(username, password, port, ip, db, connectionTimeout)
+    public Excel(DbConnectionOptions options)
+        : base(options)
     {
-        DatabaseType = WHO_I_AM_CONST;
         AutoCompletDatabaseMode = CurrentAutoCompletDatabaseMode.SchemaTable
             | CurrentAutoCompletDatabaseMode.SchemaOptional
             | CurrentAutoCompletDatabaseMode.DatabaseAndSchemaOptional;

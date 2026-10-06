@@ -1,11 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<!-- <DefineConstants>ORACLE;POSTGRES;MYSQL</DefineConstants> -->
-		<!-- All release artifacts are regular self-contained .NET applications with
-		     ReadyToRun enabled. DB2 stays in-process because NativeAOT is no longer
-		     a deployment requirement. -->
+		<!-- Driver implementations are linked into the application at build time. -->
 		<EnableDb2Plugin Condition="'$(EnableDb2Plugin)' == ''">true</EnableDb2Plugin>
+		<EnablePostgresPlugin Condition="'$(EnablePostgresPlugin)' == ''">true</EnablePostgresPlugin>
+		<EnableOraclePlugin Condition="'$(EnableOraclePlugin)' == ''">false</EnableOraclePlugin>
+		<EnableMySqlPlugin Condition="'$(EnableMySqlPlugin)' == ''">false</EnableMySqlPlugin>
+		<EnableDuckDbPlugin Condition="'$(EnableDuckDbPlugin)' == ''">false</EnableDuckDbPlugin>
 		<DefineConstants Condition="'$(EnableDb2Plugin)' == 'true'">$(DefineConstants);DB2</DefineConstants>
+		<DefineConstants Condition="'$(EnablePostgresPlugin)' == 'true'">$(DefineConstants);POSTGRES</DefineConstants>
+		<DefineConstants Condition="'$(EnableOraclePlugin)' == 'true'">$(DefineConstants);ORACLE</DefineConstants>
+		<DefineConstants Condition="'$(EnableMySqlPlugin)' == 'true'">$(DefineConstants);MYSQL</DefineConstants>
+		<DefineConstants Condition="'$(EnableDuckDbPlugin)' == 'true'">$(DefineConstants);DUCKDB</DefineConstants>
 		<OutputType>WinExe</OutputType>
 		<PlatformTarget>AnyCPU</PlatformTarget>
 		<TargetFramework>net10.0</TargetFramework>
@@ -55,21 +60,21 @@
 		<PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
 		<PackageReference Include="DiffPlex" Version="1.9.0" />
 		<PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.6" />
-		<PackageReference Include="Microsoft.Extensions.AI" Version="10.9.0" />
-		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.9.0" />
+		<PackageReference Include="Microsoft.Extensions.AI" Version="10.10.0" />
+		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.1" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.12" />
-		<PackageReference Include="ProDataGrid" Version="12.1.0.4" />
-		<PackageReference Include="Velopack" Version="1.2.0" />
-		<PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.2" />
-		<PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
+		<PackageReference Include="ProDataGrid" Version="12.1.0.6" />
+		<PackageReference Include="Velopack" Version="1.2.161" />
+		<PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.3" />
+		<PackageReference Include="Avalonia.Desktop" Version="12.1.3" />
 		<PackageReference Include="Avalonia.Labs.Lottie" Version="12.0.2" />
-		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.3" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
 		<PackageReference Include="Dock.Model.Mvvm" Version="12.1.0.6" />
 		<PackageReference Include="Dock.Model" Version="12.1.0.6" />
 		<PackageReference Include="Dock.Avalonia" Version="12.1.0.6" />
 		<PackageReference Include="K4os.Compression.LZ4.Streams" Version="1.3.8" />
-		<PackageReference Include="LiveMarkdown.Avalonia" Version="2.4.0" />
+		<PackageReference Include="LiveMarkdown.Avalonia" Version="2.4.3" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
 		<PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
 		<!-- Override Microsoft.Data.Sqlite's vulnerable SQLite native dependency. -->
@@ -134,17 +139,20 @@
 		<PackageReference Include="JustyBase.Ai" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
 		<PackageReference Include="JustyBase.Ai.Embedded" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
 	</ItemGroup>
-	<ItemGroup Condition="$(DefineConstants.Contains('MYSQL'))">
+	<ItemGroup Condition="'$(EnableMySqlPlugin)' == 'true'">
 		<ProjectReference Include="..\Plugins\MySqlPlugin\MySqlPlugin.csproj" />
 	</ItemGroup>
-	<ItemGroup Condition="$(DefineConstants.Contains('POSTGRES'))">
+	<ItemGroup Condition="'$(EnablePostgresPlugin)' == 'true'">
 		<ProjectReference Include="..\Plugins\PostgresPlugin\PostgresPlugin.csproj" />
 	</ItemGroup>
-	<ItemGroup Condition="$(DefineConstants.Contains('ORACLE'))">
+	<ItemGroup Condition="'$(EnableOraclePlugin)' == 'true'">
 		<ProjectReference Include="..\Plugins\OraclePlugin\OraclePlugin.csproj" />
 	</ItemGroup>
-	<ItemGroup Condition="$(DefineConstants.Contains('DB2'))">
+	<ItemGroup Condition="'$(EnableDb2Plugin)' == 'true'">
 		<ProjectReference Include="..\Plugins\DB2Plugin\DB2Plugin.csproj" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(EnableDuckDbPlugin)' == 'true'">
+		<ProjectReference Include="..\Plugins\DuckDBPlugin\DuckDBPlugin.csproj" />
 	</ItemGroup>
 	<ItemGroup>
 		<InternalsVisibleTo Include="JustyBase.Tests" />

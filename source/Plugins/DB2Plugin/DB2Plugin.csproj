@@ -6,12 +6,11 @@
     <Nullable>enable</Nullable>
     <PlatformTarget>AnyCPU</PlatformTarget>
 	<RuntimeIdentifiers>osx-arm64;osx-x64</RuntimeIdentifiers>
-	<EnableDynamicLoading>true</EnableDynamicLoading>
 	 <Copyright>JustyBaseTeam</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Net.IBM.Data.Db2" Version="10.0.0.200" />
+    <PackageReference Include="Net.IBM.Data.Db2" Version="10.0.0.300" />
   </ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\..\JustyBase.PluginBase\JustyBase.PluginBase.csproj">

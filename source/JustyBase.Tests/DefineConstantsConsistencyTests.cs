@@ -5,26 +5,18 @@ namespace JustyBase.Tests;
 public sealed class DefineConstantsConsistencyTests
 {
     [Fact]
-    public void JustyBaseProject_ShouldKeepDefineConstantsAndConditionalReferencesInSync()
+    public void JustyBaseProject_ShouldKeepDriverPropertiesAndReferencesInSync()
     {
         var projectPath = FindJustyBaseProjectPath();
         var document = XDocument.Load(projectPath);
 
-        var defineConstants = document
-            .Descendants("DefineConstants")
-            .Select(node => node.Value)
-            .FirstOrDefault(static value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
-
-        var declaredConstants = defineConstants
-            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var expectedMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        var expectedMappings = new Dictionary<string, (string Symbol, string Project, string DefaultValue)>(StringComparer.OrdinalIgnoreCase)
         {
-            ["MYSQL"] = @"..\Plugins\MySqlPlugin\MySqlPlugin.csproj",
-            ["POSTGRES"] = @"..\Plugins\PostgresPlugin\PostgresPlugin.csproj",
-            ["ORACLE"] = @"..\Plugins\OraclePlugin\OraclePlugin.csproj",
-            ["DB2"] = @"..\Plugins\DB2Plugin\DB2Plugin.csproj"
+            ["EnableMySqlPlugin"] = ("MYSQL", @"..\Plugins\MySqlPlugin\MySqlPlugin.csproj", "false"),
+            ["EnablePostgresPlugin"] = ("POSTGRES", @"..\Plugins\PostgresPlugin\PostgresPlugin.csproj", "true"),
+            ["EnableOraclePlugin"] = ("ORACLE", @"..\Plugins\OraclePlugin\OraclePlugin.csproj", "false"),
+            ["EnableDb2Plugin"] = ("DB2", @"..\Plugins\DB2Plugin\DB2Plugin.csproj", "true"),
+            ["EnableDuckDbPlugin"] = ("DUCKDB", @"..\Plugins\DuckDBPlugin\DuckDBPlugin.csproj", "false")
         };
 
         var conditionalReferences = document
@@ -37,19 +29,31 @@ public sealed class DefineConstantsConsistencyTests
             }))
             .ToList();
 
-        foreach (var (constant, expectedProjectReference) in expectedMappings)
+        foreach (var (property, (symbol, expectedProjectReference, defaultValue)) in expectedMappings)
         {
-            Assert.Contains(
-                conditionalReferences,
-                item => item.Condition.Contains($"Contains('{constant}')", StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(NormalizePath(item.Include), NormalizePath(expectedProjectReference), StringComparison.OrdinalIgnoreCase));
-        }
+            var propertyNode = document
+                .Descendants("PropertyGroup")
+                .Elements(property)
+                .Single();
+            Assert.Equal(defaultValue, propertyNode.Value);
 
-        foreach (var declaredConstant in declaredConstants.Where(expectedMappings.ContainsKey))
-        {
             Assert.Contains(
                 conditionalReferences,
-                item => item.Condition.Contains($"Contains('{declaredConstant}')", StringComparison.OrdinalIgnoreCase));
+                item => item.Condition.Contains($"'$(Enable{property[6..]})' == 'true'", StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(NormalizePath(item.Include), NormalizePath(expectedProjectReference), StringComparison.OrdinalIgnoreCase));
+
+            var constantNode = document
+                .Descendants("PropertyGroup")
+                .Elements("DefineConstants")
+                .SingleOrDefault(node => node.Attribute("Condition")?.Value.Contains(
+                    $"'$(Enable{property[6..]})' == 'true'",
+                    StringComparison.OrdinalIgnoreCase) == true);
+            Assert.NotNull(constantNode);
+            Assert.Contains(symbol, constantNode!.Value, StringComparison.Ordinal);
+
+            Assert.Contains(
+                conditionalReferences,
+                item => item.Condition.Contains($"'$(Enable{property[6..]})' == 'true'", StringComparison.OrdinalIgnoreCase));
         }
     }
 

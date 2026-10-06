@@ -30,7 +30,7 @@ public partial class FileTreeNodeModel : ObservableObject, IDisposable
         ISimpleLogger simpleLogger)
     {
         Path = path;
-        Name = isRoot ? path : System.IO.Path.GetFileName(Path);
+        Name = isRoot ? ShortRootName(path) : System.IO.Path.GetFileName(Path);
         IsExpanded = false;
         IsDirectory = isDirectory;
         _messageForUserTools = messageForUserTools;
@@ -89,6 +89,13 @@ public partial class FileTreeNodeModel : ObservableObject, IDisposable
 
     public bool IsDirectory { get; }
 
+    /// <summary>
+    /// True once children were enumerated. Reading <see cref="Children"/> on an
+    /// unloaded directory starts a background load, so collapse-all style walks
+    /// should check this flag first instead of touching <see cref="Children"/>.
+    /// </summary>
+    public bool AreChildrenLoaded => _childrenLoaded;
+
     public IReadOnlyList<FileTreeNodeModel> Children
     {
         get
@@ -137,12 +144,12 @@ public partial class FileTreeNodeModel : ObservableObject, IDisposable
             {
                 _children.Clear();
 
-                foreach (var d in enumerated.directories)
+                foreach (var d in enumerated.directories.OrderBy(static d => System.IO.Path.GetFileName(d), StringComparer.OrdinalIgnoreCase))
                 {
                     _children.Add(new FileTreeNodeModel(d, true, false, _messageForUserTools, _simpleLogger));
                 }
 
-                foreach (var f in enumerated.files)
+                foreach (var f in enumerated.files.OrderBy(static f => System.IO.Path.GetFileName(f), StringComparer.OrdinalIgnoreCase))
                 {
                     _children.Add(new FileTreeNodeModel(f, false, false, _messageForUserTools, _simpleLogger)
                     {
@@ -204,6 +211,43 @@ public partial class FileTreeNodeModel : ObservableObject, IDisposable
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Re-reads this directory in place, preserving the node (and its expansion).
+    /// Loaded children are disposed and enumerated again; collapsed nodes just
+    /// drop their cache so the next expand loads fresh.
+    /// </summary>
+    public async Task RefreshAsync()
+    {
+        if (!IsDirectory)
+        {
+            return;
+        }
+
+        _watcher?.Dispose();
+        _watcher = null;
+        foreach (var child in _children)
+        {
+            child.Dispose();
+        }
+
+        _children.Clear();
+        _childrenLoaded = false;
+        _loadingStarted = false;
+        HasChildren = true;
+
+        if (IsExpanded)
+        {
+            await LoadChildrenAsync().ConfigureAwait(false);
+        }
+    }
+
+    private static string ShortRootName(string path)
+    {
+        var trimmed = path.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+        var name = System.IO.Path.GetFileName(trimmed);
+        return string.IsNullOrEmpty(name) ? path : name;
     }
 
     public static Comparison<FileTreeNodeModel?> SortAscending<T>(Func<FileTreeNodeModel, T> selector)

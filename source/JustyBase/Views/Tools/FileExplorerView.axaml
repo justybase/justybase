@@ -1,60 +1,165 @@
-<UserControl x:Class="JustyBase.Views.Tools.FileExplorerView"
+﻿<UserControl x:Class="JustyBase.Views.Tools.FileExplorerView"
 	xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
 	xmlns:vm="using:JustyBase.ViewModels.Tools"
+	xmlns:models="using:JustyBase.Models.Tools"
+	xmlns:conv="using:JustyBase.Converters"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
 	x:DataType="vm:FileExplorerViewModel">
-	<Grid Focusable="True" RowDefinitions="Auto,*">
-		<StackPanel Grid.Row="0" Orientation="Horizontal">
-			<TextBox PlaceholderText="init path..." Text="{Binding InitialFilePath}" Width="150" MaxWidth="250"
-					 Height="28" MinHeight="28"/>
-			<Button Name="btFileOpen" Command="{Binding OpenDirectoryDialogCmd}" Margin="0" Padding="4">
-				<PathIcon Data="{StaticResource OpenDirectorySymbol}"/>
-			</Button>
-		</StackPanel>
-		<Grid Grid.Row="1" RowDefinitions="Auto,*">
-			<StackPanel Grid.Row="0" Orientation="Horizontal">
-			<TextBox Margin="2 0 0 0" Padding="5 5 0 0" Height="28" MinHeight="28" PlaceholderText="search..."
-						 Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-						 IsReadOnly="{Binding SearchInProgress}"
-						 Width="150"
-						 MaxWidth="250"
-						 ToolTip.Tip="❗ press enter to search in files content">
-					<TextBox.KeyBindings>
-						<KeyBinding Gesture="Return" Command="{Binding SearchInFilesCommand}"/>
-					</TextBox.KeyBindings>
-				</TextBox>
-				<CheckBox IsChecked="{Binding WholeWords}" Margin="10 0 0 0">whole words</CheckBox>
-				<CheckBox IsChecked="{Binding SearchInSqlComments}" Margin="10 0 0 0">search in sql comments</CheckBox>
+	<UserControl.Resources>
+		<conv:FileSearchTooltipConverter x:Key="FileMetaTip"/>
+		<StreamGeometry x:Key="FileSearchRefreshPath">M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z</StreamGeometry>
+		<StreamGeometry x:Key="ExplorerNewFilePath">M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z</StreamGeometry>
+		<StreamGeometry x:Key="ExplorerNewFolderPath">M20 6h-8l-2-2H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3V9h2v3h3v2z</StreamGeometry>
+		<conv:DirectoryOpenToVisibleConverter x:Key="DirOpenVis"/>
+		<conv:ExplorerSelectionConverter x:Key="ExplorerSel"/>
+		<!-- Recursive VS Code Explorer node (manual twisty: Fluent hides the
+		     chevron for not-yet-loaded lazy nodes, so TreeView is unusable here) -->
+		<DataTemplate x:Key="ExplorerNodeTemplate" x:DataType="models:FileTreeNodeModel">
+			<StackPanel Spacing="0">
+				<!-- Outer = hover fill + gestures; inner = selection fill.
+				     Split because a local Background binding would override
+				     the :pointerover style setter. -->
+				<Border Classes="explorerRowOuter" Padding="2,1,4,1"
+						PointerPressed="ExplorerRow_PointerPressed"
+						DoubleTapped="ExplorerRow_DoubleTapped">
+					<Border.ContextMenu>
+						<ContextMenu>
+							<MenuItem Header="Open"
+									  Command="{Binding $parent[UserControl].((vm:FileExplorerViewModel)DataContext).OpenSelectedNodeCommand}"/>
+							<Separator/>
+							<MenuItem Header="New File"
+									  Command="{Binding $parent[UserControl].((vm:FileExplorerViewModel)DataContext).CreateFileCommand}"/>
+							<MenuItem Header="New Folder"
+									  Command="{Binding $parent[UserControl].((vm:FileExplorerViewModel)DataContext).CreateFolderCommand}"/>
+							<MenuItem Header="Rename"
+									  Command="{Binding $parent[UserControl].((vm:FileExplorerViewModel)DataContext).RenameNodeCommand}"/>
+							<MenuItem Header="Delete"
+									  Command="{Binding $parent[UserControl].((vm:FileExplorerViewModel)DataContext).RemoveFileOrDirectoryCmd}"/>
+							<Separator/>
+							<MenuItem Header="Copy Full Path"
+									  Command="{Binding $parent[UserControl].((vm:FileExplorerViewModel)DataContext).CopyPathCommand}"
+									  CommandParameter="{Binding Path}"/>
+							<MenuItem Header="Show in Explorer"
+									  Command="{Binding $parent[UserControl].((vm:FileExplorerViewModel)DataContext).OpenPathInExplorerCommand}"
+									  CommandParameter="{Binding Path}"/>
+							<MenuItem Header="Refresh"
+									  Command="{Binding $parent[UserControl].((vm:FileExplorerViewModel)DataContext).RefreshTreeCommand}"/>
+						</ContextMenu>
+					</Border.ContextMenu>
+					<Border CornerRadius="3">
+						<Border.Background>
+							<MultiBinding Converter="{StaticResource ExplorerSel}">
+								<Binding Path="Path"/>
+								<Binding Path="$parent[UserControl].((vm:FileExplorerViewModel)DataContext).SelectedTreeItem.Path"/>
+							</MultiBinding>
+						</Border.Background>
+					<Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="4">
+						<ToggleButton Grid.Column="0" Classes="twisty"
+									  IsVisible="{Binding HasChildren}"
+									  IsChecked="{Binding IsExpanded, Mode=TwoWay}"
+									  Focusable="False" ToolTip.Tip="Expand / collapse">
+							<Panel>
+								<PathIcon Data="{StaticResource ChevronDownPath}" Width="9" Height="9"
+										 IsVisible="{Binding IsExpanded}"/>
+								<PathIcon Data="{StaticResource ChevronDownPath}" Width="9" Height="9"
+										 IsVisible="{Binding !IsExpanded}"
+										 RenderTransformOrigin="50%,50%">
+									<PathIcon.RenderTransform>
+										<RotateTransform Angle="-90"/>
+									</PathIcon.RenderTransform>
+								</PathIcon>
+							</Panel>
+						</ToggleButton>
+						<Grid Grid.Column="1">
+							<Image Source="avares://JustyBase/Assets/file.png" Width="14" Height="14"
+								   IsVisible="{Binding !IsDirectory}"/>
+							<Image Source="avares://JustyBase/Assets/folder.png" Width="14" Height="14">
+								<Image.IsVisible>
+									<MultiBinding Converter="{StaticResource DirOpenVis}" ConverterParameter="closed">
+										<Binding Path="IsDirectory"/>
+										<Binding Path="IsExpanded"/>
+									</MultiBinding>
+								</Image.IsVisible>
+							</Image>
+							<Image Source="avares://JustyBase/Assets/folder-open.png" Width="14" Height="14">
+								<Image.IsVisible>
+									<MultiBinding Converter="{StaticResource DirOpenVis}" ConverterParameter="open">
+										<Binding Path="IsDirectory"/>
+										<Binding Path="IsExpanded"/>
+									</MultiBinding>
+								</Image.IsVisible>
+							</Image>
+						</Grid>
+						<TextBlock Grid.Column="2" Text="{Binding Name}" FontSize="12"
+								   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+								   ToolTip.Tip="{Binding Path, Converter={StaticResource FileMetaTip}}"/>
+					</Grid>
+					</Border>
+				</Border>
+				<ItemsControl ItemsSource="{Binding Children}" IsVisible="{Binding IsExpanded}"
+							  Margin="14,0,0,0" ItemTemplate="{StaticResource ExplorerNodeTemplate}"/>
 			</StackPanel>
-			<DataGrid 
-			  Name="fileSearchGrid"
-			  Grid.Row="1"
-				Theme="{StaticResource DataGridFlatTheme}"
-				VisualLayoutMode="Flat"
-				ItemsSource="{Binding SearchItems}"
-			    SelectedItem="{Binding SelectedItem}"
-			    AutoGenerateColumns="False"
-			    CanUserResizeColumns="True"
-			    IsReadOnly="True"
-				RowHeight="21"
-				HeadersVisibility="Column">
-			<DataGrid.Columns>
-				<DataGridTextColumn Header="Last write time" Width="120" CanUserResize="False" Binding="{Binding LastWriteTime, StringFormat=g}" x:DataType="vm:SearchItem"/>
-				<DataGridTextColumn Header="Name" Width="*" MinWidth="100" Binding="{Binding ShortName}" x:DataType="vm:SearchItem"/>
-				<DataGridTextColumn Header="Local path" Width="*" MinWidth="100" Binding="{Binding LocalPath}" x:DataType="vm:SearchItem"/>
-				<DataGridTextColumn Header="File length" Width="*" MaxWidth="100" Binding="{Binding Length, StringFormat=N0}" x:DataType="vm:SearchItem"/>
-			</DataGrid.Columns>
-			<DataGrid.ContextMenu>
-				<ContextMenu>
-					<MenuItem Header="Refresh" Command="{Binding RefreshFileListCmd}"/>
-					<MenuItem Header="Open in explorer" Command="{Binding OpenInExplorerGridCmd}"/>
-					<MenuItem Header="Copy full filepath to clipboard" Command="{Binding CopyFullFilePathCmd}"/>
-				</ContextMenu>
-			</DataGrid.ContextMenu>
-		</DataGrid>
+		</DataTemplate>
+	</UserControl.Resources>
+	<UserControl.Styles>
+		<!-- Borderless VS Code style icon button -->
+		<Style Selector="Button.vsIcon">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="4,2"/>
+			<Setter Property="MinWidth" Value="24"/>
+			<Setter Property="MinHeight" Value="24"/>
+			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+		</Style>
+		<!-- VS Code Explorer row: hover fill (selection fill is bound inside) -->
+		<Style Selector="Border.explorerRowOuter">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="CornerRadius" Value="3"/>
+		</Style>
+		<Style Selector="Border.explorerRowOuter:pointerover">
+			<Setter Property="Background" Value="#14888888"/>
+		</Style>
+		<!-- Manual tree twisty -->
+		<Style Selector="ToggleButton.twisty">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="1"/>
+			<Setter Property="MinWidth" Value="16"/>
+			<Setter Property="MinHeight" Value="20"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+		</Style>
+	</UserControl.Styles>
+	<Grid Focusable="True" RowDefinitions="Auto,*">
+		<!-- VS Code EXPLORER section -->
+		<Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="8,8,8,4">
+			<TextBlock Grid.Column="0" Text="EXPLORER" FontSize="11" FontWeight="SemiBold"
+					   Opacity="0.75" VerticalAlignment="Center"/>
+			<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0">
+				<Button Classes="vsIcon" Command="{Binding CreateFileCommand}" ToolTip.Tip="New File">
+					<PathIcon Data="{StaticResource ExplorerNewFilePath}" Width="13" Height="13"/>
+				</Button>
+				<Button Classes="vsIcon" Command="{Binding CreateFolderCommand}" ToolTip.Tip="New Folder">
+					<PathIcon Data="{StaticResource ExplorerNewFolderPath}" Width="13" Height="13"/>
+				</Button>
+				<Button Classes="vsIcon" Command="{Binding RefreshTreeCommand}" ToolTip.Tip="Refresh Explorer">
+					<PathIcon Data="{StaticResource FileSearchRefreshPath}" Width="12" Height="12"/>
+				</Button>
+				<Button Classes="vsIcon" Command="{Binding CollapseAllTreeCommand}" ToolTip.Tip="Collapse All">
+					<PathIcon Data="{StaticResource CollapseAllIconPath}" Width="13" Height="13"/>
+				</Button>
+			</StackPanel>
 		</Grid>
+		<ScrollViewer Name="ExplorerTreeArea" Grid.Row="1" Margin="4,0,4,4"
+					  HorizontalScrollBarVisibility="Disabled"
+					  VerticalScrollBarVisibility="Auto">
+			<ItemsControl ItemsSource="{Binding TreeRoots}"
+						  ItemTemplate="{StaticResource ExplorerNodeTemplate}"/>
+		</ScrollViewer>
 	</Grid>
 </UserControl>

@@ -49,6 +49,7 @@ public sealed partial class QuickOpenViewModel : ObservableObject
     private readonly TimeSpan _contentTimeout;
     private readonly Action _closeCancel;
     private readonly Action<QuickOpenHit> _closeAccept;
+    private readonly Action<int>? _gotoLine;
 
     private CancellationTokenSource? _contentCts;
     private CancellationTokenSource? _debounceCts;
@@ -60,14 +61,21 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         IReadOnlyList<QuickOpenCandidate> candidates,
         TimeSpan contentTimeout,
         Action closeCancel,
-        Action<QuickOpenHit> closeAccept)
+        Action<QuickOpenHit> closeAccept,
+        string? initialQuery = null,
+        Action<int>? gotoLine = null)
     {
         _searchService = searchService;
         _candidates = candidates;
         _contentTimeout = contentTimeout <= TimeSpan.Zero ? TimeSpan.FromSeconds(10) : contentTimeout;
         _closeCancel = closeCancel;
         _closeAccept = closeAccept;
+        _gotoLine = gotoLine;
         ApplyFilter(string.Empty);
+        if (!string.IsNullOrWhiteSpace(initialQuery))
+        {
+            Query = initialQuery;
+        }
     }
 
     public ObservableCollection<QuickOpenEntryViewModel> Entries { get; } = [];
@@ -79,10 +87,21 @@ public sealed partial class QuickOpenViewModel : ObservableObject
     public partial QuickOpenEntryViewModel? SelectedEntry { get; set; }
 
     [ObservableProperty]
-    public partial string HintText { get; set; } = "↑↓ navigate  ·  Enter open  ·  Esc close";
+    public partial string HintText { get; set; } = "↑↓ navigate  ·  Enter open  ·  Esc close  ·  ? help";
 
     partial void OnQueryChanged(string value)
     {
+        string trimmed = value?.Trim() ?? string.Empty;
+        if (trimmed == "?" || trimmed.StartsWith(':'))
+        {
+            // VS Code prefixes: no name/content search, handled in RebuildList/Accept.
+            _nameHits = [];
+            _contentHits = [];
+            CancelContentSearch();
+            RebuildList();
+            return;
+        }
+
         ApplyFilter(value);
         _ = ScheduleContentSearchAsync(value);
     }
@@ -106,6 +125,16 @@ public sealed partial class QuickOpenViewModel : ObservableObject
     [RelayCommand]
     public void AcceptSelection()
     {
+        // VS Code ":42" goes to that line in the active document.
+        if (_gotoLine is not null && TryParseGotoLine(Query, out int line))
+        {
+            CancelContentSearch();
+            var navigate = _gotoLine;
+            _closeCancel();
+            navigate(line);
+            return;
+        }
+
         var hit = SelectedEntry?.Hit;
         if (hit is null)
             hit = Entries.FirstOrDefault(e => e.IsSelectable)?.Hit;
@@ -219,6 +248,28 @@ public sealed partial class QuickOpenViewModel : ObservableObject
 
     private void RebuildList()
     {
+        string trimmed = Query?.Trim() ?? string.Empty;
+        if (trimmed == "?")
+        {
+            Entries.Clear();
+            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "Type file name to open", null)));
+            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, ":42 — go to line 42 in active file", null)));
+            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "letters match in order (fuzzy), open files first", null)));
+            SelectedEntry = null;
+            HintText = "Esc close";
+            return;
+        }
+
+        if (trimmed.StartsWith(':'))
+        {
+            Entries.Clear();
+            SelectedEntry = null;
+            HintText = TryParseGotoLine(trimmed, out _)
+                ? "Enter go to line  ·  Esc close"
+                : "Type a line number, e.g. :42  ·  Esc close";
+            return;
+        }
+
         var previousHitKey = SelectedEntry?.Hit is { } prev
             ? HitKey(prev)
             : null;
@@ -246,6 +297,18 @@ public sealed partial class QuickOpenViewModel : ObservableObject
 
         SelectedEntry = restore ?? selectable[0];
         HintText = $"{selectable.Count} results  ·  ↑↓ navigate  ·  Enter open  ·  Esc close";
+    }
+
+    private static bool TryParseGotoLine(string? query, out int line)
+    {
+        line = 0;
+        string trimmed = query?.Trim() ?? string.Empty;
+        if (!trimmed.StartsWith(':') || trimmed.Length < 2)
+        {
+            return false;
+        }
+
+        return int.TryParse(trimmed[1..].Trim(), out line) && line > 0;
     }
 
     private static string HitKey(QuickOpenHit hit)

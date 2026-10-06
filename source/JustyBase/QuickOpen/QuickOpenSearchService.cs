@@ -337,32 +337,113 @@ public sealed class QuickOpenSearchService
         string name = candidate.DisplayName;
         string path = candidate.FilePath ?? candidate.DisplayPath ?? string.Empty;
 
+        int openBoost = (candidate.Sources & QuickOpenSource.Open) != 0 ? 500 : 0;
+
         int nameIndex = name.IndexOf(query, StringComparison.OrdinalIgnoreCase);
         int pathIndex = path.IndexOf(query, StringComparison.OrdinalIgnoreCase);
-        if (nameIndex < 0 && pathIndex < 0)
-            return -1;
-
-        int score = 0;
-        if ((candidate.Sources & QuickOpenSource.Open) != 0)
-            score += 500;
-
-        if (nameIndex >= 0)
+        if (nameIndex >= 0 || pathIndex >= 0)
         {
-            score += 200;
-            if (nameIndex == 0)
-                score += 100;
-            if (string.Equals(name, query, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(Path.GetFileNameWithoutExtension(name), query, StringComparison.OrdinalIgnoreCase))
-                score += 150;
-            score -= nameIndex;
-        }
-        else if (pathIndex >= 0)
-        {
-            score += 50;
-            score -= Math.Min(pathIndex, 80);
+            int score = openBoost;
+            if (nameIndex >= 0)
+            {
+                score += 200;
+                if (nameIndex == 0)
+                    score += 100;
+                if (string.Equals(name, query, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(Path.GetFileNameWithoutExtension(name), query, StringComparison.OrdinalIgnoreCase))
+                    score += 150;
+                score -= nameIndex;
+            }
+            else
+            {
+                score += 50;
+                score -= Math.Min(pathIndex, 80);
+            }
+
+            return score;
         }
 
-        return score;
+        // VS Code style fuzzy subsequence fallback: query letters in order,
+        // bonuses for word boundaries and consecutive runs.
+        if (TryFuzzyScore(name, query, out int fuzzyName) && fuzzyName > 0)
+        {
+            return openBoost + 120 + fuzzyName;
+        }
+
+        if (TryFuzzyScore(path, query, out int fuzzyPath) && fuzzyPath > 0)
+        {
+            return openBoost + 30 + fuzzyPath / 2;
+        }
+
+        return -1;
+    }
+
+    private static bool TryFuzzyScore(string text, string query, out int score)
+    {
+        score = 0;
+        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(query) || query.Length > text.Length)
+        {
+            return false;
+        }
+
+        int ti = 0;
+        int prev = -2;
+        int consecutive = 0;
+        for (int qi = 0; qi < query.Length; qi++)
+        {
+            char qc = char.ToLowerInvariant(query[qi]);
+            bool found = false;
+            while (ti < text.Length)
+            {
+                if (char.ToLowerInvariant(text[ti]) == qc)
+                {
+                    int bonus = 0;
+                    if (ti == 0)
+                    {
+                        bonus += 60;
+                    }
+                    else
+                    {
+                        char p = text[ti - 1];
+                        if (p is '/' or '\\' or '_' or '-' or ' ' or '.')
+                        {
+                            bonus += 40;
+                        }
+                        else if (char.IsLower(p) && char.IsUpper(text[ti]))
+                        {
+                            bonus += 25;
+                        }
+                    }
+
+                    if (prev == ti - 1)
+                    {
+                        consecutive++;
+                        bonus += 30 + consecutive * 10;
+                    }
+                    else
+                    {
+                        consecutive = 0;
+                    }
+
+                    score += 100 + bonus - Math.Min(ti, 60);
+                    prev = ti;
+                    ti++;
+                    found = true;
+                    break;
+                }
+
+                ti++;
+            }
+
+            if (!found)
+            {
+                score = 0;
+                return false;
+            }
+        }
+
+        score -= Math.Min(text.Length / 8, 50);
+        return score > 0;
     }
 
     private static IEnumerable<(int LineNumber, string LineText, int MatchIndex, int MatchLength)> FindInText(

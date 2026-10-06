@@ -1,0 +1,242 @@
+<UserControl x:Class="JustyBase.Views.Tools.FileSearchView"
+	xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+	xmlns:vm="using:JustyBase.ViewModels.Tools"
+	xmlns:conv="using:JustyBase.Converters"
+    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+	x:DataType="vm:FileSearchViewModel">
+	<UserControl.KeyBindings>
+		<KeyBinding Gesture="F4" Command="{Binding NextHitCommand}"/>
+		<KeyBinding Gesture="Shift+F4" Command="{Binding PreviousHitCommand}"/>
+		<KeyBinding Gesture="Escape" Command="{Binding CancelSearchCommand}"/>
+	</UserControl.KeyBindings>
+	<UserControl.Resources>
+		<conv:FileSearchTooltipConverter x:Key="FileMetaTip"/>
+		<StreamGeometry x:Key="FileSearchRefreshPath">M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z</StreamGeometry>
+		<StreamGeometry x:Key="FileSearchReplaceAllPath">M14 9V5l7 7-7 7v-4.1c-5 0-8.5 1.6-11 5.1 1-5 4-10 11-11z</StreamGeometry>
+		<!-- Shrink the Fluent Expander chrome inside this panel only:
+		     default is 48px min-height, 16px padding, 32px chevron box. -->
+		<x:Double x:Key="ExpanderChevronButtonSize">20</x:Double>
+		<Thickness x:Key="ExpanderChevronMargin">8,0,4,0</Thickness>
+		<Thickness x:Key="ExpanderHeaderPadding">4,0,0,0</Thickness>
+	</UserControl.Resources>
+	<UserControl.Styles>
+		<!-- Borderless VS Code style icon button -->
+		<Style Selector="Button.vsIcon">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="4,2"/>
+			<Setter Property="MinWidth" Value="24"/>
+			<Setter Property="MinHeight" Value="24"/>
+			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+		</Style>
+		<!-- Row actions stay dimmed until hover, like VS Code -->
+		<Style Selector="Button.rowAction">
+			<Setter Property="Opacity" Value="0.55"/>
+		</Style>
+		<Style Selector="Button.rowAction:pointerover">
+			<Setter Property="Opacity" Value="1"/>
+		</Style>
+		<!-- VS Code style option toggle: outline only when active -->
+		<Style Selector="ToggleButton.vsToggle">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="BorderBrush" Value="Transparent"/>
+			<Setter Property="Padding" Value="3,1"/>
+			<Setter Property="MinWidth" Value="24"/>
+			<Setter Property="MinHeight" Value="22"/>
+			<Setter Property="FontSize" Value="11"/>
+			<Setter Property="Focusable" Value="False"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+		</Style>
+		<Style Selector="ToggleButton.vsToggle:checked">
+			<Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorBrush}"/>
+		</Style>
+		<Style Selector="CheckBox.searchOption">
+			<Setter Property="FontSize" Value="11"/>
+			<Setter Property="Margin" Value="0,0,10,0"/>
+		</Style>
+		<Style Selector="TextBlock.searchLabel">
+			<Setter Property="FontSize" Value="11"/>
+			<Setter Property="Opacity" Value="0.75"/>
+			<Setter Property="VerticalAlignment" Value="Center"/>
+		</Style>
+		<!-- Flat VS Code style result group: kill the 48px Fluent card
+		     (MinHeight + Left alignment + content padding + border) -->
+		<Style Selector="Expander.resultGroup">
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="0"/>
+			<Setter Property="Padding" Value="0"/>
+			<Setter Property="MinHeight" Value="0"/>
+			<Setter Property="MinWidth" Value="0"/>
+			<Setter Property="HorizontalAlignment" Value="Stretch"/>
+			<Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+		</Style>
+	</UserControl.Styles>
+	<Grid Focusable="True" RowDefinitions="Auto,Auto,*">
+		<StackPanel Grid.Row="0" Margin="8,8,8,6" Spacing="5">
+			<!-- VS Code search box: replace chevron inside-left, Aa/ab/.* + clear inside-right -->
+			<TextBox Name="PatternBox" Text="{Binding Pattern, Mode=TwoWay}"
+					 PlaceholderText="Search in files" MinHeight="28" Padding="6,3" FontSize="13"
+					 ToolTip.Tip="Enter to search · F4 next match · Shift+F4 previous match">
+				<TextBox.KeyBindings>
+					<KeyBinding Gesture="Return" Command="{Binding SearchCommand}"/>
+				</TextBox.KeyBindings>
+				<TextBox.InnerLeftContent>
+					<Button Classes="vsIcon" Command="{Binding ToggleReplaceCommand}"
+							ToolTip.Tip="Toggle Replace" Focusable="False" Padding="2">
+						<PathIcon Data="{StaticResource ChevronDownPath}" Width="10" Height="10"/>
+					</Button>
+				</TextBox.InnerLeftContent>
+				<TextBox.InnerRightContent>
+					<StackPanel Orientation="Horizontal" Spacing="0">
+						<ToggleButton Classes="vsToggle" Content="Aa" IsChecked="{Binding MatchCase}"
+									  ToolTip.Tip="Match Case (Alt+C)"/>
+						<ToggleButton Classes="vsToggle" Content="ab" IsChecked="{Binding WholeWords}"
+									  ToolTip.Tip="Match Whole Word (Alt+W)"/>
+						<ToggleButton Classes="vsToggle" Content=".*" IsChecked="{Binding UseRegex}"
+									  ToolTip.Tip="Use Regular Expression (Alt+R)"/>
+						<Button Classes="vsIcon" Content="×" FontSize="13"
+								Command="{Binding ClearPatternCommand}" ToolTip.Tip="Clear"
+								Focusable="False"/>
+					</StackPanel>
+				</TextBox.InnerRightContent>
+			</TextBox>
+			<!-- VS Code replace box, no expander chrome -->
+			<TextBox IsVisible="{Binding IsReplaceExpanded}"
+					 Text="{Binding Replacement, Mode=TwoWay}"
+					 PlaceholderText="Replace with" MinHeight="28" Padding="6,3" FontSize="13">
+				<TextBox.InnerRightContent>
+					<Button Classes="vsIcon" Click="ReplaceAll_Click"
+							ToolTip.Tip="Replace All (with preview)" Focusable="False">
+						<PathIcon Data="{StaticResource FileSearchReplaceAllPath}" Width="13" Height="13"/>
+					</Button>
+				</TextBox.InnerRightContent>
+			</TextBox>
+			<Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+				<TextBlock Grid.Column="0" Classes="searchLabel" Text="Search in"/>
+				<TextBox Grid.Column="1" Text="{Binding SearchPaths, Mode=TwoWay}"
+						 PlaceholderText="Folder path; separate multiple folders with ;"
+						 MinHeight="26" Padding="6,2" FontSize="11"
+						 ToolTip.Tip="Enter one or more folder paths separated by semicolons"/>
+				<Button Grid.Column="2" Classes="vsIcon" Command="{Binding BrowseForFolderCommand}"
+						ToolTip.Tip="Add a folder to search">
+					<PathIcon Data="{StaticResource OpenDirectorySymbol}" Width="14" Height="14"/>
+				</Button>
+			</Grid>
+			<CheckBox Classes="searchOption" Content="SQL comments" IsChecked="{Binding SearchInSqlComments}"
+					  ToolTip.Tip="Also search inside SQL comments" FontSize="11"/>
+			<Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+				<TextBox Grid.Column="0" Text="{Binding Include, Mode=TwoWay}"
+						 PlaceholderText="files to include, e.g. *.sql; src/**/*.cs"
+						 MinHeight="26" Padding="6,2" FontSize="11"/>
+				<ToggleButton Grid.Column="1" Classes="vsToggle" Content="..."
+							  IsChecked="{Binding ShowExcludeOptions, Mode=TwoWay}"
+							  ToolTip.Tip="Toggle Files to Exclude" MinHeight="26"/>
+			</Grid>
+			<TextBox IsVisible="{Binding ShowExcludeOptions}"
+					 Text="{Binding Exclude, Mode=TwoWay}"
+					 PlaceholderText="files to exclude, e.g. **/bin/**; **/obj/**"
+					 MinHeight="26" Padding="6,2" FontSize="11"/>
+		</StackPanel>
+		<!-- VS Code results header: status + refresh / clear / collapse-all -->
+		<Border Grid.Row="1" BorderBrush="{DynamicResource DockThemeBorderLowBrush}" BorderThickness="0,0,0,1" Padding="8,3">
+			<Grid ColumnDefinitions="*,Auto">
+				<TextBlock Grid.Column="0" Text="{Binding Status}" FontSize="11" Opacity="0.8"
+						   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+						   ToolTip.Tip="{Binding SkippedDetails}"/>
+				<StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0">
+					<Button Classes="vsIcon" Command="{Binding SearchCommand}" ToolTip.Tip="Refresh">
+						<PathIcon Data="{StaticResource FileSearchRefreshPath}" Width="12" Height="12"/>
+					</Button>
+					<Button Classes="vsIcon" Command="{Binding ClearResultsCommand}" ToolTip.Tip="Clear search results">
+						<PathIcon Data="{StaticResource CloseX}" Width="11" Height="11"/>
+					</Button>
+					<Button Classes="vsIcon" Command="{Binding CollapseAllCommand}" ToolTip.Tip="Collapse all">
+						<PathIcon Data="{StaticResource CollapseAllIconPath}" Width="13" Height="13"/>
+					</Button>
+				</StackPanel>
+			</Grid>
+		</Border>
+		<ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+			<ItemsControl ItemsSource="{Binding Results}">
+				<ItemsControl.ItemTemplate>
+					<DataTemplate x:DataType="vm:ContentSearchFileGroup">
+						<Expander Classes="resultGroup" IsExpanded="{Binding IsExpanded, Mode=TwoWay}"
+								  ToolTip.Tip="{Binding File.Path, Converter={StaticResource FileMetaTip}}">
+							<Expander.Header>
+								<Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="4" Margin="2,0"
+									  HorizontalAlignment="Stretch">
+									<Image Grid.Column="0" Source="avares://JustyBase/Assets/file.png"
+										   Width="14" Height="14" VerticalAlignment="Center"/>
+									<Grid Grid.Column="1" ColumnDefinitions="Auto,*" ColumnSpacing="5"
+										  HorizontalAlignment="Stretch">
+										<TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center"/>
+										<TextBlock Grid.Column="1" Text="{Binding RelativeDir}" Opacity="0.6" FontSize="11"
+												   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+									</Grid>
+									<TextBlock Grid.Column="2" Text="{Binding Count}" FontSize="11" Opacity="0.7" VerticalAlignment="Center"/>
+									<Button Grid.Column="3" Classes="vsIcon rowAction" Click="ReplaceFile_Click"
+											IsVisible="{Binding $parent[UserControl].((vm:FileSearchViewModel)DataContext).IsReplaceExpanded}"
+											ToolTip.Tip="Replace in file (with preview)">
+										<PathIcon Data="{StaticResource FileSearchReplaceAllPath}" Width="12" Height="12"/>
+									</Button>
+									<Button Grid.Column="4" Classes="vsIcon rowAction"
+											Command="{Binding $parent[UserControl].((vm:FileSearchViewModel)DataContext).DismissGroupCommand}"
+											CommandParameter="{Binding}"
+											ToolTip.Tip="Dismiss">
+										<PathIcon Data="{StaticResource CloseX}" Width="10" Height="10"/>
+									</Button>
+								</Grid>
+							</Expander.Header>
+							<Expander.ContextMenu>
+								<ContextMenu>
+									<MenuItem Header="Copy full filepath to clipboard"
+											  Command="{Binding $parent[UserControl].((vm:FileSearchViewModel)DataContext).CopyPathCommand}"
+											  CommandParameter="{Binding File.Path}"/>
+									<MenuItem Header="Open in explorer"
+											  Command="{Binding $parent[UserControl].((vm:FileSearchViewModel)DataContext).OpenPathInExplorerCommand}"
+											  CommandParameter="{Binding File.Path}"/>
+								</ContextMenu>
+							</Expander.ContextMenu>
+							<ItemsControl ItemsSource="{Binding Hits}">
+								<ItemsControl.ItemTemplate>
+									<DataTemplate x:DataType="vm:ContentSearchHitRow">
+										<Grid ColumnDefinitions="28,*,Auto" Margin="16,0,2,0" ColumnSpacing="4" MinHeight="22"
+											  HorizontalAlignment="Stretch"
+											  ToolTip.Tip="{Binding Group.File.Path, Converter={StaticResource FileMetaTip}}">
+											<TextBlock Grid.Column="0" Text="{Binding Line}" TextAlignment="Right"
+													   VerticalAlignment="Center" FontSize="11" Opacity="0.55"/>
+											<Button Grid.Column="1" Classes="vsIcon" Click="OpenHit_Click" Padding="2,1"
+													HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch"
+													ToolTip.Tip="Open in editor">
+												<TextBlock FontFamily="Consolas" FontSize="12" TextTrimming="CharacterEllipsis"
+														   HorizontalAlignment="Stretch">
+													<Run Text="{Binding Before}"/>
+													<Run Text="{Binding Match}" FontWeight="Bold"
+														 Background="#59E8B400"
+														 Foreground="{DynamicResource SystemAccentColorBrush}"/>
+													<Run Text="{Binding After}"/>
+												</TextBlock>
+											</Button>
+											<Button Grid.Column="2" Classes="vsIcon rowAction" Click="ReplaceHit_Click"
+													IsVisible="{Binding $parent[UserControl].((vm:FileSearchViewModel)DataContext).IsReplaceExpanded}"
+													ToolTip.Tip="Replace (with preview)">
+												<PathIcon Data="{StaticResource FileSearchReplaceAllPath}" Width="11" Height="11"/>
+											</Button>
+										</Grid>
+									</DataTemplate>
+								</ItemsControl.ItemTemplate>
+							</ItemsControl>
+						</Expander>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+		</ScrollViewer>
+	</Grid>
+</UserControl>

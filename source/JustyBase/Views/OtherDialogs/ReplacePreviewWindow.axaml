@@ -1,0 +1,47 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:JustyBase.Views.OtherDialogs"
+        x:Class="JustyBase.Views.OtherDialogs.ReplacePreviewWindow"
+        x:DataType="local:ReplacePreviewWindow"
+        Title="Preview replacements" Width="760" Height="530" MinWidth="500" MinHeight="320"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="14" RowSpacing="10">
+        <StackPanel Grid.Row="0" Spacing="3">
+            <TextBlock Text="Preview replacements" FontSize="18" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding Summary}" Opacity="0.7" TextWrapping="Wrap"/>
+        </StackPanel>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Changes}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:ReplacementPreviewRow">
+                        <Border BorderBrush="{DynamicResource DockThemeBorderLowBrush}" BorderThickness="0,0,0,1" Padding="5,8">
+                            <StackPanel Spacing="3">
+                                <TextBlock Text="{Binding Path}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding CountLabel}" FontSize="11" Opacity="0.7"/>
+                                <ItemsControl ItemsSource="{Binding Changes}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="local:ReplacementPreviewLine">
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,5,0,0">
+                                                <TextBlock Text="{Binding Line}" FontSize="10" Opacity="0.6" VerticalAlignment="Top"/>
+                                                <StackPanel Grid.Column="1" Spacing="2">
+                                                    <TextBlock Text="{Binding Before}" FontFamily="Consolas" FontSize="11"
+                                                               TextWrapping="Wrap" Opacity="0.75"/>
+                                                    <TextBlock Text="{Binding After}" FontFamily="Consolas" FontSize="11"
+                                                               TextWrapping="Wrap" Foreground="{DynamicResource SystemAccentColorBrush}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Cancel" IsCancel="True" MinWidth="80" Click="Cancel_Click"/>
+            <Button Content="Apply changes" Classes="accent" IsDefault="True" MinWidth="120" Click="Apply_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

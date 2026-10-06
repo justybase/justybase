@@ -1,10 +1,11 @@
-using Avalonia.Collections;
+﻿using Avalonia.Collections;
 using Avalonia.Controls.DataGridHierarchical;
 using Avalonia.Data;
 using Avalonia.Data.Core;
 using Avalonia.Input.Platform;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Core;
@@ -28,7 +29,7 @@ public partial class FileExplorerViewModel : Tool
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly LogToolViewModel _logToolViewModel;
     public FileExplorerViewModel(IFactory factory, ISearchInFiles searchInFiles, IAvaloniaSpecificHelpers avaloniaSpecificHelpers, IGeneralApplicationData generalApplicationData, IMessageForUserTools messageForUserTools,
-        LogToolViewModel logToolViewModel)
+        LogToolViewModel logToolViewModel, Services.FileExplorer.IFileIconProvider? iconProvider = null)
     {
         this.Factory = factory;
         _searchInFiles = searchInFiles;
@@ -45,18 +46,29 @@ public partial class FileExplorerViewModel : Tool
         CopyFullFilePathCmd = new AsyncRelayCommand(CopyFullFilePathAsync);
         RemoveFileOrDirectoryCmd = new AsyncRelayCommand(RemoveFileOrDirectory);
 
-        using (var fileStream = AssetLoader.Open(new Uri("avares://JustyBase/Assets/file.png")))
-        using (var folderStream = AssetLoader.Open(new Uri("avares://JustyBase/Assets/folder.png")))
-        using (var folderOpenStream = AssetLoader.Open(new Uri("avares://JustyBase/Assets/folder-open.png")))
+        // F2: icons come from DI provider when available; fall back to direct load for legacy paths.
+        if (iconProvider is not null
+            && iconProvider.FileIcon is Avalonia.Media.Imaging.Bitmap fileIcon
+            && iconProvider.FolderIcon is Avalonia.Media.Imaging.Bitmap folderIcon
+            && iconProvider.FolderOpenIcon is Avalonia.Media.Imaging.Bitmap folderOpenIcon)
         {
-            // FolderIconConverter owns these bitmaps for the lifetime of the view model.
+            _folderIconConverter = new FolderIconConverter(fileIcon, folderOpenIcon, folderIcon);
+        }
+        else
+        {
+            using (var fileStream = AssetLoader.Open(new Uri("avares://JustyBase/Assets/file.png")))
+            using (var folderStream = AssetLoader.Open(new Uri("avares://JustyBase/Assets/folder.png")))
+            using (var folderOpenStream = AssetLoader.Open(new Uri("avares://JustyBase/Assets/folder-open.png")))
+            {
+                // FolderIconConverter owns these bitmaps for the lifetime of the view model.
 #pragma warning disable CA2000
-            var fileIcon = new Bitmap(fileStream);
-            var folderIcon = new Bitmap(folderStream);
-            var folderOpenIcon = new Bitmap(folderOpenStream);
+                var legacyFileIcon = new Bitmap(fileStream);
+                var legacyFolderIcon = new Bitmap(folderStream);
+                var legacyFolderOpenIcon = new Bitmap(folderOpenStream);
 #pragma warning restore CA2000
 
-            _folderIconConverter = new FolderIconConverter(fileIcon, folderOpenIcon, folderIcon);
+                _folderIconConverter = new FolderIconConverter(legacyFileIcon, legacyFolderOpenIcon, legacyFolderIcon);
+            }
         }
 
         WholeWords = false;
@@ -125,6 +137,12 @@ public partial class FileExplorerViewModel : Tool
     }
     public HierarchicalModel<FileTreeNodeModel> HierarchicalModel { get; }
     public ObservableCollection<DataGridColumnDefinition> ColumnDefinitions { get; }
+
+    /// <summary>
+    /// Explorer tree roots (VS Code Explorer section). Same nodes as
+    /// <see cref="HierarchicalModel"/>, exposed for a plain TreeView.
+    /// </summary>
+    public ObservableCollection<FileTreeNodeModel> TreeRoots { get; } = [];
     public DataGridCollectionView SearchItems { get; set; }
     public ObservableCollection<SearchItem> SearchItemCollections { get; set; }
 
@@ -243,6 +261,285 @@ public partial class FileExplorerViewModel : Tool
 
     [ObservableProperty]
     public partial FileTreeNodeModel? SelectedTreeItem { get; set; }
+
+    // ------------------------------------------------------------------
+    // VS Code Explorer tree: open / create / rename / refresh / navigate.
+    // ------------------------------------------------------------------
+    [RelayCommand]
+    private void OpenSelectedNode() => ActivateTreeNode(SelectedTreeItem);
+
+    [RelayCommand]
+    private async Task RefreshTreeAsync()
+    {
+        var roots = TreeRoots.ToArray();
+        if (roots.Length == 0)
+        {
+            InitTreeWithRoots();
+            return;
+        }
+
+        await Task.WhenAll(roots.Select(static root => root.RefreshAsync()));
+    }
+
+    [RelayCommand]
+    private void CollapseAllTree()
+    {
+        foreach (var root in TreeRoots)
+        {
+            CollapseTreeNode(root);
+        }
+    }
+
+    [RelayCommand]
+    private async Task CreateFileAsync() => await CreateTreeEntryAsync(folder: false);
+
+    [RelayCommand]
+    private async Task CreateFolderAsync() => await CreateTreeEntryAsync(folder: true);
+
+    [RelayCommand]
+    private async Task RenameNodeAsync()
+    {
+        if (SelectedTreeItem is not FileTreeNodeModel node)
+        {
+            return;
+        }
+
+        string? newName = await _messageForUserTools.ShowAskForFileNameDialogAsync(isRename: true);
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            return;
+        }
+
+        string? directory = Path.GetDirectoryName(node.Path);
+        if (string.IsNullOrEmpty(directory))
+        {
+            return;
+        }
+
+        string target = Path.Combine(directory, newName.Trim());
+        if (PathsEqual(node.Path, target))
+        {
+            return;
+        }
+
+        try
+        {
+            if (node.IsDirectory)
+            {
+                Directory.Move(node.Path, target);
+            }
+            else
+            {
+                File.Move(node.Path, target);
+            }
+
+            node.Path = target;
+            node.Name = newName.Trim();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance(ex.Message, "Rename");
+        }
+    }
+
+    /// <summary>VS Code Up/Down in the tree.</summary>
+    public void StepTreeSelection(int delta)
+    {
+        var visible = FlattenVisibleTree();
+        if (visible.Count == 0)
+        {
+            return;
+        }
+
+        int index = visible.FindIndex(entry => ReferenceEquals(entry.Node, SelectedTreeItem));
+        int next = index < 0
+            ? (delta > 0 ? 0 : visible.Count - 1)
+            : Math.Clamp(index + delta, 0, visible.Count - 1);
+        SelectedTreeItem = visible[next].Node;
+    }
+
+    /// <summary>VS Code Left in the tree: collapse, otherwise go to parent.</summary>
+    public void TreeLeft()
+    {
+        if (SelectedTreeItem is not FileTreeNodeModel node)
+        {
+            return;
+        }
+
+        if (node.IsDirectory && node.IsExpanded)
+        {
+            node.IsExpanded = false;
+            return;
+        }
+
+        FileTreeNodeModel? parent = FindTreeParent(node);
+        if (parent is not null)
+        {
+            SelectedTreeItem = parent;
+        }
+    }
+
+    /// <summary>VS Code Right in the tree: expand a collapsed folder.</summary>
+    public void TreeRight()
+    {
+        if (SelectedTreeItem is FileTreeNodeModel { IsDirectory: true, IsExpanded: false } node)
+        {
+            node.IsExpanded = true;
+        }
+    }
+
+    private void ActivateTreeNode(FileTreeNodeModel? node)
+    {
+        if (node is null)
+        {
+            return;
+        }
+
+        if (node.IsDirectory)
+        {
+            node.IsExpanded = !node.IsExpanded;
+        }
+        else
+        {
+            OpenTxtPreviewFile(node.Path);
+        }
+    }
+
+    private async Task CreateTreeEntryAsync(bool folder)
+    {
+        string? baseDir = ResolveTreeTargetDirectory();
+        if (string.IsNullOrEmpty(baseDir))
+        {
+            return;
+        }
+
+        string? name = await _messageForUserTools.ShowAskForFileNameDialogAsync();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        string full = Path.Combine(baseDir, name.Trim());
+        try
+        {
+            if (folder)
+            {
+                Directory.CreateDirectory(full);
+            }
+            else
+            {
+                using (File.Create(full))
+                {
+                }
+
+                OpenTxtPreviewFile(full);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance(ex.Message, folder ? "New folder" : "New file");
+        }
+    }
+
+    private string? ResolveTreeTargetDirectory()
+    {
+        if (SelectedTreeItem is FileTreeNodeModel node)
+        {
+            if (node.IsDirectory)
+            {
+                return node.Path;
+            }
+
+            string? parent = Path.GetDirectoryName(node.Path);
+            if (!string.IsNullOrEmpty(parent))
+            {
+                return parent;
+            }
+        }
+
+        return TreeRoots.FirstOrDefault()?.Path;
+    }
+
+    private static void CollapseTreeNode(FileTreeNodeModel node)
+    {
+        node.IsExpanded = false;
+        if (!node.AreChildrenLoaded)
+        {
+            return;
+        }
+
+        foreach (var child in node.Children)
+        {
+            CollapseTreeNode(child);
+        }
+    }
+
+    private List<(FileTreeNodeModel Node, FileTreeNodeModel? Parent)> FlattenVisibleTree()
+    {
+        var list = new List<(FileTreeNodeModel, FileTreeNodeModel?)>();
+        foreach (var root in TreeRoots)
+        {
+            AddVisibleTreeNode(root, null, list);
+        }
+
+        return list;
+    }
+
+    private static void AddVisibleTreeNode(
+        FileTreeNodeModel node,
+        FileTreeNodeModel? parent,
+        List<(FileTreeNodeModel Node, FileTreeNodeModel? Parent)> list)
+    {
+        list.Add((node, parent));
+        if (!node.IsExpanded || !node.AreChildrenLoaded)
+        {
+            return;
+        }
+
+        foreach (var child in node.Children)
+        {
+            AddVisibleTreeNode(child, node, list);
+        }
+    }
+
+    private FileTreeNodeModel? FindTreeParent(FileTreeNodeModel node)
+    {
+        foreach (var entry in FlattenVisibleTree())
+        {
+            if (ReferenceEquals(entry.Node, node))
+            {
+                return entry.Parent;
+            }
+        }
+
+        return null;
+    }
+
+    [RelayCommand]
+    private async Task CopyPathAsync(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var clipboard = _avaloniaSpecificHelpers.GetClipboard();
+        if (clipboard is not null)
+        {
+            await clipboard.SetTextAsync(path);
+        }
+    }
+
+    [RelayCommand]
+    private void OpenPathInExplorer(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        _messageForUserTools.ShowOrShowInExplorerHelper(path);
+    }
 
     private const int SearchFileSizeLimit = 10 * 1024 * 1024;
     private bool SearchInFiles;
@@ -439,6 +736,19 @@ public partial class FileExplorerViewModel : Tool
             var rootData = new FileTreeNodeModel(IGeneralApplicationData.DataDirectory, true, true, _messageForUserTools, _generalApplicationData.GlobalLoggerObject);
             arr.Add(rootData);
             HierarchicalModel.SetRoots(arr);
+
+            foreach (var old in TreeRoots)
+            {
+                old.Dispose();
+            }
+
+            TreeRoots.Clear();
+            SelectedTreeItem = null;
+            foreach (var root in arr)
+            {
+                TreeRoots.Add(root);
+                root.IsExpanded = true;
+            }
         }
         catch (Exception ex)
         {
@@ -524,23 +834,28 @@ public partial class FileExplorerViewModel : Tool
         var rootDirectoryList = _generalApplicationData.Config.StartsFolderPaths;
         if (rootDirectoryList is not null && rootDirectoryList.Count > 0)
         {
-            await Task.Run(() =>
+            // F1: enumerate on background thread, mutate UI collections only on UI thread.
+            // No ConfigureAwait(false) here on purpose — continuation must resume on UI thread
+            // because _filesList/_directoryList are bound to the view.
+            var snapshot = await Task.Run(() =>
             {
-                var roots = NormalizeRootPaths(rootDirectoryList);
-                string shortStart = GetShortStart(roots);
-                Stack<string> dirs = new Stack<string>(128);
-                var seenFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var seenDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var files = new List<SearchItem>();
+                var dirs = new List<SearchItem>();
                 try
                 {
+                    var roots = NormalizeRootPaths(rootDirectoryList);
+                    string shortStart = GetShortStart(roots);
+                    Stack<string> stack = new Stack<string>(128);
+                    var seenFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var seenDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (string dane in roots)
                     {
-                        dirs.Clear();
-                        dirs.Push(dane);
+                        stack.Clear();
+                        stack.Push(dane);
 
-                        while (dirs.Count > 0)
+                        while (stack.Count > 0)
                         {
-                            var akt = dirs.Pop();
+                            var akt = stack.Pop();
                             string currentDir = akt;
 
                             if (!Directory.Exists(currentDir))
@@ -578,9 +893,9 @@ public partial class FileExplorerViewModel : Tool
                                 continue;
                             }
 
-                            (string FullName, DateTime LastWriteTime, long Length)[] files = new DirectoryInfo(currentDir).GetFiles().OrderByDescending(f => f.LastWriteTime).Select(f => (f.FullName, f.LastWriteTime, f.Length)).ToArray();
+                            (string FullName, DateTime LastWriteTime, long Length)[] foundFiles = new DirectoryInfo(currentDir).GetFiles().OrderByDescending(f => f.LastWriteTime).Select(f => (f.FullName, f.LastWriteTime, f.Length)).ToArray();
 
-                            foreach ((string FullName, DateTime LastWriteTime, long Length) in files)
+                            foreach ((string FullName, DateTime LastWriteTime, long Length) in foundFiles)
                             {
                                 string ext = System.IO.Path.GetExtension(FullName).ToLowerInvariant();
                                 if (ext is not null && (IGeneralApplicationData.REGISTERED_EXTENSIONS.ContainsKey(ext) || IGeneralApplicationData.ADDITIONAL_EXTENSIONS.Contains(ext))
@@ -592,7 +907,7 @@ public partial class FileExplorerViewModel : Tool
                                     }
 
                                     string fileName = System.IO.Path.GetFileName(FullName);
-                                    _filesList.Add(new SearchItem()
+                                    files.Add(new SearchItem()
                                     {
                                         Name = FullName,
                                         ShortName = fileName,
@@ -612,7 +927,7 @@ public partial class FileExplorerViewModel : Tool
                                     continue;
                                 }
 
-                                _directoryList.Add(new SearchItem()
+                                dirs.Add(new SearchItem()
                                 {
                                     Name = dirPath,
                                     ShortName = System.IO.Path.GetFileName(dirPath),
@@ -622,16 +937,34 @@ public partial class FileExplorerViewModel : Tool
                                     IsFounded = true
                                 }
                                 );
-                                dirs.Push(dirPath);
+                                stack.Push(dirPath);
                             }
                         }
                     }
                 }
                 catch (Exception ex2)
                 {
-                    _messageForUserTools.ShowSimpleMessageBoxInstance(ex2);
+                    return (files, dirs, error: ex2);
                 }
+
+                return (files, dirs, error: (Exception?)null);
             });
+
+            if (snapshot.error is not null)
+            {
+                _messageForUserTools.ShowSimpleMessageBoxInstance(snapshot.error);
+                return;
+            }
+
+            foreach (var f in snapshot.files)
+            {
+                _filesList.Add(f);
+            }
+
+            foreach (var d in snapshot.dirs)
+            {
+                _directoryList.Add(d);
+            }
         }
     }
     private void Timer_Tick(object? sender, EventArgs e)

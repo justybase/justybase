@@ -33,7 +33,7 @@
 		<Grid RowDefinitions="Auto,*,Auto">
 			<TextBox x:Name="SearchBox"
 					 Grid.Row="0"
-					 PlaceholderText="Search SQL files…"
+					 PlaceholderText="Search SQL files…  ( :42 go to line · ? help )"
 					 Text="{Binding Query}"
 					 FontSize="16"
 					 MinHeight="36"
@@ -58,22 +58,27 @@
 									   Margin="8,6,8,4"/>
 							<!-- Hit row -->
 							<Grid IsVisible="{Binding !IsHeader}"
-								  ColumnDefinitions="*,Auto"
+								  ColumnDefinitions="Auto,*,Auto"
 								  RowDefinitions="Auto,Auto"
 								  Margin="10,6,10,6"
 								  Background="Transparent">
-								<TextBlock Grid.Row="0" Grid.Column="0"
+								<Image Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+									   Source="avares://JustyBase/Assets/file.png"
+									   Width="16" Height="16"
+									   Margin="0,2,8,0"
+									   VerticalAlignment="Top"/>
+								<TextBlock Grid.Row="0" Grid.Column="1"
 										   Text="{Binding PrimaryText}"
 										   TextTrimming="CharacterEllipsis"
 										   FontSize="14"/>
-								<TextBlock Grid.Row="0" Grid.Column="1"
+								<TextBlock Grid.Row="0" Grid.Column="2"
 										   Text="{Binding SecondaryText}"
 										   Opacity="0.65"
 										   FontSize="12"
 										   Margin="12,0,0,0"
 										   TextTrimming="CharacterEllipsis"
 										   MaxWidth="280"/>
-								<TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+								<TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2"
 										   Text="{Binding Snippet}"
 										   IsVisible="{Binding IsContent}"
 										   Opacity="0.65"

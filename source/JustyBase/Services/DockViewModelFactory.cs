@@ -32,6 +32,9 @@ public sealed class DockViewModelFactory : IDockViewModelFactory
     public FileExplorerViewModel CreateFileExplorerViewModel()
         => _serviceProvider.GetRequiredService<FileExplorerViewModel>();
 
+    public FileSearchViewModel CreateFileSearchViewModel()
+        => _serviceProvider.GetRequiredService<FileSearchViewModel>();
+
     public GitViewModel CreateGitViewModel()
         => _serviceProvider.GetRequiredService<GitViewModel>();
 

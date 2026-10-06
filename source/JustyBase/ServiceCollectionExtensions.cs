@@ -13,6 +13,7 @@ using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services;
 using JustyBase.Services.Ai;
+using JustyBase.Services.Credentials;
 using JustyBase.Services.Docking;
 using JustyBase.Services.DataGrid;
 using JustyBase.Services.Documents;
@@ -66,6 +67,8 @@ public static class ServiceCollectionExtensions
                     }
                 }));
         collection.AddSingleton<INetezzaMaintenanceDialogService, NetezzaMaintenanceDialogService>();
+        collection.AddSingleton<ICredentialSecretStore>(sp =>
+            CredentialSecretStoreFactory.Create(sp.GetRequiredService<HostSimpleLogger>()));
         collection.AddSingleton<IMessageForUserTools, MessageForUserTools>();
         collection.AddSingleton<IDocumentCloseDecisionService, DocumentCloseDecisionService>();
         collection.AddSingleton<IDockViewModelFactory, DockViewModelFactory>();
@@ -77,12 +80,15 @@ public static class ServiceCollectionExtensions
                 sp.GetRequiredService<IMessageForUserTools>(),
                 sp.GetRequiredService<IOtherHelpers>(),
                 sp.GetRequiredService<HostSimpleLogger>(),
-                sp.GetRequiredService<IEncryptionHelper>());
+                sp.GetRequiredService<IEncryptionHelper>(),
+                sp.GetRequiredService<ICredentialSecretStore>());
             generalApplicationDataState.IsReady = true;
             return generalApplicationData;
         });
         collection.AddSingleton<IApplicationUpdateService, ApplicationUpdateService>();
         collection.AddSingleton<IAvaloniaSpecificHelpers, AvaloniaSpecificHelpers>();
+        collection.AddSingleton<Services.FileExplorer.IFileIconProvider, Services.FileExplorer.FileIconProvider>();
+        collection.AddSingleton<Services.Dialogs.IQuickOpenDialogService, Services.Dialogs.QuickOpenDialogService>();
         collection.AddSingleton<IMainWindowActivationService, MainWindowActivationService>();
         collection.AddSingleton<IDockableCleanupService, DockableCleanupService>();
         collection.AddSingleton<IDockDocumentActivationService, DockDocumentActivationService>();
@@ -94,16 +100,24 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IDocumentFontService, DocumentFontService>();
         collection.AddSingleton<IClipboardService, ClipboardService>();
         collection.AddSingleton<ISearchInFiles, SearchInFiles>();
+        collection.AddSingleton<IContentSearchService, ContentSearchService>();
         collection.AddSingleton<AutocompleteService>();
         collection.AddSingleton<ISqlDbWordListProvider>(sp =>
         {
             var generalData = sp.GetRequiredService<IGeneralApplicationData>();
+            var resolver = sp.GetService<IDatabaseServiceResolver>();
             return new DbWordListProvider(
                 sp.GetRequiredService<AutocompleteService>(),
                 connectionName =>
                 {
                     try
                     {
+                        // F1: prefer DI resolver; fall back to static helpers.
+                        if (resolver is not null)
+                        {
+                            return resolver.GetDatabaseService(generalData, connectionName);
+                        }
+
                         return DatabaseServiceHelpers.GetDatabaseService(generalData, connectionName);
                     }
                     catch
@@ -151,6 +165,7 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<SettingsViewModel>();
         collection.AddTransient<MainWindowViewModel>();
         collection.AddTransient<FileExplorerViewModel>();
+        collection.AddTransient<FileSearchViewModel>();
         collection.AddSingleton<JustyBase.Core.Git.IGitService, JustyBase.Core.Git.SystemGitService>();
         collection.AddSingleton<JustyBase.Ai.Git.IGitCommitMessageAiService>(sp =>
         {
@@ -176,6 +191,7 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<SqlResultsViewModel>();
         collection.AddTransient<HistoryViewModel>();
         collection.AddSingleton<AiChatViewModel>();
+        collection.AddSingleton<Services.Ai.IAiChatNavigator, Services.Ai.AiChatNavigator>();
         collection.AddSingleton<IChatSettingsStore, AppOptionsChatSettingsStore>();
         collection.AddSingleton<JustyBase.Ai.Embedded.Settings.IFimSettingsStore, AppOptionsFimSettingsStore>();
         collection.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
@@ -234,6 +250,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IResultGridActionRoutingService, ResultGridActionRoutingService>();
         collection.AddSingleton<IResultGridGroupingService, ResultGridGroupingService>();
         collection.AddSingleton<IResultGridGroupingDragService, ResultGridGroupingDragService>();
+        collection.AddSingleton<IResultGridColumnReorderService, ResultGridColumnReorderService>();
         collection.AddSingleton<IResultGridGroupExpandCollapseService, ResultGridGroupExpandCollapseService>();
 
         collection.AddSingleton<IResultGridSearchService, ResultGridSearchService>();

@@ -132,6 +132,7 @@
 
 
 		<SolidColorBrush x:Key="SystemAccentColorBrush" Color="{DynamicResource SystemAccentColor}" />
+		<x:Double x:Key="NotificationCardWidth">390</x:Double>
 		<SolidColorBrush x:Key="SystemChromeMediumColorBrush" Color="{DynamicResource SystemChromeMediumColor}" />
 		<SolidColorBrush x:Key="SystemAccentColorLight3Brush" Color="{DynamicResource SystemAccentColorLight3}" />
 		<SolidColorBrush x:Key="SystemBaseMediumColorBrush" Color="{DynamicResource SystemBaseMediumColor}" />
@@ -180,6 +181,12 @@
 		<StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.v2.xaml"/>
 		<StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Flat.xaml"/>
 		<StyleInclude Source="avares://LiveMarkdown.Avalonia/Styles.axaml" />
+		<Style Selector="NotificationCard">
+			<Setter Property="MinHeight" Value="88"/>
+			<Setter Property="CornerRadius" Value="8"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="BorderBrush" Value="{DynamicResource DockThemeBorderLowBrush}"/>
+		</Style>
 		<Style Selector="md|MarkdownTextBlock">
 			<Setter Property="FontSize" Value="{DynamicResource ControlContentThemeFontSize}" />
 			<Setter Property="LineHeight" Value="17" />

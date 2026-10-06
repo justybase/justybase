@@ -451,6 +451,16 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         ResultsFromActiveTab(viewModel);
         viewModel.OnActivated();
         NotifyGitActiveDocumentChanged();
+        NotifyOutlineActiveDocumentChanged(viewModel);
+    }
+
+    private void NotifyOutlineActiveDocumentChanged(SqlDocumentViewModel viewModel)
+    {
+        // VS Code Outline always mirrors the active editor, so clicks navigate
+        // the document the user actually sees (not the last attached editor).
+        string sql = viewModel.SqlEditor?.Document?.Text ?? string.Empty;
+        foreach (SqlOutlineViewModel outline in Find(d => d is SqlOutlineViewModel).OfType<SqlOutlineViewModel>())
+            outline.UpdateOutline(sql);
     }
 
     private void NotifyGitActiveDocumentChanged()

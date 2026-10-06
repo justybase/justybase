@@ -35,6 +35,11 @@ public interface IDockViewModelFactory
     FileExplorerViewModel CreateFileExplorerViewModel();
 
     /// <summary>
+    /// Creates a new FileSearchViewModel instance.
+    /// </summary>
+    FileSearchViewModel CreateFileSearchViewModel();
+
+    /// <summary>
     /// Creates a new GitViewModel instance.
     /// </summary>
     GitViewModel CreateGitViewModel();

@@ -8,6 +8,7 @@ using JustyBase.NetezzaSqlParser.Caching;
 using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.NetezzaSqlParser.Visitor;
 using JustyBase.Helpers.Interactions;
+using JustyBase.Services;
 using JustyBase.Themes;
 using JustyBase.ViewModels;
 using JustyBase.Views;
@@ -27,6 +28,13 @@ public class App : Application
         collection.AddCommonServices();
         _services = collection.BuildServiceProvider();
         Program.SetServiceProvider(_services);
+        // F1: bridge for manually-constructed models/services (DbSchemaModel children,
+        // error-handling static path) so they resolve via DI instead of ServiceLocator.
+        // Per-instance ctor params take precedence; this is only a fallback.
+        JustyBase.Models.Tools.DbSchemaModel.ResolverProvider =
+            () => _services.GetService<JustyBase.Services.Documents.IDatabaseServiceResolver>();
+        ProgramErrorHandlingService.ConfigureProvider(
+            () => _services.GetService<IGeneralApplicationData>());
         StartupTrace.Write("App.Initialize service provider built");
         // The SQL template is deliberately non-recycling. Dock's document-content cache keeps
         // one editor view per open SQL tab, preserving its visual state across tab switches.

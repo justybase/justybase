@@ -90,7 +90,10 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
         DockCapabilityHelper.SyncOverridesFromFlags(schemaSearchViewModel);
 
         var fileExplorerViewModel = _viewModelFactory.CreateFileExplorerViewModel();
-        ConfigureDockable(fileExplorerViewModel, "File explorer", "Files");
+        ConfigureDockable(fileExplorerViewModel, "File explorer", "Explorer");
+
+        var fileSearchViewModel = _viewModelFactory.CreateFileSearchViewModel();
+        ConfigureDockable(fileSearchViewModel, "FileSearch", "File Search");
 
         var gitViewModel = _viewModelFactory.CreateGitViewModel();
         ConfigureDockable(gitViewModel, "Git", "Git");
@@ -113,6 +116,7 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
             variablesViewModel,
             schemaSearchViewModel,
             fileExplorerViewModel,
+            fileSearchViewModel,
             gitViewModel,
             logViewModel,
             sessionMonitorViewModel,
@@ -231,6 +235,7 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
                     toolSet.SchemaSearchViewModel,
                     Alignment.Left,
                     toolSet.FileExplorerViewModel,
+                    toolSet.FileSearchViewModel,
                     toolSet.GitViewModel,
                     toolSet.LogViewModel,
                     toolSet.SessionMonitorViewModel))
@@ -287,6 +292,7 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
         VariablesViewModel VariablesViewModel,
         SchemaSearchViewModel SchemaSearchViewModel,
         FileExplorerViewModel FileExplorerViewModel,
+        FileSearchViewModel FileSearchViewModel,
         GitViewModel GitViewModel,
         LogToolViewModel LogViewModel,
         NetezzaSessionMonitorViewModel SessionMonitorViewModel,

@@ -83,7 +83,11 @@ public sealed class ProgramErrorHandlingService : IProgramErrorHandlingService
         ISimpleLogger? simpleLogger,
         IMessageForUserTools? messageForUserTools)
     {
-        generalApplicationData?.SaveConfig();
+        // Never SaveConfig here. This runs on the finalizer thread for background
+        // task failures (e.g. a timed-out connection probe or schema prefetch);
+        // persisting at that moment could overwrite credentials.json.enc with a
+        // transient/partial in-memory state and wipe the user's saved connections.
+        _ = generalApplicationData;
 
         string message = BuildUnobservedTaskExceptionMessage(exception);
         if (ShouldIgnoreUnobservedTaskException(message))
@@ -190,10 +194,25 @@ public sealed class ProgramErrorHandlingService : IProgramErrorHandlingService
         }
     }
 
+    private static Func<IGeneralApplicationData?>? _configProvider;
+
+    /// <summary>
+    /// F1: Allows the composition root to supply config without ServiceLocator.
+    /// Set once from <c>App.Initialize</c>; falls back to ServiceLocator for legacy paths.
+    /// </summary>
+    public static void ConfigureProvider(Func<IGeneralApplicationData?> provider) => _configProvider = provider;
+
     private static bool IsFileLoggingEnabled()
     {
         try
         {
+            // F1: prefer explicit provider; fall back to ServiceLocator for legacy paths.
+            var viaProvider = _configProvider?.Invoke();
+            if (viaProvider is not null)
+            {
+                return viaProvider.Config.EnableFileLogging;
+            }
+
             var config = Program.ServiceProvider?.GetService(typeof(IGeneralApplicationData)) as IGeneralApplicationData;
             return config?.Config.EnableFileLogging == true;
         }

@@ -4,11 +4,15 @@ using Avalonia.Data;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Dock.Model.Core;
+using JustyBase.Common.Contracts;
 using JustyBase.Helpers;
+using JustyBase.Helpers.Interactions;
 using JustyBase.Models.Tools;
 using JustyBase.Services;
+using JustyBase.ViewModels;
 using JustyBase.ViewModels.Documents;
 using JustyBase.ViewModels.Tools;
+using JustyBase.ViewModels.Views;
 using JustyBase.Views.Tools;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -63,33 +67,72 @@ public class ViewLocator : IDataTemplate, IRecyclingDataTemplate
                     var fontService = _services.GetRequiredService<IDocumentFontService>();
                     return new Views.Documents.SettingsView(avaloniaHelpers, fontService);
                 }
+            case DbSchemaModel:
+                return new TextBox
+                {
+                    [!TextBox.TextProperty] = CompiledBindingFactory.OneWay<DbSchemaModel, string>(
+                        nameof(DbSchemaModel.Name),
+                        node => node.Name),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+            case AboutViewModel aboutViewModel:
+                return new Views.About(aboutViewModel);
+            case MainViewModel:
+                return new Views.MainView();
+            case MainWindowViewModel:
+                return new Views.MainWindow(
+                    _services.GetRequiredService<INotificationManagerProvider>(),
+                    _services.GetRequiredService<IMessageForUserTools>(),
+                    _services.GetRequiredService<AboutViewModel>());
+            case NetezzaMaintenanceDialogViewModel viewModel:
+                return new Views.OtherDialogs.NetezzaMaintenanceDialog(viewModel);
+            case NetezzaDistributionChartViewModel viewModel:
+                return new Views.OtherDialogs.NetezzaDistributionChartWindow(viewModel);
+            case SqlParameterViewModel:
+                return new Views.SqlParameterWindow();
+            case GitDiffViewModel:
+                return new Views.OtherDialogs.GitDiffWindow();
+            case FileDiffViewModel:
+                return new Views.OtherDialogs.FileDiffWindow();
+            case QuickOpenViewModel viewModel:
+                return new Views.OtherDialogs.QuickOpenWindow(viewModel);
+            case AskForConfirmViewModel:
+                return new Views.OtherDialogs.AskForConfirm();
+            case SnippetControlViewModel viewModel:
+                return new SnippetControl(viewModel);
+            case DbObjectQuickMenuViewModel:
+                return new Views.ToolTipViews.DbObjectQuickMenu();
+            case GitDiffDocumentViewModel:
+                return new Views.Documents.GitDiffDocumentView();
+            case HistoryViewModel:
+                return new Views.Documents.HistoryView();
+            case EtlViewModel:
+                return new Views.Documents.EtlView();
+            case ImportViewModel:
+                return new Views.Documents.ImportView();
+            case GitViewModel:
+                return new GitView();
+            case FileExplorerViewModel:
+                return new FileExplorerView();
+            case FileSearchViewModel:
+                return new FileSearchView();
+            case LogToolViewModel:
+                return new LogToolView();
+            case NetezzaSessionMonitorViewModel:
+                return new NetezzaSessionMonitorView();
+            case SchemaSearchViewModel:
+                return new SchemaSearchView();
+            case SqlDiagnosticsViewModel:
+                return new SqlDiagnosticsView();
+            case SqlOutlineViewModel:
+                return new SqlOutlineView();
+            case SqlResultsFastViewModel:
+                return new SqlResultsFastView();
+            case VariablesViewModel:
+                return new VariablesView();
         }
 
-        var name = dataViewModel.GetType().FullName?.Replace("ViewModel", "View");
-        if (name is null)
-        {
-            return new TextBlock { Text = "Invalid Data Type" };
-        }
-
-        var type = Type.GetType(name);
-        if (type is null) return new TextBlock { Text = "Not Found: " + name };
-        object? instance = Activator.CreateInstance(type);
-        if (instance is DbSchemaModel)
-        {
-            return new TextBox
-            {
-                [!TextBox.TextProperty] = CompiledBindingFactory.OneWay<DbSchemaModel, string>(
-                    nameof(DbSchemaModel.Name),
-                    node => node.Name),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-        }
-
-        if (instance is not null)
-        {
-            return (Control)instance;
-        }
-        return new TextBlock { Text = "Create Instance Failed: " + type.FullName };
+        return new TextBlock { Text = "No view registered for " + dataViewModel.GetType().FullName };
     }
 
     private static Control? TryReturnRecycledControl(Control recycledInstance, Control? existing)

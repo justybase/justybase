@@ -25,6 +25,8 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly ISqlDocumentUiServices _sqlDocumentUiServices;
     private readonly IApplicationUpdateService _applicationUpdateService;
+    private readonly Services.Dialogs.IQuickOpenDialogService? _quickOpenDialogs;
+    private readonly JustyBase.Ai.Ports.IUiDispatcher? _uiDispatcher;
     private int _automaticUpdateCheckStarted;
 
     [ObservableProperty]
@@ -117,6 +119,16 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void FocusFilesSearch()
+    {
+        _dockFactory?.ShowToolPanel("FileSearch");
+        var search = _dockFactory?.Find(d => d is FileSearchViewModel)
+            .OfType<FileSearchViewModel>()
+            .FirstOrDefault();
+        search?.RequestSearchFocus();
+    }
+
+    [RelayCommand]
     private void ShowHistory()
     {
         _dockFactory?.AddHistoryDocument();
@@ -180,6 +192,7 @@ public partial class MainWindowViewModel : ObservableObject
         IsVariablesPanelVisible = _dockFactory.IsToolPanelVisible("Variables");
         IsSchemaSearchPanelVisible = _dockFactory.IsToolPanelVisible("schemaSearch");
         IsFilesPanelVisible = _dockFactory.IsToolPanelVisible("File explorer");
+        IsFileSearchPanelVisible = _dockFactory.IsToolPanelVisible("FileSearch");
         IsGitPanelVisible = _dockFactory.IsToolPanelVisible("Git");
         IsLogPanelVisible = _dockFactory.IsToolPanelVisible("LogTool");
         IsNzSessionsPanelVisible = _dockFactory.IsToolPanelVisible("NetezzaSessionMonitor");
@@ -203,6 +216,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool IsFilesPanelVisible { get; set; } = true;
+
+    [ObservableProperty]
+    public partial bool IsFileSearchPanelVisible { get; set; } = true;
 
     [ObservableProperty]
     public partial bool IsGitPanelVisible { get; set; } = true;
@@ -316,36 +332,28 @@ public partial class MainWindowViewModel : ObservableObject
 
             var candidates = await searchService.CollectCandidatesAsync(roots, knownFiles, gitRepo, openDocs);
 
-            Window owner = _avaloniaSpecificHelpers.GetMainWindow();
-            QuickOpenHit? accepted = null;
-            bool completed = false;
-            QuickOpenWindow? dialog = null;
-            var vm = new QuickOpenViewModel(
-                searchService,
-                candidates,
-                TimeSpan.FromSeconds(10),
-                closeCancel: () =>
+            // VS Code preselects the current editor selection in Ctrl+P.
+            string? initialQuery = null;
+            string? selected = _dockFactory.ActiveSqlDocumentViewModel?.SqlEditor?.SelectedText;
+            if (!string.IsNullOrWhiteSpace(selected))
+            {
+                string firstLine = selected.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? "";
+                if (firstLine.Length is >= 1 and <= 60)
                 {
-                    if (completed)
-                        return;
-                    completed = true;
-                    dialog?.Close(null);
-                },
-                closeAccept: hit =>
-                {
-                    if (completed)
-                        return;
-                    completed = true;
-                    accepted = hit;
-                    if (dialog is not null)
-                    {
-                        dialog.IsAccepting = true;
-                        dialog.Close(hit);
-                    }
-                });
+                    initialQuery = firstLine;
+                }
+            }
 
-            dialog = new QuickOpenWindow(vm);
-            await dialog.ShowDialog(owner);
+            // F1: prefer dialog service (no Window in VM); legacy inline path for designer/tests.
+            QuickOpenHit? accepted;
+            if (_quickOpenDialogs is not null)
+            {
+                accepted = await _quickOpenDialogs.ShowAsync(candidates, initialQuery, GotoQuickOpenLine);
+            }
+            else
+            {
+                accepted = await ShowQuickOpenLegacyAsync(searchService, candidates, initialQuery);
+            }
 
             if (accepted is null)
                 return;
@@ -353,24 +361,78 @@ public partial class MainWindowViewModel : ObservableObject
             // Dialog teardown restores focus to the previous control and can undo dock activation
             // (same reason AddNewDocumentFromFile posts activation at Input priority).
             QuickOpenHit hitToOpen = accepted;
-            Dispatcher.UIThread.Post(() =>
+            if (_uiDispatcher is not null)
             {
-                try
-                {
-                    OpenQuickOpenHit(hitToOpen);
-                }
-                catch (Exception ex)
-                {
-                    Trace.WriteLine($"Quick Open open-hit failed: {ex}");
-                    _messageForUserTools.ShowSimpleMessageBoxInstance(ex);
-                }
-            }, DispatcherPriority.Input);
+                await _uiDispatcher.InvokeAsync(() => OpenQuickOpenHitSafe(hitToOpen));
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() => OpenQuickOpenHitSafe(hitToOpen), DispatcherPriority.Input);
+            }
         }
         catch (Exception ex)
         {
             Trace.WriteLine($"Quick Open failed: {ex}");
             _messageForUserTools.ShowSimpleMessageBoxInstance(ex);
         }
+    }
+
+    private void OpenQuickOpenHitSafe(QuickOpenHit hit)
+    {
+        try
+        {
+            OpenQuickOpenHit(hit);
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"Quick Open open-hit failed: {ex}");
+            _messageForUserTools.ShowSimpleMessageBoxInstance(ex);
+        }
+    }
+
+    /// <summary>
+    /// F1 legacy fallback: inline QuickOpen window (kept for designer/tests without DI).
+    /// New code path uses <see cref="Services.Dialogs.IQuickOpenDialogService"/>.
+    /// </summary>
+    private async Task<QuickOpenHit?> ShowQuickOpenLegacyAsync(
+        QuickOpenSearchService searchService,
+        IReadOnlyList<QuickOpenCandidate> candidates,
+        string? initialQuery)
+    {
+        Window owner = _avaloniaSpecificHelpers.GetMainWindow();
+        QuickOpenHit? accepted = null;
+        bool completed = false;
+        QuickOpenWindow? dialog = null;
+
+        var vm = new QuickOpenViewModel(
+            searchService,
+            candidates,
+            TimeSpan.FromSeconds(10),
+            closeCancel: () =>
+            {
+                if (completed)
+                    return;
+                completed = true;
+                dialog?.Close(null);
+            },
+            closeAccept: hit =>
+            {
+                if (completed)
+                    return;
+                completed = true;
+                accepted = hit;
+                if (dialog is not null)
+                {
+                    dialog.IsAccepting = true;
+                    dialog.Close(hit);
+                }
+            },
+            initialQuery: initialQuery,
+            gotoLine: GotoQuickOpenLine);
+
+        dialog = new QuickOpenWindow(vm);
+        await dialog.ShowDialog(owner);
+        return accepted;
     }
 
     private void OpenQuickOpenHit(QuickOpenHit hit)
@@ -417,6 +479,30 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private void GotoQuickOpenLine(int lineNumber1Based)
+    {
+        var document = _dockFactory.ActiveSqlDocumentViewModel;
+        var editor = document?.SqlEditor;
+        if (document is null || editor?.Document is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _dockFactory.FocusSqlDocument(document);
+            int lineNumber = Math.Clamp(lineNumber1Based, 1, editor.Document.LineCount);
+            DocumentLine line = editor.Document.GetLineByNumber(lineNumber);
+            editor.Select(line.Offset, 0);
+            editor.TextArea.Caret.BringCaretToView();
+            editor.Focus();
+        }
+        catch (Exception ex)
+        {
+            Trace.WriteLine($"Quick Open go-to-line failed: {ex}");
+        }
+    }
+
     private static void NavigateEditorToMatch(
         SqlDocumentViewModel document,
         int lineNumber1Based,
@@ -445,7 +531,9 @@ public partial class MainWindowViewModel : ObservableObject
         IDockableCleanupService dockableCleanupService,
         IMessageForUserTools messageForUserTools,
         ISqlDocumentUiServices sqlDocumentUiServices,
-        IApplicationUpdateService applicationUpdateService)
+        IApplicationUpdateService applicationUpdateService,
+        Services.Dialogs.IQuickOpenDialogService? quickOpenDialogs = null,
+        JustyBase.Ai.Ports.IUiDispatcher? uiDispatcher = null)
     {
         _dockFactory = dockFactory;
         _avaloniaSpecificHelpers = avaloniaSpecificHelpers;
@@ -455,6 +543,8 @@ public partial class MainWindowViewModel : ObservableObject
         _messageForUserTools = messageForUserTools;
         _sqlDocumentUiServices = sqlDocumentUiServices;
         _applicationUpdateService = applicationUpdateService;
+        _quickOpenDialogs = quickOpenDialogs;
+        _uiDispatcher = uiDispatcher;
 
         CharAtMessage = "";
         ConfigureDockFactoryBindings();
@@ -513,6 +603,40 @@ public partial class MainWindowViewModel : ObservableObject
         {
             _dockFactory.InitLayout(Layout);
             Dispatcher.UIThread.Post(_dockFactory.ActivateCurrentSqlDocument, DispatcherPriority.Loaded);
+            NotifyKeychainMigrationFallbacks();
+        }
+    }
+
+    /// <summary>
+    /// One-time startup notice when some saved passwords could not move to the
+    /// OS secret store (or could not be read back from it). Connections keep
+    /// working via encrypted-file fallback; this only informs the user.
+    /// Posted through the injected UI dispatcher, per the MVVM separation guard.
+    /// </summary>
+    private void NotifyKeychainMigrationFallbacks()
+    {
+        try
+        {
+            if (_uiDispatcher is null
+                || _generalApplicationData is not GeneralApplicationData data
+                || data.KeychainFallbackCount <= 0)
+            {
+                return;
+            }
+
+            int count = data.KeychainFallbackCount;
+            _ = _uiDispatcher.InvokeAsync(() => _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    $"{count} saved connection(s) could not use the OS secret store, " +
+                    "so their passwords stay in the encrypted credentials file. " +
+                    "Connections keep working; check the log for details.",
+                    "Connection passwords"))
+                .ContinueWith(
+                    static faulted => _ = faulted.Exception,
+                    TaskContinuationOptions.OnlyOnFaulted);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+        {
+            Debug.WriteLine($"Keychain migration notice failed: {ex.Message}");
         }
     }
 

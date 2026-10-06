@@ -203,8 +203,19 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
         double spacerWidth = _summaryScrollService.GetFirstColumnSpacerWidth(ResultDataGrid, _summaryScrollViewer);
 
+        // The grid may not be bound yet (e.g. a search/filter fires before
+        // results load): ItemsSource is then null or not a collection view.
+        // Clear stale summary cells so SuspendGridBinding() (ItemsSource=null)
+        // does not leave the previous result set visible.
+        DataGridCollectionView? collectionView = GridCollectionView;
+        if (collectionView is null)
+        {
+            summaryPanel.Children.Clear();
+            return;
+        }
+
         // Summaries reflect the currently visible rows (filtered collection view).
-        var visibleRows = GridCollectionView.Cast<object>().OfType<TableRow>().ToList();
+        var visibleRows = collectionView.Cast<object>().OfType<TableRow>().ToList();
 
         _summaryRowPresenter.BuildSummaryRow(
             summaryPanel,
@@ -223,7 +234,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
             _summaryRowPresenter.UpdateGroupHeaderSummaries(
                 ResultDataGrid,
                 CurrentResultsTable,
-                GridCollectionView,
+                collectionView,
                 vm.ColumnSummaries);
         }
 
@@ -233,11 +244,19 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
     private int GetGroupCount()
     {
-        return GridCollectionView.Groups?.Count ?? 0;
+        return GridCollectionView?.Groups?.Count ?? 0;
     }
 
 
 
+
+    /// <summary>
+    /// Exposes <see cref="MoveGroup"/> as a delegate property so XAML can bind
+    /// it with a compiled binding (method groups require reflection binding,
+    /// which is not Native AOT compatible).
+    /// </summary>
+    public Action<string, string> MoveGroupAction => _moveGroupAction ??= MoveGroup;
+    private Action<string, string>? _moveGroupAction;
 
     public void MoveGroup(string sourceColName, string targetColName)
     {
@@ -347,7 +366,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
                 return;
             }
 
-            vm.RowsLoadingMessage = $"{GridCollectionView.Count:N0} rows";
+            vm.RowsLoadingMessage = $"{GridCollectionView?.Count ?? 0:N0} rows";
             RefreshSummaryRowWidths();
             vm.RefreshFind();
         }, DispatcherPriority.Background);
@@ -505,10 +524,9 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
                     Header = $"Value {savedI + 1}",
                     MaxWidth = 600,
                     Width = DataGridLength.Auto,
-                    Binding = new Binding($"{nameof(RowDetail.FieldsValues)}[{savedI}]")
-                    {
-                        Mode = BindingMode.OneWay
-                    },
+                    Binding = CompiledBindingFactory.OneWayIndexer<RowDetail>(
+                        savedI,
+                        detail => detail == null || detail.FieldsValues == null || savedI < 0 || savedI >= detail.FieldsValues.Count ? null : detail.FieldsValues[savedI]),
                     IsReadOnly = true,
                     CanUserSort = true,
                     CanUserResize = true
@@ -622,7 +640,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
 
 
-    private DataGridCollectionView GridCollectionView => this.ResultDataGrid.ItemsSource as DataGridCollectionView;
+    private DataGridCollectionView? GridCollectionView => this.ResultDataGrid.ItemsSource as DataGridCollectionView;
 
     private void TriggerSearchTimer()
     {

@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 
 namespace JustyBase.Helpers;
 
@@ -13,7 +14,7 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
     private readonly int _fieldCount;
     private readonly int _rowsCnt;
     private readonly string[] _typeNames;
-    private readonly Type[] _types;
+    private readonly TypeCode[] _typeCodes;
     public DBReaderWithMessagesTable(TableOfSqlResults table, Action<int>? action = null)
     {
         _rows = table.FilteredRows;
@@ -27,14 +28,43 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
             currentRow = _rows[0].Fields;
         }
         _typeNames = new string[_fieldCount];
-        _types = new Type[_fieldCount];
+        _typeCodes = new TypeCode[_fieldCount];
 
         for (int i = 0; i < _fieldCount; i++)
         {
             _typeNames[i] = table.TypeCodes[i].ToString();
-            _types[i] = Type.GetType("System." + _typeNames[i]);
+            _typeCodes[i] = table.TypeCodes[i];
         }
     }
+
+    // The mapping is resolved through the switch (not a cached Type[]) so
+    // the trimmer can statically verify the DAM contract: every arm returns
+    // a statically known typeof(...). The annotation below propagates the
+    // contract to the GetFieldType override (IL2073).
+    [return: DynamicallyAccessedMembers(
+        DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
+    private static Type TypeFromTypeCode(TypeCode typeCode) => typeCode switch
+    {
+        TypeCode.Boolean => typeof(bool),
+        TypeCode.Byte => typeof(byte),
+        TypeCode.Char => typeof(char),
+        TypeCode.DateTime => typeof(DateTime),
+        TypeCode.DBNull => typeof(DBNull),
+        TypeCode.Decimal => typeof(decimal),
+        TypeCode.Double => typeof(double),
+        TypeCode.Int16 => typeof(short),
+        TypeCode.Int32 => typeof(int),
+        TypeCode.Int64 => typeof(long),
+        TypeCode.SByte => typeof(sbyte),
+        TypeCode.Single => typeof(float),
+        TypeCode.String => typeof(string),
+        TypeCode.UInt16 => typeof(ushort),
+        TypeCode.UInt32 => typeof(uint),
+        TypeCode.UInt64 => typeof(ulong),
+        // TypeCode.Empty/Object (and anything unknown) carry heterogeneous
+        // values; object keeps GetFieldType truthful without reflection.
+        _ => typeof(object),
+    };
 
     private int currentRowNum = -1;
     private object[] currentRow;
@@ -103,9 +133,11 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
         return (Double)currentRow[ordinal];
     }
 
+    [return: DynamicallyAccessedMembers(
+        DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
     public override Type GetFieldType(int ordinal)
     {
-        return _types[ordinal];
+        return TypeFromTypeCode(_typeCodes[ordinal]);
     }
 
     public override float GetFloat(int ordinal)

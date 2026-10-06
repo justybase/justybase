@@ -2,6 +2,7 @@ using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using SpreadSheetTasks;
 using System.Data;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace JustyBase.Common.Tools.ImportHelpers;
@@ -167,6 +168,10 @@ public sealed class DataReaderFromExcelReaderAbstract : IDataReader
         return _excelAbstractReader.GetDouble(i);
     }
 
+    // Matches the trim annotation of IDataRecord.GetFieldType (IL2093):
+    // implementations must declare the same DynamicallyAccessedMembers usage.
+    [return: DynamicallyAccessedMembers(
+        DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
     public Type GetFieldType(int i)
     {
         return ImportColumnKindExtensions.GetNativeType(_kinds[i]);

@@ -3,6 +3,7 @@ using Avalonia.Controls.DataGridSearching;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Markup.Xaml.MarkupExtensions.CompiledBindings;
 using JustyBase.Converters;
 using JustyBase.Helpers;
 using JustyBase.Models;
@@ -25,11 +26,10 @@ public static class ResultGridColumnFactory
         var nullConverter = CreateNullValueConverter(table, index);
         valueConverters.Add(nullConverter);
 
-        var cellValueBinding = new Binding($"{nameof(TableRow.Fields)}[{index}]")
-        {
-            Mode = BindingMode.OneWay,
-            Converter = nullConverter
-        };
+        var cellValueBinding = CompiledBindingFactory.OneWayIndexer<TableRow>(
+            index,
+            row => row == null || index < 0 || index >= row.Fields.Length ? null : row.Fields[index],
+            nullConverter);
 
         DataGridBoundColumn col = table.TypeCodes[index] == TypeCode.Boolean
             ? CreateCheckBoxColumn(table, index, headerTemplate, cellValueBinding)
@@ -55,7 +55,7 @@ public static class ResultGridColumnFactory
 
         col.SortMemberPath = fieldsPath;
         col.ColumnKey = $"col{index}";
-        var valueAccessor = new DataGridColumnValueAccessor<TableRow, object>(row => row.Fields[index]);
+        var valueAccessor = new DataGridColumnValueAccessor<TableRow, object>(row => row == null || index < 0 || index >= row.Fields.Length ? null : row.Fields[index]);
         DataGridColumnFilter.SetValueAccessor(col, valueAccessor);
         col.ShowFilterButton = true;
         col.FilterFlyout = new CascadingDistinctValueFilterFlyout
@@ -71,7 +71,7 @@ public static class ResultGridColumnFactory
         TableOfSqlResults table,
         int index,
         FuncDataTemplate<object> headerTemplate,
-        Binding cellValueBinding)
+        CompiledBinding cellValueBinding)
     {
         return new CustomDataGridCheckBoxColumn()
         {
@@ -91,7 +91,7 @@ public static class ResultGridColumnFactory
         TableOfSqlResults table,
         int index,
         FuncDataTemplate<object> headerTemplate,
-        Binding cellValueBinding)
+        CompiledBinding cellValueBinding)
     {
         DataGridBoundColumn col = new CustomDataGridTextColumn()
         {
@@ -151,3 +151,4 @@ public static class ResultGridColumnFactory
             || typeCode == TypeCode.Double || typeCode == TypeCode.Decimal;
     }
 }
+

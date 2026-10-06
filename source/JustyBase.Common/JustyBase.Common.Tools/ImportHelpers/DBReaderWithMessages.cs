@@ -2,6 +2,7 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace JustyBase.Common.Tools.ImportHelpers;
 public sealed class DBReaderWithMessages(DbDataReader dataReader, Action<long>? messageAction = null) : DbDataReader
@@ -79,6 +80,10 @@ public sealed class DBReaderWithMessages(DbDataReader dataReader, Action<long>? 
         return _rdr.GetEnumerator();
     }
 
+    // Matches the trim annotation of DbDataReader.GetFieldType (IL2093):
+    // overrides must declare the same DynamicallyAccessedMembers usage.
+    [return: DynamicallyAccessedMembers(
+        DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
     public override Type GetFieldType(int ordinal)
     {
         return _rdr.GetFieldType(ordinal);

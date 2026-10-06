@@ -914,6 +914,9 @@ public sealed partial class GitViewModel : Tool, IDisposable
                 }
             }).ConfigureAwait(false);
         }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+        }
         catch (Exception ex)
         {
             await ReportErrorAsync(ex.Message).ConfigureAwait(false);

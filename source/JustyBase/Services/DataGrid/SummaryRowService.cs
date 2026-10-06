@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Globalization;
 using Avalonia.Collections;
 using JustyBase.Models;
@@ -22,19 +22,7 @@ public sealed class SummaryRowService : ISummaryRowService
             return string.Empty;
 
         var stats = new TableRowStats(table, rows, columnIndex);
-        var scale = table.GetNumericScale(columnIndex);
-        string format = $"N{(scale <= 0 ? 2 : scale)}";
-
-        return summaryType switch
-        {
-            ColumnSummaryType.Sum => $"Σ {stats.Sum.ToString(format, CultureInfo.CurrentCulture)}",
-            ColumnSummaryType.Count => $"# {stats.NotNullCnt.ToString("N0", CultureInfo.CurrentCulture)}",
-            ColumnSummaryType.Average when stats.NotNullCnt > 0 => $"Ø {(stats.Sum / stats.NotNullCnt).ToString(format, CultureInfo.CurrentCulture)}",
-            ColumnSummaryType.Min when stats.MinOfColumn.HasValue => $"↓ {stats.MinOfColumn.Value.ToString(format, CultureInfo.CurrentCulture)}",
-            ColumnSummaryType.Max when stats.MaxOfColumn.HasValue => $"↑ {stats.MaxOfColumn.Value.ToString(format, CultureInfo.CurrentCulture)}",
-            ColumnSummaryType.Distinct => $"≠ {stats.DistinctCnt.ToString("N0", CultureInfo.CurrentCulture)}",
-            _ => string.Empty
-        };
+        return FormatSummaryValue(stats, summaryType, GetNumberFormat(table, columnIndex));
     }
 
     public string GetAllStatsTooltip(TableOfSqlResults table, int columnIndex)
@@ -51,9 +39,47 @@ public sealed class SummaryRowService : ISummaryRowService
             return string.Empty;
 
         var stats = new TableRowStats(table, rows, columnIndex);
-        var scale = table.GetNumericScale(columnIndex);
-        string format = $"N{(scale <= 0 ? 2 : scale)}";
+        return FormatAllStatsTooltip(stats, GetNumberFormat(table, columnIndex));
+    }
 
+    public (string Value, string Tooltip) CalculateSummaryAndTooltip(
+        TableOfSqlResults table,
+        IReadOnlyList<TableRow> rows,
+        int columnIndex,
+        ColumnSummaryType summaryType)
+    {
+        if (rows == null || rows.Count == 0)
+            return (string.Empty, string.Empty);
+
+        var stats = new TableRowStats(table, rows, columnIndex);
+        var format = GetNumberFormat(table, columnIndex);
+        return (
+            FormatSummaryValue(stats, summaryType, format),
+            FormatAllStatsTooltip(stats, format));
+    }
+
+    private static string GetNumberFormat(TableOfSqlResults table, int columnIndex)
+    {
+        var scale = table.GetNumericScale(columnIndex);
+        return $"N{(scale <= 0 ? 2 : scale)}";
+    }
+
+    private static string FormatSummaryValue(TableRowStats stats, ColumnSummaryType summaryType, string format)
+    {
+        return summaryType switch
+        {
+            ColumnSummaryType.Sum => $"Σ {stats.Sum.ToString(format, CultureInfo.CurrentCulture)}",
+            ColumnSummaryType.Count => $"# {stats.NotNullCnt.ToString("N0", CultureInfo.CurrentCulture)}",
+            ColumnSummaryType.Average when stats.NotNullCnt > 0 => $"Ø {(stats.Sum / stats.NotNullCnt).ToString(format, CultureInfo.CurrentCulture)}",
+            ColumnSummaryType.Min when stats.MinOfColumn.HasValue => $"↓ {stats.MinOfColumn.Value.ToString(format, CultureInfo.CurrentCulture)}",
+            ColumnSummaryType.Max when stats.MaxOfColumn.HasValue => $"↑ {stats.MaxOfColumn.Value.ToString(format, CultureInfo.CurrentCulture)}",
+            ColumnSummaryType.Distinct => $"≠ {stats.DistinctCnt.ToString("N0", CultureInfo.CurrentCulture)}",
+            _ => string.Empty
+        };
+    }
+
+    private static string FormatAllStatsTooltip(TableRowStats stats, string format)
+    {
         var sb = new StringBuilder();
         sb.AppendLine(CultureInfo.CurrentCulture, $"Count: {stats.NotNullCnt:N0}");
         sb.AppendLine(CultureInfo.CurrentCulture, $"Distinct: {stats.DistinctCnt:N0}");

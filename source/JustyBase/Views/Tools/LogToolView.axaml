@@ -22,7 +22,7 @@
 				  CanUserResizeColumns="True"
 				 HeadersVisibility="All"
 				  RowHeight="22"
-				  ToolTip.Tip="{ReflectionBinding $self.SelectedItem.Message}"
+				  ToolTip.Tip="{Binding SelectedLogItem.Message}"
 				  RowDetailsVisibilityMode="VisibleWhenSelected"
 				  SelectedItem="{Binding SelectedLogItem, Mode=TwoWay}">
 			<DataGrid.Columns>

@@ -1,4 +1,4 @@
-using Avalonia.Collections;
+﻿using Avalonia.Collections;
 using JustyBase.Models;
 
 namespace JustyBase.Services.DataGrid;
@@ -19,6 +19,12 @@ public interface ISummaryRowService
     /// Builds a stats tooltip over an explicit row subset.
     /// </summary>
     string GetAllStatsTooltip(TableOfSqlResults table, IReadOnlyList<TableRow> rows, int columnIndex);
+
+    (string Value, string Tooltip) CalculateSummaryAndTooltip(
+        TableOfSqlResults table,
+        IReadOnlyList<TableRow> rows,
+        int columnIndex,
+        ColumnSummaryType summaryType);
 
     string CalculateGroupSummaryText(
         TableOfSqlResults table,

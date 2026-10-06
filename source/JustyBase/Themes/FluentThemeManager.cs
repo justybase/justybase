@@ -109,7 +109,10 @@ public class FluentThemeManager : IThemeManager
         }
     }
 
-    public static bool IsLight => GetgeneralAppData.Config.ThemeNum == 0;
+    // Null-safe: the cached app data exists only after an instance was constructed.
+    // Static theme queries (e.g. grid cell styling, headless tests) must not throw
+    // before that — default to light, consistent with AppOptions.ThemeNum == 0.
+    public static bool IsLight => GetgeneralAppData?.Config?.ThemeNum is not int themeNum || themeNum == 0;
     public static bool IsDark => !IsLight;
 
 

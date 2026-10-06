@@ -57,7 +57,12 @@ public abstract class NetezzaCommonClass : DatabaseService, INetezza
         }
         catch (Exception ex)
         {
-            if (ex.Message?.StartsWith("Failed to establish a connection to ") == false)
+            // Fall back to the driver-level change only when the connection
+            // is still usable: ChangeDatabase itself requires an open
+            // connection, so on a broken/closed one rethrow the ORIGINAL
+            // failure instead of masking it with "Connection must be open".
+            if (ex.Message?.StartsWith("Failed to establish a connection to ") == false
+                && con?.State == ConnectionState.Open)
             {
                 con.ChangeDatabase(databaseName);
             }

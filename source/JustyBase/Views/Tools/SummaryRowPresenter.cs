@@ -1,4 +1,4 @@
-using Avalonia.Collections;
+﻿using Avalonia.Collections;
 using Avalonia.VisualTree;
 using JustyBase.Models;
 using JustyBase.Services.DataGrid;
@@ -58,8 +58,9 @@ public sealed class SummaryRowPresenter
 
             if (columnSummaries.TryGetValue(originalIndex, out var summaryType) && summaryType != ColumnSummaryType.None)
             {
-                value = _summaryRowService.CalculateSummaryValue(table, rows, originalIndex, summaryType);
-                tooltip = _summaryRowService.GetAllStatsTooltip(table, rows, originalIndex);
+                var summary = _summaryRowService.CalculateSummaryAndTooltip(table, rows, originalIndex, summaryType);
+                value = summary.Value;
+                tooltip = summary.Tooltip;
             }
 
             var border = new Border

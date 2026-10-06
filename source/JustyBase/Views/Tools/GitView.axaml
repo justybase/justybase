@@ -29,12 +29,12 @@
     <Style Selector="TreeView.commit-history">
       <Setter Property="Background" Value="Transparent"/>
     </Style>
-    <Style Selector="TreeView.commit-history TreeViewItem">
+    <Style Selector="TreeView.commit-history TreeViewItem" x:DataType="vm:GitCommitItem">
       <Setter Property="Padding" Value="2,0"/>
       <Setter Property="MinHeight" Value="0"/>
       <Setter Property="Margin" Value="0"/>
       <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="IsExpanded" Value="{ReflectionBinding IsExpanded, Mode=TwoWay}"/>
+      <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
     </Style>
   </UserControl.Styles>
   <UserControl.Resources>

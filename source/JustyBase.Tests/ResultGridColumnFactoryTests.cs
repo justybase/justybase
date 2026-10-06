@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
 using Avalonia.Data.Converters;
+using Avalonia.Markup.Xaml.MarkupExtensions.CompiledBindings;
 using JustyBase.Converters;
 using JustyBase.Models;
 using JustyBase.Services.DataGrid;
@@ -28,7 +29,8 @@ public class ResultGridColumnFactoryTests
         var converter = Assert.IsType<NullValueConverter>(Assert.Single(valueConverters));
         Assert.Equal("N3", converter.NumericFormat);
 
-        var binding = Assert.IsType<Binding>(column.Binding);
+        // Cell bindings are compiled (Native AOT compatible), not reflection paths.
+        var binding = Assert.IsType<CompiledBinding>(column.Binding);
         Assert.Same(converter, binding.Converter);
     }
 

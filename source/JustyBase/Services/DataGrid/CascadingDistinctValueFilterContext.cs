@@ -665,11 +665,14 @@ public sealed class CascadingDistinctValueFilterContext : IFilterDistinctValuesC
                 return parsed;
             }
 
-            TypeConverter converter = TypeDescriptor.GetConverter(targetType);
-            if (converter.CanConvertFrom(typeof(string)))
+            // AOT/trim compatible conversion: TypeDescriptor.GetConverter
+            // requires unreferenced code (IL2026) and per-type annotations
+            // (IL2077). Column values are scalars, so an explicit TryParse
+            // cascade covers everything the filter editor can produce.
+            if (TryParseScalar(text, targetType, out object? scalar))
             {
-                value = converter.ConvertFrom(null, CultureInfo.CurrentCulture, text);
-                return value is not null;
+                value = scalar;
+                return true;
             }
 
             value = Convert.ChangeType(text, targetType, CultureInfo.CurrentCulture);
@@ -680,6 +683,38 @@ public sealed class CascadingDistinctValueFilterContext : IFilterDistinctValuesC
             value = null;
             return false;
         }
+    }
+
+    private static bool TryParseScalar(string text, Type targetType, out object? value)
+    {
+        CultureInfo culture = CultureInfo.CurrentCulture;
+        object? parsed = targetType switch
+        {
+            _ when targetType == typeof(bool) && bool.TryParse(text, out bool b) => b,
+            _ when targetType == typeof(char) && char.TryParse(text, out char c) => c,
+            _ when targetType == typeof(byte) && byte.TryParse(text, NumberStyles.Integer, culture, out byte n) => n,
+            _ when targetType == typeof(sbyte) && sbyte.TryParse(text, NumberStyles.Integer, culture, out sbyte n) => n,
+            _ when targetType == typeof(short) && short.TryParse(text, NumberStyles.Integer, culture, out short n) => n,
+            _ when targetType == typeof(ushort) && ushort.TryParse(text, NumberStyles.Integer, culture, out ushort n) => n,
+            _ when targetType == typeof(int) && int.TryParse(text, NumberStyles.Integer, culture, out int n) => n,
+            _ when targetType == typeof(uint) && uint.TryParse(text, NumberStyles.Integer, culture, out uint n) => n,
+            _ when targetType == typeof(long) && long.TryParse(text, NumberStyles.Integer, culture, out long n) => n,
+            _ when targetType == typeof(ulong) && ulong.TryParse(text, NumberStyles.Integer, culture, out ulong n) => n,
+            _ when targetType == typeof(float) && float.TryParse(text, NumberStyles.Float | NumberStyles.AllowThousands, culture, out float n) => n,
+            _ when targetType == typeof(double) && double.TryParse(text, NumberStyles.Float | NumberStyles.AllowThousands, culture, out double n) => n,
+            _ when targetType == typeof(decimal) && decimal.TryParse(text, NumberStyles.Number, culture, out decimal n) => n,
+            _ when targetType == typeof(DateTime) && DateTime.TryParse(text, culture, DateTimeStyles.None, out DateTime dt) => dt,
+            _ when targetType == typeof(DateTimeOffset) && DateTimeOffset.TryParse(text, culture, DateTimeStyles.None, out DateTimeOffset dto) => dto,
+            _ when targetType == typeof(TimeSpan) && TimeSpan.TryParse(text, culture, out TimeSpan ts) => ts,
+            _ when targetType == typeof(Guid) && Guid.TryParse(text, out Guid g) => g,
+            _ when targetType.IsEnum && Enum.TryParse(targetType, text, ignoreCase: true, out object? e) => e,
+            _ => null,
+        };
+
+        // Distinguish "unsupported type" (null sentinel) from a parsed null:
+        // value types never parse to null, so null means no match here.
+        value = parsed;
+        return parsed is not null;
     }
 
     private void CancelAndClose()

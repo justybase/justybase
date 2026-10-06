@@ -10,6 +10,10 @@ namespace JustyBase.Services.Credentials;
 /// Windows Credential Manager backend (advapi32 Cred*W, generic credentials,
 /// persisted per local machine). Never throws: every failure degrades to false
 /// so callers fall back to file storage. No-op on non-Windows platforms.
+/// P/Invoke stays as DllImport on purpose: the source-generated LibraryImport
+/// cannot marshal a non-blittable struct by ref (SYSLIB1051), while classic
+/// DllImport signatures are statically analyzable and therefore already
+/// Native AOT and trim compatible.
 /// </summary>
 internal sealed class WindowsCredentialStore : ICredentialSecretStore
 {
@@ -43,14 +47,27 @@ internal sealed class WindowsCredentialStore : ICredentialSecretStore
                 return false;
             }
 
-            NativeCredential credential = Marshal.PtrToStructure<NativeCredential>(buffer);
-            if (credential.CredentialBlobSize <= 0 || credential.CredentialBlob == IntPtr.Zero)
+            // AOT-safe unmarshalling: Marshal.PtrToStructure<T> cannot marshal
+            // non-blittable structs (string fields) under Native AOT — there is
+            // no runtime marshaller to generate the layout glue. The CREDENTIALW
+            // layout is a stable Windows ABI, so read the two needed fields
+            // directly. Only the blob size and blob pointer are consumed.
+            int blobSizeOffset = IntPtr.Size == 8
+                ? CredentialBlobSizeOffset
+                : CredentialBlobSizeOffsetX86;
+            int blobOffset = IntPtr.Size == 8
+                ? CredentialBlobOffset
+                : CredentialBlobOffsetX86;
+
+            int blobSize = Marshal.ReadInt32(buffer, blobSizeOffset);
+            IntPtr blobPtr = Marshal.ReadIntPtr(buffer, blobOffset);
+            if (blobSize <= 0 || blobPtr == IntPtr.Zero)
             {
                 return false;
             }
 
-            byte[] blob = new byte[credential.CredentialBlobSize];
-            Marshal.Copy(credential.CredentialBlob, blob, 0, blob.Length);
+            byte[] blob = new byte[blobSize];
+            Marshal.Copy(blobPtr, blob, 0, blob.Length);
             secret = Encoding.Unicode.GetString(blob).TrimEnd('\0');
             return true;
         }
@@ -183,6 +200,19 @@ internal sealed class WindowsCredentialStore : ICredentialSecretStore
         public string TargetAlias;
         public string UserName;
     }
+
+    /// <summary>
+    /// Byte offsets of CREDENTIALW fields on 64-bit Windows
+    /// (Flags:0 Type:4 TargetName:8 Comment:16 LastWritten:24
+    /// CredentialBlobSize:32 [+4 padding] CredentialBlob:40 ...).
+    /// Used by the AOT-safe manual reader above; the struct itself is only
+    /// ever passed to CredWriteW, whose DllImport marshaller AOT generates
+    /// statically from the fixed signature.
+    /// </summary>
+    private const int CredentialBlobSizeOffset = 32;
+    private const int CredentialBlobOffset = 40;
+    private const int CredentialBlobSizeOffsetX86 = 24;
+    private const int CredentialBlobOffsetX86 = 28;
 
     [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CredWriteW([In] ref NativeCredential credential, int flags);

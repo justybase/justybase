@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using JustyBase.Models;
 using JustyBase.Services.DataGrid;
 
@@ -58,6 +58,21 @@ public sealed class SummaryRowServiceTests
         Assert.Contains($"Count: {2.ToString("N0", CultureInfo.CurrentCulture)}", tooltip);
         Assert.Contains($"Sum: {9.ToString("N6", CultureInfo.CurrentCulture)}", tooltip);
         Assert.Contains($"Average: {4.5.ToString("N6", CultureInfo.CurrentCulture)}", tooltip);
+    }
+
+    [Fact]
+    public void CalculateSummaryAndTooltip_UsesExplicitRowSubset()
+    {
+        var table = CreateTable([[1], [2], [3], [4], [5]]);
+        IReadOnlyList<TableRow> subset = [table.Rows[3], table.Rows[4]];
+
+        var service = new SummaryRowService();
+
+        var result = service.CalculateSummaryAndTooltip(table, subset, 0, ColumnSummaryType.Sum);
+
+        Assert.Equal($"Σ {9.ToString("N6", CultureInfo.CurrentCulture)}", result.Value);
+        Assert.Contains($"Count: {2.ToString("N0", CultureInfo.CurrentCulture)}", result.Tooltip);
+        Assert.Contains($"Sum: {9.ToString("N6", CultureInfo.CurrentCulture)}", result.Tooltip);
     }
 
     [Fact]

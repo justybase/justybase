@@ -1,4 +1,5 @@
 using Avalonia.Data;
+using JustyBase.Helpers;
 using JustyBase.ViewModels.Documents;
 
 namespace JustyBase.Views.Documents;
@@ -26,10 +27,9 @@ public partial class ImportView : UserControl
             for (var i = 0; i < headers.Length; ++i)
             {
                 int index = i;
-                var bb = new Binding($"[{index}]")
-                {
-                    Mode = BindingMode.OneWay
-                };
+                var bb = CompiledBindingFactory.OneWayIndexer<string[]>(
+                    index,
+                    row => row == null || index < 0 || index >= row.Length ? null : row[index]);
                 DataGridBoundColumn col = new DataGridTextColumn()
                 {
                     Header = headers[index],

@@ -1,4 +1,5 @@
 <UserControl x:Class="JustyBase.Views.Tools.SqlResultsView"
+             x:Name="RootView"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -385,7 +386,7 @@
 								<Interaction.Behaviors>
 									<behaviors:GroupedColumnReorderBehavior 
 										ReorderDataFormat="ReorderColumnName"
-										MoveGroupAction="{ReflectionBinding $parent[UserControl].MoveGroup}" />
+										MoveGroupAction="{Binding #RootView.MoveGroupAction}" />
 								</Interaction.Behaviors>
 								<Border.Styles>
 									<Style Selector="Border">
@@ -459,7 +460,7 @@
 				FilteringModel="{Binding FilteringModel}">
 			<Interaction.Behaviors>
 				<behaviors:SummaryRowSyncBehavior SummaryScrollViewer="{Binding #SummaryScrollViewer}" 
-												  RecalculateAction="{ReflectionBinding $parent[UserControl].RecalculateSummaryValuesAction}"/>
+												  RecalculateAction="{Binding #RootView.RecalculateSummaryValuesAction}"/>
 			</Interaction.Behaviors>
 			<DataGrid.RowHeightEstimator>
 				<CachingRowHeightEstimator />

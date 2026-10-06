@@ -262,7 +262,7 @@
 		<Style Selector="idc|DocumentControl">
 			<Setter Property="HeaderTemplate">
 				<!--DataTemplate DataType="core:IDockable"-->
-				<DataTemplate DataType="vmDoc:DocumentBaseVM">
+				<DataTemplate DataType="vmDoc:DocumentBaseVM" x:DataType="vmDoc:DocumentBaseVM">
 					<StackPanel Orientation="Horizontal">
 						<PathIcon
 							IsVisible="{Binding IsSql}"
@@ -317,7 +317,7 @@
 		</Style>
 		<Style Selector="idc|ToolControl">
 			<Setter Property="HeaderTemplate">
-				<DataTemplate DataType="core:IDockable">
+				<DataTemplate DataType="core:IDockable" x:DataType="core:IDockable">
 					<TextBlock Text="{Binding Title}" Padding="1"/>
 				</DataTemplate>
 			</Setter>

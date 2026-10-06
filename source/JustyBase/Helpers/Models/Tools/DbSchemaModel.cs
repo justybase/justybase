@@ -157,12 +157,16 @@ public sealed partial class DbSchemaModel
                 _childrenLoaded = true;
             });
         }
-        catch
+        catch (Exception ex)
         {
+            // Never swallow schema-load failures silently: in trimmed/AOT
+            // builds the first symptom of an incompatible API is an empty
+            // tree, and without this log entry there is nothing to diagnose.
+            _generalApplicationData.GlobalLoggerObject.TrackError(ex, isCrash: false);
+            _loadChildrenTask = null;
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 _children.Clear();
-                _loadChildrenTask = null;
             });
         }
     }

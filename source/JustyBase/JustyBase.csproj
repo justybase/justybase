@@ -35,6 +35,20 @@
 	    <PublishTrimmed>false</PublishTrimmed>
 	    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
 	</PropertyGroup>
+	<!--
+		Native AOT / trimming: the (Pro)DataGrid control resolves rows, hierarchy
+		expander buttons and cell templates partly through runtime inspection
+		(IL2026 "DataGrid inspects data items via reflection"). Its internals
+		are closed-source, so surgical per-type roots (rd.xml descriptors)
+		cannot be authored reliably. Preserve the whole assembly instead:
+		without this, trimmed builds lose the schema-tree expander buttons
+		entirely. Costs a few MB of native code; no-op for untrimmed builds.
+		NOTE: ProDataGrid.FormulaEngine[.Excel] are deliberately NOT rooted —
+		nothing references them, so they stay fully trimmed.
+	-->
+	<ItemGroup>
+		<TrimmerRootAssembly Include="Avalonia.Controls.DataGrid" />
+	</ItemGroup>
 	<ItemGroup>
 		<AvaloniaResource Include="Assets\**" />
 	</ItemGroup>

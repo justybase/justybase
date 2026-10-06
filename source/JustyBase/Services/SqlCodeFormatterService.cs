@@ -12,15 +12,17 @@ public class SqlCodeFormatterService : ISqlCodeFormatterService
 {
     private readonly AutocompleteService _autocompleteService;
     private readonly IGeneralApplicationData _generalApplicationData;
+    private readonly Documents.IDatabaseServiceResolver? _resolver;
     private IDatabaseService _databaseService;
 
     public string SelectedConnectionName { get; set; }
     public string SelectedDatabase { get; set; }
 
-    public SqlCodeFormatterService(AutocompleteService autocompleteService, IGeneralApplicationData generalApplicationData)
+    public SqlCodeFormatterService(AutocompleteService autocompleteService, IGeneralApplicationData generalApplicationData, Documents.IDatabaseServiceResolver? resolver = null)
     {
         _autocompleteService = autocompleteService;
         _generalApplicationData = generalApplicationData;
+        _resolver = resolver;
     }
 
     public void FormatSql(SqlCodeEditor editor, SqlDialect dialect = SqlDialect.Netezza)
@@ -74,7 +76,10 @@ public class SqlCodeFormatterService : ISqlCodeFormatterService
 
         if (_databaseService is null || _databaseService.Name != SelectedConnectionName)
         {
-            _databaseService = await Task.Run(() => DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, SelectedConnectionName));
+            // F1: prefer DI resolver; fall back to static helpers for legacy paths.
+            _databaseService = _resolver is not null
+                ? await Task.Run(() => _resolver.GetDatabaseService(_generalApplicationData, SelectedConnectionName))
+                : await Task.Run(() => DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, SelectedConnectionName));
             yield return new CompletionDataSql("", "", false, Glyph.None, null);
         }
 

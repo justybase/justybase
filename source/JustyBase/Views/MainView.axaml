@@ -61,12 +61,18 @@
 					          IsChecked="{Binding IsSchemaSearchPanelVisible, Mode=OneWay}"
 					          Command="{Binding ToggleToolPanelCommand}"
 					          CommandParameter="schemaSearch"/>
-					<MenuItem Header="Files"
+					<MenuItem Header="Explorer"
 					          ToggleType="CheckBox"
 					          StaysOpenOnClick="True"
 					          IsChecked="{Binding IsFilesPanelVisible, Mode=OneWay}"
 					          Command="{Binding ToggleToolPanelCommand}"
 					          CommandParameter="File explorer"/>
+					<MenuItem Header="File Search"
+					          ToggleType="CheckBox"
+					          StaysOpenOnClick="True"
+					          IsChecked="{Binding IsFileSearchPanelVisible, Mode=OneWay}"
+					          Command="{Binding ToggleToolPanelCommand}"
+					          CommandParameter="FileSearch"/>
 					<MenuItem Header="Git"
 					          ToggleType="CheckBox"
 					          StaysOpenOnClick="True"

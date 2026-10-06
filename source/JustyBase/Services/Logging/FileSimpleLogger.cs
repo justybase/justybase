@@ -98,6 +98,7 @@ public sealed class FileSimpleLogger : ISimpleLogger, IDisposable
         }
         catch (Exception)
         {
+            // Opening the log in an external editor is best-effort; never surface a failure.
         }
     }
 
@@ -204,6 +205,7 @@ public sealed class FileSimpleLogger : ISimpleLogger, IDisposable
         }
         catch
         {
+            // Never surface a failure to launch notepad.
         }
     }
 

@@ -159,6 +159,7 @@ public sealed partial class NetezzaSessionMonitorViewModel : Tool, IDisposable
         }
         catch (OperationCanceledException)
         {
+            // Refresh loop stopped or the view model was disposed; nothing to report.
         }
     }
 

@@ -45,7 +45,7 @@ public sealed class ResultHelper
             {
                 _simpleLogger.TrackError(ex1, isCrash: false);
                 _generalApplicationData.Config.EncondingName = "UTF-8";
-                _generalApplicationData.SaveConfig();
+                _generalApplicationData.SaveAppConfig();
                 _csvEncoding = AdvancedExportOptions.ParseEnconding(_generalApplicationData.Config.EncondingName);
                 _messageForUserTools.ShowSimpleMessageBoxInstance(ex1);
             };

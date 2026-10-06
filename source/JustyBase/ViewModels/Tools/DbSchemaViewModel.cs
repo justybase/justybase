@@ -174,12 +174,21 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
     {
         var selectedItem = SelectedSchemaItem;
         if (selectedItem is null) return;
-        
+
         bool wasExpanded = selectedItem.IsExpanded;
         selectedItem.IsExpanded = false;
         SchemaEnabled = false;
         selectedItem.ClearChildren();
-        _ = await Task.Run(() => DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, selectedItem.ConnectionName, forceRefresh: true));
+        // F1: prefer DI resolver; fall back to static helpers for legacy paths.
+        if (_databaseServiceResolver is not null)
+        {
+            _ = await Task.Run(() => _databaseServiceResolver.GetDatabaseService(_generalApplicationData, selectedItem.ConnectionName, forceRefresh: true));
+        }
+        else
+        {
+            _ = await Task.Run(() => DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, selectedItem.ConnectionName, forceRefresh: true));
+        }
+
         SchemaEnabled = true;
         selectedItem.IsExpanded = wasExpanded;
     }
@@ -194,7 +203,10 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
 
     public DbSchemaViewModel(Dock.Model.Core.IFactory factory, IClipboardService clipboard, IGeneralApplicationData generalApplicationData,
         ISimpleLogger simpleLogger, IMessageForUserTools messageForUserTools,
-        INetezzaMaintenanceDialogService? netezzaMaintenanceDialogService = null)
+        INetezzaMaintenanceDialogService? netezzaMaintenanceDialogService = null,
+        Services.NetezzaSessionMonitorService? sessionMonitorService = null,
+        IAvaloniaSpecificHelpers? avaloniaHelpers = null,
+        Services.Documents.IDatabaseServiceResolver? databaseServiceResolver = null)
     {
         _clipboardService = clipboard;
         _generalApplicationData = generalApplicationData;
@@ -202,6 +214,9 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
         this.Factory = factory;
         _messageForUserTools = messageForUserTools;
         _netezzaMaintenanceDialogService = netezzaMaintenanceDialogService;
+        _sessionMonitorService = sessionMonitorService;
+        _avaloniaHelpers = avaloniaHelpers;
+        _databaseServiceResolver = databaseServiceResolver;
 
         SharedInit();
         ShowHideHeadersCommand = new RelayCommand(() => ShowHeader = !ShowHeader);
@@ -293,7 +308,7 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
             return;
         }
 
-        var sql = await IDatabaseSchemaItem.GetCode(LastItemConrtextMenuReq, CONNECTION_NAME, optionName, _generalApplicationData, _simpleLogger);
+        var sql = await IDatabaseSchemaItem.GetCode(LastItemConrtextMenuReq, CONNECTION_NAME, optionName, _generalApplicationData, _simpleLogger, _databaseServiceResolver);
 
         if (optionName.EndsWith("CLIP", StringComparison.Ordinal))
         {
@@ -324,7 +339,9 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
                 return;
             }
 
-            var skewService = Program.ServiceProvider?.GetService<NetezzaSessionMonitorService>();
+            // F1: prefer injected monitor; fall back to ServiceLocator for legacy paths.
+            var skewService = _sessionMonitorService
+                ?? Program.ServiceProvider?.GetService<NetezzaSessionMonitorService>();
             if (skewService is null)
             {
                 _messageForUserTools.ShowSimpleMessageBoxInstance("Session/skew service is not available.", "Error");
@@ -337,11 +354,14 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
                 item.CurrentSchema,
                 item.Name);
 
+            // F1: prefer injected window helpers; fall back to ServiceLocator.
+            var windowHelpers = _avaloniaHelpers
+                ?? Program.ServiceProvider?.GetService<IAvaloniaSpecificHelpers>();
             _messageForUserTools.DispatcherActionInstance(async () =>
             {
                 var vm = new NetezzaDistributionChartViewModel(result);
                 var window = new global::JustyBase.Views.OtherDialogs.NetezzaDistributionChartWindow(vm);
-                var helpers = Program.ServiceProvider?.GetService<IAvaloniaSpecificHelpers>();
+                var helpers = windowHelpers;
                 if (helpers is not null)
                 {
                     await window.ShowDialog(helpers.GetMainWindow());

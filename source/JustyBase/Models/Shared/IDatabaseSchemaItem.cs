@@ -38,13 +38,15 @@ internal interface IDatabaseSchemaItem
         editor.Focus();
     }
 
-    internal static async Task<string> GetCode(IDatabaseSchemaItem schemaModel, string CONNECTION_NAME, string optionName, IGeneralApplicationData generalApplicationData, ISimpleLogger simpleLogger)
+    internal static async Task<string> GetCode(IDatabaseSchemaItem schemaModel, string CONNECTION_NAME, string optionName, IGeneralApplicationData generalApplicationData, ISimpleLogger simpleLogger, Services.Documents.IDatabaseServiceResolver? resolver = null)
     {
         string DATABASE = schemaModel.Database;
         string SCHEMA = schemaModel.CurrentSchema;
         string ITEM_NAME = schemaModel.Name;
         IDatabaseService dbService = await Task.Run(() =>
-            DatabaseServiceHelpers.GetDatabaseService(generalApplicationData, CONNECTION_NAME));
+            resolver is not null
+                ? resolver.GetDatabaseService(generalApplicationData, CONNECTION_NAME)
+                : DatabaseServiceHelpers.GetDatabaseService(generalApplicationData, CONNECTION_NAME));
         if (dbService is null)
         {
             return string.Empty;

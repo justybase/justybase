@@ -71,7 +71,7 @@ public sealed class ApplicationUpdateService : IApplicationUpdateService, IDispo
             }
 
             _generalApplicationData.Config.LastUpdateCheckUtc = now;
-            _generalApplicationData.SaveConfig();
+            _generalApplicationData.SaveAppConfig();
 
             VelopackAsset? pending = updateManager.UpdatePendingRestart;
             if (pending is not null)

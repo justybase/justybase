@@ -236,7 +236,9 @@ public sealed partial class SchemaSearchViewModel
         }
         catch (System.Text.RegularExpressions.RegexParseException)
         {
-
+            // Invalid pattern: report no matches until the user corrects the expression,
+            // instead of silently reusing the stale regex from the previous search.
+            RxWholeWorld = NeverMatchRegex;
         }
     }
 
@@ -244,6 +246,8 @@ public sealed partial class SchemaSearchViewModel
     public partial bool GridEnabled { get; set; }
 
     private StringComparison _currentStringComparation = StringComparison.OrdinalIgnoreCase;
+
+    private static readonly Regex NeverMatchRegex = new("(?!)", RegexOptions.None);
 
     public Regex RxWholeWorld { get; private set; }
 

@@ -55,13 +55,15 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
 
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly LogToolViewModel _logToolViewModel;
+    private readonly Services.Documents.IDatabaseServiceResolver? _resolver;
     private ObservableCollection<SchemaSearchItem> _allItems;
     public SchemaSearchViewModel(IFactory factory, IGeneralApplicationData generalApplicationData, IMessageForUserTools messageForUserTools,
-        LogToolViewModel logToolViewModel)
+        LogToolViewModel logToolViewModel, Services.Documents.IDatabaseServiceResolver? resolver = null)
     {
         _generalApplicationData = generalApplicationData;
         _messageForUserTools = messageForUserTools;
         _logToolViewModel = logToolViewModel;
+        _resolver = resolver;
         this.Factory = factory;
 
         SchemaSearchItemCollections = new ObservableCollection<SchemaSearchItem>();
@@ -146,7 +148,10 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
         {
             if (_generalApplicationData.LoginDataDic.ContainsKey(ConnectionName))
             {
-                _service = await Task.Run(() => DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, ConnectionName));
+                // F1: prefer DI resolver; fall back to static helpers for legacy paths.
+                _service = _resolver is not null
+                    ? await Task.Run(() => _resolver.GetDatabaseService(_generalApplicationData, ConnectionName))
+                    : await Task.Run(() => DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, ConnectionName));
                 if (_service is not null)
                 {
                     var newAllItems = await Task.Run(async () =>

@@ -54,6 +54,7 @@
 		<KeyBinding Gesture="Ctrl+T" Command="{Binding OpenNewTabCommand}"/>
 		<KeyBinding Gesture="Ctrl+O" Command="{Binding OpenFileCommand}"/>
 		<KeyBinding Gesture="Ctrl+P" Command="{Binding ShowQuickOpenCommand}"/>
+		<KeyBinding Gesture="Ctrl+Shift+F" Command="{Binding FocusFilesSearchCommand}"/>
 		<KeyBinding Gesture="Ctrl+S" Command="{Binding SaveActiveDocumentCommand}" CommandParameter="Save"/>
 		<KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveActiveDocumentCommand}" CommandParameter="SaveAs"/>
 		<KeyBinding Gesture="Ctrl+Tab" Command="{Binding ChangeActiveTabCommand}" CommandParameter="+"/>

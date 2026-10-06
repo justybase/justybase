@@ -176,7 +176,8 @@ public sealed class DockResultRoutingServiceTests
             messageForUserTools,
             ISimpleLogger.EmptyLogger,
             Mock.Of<IResultGridActionRoutingService>(),
-            Mock.Of<IActiveDocumentManager>());
+            Mock.Of<IActiveDocumentManager>(),
+            new DataGridClipboardService());
     }
 
     private static SqlDocumentViewModel CreateSqlDocumentViewModel(string documentId, string title)

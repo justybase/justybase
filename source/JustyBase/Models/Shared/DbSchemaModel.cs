@@ -38,7 +38,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
         switch (ActualTypeInDatabase)
         {
             case TypeInDatabaseEnum.Connection:
-                var service = DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, Name);
+                var service = ResolveService(Name);
                 if (service is null)
                 {
                     break;
@@ -51,7 +51,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                 }
                 break;
             case TypeInDatabaseEnum.dbase:
-                var schemaService = DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, ConnectionName);
+                var schemaService = ResolveService(ConnectionName);
                 if (schemaService is null)
                 {
                     break;
@@ -218,7 +218,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                 {
                     name = Parent?.Parent?.Name;
                 }
-                var columnDetailsService = DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, Parent?.ConnectionName);
+                var columnDetailsService = ResolveService(Parent?.ConnectionName);
                 if (columnDetailsService is null)
                 {
                     break;
@@ -246,7 +246,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                 }
                 break;
             case TypeInDatabaseEnum.distributionColumns:
-                var nzService = (DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, ConnectionName) as INetezza);
+                var nzService = (ResolveService(ConnectionName) as INetezza);
                 if (nzService is not null)
                 {
                     if (nzService.DistributionDictionary.TryGetValue(Database, out var dc0) &&
@@ -261,7 +261,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                 }
                 break;
             case TypeInDatabaseEnum.organizeColumns:
-                var nzService1 = (DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, ConnectionName) as INetezza);
+                var nzService1 = (ResolveService(ConnectionName) as INetezza);
                 if (nzService1 is not null)
                 {
                     if (nzService1.OrganizeDictionary.TryGetValue(Database, out var dc0) &&
@@ -276,7 +276,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                 }
                 break;
             case TypeInDatabaseEnum.references:
-                var nzService2 = (DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, ConnectionName) as INetezza);
+                var nzService2 = (ResolveService(ConnectionName) as INetezza);
                 if (nzService2 is not null)
                 {
                     if (nzService2.KeysDictionary.TryGetValue(Database, out var dict1) && dict1.TryGetValue(CurrentSchema, out var dict2)
@@ -334,7 +334,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
         TypeInDatabaseEnum columnType,
         bool includeDesc = false)
     {
-        var service = DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, ConnectionName);
+        var service = ResolveService(ConnectionName);
         if (service is null)
         {
             return;
@@ -370,7 +370,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
         string? relatedToParentTableName = null)
     {
         var resolvedChildType = childType ?? queryType;
-        var service = DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, ConnectionName);
+        var service = ResolveService(ConnectionName);
         if (service is null)
         {
             return;

@@ -74,14 +74,15 @@ public sealed class SnippetEditorServiceTests
         public string DownloadPluginsBasePath => throw new NotImplementedException();
         public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server, string? port = null) => throw new NotImplementedException();
         public bool DeleteFromLoginData(string name) => throw new NotImplementedException();
+        public void SetAccessOptions(string name, AccessConnectionOptions? options) => throw new NotImplementedException();
+        public void SaveAppConfig() => throw new NotImplementedException();
         public void SaveConfig() => throw new NotImplementedException();
         public void SaveCredentials() => throw new NotImplementedException();
         public string GetCurrentCopyVersion() => throw new NotImplementedException();
 
         // IDatabaseInfo
-        public Task LoadPluginsIfNeeded(Action? uiAction) => throw new NotImplementedException();
         public ISimpleLogger GlobalLoggerObject => ISimpleLogger.EmptyLogger;
-        public Dictionary<string, LoginDataModel> LoginDataDic => throw new NotImplementedException();
+        public IReadOnlyDictionary<string, LoginDataModel> LoginDataDic => throw new NotImplementedException();
         public string GetDataDir() => throw new NotImplementedException();
 
         // ISomeEditorOptions

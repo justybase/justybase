@@ -46,7 +46,24 @@ public partial class VariablesViewModel : Tool, IDisposable
 
     public void RemoveSelectedVariable()
     {
+        if (SelectedVariable is null) return;
         RemoveVariable(SelectedVariable);
+        UpdateVariablesCompletition();
+    }
+
+    public void AddNewVariable()
+    {
+        var suffix = 1;
+        var name = "newVar";
+        while (VariableList.Any(item => item.VariableName.Equals($"&{name}", StringComparison.OrdinalIgnoreCase)))
+            name = $"newVar{++suffix}";
+        AddVariableFromEditorOrByPlus(name, "0");
+        SelectedVariable = VariableList.First(item => item.VariableName.Equals($"&{name}", StringComparison.OrdinalIgnoreCase));
+    }
+
+    public void RefreshVariables()
+    {
+        RefreshAllVariables();
         UpdateVariablesCompletition();
     }
 
@@ -72,7 +89,8 @@ public partial class VariablesViewModel : Tool, IDisposable
 
     public void DataGridDoubleClicked()
     {
-        _activeDocumentManager.InsertTextToActiveDocument(SelectedVariable.VariableName, true);
+        if (SelectedVariable is not null)
+            _activeDocumentManager.InsertTextToActiveDocument(SelectedVariable.VariableName, true);
     }
 
     public void AddVariableFromEditorOrByPlus(string variableName, string variableValue)

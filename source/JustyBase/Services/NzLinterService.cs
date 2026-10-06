@@ -28,6 +28,7 @@ public sealed class NzLinterService : IDisposable
     private readonly DocumentParsingCoordinator _parsingCoordinator;
     private LintEngine _lintEngine;
     private readonly IDatabaseServiceResolver _databaseServiceResolver;
+    private readonly IGeneralApplicationData? _generalApplicationData;
     private SqlCodeEditor? _attachedEditor;
     private CancellationTokenSource? _currentCts;
     private CancellationTokenSource? _schemaSyncCts;
@@ -52,10 +53,12 @@ public sealed class NzLinterService : IDisposable
         InMemorySchemaProvider? schemaProvider = null,
         DocumentParsingCoordinator? parsingCoordinator = null,
         SqlOutlineViewModel? outlineVm = null,
-        LiveMetadataSchemaProvider? liveMetadata = null)
+        LiveMetadataSchemaProvider? liveMetadata = null,
+        IGeneralApplicationData? generalApplicationData = null)
     {
         _diagnosticsVm = diagnosticsVm;
         _databaseServiceResolver = databaseServiceResolver;
+        _generalApplicationData = generalApplicationData;
         _outlineVm = outlineVm;
         _liveMetadata = liveMetadata;
         _schemaProvider = schemaProvider;
@@ -181,8 +184,12 @@ public sealed class NzLinterService : IDisposable
                 : documentUri;
         }
         if (oldEditor is not null)
+        {
             oldEditor.TextChanged -= OnTextChanged;
+            TryUnsubscribeCaret(oldEditor);
+        }
         editor.TextChanged += OnTextChanged;
+        editor.TextArea.Caret.PositionChanged += OnCaretPositionChanged;
         _schemaSynced = false;
         EnsureEngineForDialect(dialect);
         _parsingCoordinator.GetOrCreate(_documentUri, dialect);
@@ -271,6 +278,9 @@ public sealed class NzLinterService : IDisposable
     /// </summary>
     public void ApplyLintSeveritySettings(JustyBase.Common.AppOptions? options = null)
     {
+        // F1: prefer injected config; fall back to ServiceLocator only for
+        // legacy manual constructions (tests) until all call sites pass options.
+        options ??= _generalApplicationData?.Config;
         options ??= Program.ServiceProvider?.GetService<IGeneralApplicationData>()?.Config;
         if (options is null) return;
 
@@ -926,6 +936,35 @@ public sealed class NzLinterService : IDisposable
                && !cancellationToken.IsCancellationRequested;
     }
 
+    private void OnCaretPositionChanged(object? sender, EventArgs e)
+    {
+        // VS Code "follow cursor": highlight the outline symbol under the caret.
+        // Runs on the UI thread; the item scan is over a handful of entries.
+        SqlOutlineViewModel? outline;
+        int offset;
+        lock (_lock)
+        {
+            outline = _outlineVm;
+            offset = _attachedEditor?.CaretOffset ?? -1;
+        }
+
+        if (outline is not null && offset >= 0)
+            outline.FollowCaret(offset);
+    }
+
+    private void TryUnsubscribeCaret(SqlCodeEditor editor)
+    {
+        try
+        {
+            if (editor.TextArea?.Caret is not null)
+                editor.TextArea.Caret.PositionChanged -= OnCaretPositionChanged;
+        }
+        catch
+        {
+            // Best effort: the editor may already be torn down.
+        }
+    }
+
     public void Dispose()
     {
         lock (_lock)
@@ -944,7 +983,10 @@ public sealed class NzLinterService : IDisposable
             _schemaSyncCts = null;
 
             if (_attachedEditor is not null)
+            {
                 _attachedEditor.TextChanged -= OnTextChanged;
+                TryUnsubscribeCaret(_attachedEditor);
+            }
             _attachedEditor = null;
 
             _lintEngine.Dispose();

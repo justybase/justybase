@@ -8,13 +8,21 @@
              mc:Ignorable="d"
              d:DesignWidth="300" d:DesignHeight="400"
              x:DataType="vm:VariablesViewModel">
-  <Grid Focusable="True">
-	  <DataGrid Name="variablesDataGrid" 
+  <Grid Focusable="True" RowDefinitions="Auto,*">
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto,Auto" Margin="8,5,5,4" ColumnSpacing="3">
+          <TextBlock Text="VARIABLES" FontWeight="SemiBold" FontSize="11" Opacity="0.7" VerticalAlignment="Center"/>
+          <Button Grid.Column="1" Content="+" Padding="6,1" Click="Add_Click" ToolTip.Tip="Add variable"/>
+          <Button Grid.Column="2" Content="−" Padding="6,1" Click="Remove_Click" ToolTip.Tip="Remove selected variable"/>
+          <Button Grid.Column="3" Content="↻" Padding="6,1" Click="Refresh_Click" ToolTip.Tip="Refresh values"/>
+      </Grid>
+	  <DataGrid Name="variablesDataGrid" Grid.Row="1"
 				AutoGenerateColumns="False"
 				CanUserResizeColumns="True"
 			    ItemsSource="{Binding VariableList}"
 				SelectedItem="{Binding SelectedVariable}"
-			    RowHeight="22"
+			    RowHeight="24"
+			    HeadersVisibility="Column"
+			    GridLinesVisibility="Horizontal"
 				ToolTip.Tip="'delete'/'+' key to remove/add new variable"
 				KeyDown="VariablesDataGrid_KeyDown"
 				DoubleTapped="VariablesDataGrid_DoubleTapped">
@@ -22,7 +30,10 @@
 			  <DataGridTemplateColumn Header="Variable" IsReadOnly="False" Width="Auto" >
 				  <DataGridTemplateColumn.CellTemplate>
 					  <DataTemplate DataType="m:VariableModel">
-						  <TextBlock Text="{Binding VariableName}" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="3 0" Padding="2"/>
+                          <StackPanel Orientation="Horizontal" Spacing="5" Margin="5,0">
+                              <TextBlock Text="◇" Foreground="{DynamicResource SystemAccentColorBrush}"/>
+                              <TextBlock Text="{Binding VariableName}" FontFamily="Consolas" FontSize="12" VerticalAlignment="Center"/>
+                          </StackPanel>
 					  </DataTemplate>
 				  </DataGridTemplateColumn.CellTemplate>
 				  <DataGridTemplateColumn.CellEditingTemplate>
@@ -38,7 +49,8 @@
 			  <DataGridTemplateColumn Header="Value" IsReadOnly="False" Width="*" >
 				  <DataGridTemplateColumn.CellTemplate>
 					  <DataTemplate DataType="m:VariableModel">
-						  <TextBlock Text="{Binding VariableComputedValue}" VerticalAlignment="Center" HorizontalAlignment="Left" />
+						  <TextBlock Text="{Binding VariableComputedValue}" VerticalAlignment="Center" HorizontalAlignment="Left"
+                                     FontFamily="Consolas" FontSize="12" Margin="5,0" TextTrimming="CharacterEllipsis"/>
 					  </DataTemplate>
 				  </DataGridTemplateColumn.CellTemplate>
 				  <DataGridTemplateColumn.CellEditingTemplate>

@@ -15,6 +15,9 @@ public sealed partial class DbSchemaViewModel
     private readonly IClipboardService _clipboardService;
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly INetezzaMaintenanceDialogService? _netezzaMaintenanceDialogService;
+    private readonly Services.NetezzaSessionMonitorService? _sessionMonitorService;
+    private readonly IAvaloniaSpecificHelpers? _avaloniaHelpers;
+    private readonly Services.Documents.IDatabaseServiceResolver? _databaseServiceResolver;
 
     public ICommand ContextMenuActionCommand { get; set; }
     public ICommand RefreshTableListCommand { get; set; }
@@ -43,6 +46,15 @@ public sealed partial class DbSchemaViewModel
 
     [ObservableProperty]
     public partial ObservableCollection<Control> MenuItems { get; set; }
+
+    /// <summary>
+    /// F2: UI-free projection of <see cref="MenuItems"/> for future XAML migration
+    /// (ItemsSource + ItemTemplate instead of Controls). Kept in sync by
+    /// <see cref="PrepareContextMenu"/>; currently the view still binds to
+    /// <see cref="MenuItems"/>.
+    /// </summary>
+    [ObservableProperty]
+    public partial ObservableCollection<SchemaMenuItemViewModel> MenuItemViewModels { get; set; } = [];
     private ObservableCollection<Control> MenuItemsForConnections { get; set; }
     private ObservableCollection<Control> MenuItemsForSqliteConnections { get; set; }
     private ObservableCollection<Control> MenuItemsForTableGroup { get; set; }
@@ -139,11 +151,66 @@ public sealed partial class DbSchemaViewModel
                 MenuItems = FallbackMenuItems;
                 break;
         }
+
+        SyncMenuItemViewModels();
+    }
+
+    private void SyncMenuItemViewModels()
+    {
+        var snapshot = new ObservableCollection<SchemaMenuItemViewModel>();
+        if (MenuItems is not null)
+        {
+            foreach (var control in MenuItems)
+            {
+                if (control is MenuItem menuItem)
+                {
+                    if (Equals(menuItem.Header, "-"))
+                    {
+                        snapshot.Add(SchemaMenuItemViewModel.Separator());
+                    }
+                    else if (menuItem.Items.Count > 0)
+                    {
+                        var parent = new SchemaMenuItemViewModel(menuItem.Header?.ToString() ?? string.Empty);
+                        foreach (var child in menuItem.Items.OfType<MenuItem>())
+                        {
+                            parent.Children.Add(Equals(child.Header, "-")
+                                ? SchemaMenuItemViewModel.Separator()
+                                : new SchemaMenuItemViewModel(
+                                    child.Header?.ToString() ?? string.Empty,
+                                    child.Command,
+                                    child.CommandParameter));
+                        }
+
+                        snapshot.Add(parent);
+                    }
+                    else
+                    {
+                        snapshot.Add(new SchemaMenuItemViewModel(
+                            menuItem.Header?.ToString() ?? string.Empty,
+                            menuItem.Command,
+                            menuItem.CommandParameter));
+                    }
+                }
+            }
+        }
+
+        MenuItemViewModels = snapshot;
     }
 
     private ObservableCollection<Control> BuildMenuFromCatalog(TypeInDatabaseEnum type)
     {
-        var items = new ObservableCollection<Control>();
+        // F2: VM-first — build UI-free items, then adapt to Controls for the current XAML
+        // (ContextMenu ItemsSource="{Binding MenuItems}"). New code should bind to
+        // MenuItemViewModels with an ItemTemplate instead.
+        return ToControls(BuildMenuViewModelsFromCatalog(type));
+    }
+
+    /// <summary>
+    /// F2: UI-free menu catalog. No Avalonia types — unit-testable.
+    /// </summary>
+    private List<SchemaMenuItemViewModel> BuildMenuViewModelsFromCatalog(TypeInDatabaseEnum type)
+    {
+        var items = new List<SchemaMenuItemViewModel>();
         foreach (var entry in SchemaContextMenuCatalog.ForType(type))
         {
             var param = SchemaContextMenuCatalog.GetCommandParameter(entry.Kind, type);
@@ -152,12 +219,42 @@ public sealed partial class DbSchemaViewModel
                 continue;
             }
 
-            items.Add(new MenuItem
+            items.Add(new SchemaMenuItemViewModel(entry.Title, ContextMenuActionCommand, param));
+        }
+
+        return items;
+    }
+
+    private ObservableCollection<Control> ToControls(IEnumerable<SchemaMenuItemViewModel> viewModels)
+    {
+        var items = new ObservableCollection<Control>();
+        foreach (var vm in viewModels)
+        {
+            if (vm.IsSeparator)
             {
-                Header = entry.Title,
-                Command = ContextMenuActionCommand,
-                CommandParameter = param
-            });
+                items.Add(new MenuItem { Header = "-" });
+            }
+            else if (vm.HasChildren)
+            {
+                var parent = new MenuItem { Header = vm.Header };
+                foreach (var child in vm.Children)
+                {
+                    parent.Items.Add(child.IsSeparator
+                        ? new MenuItem { Header = "-" }
+                        : new MenuItem { Header = child.Header, Command = child.Command, CommandParameter = child.CommandParameter });
+                }
+
+                items.Add(parent);
+            }
+            else
+            {
+                items.Add(new MenuItem
+                {
+                    Header = vm.Header,
+                    Command = vm.Command,
+                    CommandParameter = vm.CommandParameter
+                });
+            }
         }
 
         return items;
@@ -302,6 +399,7 @@ public sealed partial class DbSchemaViewModel
         ];
 
         MenuItems = FallbackMenuItems;
+        SyncMenuItemViewModels();
     }
 
     public void SharedInit()

@@ -20,10 +20,10 @@ public partial class VariablesView : UserControl
                 ViewModel?.RemoveSelectedVariable();
                 break;
             case Key.OemPlus or Key.Add:
-                ViewModel?.AddVariableFromEditorOrByPlus("newVar", "0");
+                ViewModel?.AddNewVariable();
                 break;
             case Key.F5:
-                ViewModel?.UpdateVariablesCompletition();
+                ViewModel?.RefreshVariables();
                 break;
         }
     }
@@ -33,4 +33,8 @@ public partial class VariablesView : UserControl
     {
         ViewModel?.DataGridDoubleClicked();
     }
+
+    private void Add_Click(object? sender, RoutedEventArgs e) => ViewModel?.AddNewVariable();
+    private void Remove_Click(object? sender, RoutedEventArgs e) => ViewModel?.RemoveSelectedVariable();
+    private void Refresh_Click(object? sender, RoutedEventArgs e) => ViewModel?.RefreshVariables();
 }

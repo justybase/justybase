@@ -3,21 +3,61 @@
              xmlns:vm="using:JustyBase.ViewModels.Tools"
              x:Class="JustyBase.Views.Tools.SqlOutlineView"
              x:DataType="vm:SqlOutlineViewModel">
+    <UserControl.KeyBindings>
+        <KeyBinding Gesture="Enter" Command="{Binding GoToSelectedItemCommand}"/>
+    </UserControl.KeyBindings>
+    <UserControl.Resources>
+        <StreamGeometry x:Key="OutlineRefreshPath">M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z</StreamGeometry>
+        <!-- Shrink the Fluent TreeView chrome inside this panel (compact VS Code rows) -->
+        <x:Double x:Key="TreeViewItemMinHeight">24</x:Double>
+        <x:Double x:Key="TreeViewItemIndent">12</x:Double>
+        <x:Double x:Key="TreeViewItemExpandCollapseChevronSize">12</x:Double>
+        <Thickness x:Key="TreeViewItemExpandCollapseChevronMargin">4,0,4,0</Thickness>
+    </UserControl.Resources>
+    <UserControl.Styles>
+        <!-- Borderless VS Code style icon button -->
+        <Style Selector="Button.vsIcon">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="MinWidth" Value="24"/>
+            <Setter Property="MinHeight" Value="24"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+    </UserControl.Styles>
     <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4">
-            <TextBlock Text="Outline" FontWeight="SemiBold" VerticalAlignment="Center"/>
-            <Button Content="Refresh" Command="{Binding RefreshCommand}" Margin="8,0,0,0" Padding="8,2"/>
-        </StackPanel>
-        <ListBox ItemsSource="{Binding Items}"
-                 SelectedItem="{Binding SelectedItem, Mode=TwoWay}">
-            <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="vm:SqlOutlineItem">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <TextBlock Text="{Binding Kind}" Opacity="0.6" FontSize="11"/>
-                        <TextBlock Text="{Binding Title}" FontSize="12"/>
-                    </StackPanel>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="8,5,5,2">
+            <TextBlock Text="OUTLINE" FontWeight="SemiBold" FontSize="11" Opacity="0.7" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Classes="vsIcon" Command="{Binding RefreshCommand}"
+                    ToolTip.Tip="Refresh outline">
+                <PathIcon Data="{StaticResource OutlineRefreshPath}" Width="12" Height="12"/>
+            </Button>
+        </Grid>
+        <TreeView Name="OutlineTree" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                  BorderThickness="0" Padding="2,0"
+                  DoubleTapped="OutlineTree_DoubleTapped"
+                  Tapped="OutlineTree_Tapped">
+            <TreeView.Styles>
+                <Style Selector="TreeViewItem">
+                    <Setter Property="Padding" Value="1"/>
+                    <Setter Property="MinHeight" Value="22"/>
+                    <Setter Property="IsExpanded" Value="True"/>
+                </Style>
+            </TreeView.Styles>
+            <TreeView.ItemTemplate>
+                <TreeDataTemplate x:DataType="vm:SqlOutlineItem" ItemsSource="{Binding Children}">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4" MinHeight="20"
+                          ToolTip.Tip="{Binding Title}">
+                        <PathIcon Grid.Column="0" Data="{Binding IconData}" Width="12" Height="12"
+                                  Foreground="{Binding IconBrush}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="12"
+                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Line}" FontSize="10" Opacity="0.55" Margin="4,0"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+        </TreeView>
     </DockPanel>
 </UserControl>

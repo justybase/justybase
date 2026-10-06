@@ -14,6 +14,17 @@ public sealed partial class SqlDiagnosticsViewModel : Tool
     public DataGridCollectionView DiagnosticsCollectionView { get; }
 
     private readonly AvaloniaList<DiagnosticItem> _items = new();
+    private readonly IGeneralApplicationData? _generalApplicationData;
+
+    public SqlDiagnosticsViewModel(
+        IGeneralApplicationData? generalApplicationData = null)
+    {
+        _generalApplicationData = generalApplicationData;
+        IssueCount = "0 issues";
+        DiagnosticsCollectionView = new DataGridCollectionView(_items);
+        DiagnosticsCollectionView.SortDescriptions.Add(
+            DataGridSortDescription.FromPath("Severity", System.ComponentModel.ListSortDirection.Ascending));
+    }
 
     public IReadOnlyList<DiagnosticItem> Items => _items;
 
@@ -52,7 +63,9 @@ public sealed partial class SqlDiagnosticsViewModel : Tool
     /// "Fix in AI Chat" entry points in this panel are hidden.
     /// </summary>
     public bool IsAiChatEnabled
-        => Program.ServiceProvider?.GetService<IGeneralApplicationData>()?.Config.EnableAiChat ?? false;
+        => _generalApplicationData?.Config.EnableAiChat
+            ?? Program.ServiceProvider?.GetService<IGeneralApplicationData>()?.Config.EnableAiChat
+            ?? false;
 
     // ── Performance metrics ────────────────────────────────────────────────
 
@@ -110,14 +123,6 @@ public sealed partial class SqlDiagnosticsViewModel : Tool
         MetricsCheapAvgMs = $"{metrics.CheapAvgTimeMs:F1} ms";
         MetricsExpCount = $"{metrics.ExpensiveRunCount}";
         MetricsExpAvgMs = $"{metrics.ExpensiveAvgTimeMs:F1} ms";
-    }
-
-    public SqlDiagnosticsViewModel()
-    {
-        IssueCount = "0 issues";
-        DiagnosticsCollectionView = new DataGridCollectionView(_items);
-        DiagnosticsCollectionView.SortDescriptions.Add(
-            DataGridSortDescription.FromPath("Severity", System.ComponentModel.ListSortDirection.Ascending));
     }
 
     /// <summary>
@@ -220,6 +225,9 @@ public sealed partial class SqlDiagnosticsViewModel : Tool
     {
         if (_items.Count == 0) return;
 
+        // Resolve on demand instead of injecting IAiChatNavigator here. The chat
+        // service depends on this diagnostics view model, so constructor injection
+        // would create a startup DI cycle through AiChatViewModel.
         var aiChatVm = Program.ServiceProvider?.GetService<AiChatViewModel>();
         if (aiChatVm is not null)
             await aiChatVm.SendToAiChatAsync();

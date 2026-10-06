@@ -98,11 +98,10 @@ public sealed class SqlImportService : ISqlImportService
                     {
                         File.Delete(path);
                     }
-                    catch (IOException)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
+                        // Best-effort cleanup of the temporary clipboard file; the import already ran.
+                        _simpleLogger.TrackError(ex, isCrash: false);
                     }
                 }
             }

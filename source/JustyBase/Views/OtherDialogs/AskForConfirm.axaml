@@ -5,33 +5,38 @@
 		xmlns:vm="using:JustyBase.ViewModels"
 		x:Class="JustyBase.Views.OtherDialogs.AskForConfirm"
         mc:Ignorable="d" d:DesignWidth="350" d:DesignHeight="250"
-		Width="350"
-		Height="250"
+		Width="480"
+		Height="310"
+		MinWidth="400" MinHeight="250"
         Title="AskForConfirm"
-		WindowDecorations="None"
-        ExtendClientAreaToDecorationsHint="True"
+		WindowDecorations="Full"
 		CanResize="True"
 		WindowStartupLocation="CenterOwner"
 		ShowActivated="True"
-		Padding="10"
-		Topmost="True"
+		Padding="16"
 		ShowInTaskbar="False"
 		x:DataType="vm:AskForConfirmViewModel">
-	<Grid RowDefinitions="Auto,*,Auto">
-		<TextBlock Grid.Row="0" HorizontalAlignment="Center" FontSize="16" FontWeight="Bold" Margin="0 15 0 5"
-				   Text="{Binding Title}" />
-		<TextBox HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Grid.Row="1"
-				IsReadOnly="True"
-				Text="{Binding TextMessage}" 
-				TextWrapping="Wrap" Margin="10"
-				BorderThickness="0"/>
+	<Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="10">
+            <Border Width="34" Height="34" CornerRadius="8" Background="{DynamicResource SystemAccentColorLight3Brush}">
+                <TextBlock Text="?" FontSize="18" Foreground="{DynamicResource SystemAccentColorBrush}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Grid.Column="1" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center"
+                       TextWrapping="Wrap" Text="{Binding Title}"/>
+        </Grid>
+        <Border Grid.Row="1" BorderBrush="{DynamicResource DockThemeBorderLowBrush}"
+                BorderThickness="1" CornerRadius="6" Padding="8">
+            <TextBox IsReadOnly="True" Text="{Binding TextMessage}" TextWrapping="Wrap"
+                     BorderThickness="0" Background="Transparent"/>
+        </Border>
 		<!--</Border>-->
 		<StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0"
 				VerticalAlignment="Bottom"
-				HorizontalAlignment="Center">
-			<Button Name="btYes" Margin="5 10" Command="{Binding ProcessAnswerKeysCommand}" CommandParameter="Yes">Yes</Button>
-			<Button Name="btNo"  Margin="5 10" Command="{Binding ProcessAnswerKeysCommand}" CommandParameter="No">No</Button>
-			<Button Name="btCancel" Margin="5 10" Command="{Binding ProcessAnswerKeysCommand}" CommandParameter="Cancel">Cancel</Button>
+				HorizontalAlignment="Right" Spacing="8">
+			<Button Name="btCancel" MinWidth="80" IsCancel="True" Command="{Binding ProcessAnswerKeysCommand}" CommandParameter="Cancel">Cancel</Button>
+			<Button Name="btNo" MinWidth="80" Command="{Binding ProcessAnswerKeysCommand}" CommandParameter="No">No</Button>
+			<Button Name="btYes" MinWidth="80" Classes="accent" IsDefault="True" Command="{Binding ProcessAnswerKeysCommand}" CommandParameter="Yes">Yes</Button>
 		</StackPanel>
 	</Grid>
 </Window>

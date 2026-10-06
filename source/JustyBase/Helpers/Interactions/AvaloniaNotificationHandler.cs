@@ -19,8 +19,8 @@ public sealed class NotificationManagerProvider : INotificationManagerProvider
 
         _manager = new WindowNotificationManager(window)
         {
-            Position = NotificationPosition.TopCenter,
-            MaxItems = 5,
+            Position = NotificationPosition.BottomRight,
+            MaxItems = 4,
             IsEnabled = true
         };
     }

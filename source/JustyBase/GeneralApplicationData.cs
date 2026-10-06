@@ -18,84 +18,81 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly IOtherHelpers _otherHelpers;
     private readonly IEncryptionHelper _encryptionHelper;
+    private readonly ICredentialSecretStore _secretStore;
     public ISimpleLogger GlobalLoggerObject => _simpleLogger;
 
 
-    private static bool _pluginWasLoaded;
-    public async Task LoadPluginsIfNeeded(Action? uiAction)
+    private Dictionary<string, LoginDataModel>? _loginTmp;
+    private readonly Lock _credentialsLock = new();
+    private bool _credentialsLoadFailed;
+    private readonly CredentialsFileStore _credentialsStore;
+
+    public IReadOnlyDictionary<string, LoginDataModel> LoginDataDic
     {
-#if AOT
-      await Task.CompletedTask;
-#else
-        if (!_pluginWasLoaded && Config.AllowToLoadPlugins)
+        get
         {
-            if (!Directory.Exists(IGeneralApplicationData.PluginsDirectory) && Config.AutoDownloadPlugins && !string.IsNullOrWhiteSpace(DownloadPluginsBasePath))
+            lock (_credentialsLock)
             {
-                uiAction?.Invoke();
-                await _otherHelpers.DownloadAllPlugins(IGeneralApplicationData.PluginsDirectory, DownloadPluginsBasePath);
-                uiAction?.Invoke();
-            }
-            try
-            {
-#if DEBUG
-                // DEBUG_PLUGIN_BASE_PATH is directory with plugins
-                PluginLoadHelper.LoadPlugins(Environment.GetEnvironmentVariable("DEBUG_PLUGIN_BASE_PATH"));
-#else
-                PluginLoadHelper.LoadPlugins(IGeneralApplicationData.PluginsDirectory);
-#endif
-            }
-            catch (Exception ex)
-            {
-                _messageForUserTools.ShowSimpleMessageBoxInstance(ex);
-                //Config.ResetPlugins = true;
-            }
-            finally
-            {
-                _pluginWasLoaded = true;
+                if (_loginTmp is null)
+                {
+                    GenerateLoginDicLocked();
+                }
+
+                // Snapshot, not the live dictionary: readers enumerate without
+                // holding the lock and can never corrupt in-memory state, even
+                // from background threads. Mutations go through
+                // AddToOrEditLoginData / DeleteFromLoginData / SetAccessOptions.
+                return CredentialsFileStore.SnapshotOf(_loginTmp);
             }
         }
-#endif
     }
 
-    private Dictionary<string, LoginDataModel> _loginTmp;
-
-    public Dictionary<string, LoginDataModel> LoginDataDic => _loginTmp ??= GenerateLoginDic();
-
-    private Dictionary<string, LoginDataModel> GenerateLoginDic()
+    /// <summary>
+    /// Loads credentials. Must be called with <see cref="_credentialsLock"/> held.
+    /// Never throws: on failure <see cref="_credentialsLoadFailed"/> is set and the
+    /// corrupt file is preserved, so a later <see cref="SaveCredentials"/> cannot
+    /// silently destroy user data.
+    /// </summary>
+    private void GenerateLoginDicLocked()
     {
-        _loginTmp = new Dictionary<string, LoginDataModel>(StringComparer.OrdinalIgnoreCase);
-        if (File.Exists(IGeneralApplicationData.CredentialsPathEvo))
+        var result = new Dictionary<string, LoginDataModel>(StringComparer.OrdinalIgnoreCase);
+        CredentialsLoadResult load = _credentialsStore.Load(result);
+
+        if (load == CredentialsLoadResult.NoFile)
         {
-            try
-            {
-                string plainText = _encryptionHelper.GetEncodedContentOfTextFile(IGeneralApplicationData.CredentialsPathEvo);
-                List<LoginDataModel> credentialsList = JsonSerializer.Deserialize(plainText, MyJsonContextLoginDataModelList.Default.ListLoginDataModel) ?? [];
-                foreach (LoginDataModel credentailItem in credentialsList)
-                {
-                    _loginTmp[credentailItem.ConnectionName.ToUpperInvariant()] = credentailItem;
-                }
-            }
-            catch (Exception ex)
-            {
-                _simpleLogger.TrackError(ex, isCrash: false);
-            }
+            // First run — no file at all: seed the sample connection.
+            AddSampleConnectionTo(result);
+        }
+        else if (load == CredentialsLoadResult.Failed)
+        {
+            _credentialsLoadFailed = true;
+            // Leave result empty and do NOT seed the sample: seeding here
+            // would let the next SaveConfig permanently overwrite the
+            // (possibly recoverable) on-disk file with a fake connection.
+            // Loaded (even empty — a valid "user deleted everything" state) and
+            // RestoredFromBackup need no further action.
         }
         else
         {
-            AddSampleConnection();
+            HydrateSecretsFromStore(result);
         }
 
-        if (_loginTmp.Count == 0)
-        {
-            AddSampleConnection();
-        }
-
-        return _loginTmp;
+        _loginTmp = result;
     }
 
-    private void AddSampleConnection()
+    /// <summary>
+    /// Phase B hydration (see <see cref="CredentialsSecretMigrator"/>).
+    /// Must be called with <see cref="_credentialsLock"/> held.
+    /// </summary>
+    private void HydrateSecretsFromStore(Dictionary<string, LoginDataModel> connections)
     {
-        _loginTmp["SAMPLE_CONNECTION"] = new LoginDataModel()
+        KeychainFallbackCount = 0;
+        KeychainFallbackCount = CredentialsSecretMigrator.Hydrate(connections, _secretStore, _simpleLogger);
+    }
+
+    private static void AddSampleConnectionTo(Dictionary<string, LoginDataModel> target)
+    {
+        target["SAMPLE_CONNECTION"] = new LoginDataModel()
         {
             Database = "name_of_database",
             DefaultIndex = 0,
@@ -108,43 +105,117 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         };
     }
 
+    private Dictionary<string, LoginDataModel> GenerateLoginDic()
+    {
+        lock (_credentialsLock)
+        {
+            if (_loginTmp is null)
+            {
+                GenerateLoginDicLocked();
+            }
+
+            return _loginTmp;
+        }
+    }
+
+    private void AddSampleConnection()
+    {
+        if (_loginTmp is null)
+        {
+            _loginTmp = new Dictionary<string, LoginDataModel>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        AddSampleConnectionTo(_loginTmp);
+    }
+
     public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server, string? port = null)
     {
         name = name.ToUpperInvariant();
-        LoginDataModel element;
-        if (LoginDataDic.TryGetValue(name, out LoginDataModel? outVal1))
+        lock (_credentialsLock)
         {
-            element = outVal1;
-            element.ConnectionName = name;
-            element.Driver = driver;
-        }
-        else
-        {
-            element = new LoginDataModel()
+            if (_loginTmp is null)
             {
-                ConnectionName = name,
-                Driver = driver,
-            };
-            LoginDataDic[name] = element;
+                GenerateLoginDicLocked();
+            }
+
+            Dictionary<string, LoginDataModel> dic = _loginTmp;
+            LoginDataModel element;
+            if (dic.TryGetValue(name, out LoginDataModel? outVal1))
+            {
+                element = outVal1;
+                element.ConnectionName = name;
+                element.Driver = driver;
+            }
+            else
+            {
+                element = new LoginDataModel()
+                {
+                    ConnectionName = name,
+                    Driver = driver,
+                };
+                dic[name] = element;
+            }
+
+            element.Database = database;
+            element.DefaultIndex = 0;
+            element.Password = password;
+            element.UserName = userName;
+            element.Server = server;
+            element.Port = port;
+            // Snowflake-only fields were removed with Snowflake support; keep them
+            // null on edits so stale values from old credential files do not survive.
+            element.Role = null;
+            element.Warehouse = null;
+            element.Schema = null;
+            // A successful explicit edit means the in-memory state is intentional,
+            // so a previous load failure must not block future saves.
+            _credentialsLoadFailed = false;
+            return true;
         }
-        element.Database = database;
-        element.DefaultIndex = 0;
-        element.Password = password;
-        element.UserName = userName;
-        element.Server = server;
-        element.Port = port;
-        // Snowflake-only fields were removed with Snowflake support; keep them
-        // null on edits so stale values from old credential files do not survive.
-        element.Role = null;
-        element.Warehouse = null;
-        element.Schema = null;
-        return true;
     }
 
     public bool DeleteFromLoginData(string name)
     {
         name = name.ToUpperInvariant();
-        return LoginDataDic.Remove(name);
+        lock (_credentialsLock)
+        {
+            if (_loginTmp is null)
+            {
+                GenerateLoginDicLocked();
+            }
+
+            bool removed = _loginTmp.Remove(name);
+            if (removed)
+            {
+                // An explicit delete is intentional user state — same reasoning as edit.
+                _credentialsLoadFailed = false;
+                // Best-effort: a missing secret is not an error.
+                _secretStore.TryRemoveSecret(name);
+            }
+
+            return removed;
+        }
+    }
+
+    public void SetAccessOptions(string name, AccessConnectionOptions? options)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        lock (_credentialsLock)
+        {
+            if (_loginTmp is null)
+            {
+                GenerateLoginDicLocked();
+            }
+
+            if (_loginTmp.TryGetValue(name.ToUpperInvariant(), out LoginDataModel? loginData))
+            {
+                loginData.AccessOptions = options;
+            }
+        }
     }
 
     public AppOptions Config { get; set; }
@@ -181,12 +252,24 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         return FileVersionInfo.GetVersionInfo(filename).ProductVersion;
     }
 
-    public GeneralApplicationData(IMessageForUserTools messageForUserTools, IOtherHelpers otherHelpers, ISimpleLogger simpleLogger, IEncryptionHelper encryptionHelper)
+    /// <summary>
+    /// Connections whose password could not be hydrated from the OS secret
+    /// store during the last load (store wiped externally or unavailable).
+    /// Used for a one-time UI notice; reset on every load.
+    /// </summary>
+    internal int KeychainFallbackCount { get; private set; }
+
+    public GeneralApplicationData(IMessageForUserTools messageForUserTools, IOtherHelpers otherHelpers, ISimpleLogger simpleLogger, IEncryptionHelper encryptionHelper, ICredentialSecretStore? secretStore = null)
     {
         _messageForUserTools = messageForUserTools;
         _otherHelpers = otherHelpers;
         _simpleLogger = simpleLogger;
         _encryptionHelper = encryptionHelper;
+        _secretStore = secretStore ?? new Services.Credentials.UnavailableSecretStore();
+        _credentialsStore = new CredentialsFileStore(
+            IGeneralApplicationData.CredentialsPathEvo,
+            encryptionHelper,
+            simpleLogger);
 
         if (!Directory.Exists(IGeneralApplicationData.ConfigDirectoryEvo))
         {
@@ -278,36 +361,26 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
             };
         }
 
-        if (Config.ResetPlugins && Directory.Exists(IGeneralApplicationData.PluginsDirectory))
-        {
-            Config.ResetPlugins = false;
-            try
-            {
-                Directory.Delete(IGeneralApplicationData.PluginsDirectory, true);
-            }
-            catch (Exception ex)
-            {
-                _messageForUserTools.ShowSimpleMessageBoxInstance(ex);
-            }
-        }
-
         //register implementations
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.NetezzaSQL, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new NetezzaDotnetPlugin.Netezza(userName, password, string.IsNullOrWhiteSpace(port) ? "5480" : port, ip, db, connectionTimeout));
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Sqlite, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new JustyBase.SqliteDriver.Sqlite(userName, password, port, ip, db, connectionTimeout));
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Excel, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new ExcelPlugin.Excel(userName, password, port, ip, db, connectionTimeout));
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Access, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new AccessPlugin.Access(userName, password, port, ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.NetezzaSQL, options => new NetezzaDotnetPlugin.Netezza(options with { Port = string.IsNullOrWhiteSpace(options.Port) ? "5480" : options.Port }));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Sqlite, options => new JustyBase.SqliteDriver.Sqlite(options));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Excel, options => new ExcelPlugin.Excel(options));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Access, options => new AccessPlugin.Access(options));
 
 #if ORACLE
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Oracle, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new OraclePlugin.Oracle(userName, password, "", ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Oracle, options => new OraclePlugin.Oracle(options with { Port = "" }));
 #endif
 #if POSTGRES
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.PostgreSql, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new PostgresPlugin.Postgres(userName, password, port, ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.PostgreSql, options => new PostgresPlugin.Postgres(options));
 #endif
 #if MYSQL
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.MySql, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new MySqlPlugin.MySql(userName, password, string.IsNullOrWhiteSpace(port) ? "3306" : port, ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.MySql, options => new MySqlPlugin.MySql(options with { Port = string.IsNullOrWhiteSpace(options.Port) ? "3306" : options.Port }));
 #endif
 #if DB2
-        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.DB2, (string userName, string password, string port, string ip, string db, int connectionTimeout) => new DB2Plugin.DB2DatabaseService(userName, password, "", ip, db, connectionTimeout));
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.DB2, options => new DB2Plugin.DB2DatabaseService(options with { Port = "" }));
+#endif
+#if DUCKDB
+        DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.DuckDB, options => new DuckDBPlugin.DuckDB(options));
 #endif
     }
 
@@ -337,7 +410,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         return false;
     }
 
-    public void SaveConfig()
+    public void SaveAppConfig()
     {
         var options = new JsonSerializerOptions
         {
@@ -347,15 +420,62 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         MyJsonContextAppOptions context = new(options);
         string json = JsonSerializer.Serialize(Config, context.AppOptions);
         _encryptionHelper.SaveTextFileEncoded(IGeneralApplicationData.ConfigEvoFile, json);
+    }
+
+    public void SaveConfig()
+    {
+        SaveAppConfig();
         SaveCredentials();
     }
 
     public void SaveCredentials()
     {
-        File.Delete(IGeneralApplicationData.CredentialsPathEvo);
-        List<LoginDataModel> credentialsList = [.. LoginDataDic.Values];
-        string content = JsonSerializer.Serialize(credentialsList, MyJsonContextLoginDataModelList.Default.ListLoginDataModel);
-        _encryptionHelper.SaveTextFileEncoded(IGeneralApplicationData.CredentialsPathEvo, content);
+        List<LoginDataModel> snapshot;
+        bool loadFailed;
+        lock (_credentialsLock)
+        {
+            if (_loginTmp is null)
+            {
+                GenerateLoginDicLocked();
+            }
+
+            snapshot = [.. _loginTmp.Values];
+            loadFailed = _credentialsLoadFailed;
+        }
+
+        // Phase B: push passwords into the OS secret store first, then persist
+        // stripped copies. Live in-memory entries keep their passwords for the
+        // session; the file ends up metadata-only once migration succeeds.
+        snapshot = StripSecretsForSave(snapshot);
+
+        // Atomic durable write inside the store (temp file + replace; never
+        // delete-then-write). A refused save (failed load + no explicit user
+        // state) returns false and leaves the file untouched.
+        if (_credentialsStore.TrySave(snapshot, loadFailed))
+        {
+            lock (_credentialsLock)
+            {
+                _credentialsLoadFailed = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds save copies with passwords moved to the OS secret store
+    /// (see <see cref="CredentialsSecretMigrator"/>). One-time
+    /// <c>.pre-keychain</c> backup of the current file is taken before the
+    /// first stripped write, so a botched migration is recoverable without
+    /// depending on backup rotation.
+    /// </summary>
+    private List<LoginDataModel> StripSecretsForSave(List<LoginDataModel> live)
+    {
+        List<LoginDataModel> save = CredentialsSecretMigrator.StripForSave(live, _secretStore, _simpleLogger, out bool strippedAny);
+        if (strippedAny)
+        {
+            _credentialsStore.PreservePreKeychainCopy();
+        }
+
+        return save;
     }
 
     public string GetDataDir() => IGeneralApplicationData.DataDirectory;

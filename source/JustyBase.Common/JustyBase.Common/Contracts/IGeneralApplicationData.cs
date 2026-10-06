@@ -14,8 +14,6 @@ public interface IGeneralApplicationData : IDatabaseInfo, ISomeEditorOptions, IR
     static readonly string StartupPath = $"{ConfigDirectoryEvo}\\simpleStartup.manysql.enc";
     static readonly string CredentialsPathEvo = $"{ConfigDirectoryEvo}\\credentials.json.enc";
     static readonly string HistoryDatFilePath = $"{ConfigDirectoryEvo}\\history.dat.zst";
-    static readonly string PluginsDirectory = $"{Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}\\JB_PLUGINS";
-
     AppOptions Config { get; set; }
 
     string SelectedTabIdFromStart { get; set; }
@@ -23,6 +21,21 @@ public interface IGeneralApplicationData : IDatabaseInfo, ISomeEditorOptions, IR
     bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server, string? port = null);
     void ClearTempSippetsObjects();
     bool DeleteFromLoginData(string name);
+
+    /// <summary>
+    /// Updates driver-specific options of a saved connection. No-op when the
+    /// connection does not exist. This is the only supported way to mutate a
+    /// stored <c>LoginDataModel</c> besides <c>AddToOrEditLoginData</c>.
+    /// </summary>
+    void SetAccessOptions(string name, JustyBase.PluginCommon.Models.AccessConnectionOptions? options);
+
+    /// <summary>
+    /// Persists only the application config (config.json.enc), without
+    /// touching the credentials file. Use this when only <c>Config</c>
+    /// changed — rewriting credentials on every settings change multiplies
+    /// corruption windows for no reason.
+    /// </summary>
+    void SaveAppConfig();
     void SaveConfig();
     void SaveCredentials();
 

@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="JustyBase.Db2.IBMCompat" Version="$(JustyBaseDb2PackageVersion)" />
+    <PackageReference Include="JustyBase.Db2.IBMCompat" Version="0.1.0-alpha.2" />
   </ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\..\JustyBase.PluginBase\JustyBase.PluginBase.csproj">

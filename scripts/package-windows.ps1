@@ -49,11 +49,13 @@ New-Item -ItemType Directory -Path $publish, $velopack, $output -Force | Out-Nul
 
 $enableAccessPlugin = if ($Light) { 'false' } else { 'true' }
 $enablePostgresPlugin = if ($Light) { 'false' } else { 'true' }
+$enableExcelPlugin = if ($Light) { 'false' } else { 'true' }
 
 dotnet publish $project -r win-x64 -c Release -f net10.0 `
     -p:EnableDb2Plugin=true `
     "-p:EnableAccessPlugin=$enableAccessPlugin" `
     "-p:EnablePostgresPlugin=$enablePostgresPlugin" `
+    "-p:EnableExcelPlugin=$enableExcelPlugin" `
     -p:EnableOraclePlugin=false `
     -p:EnableDuckDbPlugin=false `
     -p:CopilotSkipCliDownload=true `
@@ -131,5 +133,7 @@ try {
 finally {
     $zipArchive.Dispose()
 }
-Write-Host "Created $setup"
-Write-Host "Created $zip"
+Write-Host ''
+Write-Host 'Publikacja Windows zakonczona pomyslnie.'
+Write-Host "Instalator: $setup"
+Write-Host "Archiwum:   $zip"

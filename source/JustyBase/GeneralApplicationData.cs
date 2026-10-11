@@ -364,7 +364,9 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         //register implementations
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.NetezzaSQL, options => new NetezzaDotnetPlugin.Netezza(options with { Port = string.IsNullOrWhiteSpace(options.Port) ? "5480" : options.Port }));
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Sqlite, options => new JustyBase.SqliteDriver.Sqlite(options));
+#if EXCEL_SQL
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Excel, options => new ExcelPlugin.Excel(options));
+#endif
 #if ACCESS
         DatabaseServiceHelpers.AddDatabaseImplementation(DatabaseTypeEnum.Access, options => new AccessPlugin.Access(options));
 #endif

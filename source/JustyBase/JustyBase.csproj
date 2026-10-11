@@ -7,12 +7,14 @@
 		<EnableOraclePlugin Condition="'$(EnableOraclePlugin)' == ''">false</EnableOraclePlugin>
 		<EnableMySqlPlugin Condition="'$(EnableMySqlPlugin)' == ''">false</EnableMySqlPlugin>
 		<EnableDuckDbPlugin Condition="'$(EnableDuckDbPlugin)' == ''">false</EnableDuckDbPlugin>
+		<EnableExcelPlugin Condition="'$(EnableExcelPlugin)' == ''">true</EnableExcelPlugin>
 		<DefineConstants Condition="'$(EnableDb2Plugin)' == 'true'">$(DefineConstants);DB2</DefineConstants>
 		<DefineConstants Condition="'$(EnableAccessPlugin)' == 'true'">$(DefineConstants);ACCESS</DefineConstants>
 		<DefineConstants Condition="'$(EnablePostgresPlugin)' == 'true'">$(DefineConstants);POSTGRES</DefineConstants>
 		<DefineConstants Condition="'$(EnableOraclePlugin)' == 'true'">$(DefineConstants);ORACLE</DefineConstants>
 		<DefineConstants Condition="'$(EnableMySqlPlugin)' == 'true'">$(DefineConstants);MYSQL</DefineConstants>
 		<DefineConstants Condition="'$(EnableDuckDbPlugin)' == 'true'">$(DefineConstants);DUCKDB</DefineConstants>
+		<DefineConstants Condition="'$(EnableExcelPlugin)' == 'true'">$(DefineConstants);EXCEL_SQL</DefineConstants>
 		<OutputType>WinExe</OutputType>
 		<PlatformTarget>AnyCPU</PlatformTarget>
 		<TargetFramework>net10.0</TargetFramework>
@@ -131,8 +133,10 @@
 		<ProjectReference Include="..\JustyBase.Public.Lib\JustyBase.Public.Lib.csproj" />
 		<ProjectReference Include="..\Drivers\SqliteDriver\SqliteDriver.csproj" />
 		<ProjectReference Include="..\Plugins\NetezzaDotnetPlugin\NetezzaDotnetPlugin.csproj" />
-		<ProjectReference Include="..\Plugins\ExcelPlugin\ExcelPlugin.csproj" />
 		<ProjectReference Include="..\SqlEditor.Avalonia\SqlEditor.Avalonia.csproj" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(EnableExcelPlugin)' == 'true'">
+		<ProjectReference Include="..\Plugins\ExcelPlugin\ExcelPlugin.csproj" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(EnableAccessPlugin)' == 'true'">
 		<ProjectReference Include="..\Plugins\AccessPlugin\AccessPlugin.csproj" />

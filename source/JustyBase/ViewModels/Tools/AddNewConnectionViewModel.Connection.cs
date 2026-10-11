@@ -43,7 +43,9 @@ public sealed partial class AddNewConnectionViewModel
 #if DUCKDB
         new("DuckDB", "DuckDB", "Local analytical database file", string.Empty, false, true),
 #endif
+#if EXCEL_SQL
         new("Excel", "Excel / File SQL", "Query XLSX and XLSB workbooks with SQL", string.Empty, false, true),
+#endif
         new("Access", "Microsoft Access", "Query and edit MDB and ACCDB files", string.Empty, false, true),
     ];
 

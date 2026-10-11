@@ -69,7 +69,7 @@ It is especially useful for:
 > The hierarchical DataGrid is provided by the official `ProDataGrid` NuGet package and is restored automatically during the normal build.
 
 > [!WARNING]
-> **DB2 support is highly experimental — do not use it in production.** It runs on a native managed DRDA driver (`JustyBase.Db2`, sibling checkout `../cs-db2`) that is still under active development (version `0.1.0`, Db2 LUW-only, user/password authentication only). Expect connection, query, and bulk-import failures; do not point it at production databases or use production credentials, and always verify generated DDL scripts before running them elsewhere.
+> **DB2 support is highly experimental — do not use it in production.** It is based on the prerelease `JustyBase.Db2` managed .NET driver (`0.1.0-alpha.1`) and its optional `JustyBase.Db2.IBMCompat` compatibility layer. The compatibility layer implements only a selected subset of IBM's `IBM.Data.Db2` API; it is not a complete or binary-compatible replacement for IBM's provider. The driver targets Db2 LUW, and protocol/platform coverage is limited and must be validated against your own server and workload. Expect connection, query, metadata, or bulk-import failures; do not use production databases or credentials, and always verify generated DDL scripts before running them elsewhere.
 
 ## Screenshots
 
@@ -128,7 +128,7 @@ cd source/JustyBase
 dotnet run
 ```
 
-Access support requires the sibling checkout `../JustyBase.UCanAccessCs`; place it next to this repository before restoring the solution. The CI workflows check it out automatically.
+Builds require the sibling checkouts `../JustyBase.NetezzaSql` and `../JustyBase.UCanAccessCs`; place both next to this repository before restoring the solution. The GitHub Actions workflow definitions check them out next to `JustyBase` before restore/build.
 
 On first launch, add an IBM Netezza connection from the schema or connections UI, open a SQL document, and execute a query. Other database connectors are under active development and are not part of the current support commitment.
 
@@ -137,9 +137,10 @@ On first launch, add an IBM Netezza connection from the schema or connections UI
 | Dependency | How it is resolved |
 |------------|--------------------|
 | **ProDataGrid** | NuGet package `ProDataGrid` version `12.0.5`. |
-| **JustyBase.Netezza\*** | Local `../JustyBase.NetezzaSql` sibling when present (also in `JustyBase.slnx`); otherwise NuGet fallback (`*-*`). CI clones the sibling automatically and forces `UseLocalJustyBaseLibraries=true`. Pin with `-p:JustyBaseNetezzaLibsPackageVersion=...` or force NuGet with `-p:UseLocalJustyBaseLibraries=false`. |
-| **JustyBase.UCanAccessCs** | Local `../JustyBase.UCanAccessCs` sibling, referenced by `AccessPlugin` for `.mdb`/`.accdb` execution and optional encrypted-ACCDB support. |
-| **JustyBase.Db2** | Local `../cs-db2` sibling when present (also in `JustyBase.slnx`); otherwise NuGet fallback (`*-*`, package not published yet — a local checkout is currently required). Pin with `-p:JustyBaseDb2PackageVersion=...` or force NuGet with `-p:UseLocalDb2Driver=false`. |
+| **Netezza SQL libraries** | Required `../JustyBase.NetezzaSql` sibling, referenced as projects for parser, DDL, catalog, core, import/export, and AI libraries. `JustyBase.NetezzaDriver` remains a separate NuGet dependency. |
+| **JustyBase.UCanAccessCs** | Required `../JustyBase.UCanAccessCs` sibling, referenced by `AccessPlugin` for `.mdb`/`.accdb` execution and optional encrypted-ACCDB support. Its parser dependency also points to the local Netezza parser project. |
+| **JustyBase.Db2** | NuGet packages `JustyBase.Db2` + `JustyBase.Db2.IBMCompat`, restored from NuGet (default `0.1.0-alpha.1`; pin with `-p:JustyBaseDb2PackageVersion=...`). No local sibling checkout. |
+| **GitHub Copilot CLI** | Required for the Copilot AI-chat backend. The app resolves `copilot` from `PATH` (or `JUSTYBASE_COPILOT_COMMAND`) and does **not** bundle it: `JustyBase.Ai` defaults to `CopilotSkipCliDownload=true` and the packaging scripts pass it explicitly, so no ~200 MB Copilot runtime is shipped. When the CLI is missing, the AI Chat panel shows an install hint with a **Check again** button. Install with `winget install GitHub.Copilot` (Windows) or `npm install -g @github/copilot` (all platforms). |
 
 ### AI and data privacy
 
@@ -149,6 +150,7 @@ AI features are opt-in and disabled by default. The application supports two loc
 - **Embedded AI Chat** hosts a user-selected GGUF chat model (Qwen 3.5/3.6, Gemma 4, Devstral 2) on a second bundled `llama-server` subprocess, with tool calling / agent loop supported.
 - **OpenAI Compatible** sends chat prompts and the SQL context selected by the application to the user-configured local endpoint (LM Studio, Ollama `/v1`, llama.cpp, vLLM, …). Their privacy and retention depend on that local service and its configuration.
 - **Codex (ChatGPT)** starts the official Codex CLI app-server and uses the user's existing Codex/ChatGPT authentication. The app does not request or persist an OpenAI API key, but the active SQL document and selected metadata can be sent to the provider as part of a chat request.
+- **Copilot (GitHub Copilot)** drives a separately installed GitHub Copilot CLI over stdio. The application does not ship the Copilot runtime: the released packages skip the SDK's CLI download (`CopilotSkipCliDownload=true`) and resolve `copilot` from `PATH` (or `JUSTYBASE_COPILOT_COMMAND`). If no CLI is found, the backend reports "Copilot CLI was not found".
 
 The application does not expose arbitrary workspace file reads or result-grid rows to the AI tools. SQL execution and document changes require explicit approval in the UI. Credentials are stored in the application's protected local data store; users should still avoid sending confidential SQL or schema information to any remote provider unless their organization's policy permits it. See [docs/EMBEDDED_FIM.md](docs/EMBEDDED_FIM.md), [docs/EMBEDDED_CHAT.md](docs/EMBEDDED_CHAT.md) and [docs/AI_CHAT_CODEX.md](docs/AI_CHAT_CODEX.md) for complete model and provider details.
 
@@ -160,7 +162,23 @@ The application does not expose arbitrary workspace file reads or result-grid ro
 dotnet build JustyBase.slnx -c Release
 ```
 
-### Self-contained ReadyToRun publish
+### Publish variants
+
+Release packaging produces one full database/runtime variant per platform:
+
+- `aot-self-contained` (Windows): self-contained **Native AOT** build (`PublishAot=true`, `PublishTrimmed=true`, `PublishReadyToRun=false`). The packaging machine needs the Visual Studio C++ x64 build tools (`Microsoft.VisualStudio.Component.VC.Tools.x86.x64`); `scripts/package-windows.ps1` locates them via `vswhere` and imports the `vcvars64` environment.
+- `self-contained` (Linux/macOS): self-contained **ReadyToRun** build (`PublishAot=false`, `PublishReadyToRun=true`, `PublishTrimmed=false`).
+
+Manual Windows AOT publish:
+
+```bash
+cd source/JustyBase
+dotnet publish -r win-x64 -c Release -f net10.0 \
+  -p:PublishAot=true -p:PublishTrimmed=true -p:PublishReadyToRun=false \
+  --self-contained true
+```
+
+Manual Linux/macOS ReadyToRun publish:
 
 ```bash
 cd source/JustyBase
@@ -168,10 +186,6 @@ dotnet publish -r win-x64 -c Release -f net10.0 \
   -p:PublishAot=false -p:PublishReadyToRun=true -p:PublishTrimmed=false \
   --self-contained true
 ```
-
-Release packaging generates one full database/runtime variant:
-
-- `self-contained`: self-contained ReadyToRun package for the target operating system, including Netezza and DB2.
 
 Examples:
 
@@ -181,11 +195,11 @@ publishWindows.bat <version>
 ./publishMacOS.sh <version> osx-arm64 artifacts
 ```
 
-The GitHub Actions release workflow builds one self-contained ReadyToRun package per supported operating system. Dynamic plugins and reflection-heavy database providers remain in-process; trimming is disabled for provider compatibility.
+The GitHub Actions release workflow builds a self-contained Native AOT package on Windows and self-contained ReadyToRun packages on Linux/macOS. Dynamic plugins and reflection-heavy database providers remain in-process. The closed-source DataGrid assembly is preserved with `TrimmerRootAssembly` (see `source/JustyBase/JustyBase.csproj`), and trimming is disabled on Linux/macOS for provider compatibility.
 
 Windows installations created with Velopack automatically check the JustyBase GitHub Releases feed once per 24 hours, including prereleases. Updates download in the background and ask before restarting the application. The manual **Check for updates** command is available from the main window. Development runs and the Linux/macOS ZIP distributions do not perform automatic updates.
 
-Netezza SQL libraries in CI: the workflows clone `justybase/JustyBase.NetezzaSql` next to the `JustyBase` checkout and build with `-p:UseLocalJustyBaseLibraries=true`, so releases and tests compile the same projects as local development instead of resolving floating NuGet versions. Locally the sibling checkout is auto-detected; without it the NuGet fallback (`*-*`) applies.
+Netezza SQL and UCanAccess sources are required sibling checkouts for local builds. The GitHub Actions workflow definitions place both repositories next to `JustyBase` before restore/build; no NuGet fallback is used for these libraries.
 
 ## Quick verification
 

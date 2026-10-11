@@ -26,7 +26,7 @@ Be respectful and inclusive. We welcome contributions from everyone.
 
 The DataGrid and hierarchical schema tree are restored from the official `ProDataGrid` NuGet package, version `12.0.5`.
 
-Netezza SQL libraries: MSBuild prefers the local sibling checkout `../JustyBase.NetezzaSql` (the projects are listed under `/JustyBase.NetezzaSql/` in `JustyBase.slnx`, so Visual Studio restore works). GitHub Actions clones `justybase/JustyBase.NetezzaSql` automatically next to the `JustyBase` checkout and builds with `-p:UseLocalJustyBaseLibraries=true`, so CI tests and releases always compile against the same projects as local development. Without the sibling checkout, the latest NuGet packages are used (`*-*`, including prerelease). Override with `-p:UseLocalJustyBaseLibraries=false` or pin `-p:JustyBaseNetezzaLibsPackageVersion=0.3.0-preview.6`.
+Builds require the sibling checkouts `../JustyBase.NetezzaSql` and `../JustyBase.UCanAccessCs`. Their projects are listed in `JustyBase.slnx` and used directly through project references; there is no NuGet fallback for these libraries. GitHub Actions workflow definitions check out both repositories next to `JustyBase` before restore/build.
 
 ### First Build
 

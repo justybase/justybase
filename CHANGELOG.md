@@ -32,7 +32,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Publish scripts use repo-relative paths (no machine-specific roots)
-- CI checks out the sibling `JustyBase.NetezzaSql` repo and builds tests/releases with local project references (`UseLocalJustyBaseLibraries=true`) instead of floating NuGet packages
+- Netezza/UCanAccess libraries are now **required** sibling checkouts referenced as projects; the NuGet fallback (`UseLocalJustyBaseLibraries` / `JustyBaseNetezzaLibsPackageVersion`) was removed. GitHub Actions workflows check out `justybase/JustyBase.NetezzaSql` and `justybase/JustyBase.UCanAccessCs` next to `JustyBase` before restore/build
+- DB2 driver now resolves exclusively from the `JustyBase.Db2` + `JustyBase.Db2.IBMCompat` NuGet packages (default `0.1.0-alpha.1`); the local `../cs-db2` sibling checkout and the `UseLocalDb2Driver` switch were removed
+- Windows release packaging switched to self-contained Native AOT (`aot-self-contained` variant, `PublishAot`/`PublishTrimmed`); Linux/macOS remain self-contained ReadyToRun
+- Release packages are built with `-p:CopilotSkipCliDownload=true`, so the native GitHub Copilot CLI runtime (~200 MB) is no longer bundled; the Copilot AI-chat backend uses a separately installed `copilot` CLI on `PATH` (or `JUSTYBASE_COPILOT_COMMAND`). When the CLI is missing the AI Chat panel now shows an actionable install hint with a **Check again** button.
+- `JustyBase.Ai` defaults to `CopilotSkipCliDownload=true`, so local development builds also omit the Copilot runtime unless overridden with `-p:CopilotSkipCliDownload=false`.
 - README quick start, badges, dependency notes, and honest multi-DB maturity labels
 - README Tests section notes Cobertura coverage CI artifact
 - `ViewLocator` takes `IServiceProvider` (registered from `App` after DI build)
@@ -48,6 +52,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `SqlResultsView.MoveGroup` validates the drag through `IResultGridGroupingDragService.TryCreateMoveRequest` (previously injected but unused)
 - `SqlResultsViewModel` now takes `IDataGridClipboardService` so export/toolbar actions can reuse the tested text builders
 - Fixed `JustyBase.HeadlessTests` compile error (`ContentReplacement` was missing its `Changes` argument), so the product smoke tests build and run again
+
+### Fixed
+
+- `DatabaseSearchScopeHelper.ResolveDatabaseOrFirst` now treats a blank requested database (`""`/whitespace) as unqualified and falls back to the first/active database, instead of returning an empty name that never matches
+- SQL completion hydrates columns for a `.`-qualified relation when its schema snapshot is still empty, even if a partial engine list already contains column items
 
 ### Security
 

@@ -2,11 +2,13 @@
 	<PropertyGroup>
 		<!-- Driver implementations are linked into the application at build time. -->
 		<EnableDb2Plugin Condition="'$(EnableDb2Plugin)' == ''">true</EnableDb2Plugin>
+		<EnableAccessPlugin Condition="'$(EnableAccessPlugin)' == ''">true</EnableAccessPlugin>
 		<EnablePostgresPlugin Condition="'$(EnablePostgresPlugin)' == ''">true</EnablePostgresPlugin>
 		<EnableOraclePlugin Condition="'$(EnableOraclePlugin)' == ''">false</EnableOraclePlugin>
 		<EnableMySqlPlugin Condition="'$(EnableMySqlPlugin)' == ''">false</EnableMySqlPlugin>
 		<EnableDuckDbPlugin Condition="'$(EnableDuckDbPlugin)' == ''">false</EnableDuckDbPlugin>
 		<DefineConstants Condition="'$(EnableDb2Plugin)' == 'true'">$(DefineConstants);DB2</DefineConstants>
+		<DefineConstants Condition="'$(EnableAccessPlugin)' == 'true'">$(DefineConstants);ACCESS</DefineConstants>
 		<DefineConstants Condition="'$(EnablePostgresPlugin)' == 'true'">$(DefineConstants);POSTGRES</DefineConstants>
 		<DefineConstants Condition="'$(EnableOraclePlugin)' == 'true'">$(DefineConstants);ORACLE</DefineConstants>
 		<DefineConstants Condition="'$(EnableMySqlPlugin)' == 'true'">$(DefineConstants);MYSQL</DefineConstants>
@@ -73,20 +75,20 @@
 	<ItemGroup>
 		<PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
 		<PackageReference Include="DiffPlex" Version="1.9.0" />
-		<PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.6" />
+		<PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.7" />
 		<PackageReference Include="Microsoft.Extensions.AI" Version="10.10.0" />
 		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.1" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.12" />
 		<PackageReference Include="ProDataGrid" Version="12.1.0.6" />
 		<PackageReference Include="Velopack" Version="1.2.161" />
-		<PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.3" />
-		<PackageReference Include="Avalonia.Desktop" Version="12.1.3" />
+		<PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.4" />
+		<PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
 		<PackageReference Include="Avalonia.Labs.Lottie" Version="12.0.2" />
-		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.3" />
+		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-		<PackageReference Include="Dock.Model.Mvvm" Version="12.1.0.6" />
-		<PackageReference Include="Dock.Model" Version="12.1.0.6" />
-		<PackageReference Include="Dock.Avalonia" Version="12.1.0.6" />
+		<PackageReference Include="Dock.Model.Mvvm" Version="12.1.0.7" />
+		<PackageReference Include="Dock.Model" Version="12.1.0.7" />
+		<PackageReference Include="Dock.Avalonia" Version="12.1.0.7" />
 		<PackageReference Include="K4os.Compression.LZ4.Streams" Version="1.3.8" />
 		<PackageReference Include="LiveMarkdown.Avalonia" Version="2.4.3" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
@@ -130,10 +132,12 @@
 		<ProjectReference Include="..\Drivers\SqliteDriver\SqliteDriver.csproj" />
 		<ProjectReference Include="..\Plugins\NetezzaDotnetPlugin\NetezzaDotnetPlugin.csproj" />
 		<ProjectReference Include="..\Plugins\ExcelPlugin\ExcelPlugin.csproj" />
-		<ProjectReference Include="..\Plugins\AccessPlugin\AccessPlugin.csproj" />
 		<ProjectReference Include="..\SqlEditor.Avalonia\SqlEditor.Avalonia.csproj" />
 	</ItemGroup>
-	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' == 'true'">
+	<ItemGroup Condition="'$(EnableAccessPlugin)' == 'true'">
+		<ProjectReference Include="..\Plugins\AccessPlugin\AccessPlugin.csproj" />
+	</ItemGroup>
+	<ItemGroup>
 		<ProjectReference Include="$(JustyBaseLocalNetezzaSqlParserProject)" />
 		<ProjectReference Include="$(JustyBaseLocalNetezzaProject)" />
 		<ProjectReference Include="$(JustyBaseLocalNetezzaDdlProject)" />
@@ -142,16 +146,6 @@
 		<ProjectReference Include="$(JustyBaseLocalImportExportProject)" />
 		<ProjectReference Include="$(JustyBaseLocalAiProject)" />
 		<ProjectReference Include="$(JustyBaseLocalAiEmbeddedProject)" />
-	</ItemGroup>
-	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' != 'true'">
-		<PackageReference Include="JustyBase.NetezzaSqlParser" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-		<PackageReference Include="JustyBase.Netezza" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-		<PackageReference Include="JustyBase.NetezzaDdl" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-		<PackageReference Include="JustyBase.NetezzaCatalogSql" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-		<PackageReference Include="JustyBase.Core" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-		<PackageReference Include="JustyBase.ImportExport" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-		<PackageReference Include="JustyBase.Ai" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-		<PackageReference Include="JustyBase.Ai.Embedded" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(EnableMySqlPlugin)' == 'true'">
 		<ProjectReference Include="..\Plugins\MySqlPlugin\MySqlPlugin.csproj" />

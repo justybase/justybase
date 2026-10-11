@@ -223,7 +223,6 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
     {
         if (_ensureTableColumns is null) return false;
         if (position <= 0 || position > sql.Length || sql[position - 1] != '.') return false;
-        if (engineItems.Any(i => i.Kind == CompletionKind.Column)) return false;
 
         var before = sql[..(position - 1)];
         var parts = before.Split([' ', '\n', '\t', '\r', ',', '(', ')'], StringSplitOptions.RemoveEmptyEntries);
@@ -260,15 +259,24 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
             else { schema = segs[0]; table = segs[1]; }
         }
 
-        if (_dialect == SqlDialect.Sqlite)
-        {
-            if (string.IsNullOrWhiteSpace(database))
-                database = _databaseNameProvider?.Invoke() ?? "";
-            if (string.IsNullOrWhiteSpace(schema))
-                schema = "main";
-        }
+        if (string.IsNullOrWhiteSpace(database))
+            database = _databaseNameProvider?.Invoke() ?? "";
+        if (_dialect == SqlDialect.Sqlite && string.IsNullOrWhiteSpace(schema))
+            schema = "main";
 
         if (string.IsNullOrWhiteSpace(table)) return false;
+
+        // A partial engine list (e.g. an explicit projection alias beside an
+        // unhydrated `*` source) must not suppress hydration: fetch columns
+        // whenever the resolved relation has none in the snapshot yet.
+        var snapshotColumns = _parserSchema?.GetTable(
+            string.IsNullOrWhiteSpace(database) ? null : database,
+            string.IsNullOrWhiteSpace(schema) ? null : schema,
+            table)?.Columns;
+        if (snapshotColumns is { Count: > 0 }
+            && engineItems.Any(i => i.Kind == CompletionKind.Column))
+            return false;
+
         _ensureTableColumns(database, schema, table);
         return true;
     }

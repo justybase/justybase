@@ -12,16 +12,10 @@
 			<ExcludeAssets>runtime</ExcludeAssets>
 		</ProjectReference>
 	</ItemGroup>
-	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' == 'true'">
+	<ItemGroup>
 		<ProjectReference Include="$(JustyBaseLocalNetezzaProject)" />
 		<ProjectReference Include="$(JustyBaseLocalNetezzaDdlProject)" />
 		<ProjectReference Include="$(JustyBaseLocalNetezzaCatalogSqlProject)" />
 		<ProjectReference Include="$(JustyBaseLocalImportExportProject)" />
-	</ItemGroup>
-	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' != 'true'">
-		<PackageReference Include="JustyBase.Netezza" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-		<PackageReference Include="JustyBase.NetezzaDdl" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-		<PackageReference Include="JustyBase.NetezzaCatalogSql" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-		<PackageReference Include="JustyBase.ImportExport" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
 	</ItemGroup>
 </Project>

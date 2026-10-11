@@ -76,7 +76,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Restore
-        run: dotnet restore .\source\JustyBase\JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=true
+        run: dotnet restore .\source\JustyBase\JustyBase.csproj --force-evaluate
       - name: Install Velopack CLI
         shell: pwsh
         run: |
@@ -133,7 +133,7 @@ jobs:
       - name: Install packaging dependencies
         run: sudo apt-get update && sudo apt-get install -y zip
       - name: Restore
-        run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=true
+        run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate
       - name: Build Linux package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
@@ -176,7 +176,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Restore
-        run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate -p:UseLocalJustyBaseLibraries=true
+        run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate
       - name: Build macOS self-contained package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
@@ -224,8 +224,8 @@ jobs:
         run: |
           set -euo pipefail
           expected=(
-            "JustyBase-${VERSION}-win-x64-self-contained-Setup.exe"
-            "JustyBase-${VERSION}-win-x64-self-contained.zip"
+            "JustyBase-${VERSION}-win-x64-aot-self-contained-Setup.exe"
+            "JustyBase-${VERSION}-win-x64-aot-self-contained.zip"
             "JustyBase-${VERSION}-linux-x64-self-contained.zip"
             "JustyBase-${VERSION}-macos-arm64-self-contained.zip"
           )
@@ -284,8 +284,8 @@ jobs:
             --title "JustyBase $VERSION" \
             --notes-file source/JustyBase/ReleaseNotes.md
           gh release upload "$TAG" \
-            "dist/windows/JustyBase-${VERSION}-win-x64-self-contained-Setup.exe" \
-            "dist/windows/JustyBase-${VERSION}-win-x64-self-contained.zip" \
+            "dist/windows/JustyBase-${VERSION}-win-x64-aot-self-contained-Setup.exe" \
+            "dist/windows/JustyBase-${VERSION}-win-x64-aot-self-contained.zip" \
             "dist/linux/JustyBase-${VERSION}-linux-x64-self-contained.zip" \
             "dist/macos/JustyBase-${VERSION}-macos-arm64-self-contained.zip" \
             --repo "$GITHUB_REPOSITORY" --clobber

@@ -35,17 +35,13 @@
     <Project Path="source/JustyBase.Tests/JustyBase.Tests.csproj" />
   </Folder>
   <Folder Name="/JustyBase.NetezzaSql/">
-    <!-- Prefer local ProjectReferences when the optional sibling checkout is present. -->
+    <!-- Required sibling checkout; referenced as projects by the app and plugins. -->
     <Project Path="../JustyBase.NetezzaSql/JustyBase.NetezzaSqlParser.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.Netezza/JustyBase.Netezza.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.NetezzaDdl/JustyBase.NetezzaDdl.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.NetezzaCatalogSql/JustyBase.NetezzaCatalogSql.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.Core/JustyBase.Core.csproj" />
     <Project Path="../JustyBase.NetezzaSql/JustyBase.ImportExport/JustyBase.ImportExport.csproj" />
-  </Folder>
-  <Folder Name="/JustyBase.Db2/">
-    <!-- Prefer local ProjectReference when the optional sibling checkout is present. -->
-    <Project Path="../cs-db2/src/Db2.Driver/Db2.Driver.csproj" />
   </Folder>
   <Project Path="..\JustyBase.NetezzaSql\JustyBase.Ai\JustyBase.Ai.csproj" />
   <Project Path="..\JustyBase.NetezzaSql\JustyBase.Ai.Embedded\JustyBase.Ai.Embedded.csproj" />

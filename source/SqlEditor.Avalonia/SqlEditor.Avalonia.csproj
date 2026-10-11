@@ -5,20 +5,15 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 	<ItemGroup>
-		<PackageReference Include="Avalonia" Version="12.1.3" />
+		<PackageReference Include="Avalonia" Version="12.1.4" />
 		<PackageReference Include="Avalonia.AvaloniaEdit" Version="12.0.0" />
-		<PackageReference Include="Avalonia.Desktop" Version="12.1.3" />
+		<PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
 		<PackageReference Include="System.Reactive" Version="7.0.0" />
 	</ItemGroup>
-	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' == 'true'">
+	<ItemGroup>
 		<ProjectReference Include="$(JustyBaseLocalNetezzaProject)" />
 		<ProjectReference Include="$(JustyBaseLocalNetezzaSqlParserProject)" />
 		<ProjectReference Include="$(JustyBaseLocalCoreProject)" />
-	</ItemGroup>
-	<ItemGroup Condition="'$(UseLocalJustyBaseLibraries)' != 'true'">
-        <PackageReference Include="JustyBase.Netezza" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-        <PackageReference Include="JustyBase.NetezzaSqlParser" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
-        <PackageReference Include="JustyBase.Core" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
 	</ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\JustyBase.PluginCommon\JustyBase.PluginCommon.csproj" />

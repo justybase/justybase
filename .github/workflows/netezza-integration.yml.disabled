@@ -8,8 +8,24 @@ on:
 jobs:
   nz:
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: JustyBase
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout JustyBase
+        uses: actions/checkout@v4
+        with:
+          path: JustyBase
+      - name: Checkout Netezza libraries
+        uses: actions/checkout@v4
+        with:
+          repository: justybase/JustyBase.NetezzaSql
+          path: JustyBase.NetezzaSql
+      - name: Checkout UCanAccess provider
+        uses: actions/checkout@v4
+        with:
+          repository: justybase/JustyBase.UCanAccessCs
+          path: JustyBase.UCanAccessCs
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'

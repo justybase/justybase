@@ -1,9 +1,10 @@
-using IBM.Data.Db2;
-using JustyBase.ImportExport.Import;
+﻿using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
+// Namespace exported by the JustyBase.Db2.IBMCompat package.
+using IBM.Data.Db2;
 using System.Data.Common;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -29,7 +30,7 @@ public sealed class DB2DatabaseService : DatabaseService
         builder.Password = Password;
 
         builder.Server = Ip;
-        // Managed cs-db2 driver parses "host:port" from Server (ParseServer).
+        // The managed JustyBase.Db2 driver parses "host:port" from Server (ParseServer).
         // An explicit Port is appended unless Ip already carries one
         // ("host:port", bracketed IPv6) — mirroring the MySql plugin pattern.
         if (!string.IsNullOrWhiteSpace(Ip) && !string.IsNullOrWhiteSpace(Port) && !Ip.Contains(':'))

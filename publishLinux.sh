@@ -20,10 +20,10 @@ rm -rf "$PUBLISH_DIR"
 mkdir -p "$PUBLISH_DIR" "$(dirname "$ZIP_PATH")"
 dotnet publish "$PROJECT" -r linux-x64 -c Release -f net10.0 \
   -p:EnableDb2Plugin=true -p:PublishAot=false \
+  -p:CopilotSkipCliDownload=true \
   -p:PublishReadyToRun=true -p:PublishTrimmed=false --self-contained true \
   -p:DebugType=None -p:DebugSymbols=false \
   -p:UseSharedCompilation=false \
-  -p:UseLocalJustyBaseLibraries=true \
   -p:Version="$VERSION" -o "$PUBLISH_DIR"
 RUNTIMES_DIR="$PUBLISH_DIR/runtimes"
 if [[ -d "$RUNTIMES_DIR" ]]; then

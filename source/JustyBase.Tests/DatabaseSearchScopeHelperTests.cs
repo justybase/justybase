@@ -27,4 +27,14 @@ public sealed class DatabaseSearchScopeHelperTests
 
         Assert.Null(result);
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ResolveDatabaseOrFirst_ShouldReturnFirstAvailable_WhenRequestedIsBlank(string requested)
+    {
+        var result = DatabaseSearchScopeHelper.ResolveDatabaseOrFirst(requested, ["DB1", "DB2"]);
+
+        Assert.Equal("DB1", result);
+    }
 }

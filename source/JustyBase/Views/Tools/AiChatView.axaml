@@ -114,6 +114,33 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
         </Expander>
+        <!-- Actionable notice when an AI backend needs an external tool that is not installed. -->
+        <Border IsVisible="{Binding ShowBackendHelpNotice}"
+                Background="{DynamicResource AiChatToolConfirmationBrush}"
+                BorderBrush="{DynamicResource AiChatWarningBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="8 6">
+          <StackPanel Spacing="5">
+            <TextBlock Text="{Binding BackendHelpMessage}"
+                       FontSize="10"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource AiChatWarningForegroundBrush}" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Install:" FontSize="10" VerticalAlignment="Center" Opacity="0.8" />
+              <Border Background="{DynamicResource AiChatSurfaceBrush}"
+                      BorderBrush="{DynamicResource AiChatBorderBrush}"
+                      BorderThickness="1"
+                      CornerRadius="3"
+                      Padding="5 2"
+                      VerticalAlignment="Center">
+                <TextBlock Text="{Binding BackendHelpCommand}" FontFamily="Consolas,monospace" FontSize="10" />
+              </Border>
+              <Button Command="{Binding RetryBackendConnectionCommand}" Content="Check again" Padding="8 3" FontSize="10" />
+              <Button Command="{Binding DismissBackendHelpCommand}" Content="Dismiss" Padding="8 3" FontSize="10" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
       </StackPanel>
     </Border>
 

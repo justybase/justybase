@@ -16,13 +16,7 @@
     -->
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900</WarningsNotAsErrors>
 
-    <!--
-      Local sibling checkout (../JustyBase.NetezzaSql):
-      Prefer ProjectReference when all local projects exist; otherwise NuGet.
-      Override: -p:UseLocalJustyBaseLibraries=true|false
-      Projects are also listed in JustyBase.slnx so VS restore
-      does not hit NU1105 for out-of-solution refs.
-    -->
+    <!-- These sibling checkouts are required for local builds and CI. -->
     <JustyBaseLibrariesRoot Condition="'$(JustyBaseLibrariesRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</JustyBaseLibrariesRoot>
     <JustyBaseLocalNetezzaProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Netezza\JustyBase.Netezza.csproj</JustyBaseLocalNetezzaProject>
     <JustyBaseLocalNetezzaSqlParserProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.NetezzaSqlParser.csproj</JustyBaseLocalNetezzaSqlParserProject>
@@ -34,32 +28,8 @@
     <JustyBaseLocalAiEmbeddedProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Ai.Embedded\JustyBase.Ai.Embedded.csproj</JustyBaseLocalAiEmbeddedProject>
     <JustyBaseLocalUCanAccessProject>$(JustyBaseLibrariesRoot)JustyBase.UCanAccessCs\src\UCanAccess\UCanAccess.csproj</JustyBaseLocalUCanAccessProject>
     <JustyBaseLocalUCanAccessCryptoProject>$(JustyBaseLibrariesRoot)JustyBase.UCanAccessCs\src\UCanAccess.AccessCrypto\UCanAccess.AccessCrypto.csproj</JustyBaseLocalUCanAccessCryptoProject>
-    <!--
-      Local sibling checkout (../cs-db2):
-      Native managed DRDA driver replacing Net.IBM.Data.Db2.
-      Override: -p:UseLocalDb2Driver=true|false
-      Project is also listed in JustyBase.slnx so VS restore
-      does not hit NU1105 for out-of-solution refs.
-    -->
-    <JustyBaseLocalDb2Project>$(JustyBaseLibrariesRoot)cs-db2\src\Db2.Driver\Db2.Driver.csproj</JustyBaseLocalDb2Project>
-    <UseLocalDb2Driver Condition="'$(UseLocalDb2Driver)' == '' and Exists('$(JustyBaseLocalDb2Project)')">true</UseLocalDb2Driver>
-    <UseLocalDb2Driver Condition="'$(UseLocalDb2Driver)' == ''">false</UseLocalDb2Driver>
-    <UseLocalJustyBaseLibraries Condition="'$(UseLocalJustyBaseLibraries)' == ''
-      and Exists('$(JustyBaseLocalNetezzaProject)')
-      and Exists('$(JustyBaseLocalNetezzaSqlParserProject)')
-      and Exists('$(JustyBaseLocalNetezzaDdlProject)')
-      and Exists('$(JustyBaseLocalNetezzaCatalogSqlProject)')
-      and Exists('$(JustyBaseLocalCoreProject)')
-      and Exists('$(JustyBaseLocalImportExportProject)')
-      and Exists('$(JustyBaseLocalAiProject)')
-      and Exists('$(JustyBaseLocalAiEmbeddedProject)')">true</UseLocalJustyBaseLibraries>
-    <UseLocalJustyBaseLibraries Condition="'$(UseLocalJustyBaseLibraries)' == ''">false</UseLocalJustyBaseLibraries>
-
-    <!-- NuGet fallback: latest published incl. prerelease. Pin e.g. 0.3.0-preview.6 -->
-    <JustyBaseNetezzaLibsPackageVersion Condition="'$(JustyBaseNetezzaLibsPackageVersion)' == ''">*-*</JustyBaseNetezzaLibsPackageVersion>
-
-    <!-- NuGet fallback for managed DB2 driver. Pin once published, e.g. 0.1.0 -->
-    <JustyBaseDb2PackageVersion Condition="'$(JustyBaseDb2PackageVersion)' == ''">*-*</JustyBaseDb2PackageVersion>
+    <!-- Managed DB2 driver and IBM.Data.Db2 compatibility API, restored from NuGet. -->
+    <JustyBaseDb2PackageVersion Condition="'$(JustyBaseDb2PackageVersion)' == ''">0.1.0-alpha.1</JustyBaseDb2PackageVersion>
 
   </PropertyGroup>
 </Project>

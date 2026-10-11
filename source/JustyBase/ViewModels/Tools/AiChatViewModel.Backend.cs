@@ -182,6 +182,7 @@ public sealed partial class AiChatViewModel
             {
                 IsConnected = _chatService.IsConnected;
             }
+            UpdateBackendHelpNotice(success, backendId);
             RefreshCodexAccountState();
             // No modal — status line is enough for optional AI backends.
         }
@@ -207,6 +208,57 @@ public sealed partial class AiChatViewModel
             switchCts.Dispose();
         }
     }
+
+    #region Backend setup notice
+
+    /// <summary>
+    /// Shown when the selected backend cannot connect because a required external
+    /// tool is missing (for example the GitHub Copilot CLI). Surfaces the exact
+    /// install command instead of a cryptic failure.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool ShowBackendHelpNotice { get; set; }
+
+    [ObservableProperty]
+    public partial string BackendHelpMessage { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string BackendHelpCommand { get; set; } = string.Empty;
+
+    /// <summary>Re-runs the connection probe (for example after installing the CLI).</summary>
+    [RelayCommand]
+    private async Task RetryBackendConnectionAsync()
+    {
+        var connected = await EnsureConnectedAsync().ConfigureAwait(true);
+        UpdateBackendHelpNotice(connected, _chatService.ActiveBackendId
+            ?? _generalApplicationData.Config.AiChatBackendId);
+    }
+
+    [RelayCommand]
+    private void DismissBackendHelp()
+    {
+        ShowBackendHelpNotice = false;
+    }
+
+    private void UpdateBackendHelpNotice(bool connected, string? attemptedBackendId)
+    {
+        var backendId = attemptedBackendId ?? _chatService.ActiveBackendId;
+        if (connected || !string.Equals(backendId, "copilot", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowBackendHelpNotice = false;
+            return;
+        }
+
+        BackendHelpMessage = string.IsNullOrWhiteSpace(_chatService.ConnectionError)
+            ? "GitHub Copilot is not connected. JustyBase uses the GitHub Copilot CLI installed on your system."
+            : _chatService.ConnectionError!;
+        BackendHelpCommand = OperatingSystem.IsWindows()
+            ? "winget install GitHub.Copilot"
+            : "npm install -g @github/copilot";
+        ShowBackendHelpNotice = true;
+    }
+
+    #endregion
 
     private void SynchronizeSelectedBackendIndex(string? backendId)
     {
@@ -374,6 +426,8 @@ public sealed partial class AiChatViewModel
             StatusMessage = IsConnected
                 ? "Connected"
                 : $"Not connected: {_chatService.ConnectionError}";
+            UpdateBackendHelpNotice(IsConnected, _chatService.ActiveBackendId
+                ?? _generalApplicationData.Config.AiChatBackendId);
             RefreshCodexAccountState();
             IsCodexBackend = IsConnected
                 && string.Equals(_chatService.ActiveBackendId, "codex", StringComparison.OrdinalIgnoreCase);

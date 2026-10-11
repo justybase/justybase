@@ -30,6 +30,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: JustyBase
+      - name: Checkout Netezza libraries
+        uses: actions/checkout@v4
+        with:
+          repository: justybase/JustyBase.NetezzaSql
+          path: JustyBase.NetezzaSql
       - name: Checkout UCanAccess provider
         uses: actions/checkout@v4
         with:
@@ -73,6 +78,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: JustyBase
+      - name: Checkout Netezza libraries
+        uses: actions/checkout@v4
+        with:
+          repository: justybase/JustyBase.NetezzaSql
+          path: JustyBase.NetezzaSql
       - name: Checkout UCanAccess provider
         uses: actions/checkout@v4
         with:

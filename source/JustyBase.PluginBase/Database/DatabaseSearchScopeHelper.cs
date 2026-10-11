@@ -4,7 +4,9 @@ public static class DatabaseSearchScopeHelper
 {
     public static string? ResolveDatabaseOrFirst(string? requestedDatabase, IEnumerable<string> availableDatabases)
     {
-        if (requestedDatabase is not null)
+        // A blank request means "unqualified": fall back to the first/active
+        // database instead of filtering on an empty name that can never match.
+        if (!string.IsNullOrWhiteSpace(requestedDatabase))
         {
             return requestedDatabase;
         }

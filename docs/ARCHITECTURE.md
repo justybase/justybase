@@ -17,8 +17,8 @@ JustyBase (UI host: Views, ViewModels, app services)
 External:
 
 - **ProDataGrid** — NuGet dependency for DataGrid / hierarchical schema tree
-- **JustyBase.NetezzaSql** packages (or local sibling) — parser, DDL, catalog SQL
-- **JustyBase.UCanAccessCs** — local sibling provider used by `AccessPlugin` for Access file I/O and SQL execution
+ - **JustyBase.NetezzaSql** — required sibling projects for parser, DDL, catalog SQL, core, import/export, and AI
+ - **JustyBase.UCanAccessCs** — required sibling provider used by `AccessPlugin`; it references the sibling Netezza parser project
 
 ## UI composition
 
@@ -78,4 +78,4 @@ Maturity by engine: [PLUGIN_CAPABILITIES.md](PLUGIN_CAPABILITIES.md).
 - Credentials stored encrypted under `%AppData%\JustDataEvo`
 - Logging redacts connection secrets
 - Windows update integration uses Velopack's `GithubSource` against the public JustyBase GitHub Releases feed. Automatic checks are throttled to once per 24 hours and downloaded updates require user confirmation before restart.
-- Release artifacts are self-contained ReadyToRun (no NativeAOT, no trimming); CI builds the Netezza libraries from the sibling `JustyBase.NetezzaSql` checkout (`UseLocalJustyBaseLibraries=true`)
+ - Release artifacts: Windows is self-contained Native AOT (`PublishAot`/`PublishTrimmed`), Linux/macOS stay self-contained ReadyToRun (no trimming); workflow definitions check out both sibling repositories before restore/build, with no NuGet fallback for their libraries

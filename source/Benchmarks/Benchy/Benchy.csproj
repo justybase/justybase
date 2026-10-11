@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\JustyBase.Common\JustyBase.Common.Tools\JustyBase.Common.Tools.csproj" />
-    <PackageReference Include="JustyBase.NetezzaSqlParser" Version="$(JustyBaseNetezzaLibsPackageVersion)" />
+    <ProjectReference Include="$(JustyBaseLocalNetezzaSqlParserProject)" />
   </ItemGroup>
 
 </Project>

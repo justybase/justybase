@@ -7,7 +7,7 @@ namespace JustyBase.Tests;
 /// <summary>
 /// In-memory <see cref="DbConnection"/> that serves scripted catalog rows based on the SQL text
 /// the loader issues. Rows are matched by marker fragments (<c>_V_OBJECT_DATA</c>, <c>_V_RELATION_COLUMN</c>,
-/// <c>_v_database</c>, <c>_V_PROCEDURE</c>) so the loader's stage selection is exercised.
+/// <c>_V_RELATION_KEYDATA</c>, <c>_v_database</c>, <c>_V_PROCEDURE</c>) so the loader's stage selection is exercised.
 /// </summary>
 internal sealed class FakeCatalogConnection : DbConnection
 {
@@ -69,6 +69,10 @@ internal sealed class FakeCatalogConnection : DbConnection
         if (commandText.Contains("_V_RELATION_COLUMN", StringComparison.OrdinalIgnoreCase))
         {
             rows = _columnRows;
+        }
+        else if (commandText.Contains("_V_RELATION_KEYDATA", StringComparison.OrdinalIgnoreCase))
+        {
+            rows = Array.Empty<object?[]>();
         }
         else if (commandText.Contains("_V_OBJECT_DATA", StringComparison.OrdinalIgnoreCase))
         {

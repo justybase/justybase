@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.3.20] - 2026-10-17
+
 ### Added
 
 - Excel File SQL plugin for querying `.xlsx` and `.xlsb` worksheets as SQL tables, plus multi-result export to separate `.xlsx`/`.xlsb` worksheets

@@ -16,7 +16,7 @@ public sealed class DefineConstantsConsistencyTests
             ["EnablePostgresPlugin"] = ("POSTGRES", @"..\Plugins\PostgresPlugin\PostgresPlugin.csproj", "true"),
             ["EnableOraclePlugin"] = ("ORACLE", @"..\Plugins\OraclePlugin\OraclePlugin.csproj", "false"),
             ["EnableDb2Plugin"] = ("DB2", @"..\Plugins\DB2Plugin\DB2Plugin.csproj", "true"),
-            ["EnableDuckDbPlugin"] = ("DUCKDB", @"..\Plugins\DuckDBPlugin\DuckDBPlugin.csproj", "false"),
+            ["EnableDuckDbPlugin"] = ("DUCKDB", @"..\Plugins\DuckDBPlugin\DuckDBPlugin.csproj", "true"),
             ["EnableAccessPlugin"] = ("ACCESS", @"..\Plugins\AccessPlugin\AccessPlugin.csproj", "true")
         };
 

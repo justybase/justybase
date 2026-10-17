@@ -136,7 +136,7 @@ public sealed class SqlIntelligenceParityHostTests
     }
 
     [Fact]
-    public void DeferredEmptyColumns_QualifiedOperator_DoesNotEmitSql005()
+    public void DeferredEmptyColumns_QualifiedOperator_EmitsSql005Warning()
     {
         // Repro: JUST_DATA.ADMIN.DIMACCOUNT with deferred (empty) columns + alias.OPERATOR
         var schema = new JustyBase.NetezzaSqlParser.Visitor.InMemorySchemaProvider();
@@ -152,7 +152,7 @@ public sealed class SqlIntelligenceParityHostTests
                 """,
             Schema: schema));
 
-        Assert.DoesNotContain(result.Issues, i => i.RuleId == "SQL005");
+        Assert.Contains(result.Issues, i => i.RuleId == "SQL005" && i.Severity == LintSeverity.Warning);
     }
 
     private static void WaitUntil(Func<bool> condition, TimeSpan timeout)

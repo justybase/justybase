@@ -186,7 +186,7 @@ public sealed class NzLinterService : IDisposable
         if (oldEditor is not null)
         {
             oldEditor.TextChanged -= OnTextChanged;
-            TryUnsubscribeCaret(oldEditor);
+            UnsubscribeCaret(oldEditor);
         }
         editor.TextChanged += OnTextChanged;
         editor.TextArea.Caret.PositionChanged += OnCaretPositionChanged;
@@ -952,18 +952,8 @@ public sealed class NzLinterService : IDisposable
             outline.FollowCaret(offset);
     }
 
-    private void TryUnsubscribeCaret(SqlCodeEditor editor)
-    {
-        try
-        {
-            if (editor.TextArea?.Caret is not null)
-                editor.TextArea.Caret.PositionChanged -= OnCaretPositionChanged;
-        }
-        catch
-        {
-            // Best effort: the editor may already be torn down.
-        }
-    }
+    private void UnsubscribeCaret(SqlCodeEditor editor)
+        => editor.TextArea.Caret.PositionChanged -= OnCaretPositionChanged;
 
     public void Dispose()
     {
@@ -985,7 +975,7 @@ public sealed class NzLinterService : IDisposable
             if (_attachedEditor is not null)
             {
                 _attachedEditor.TextChanged -= OnTextChanged;
-                TryUnsubscribeCaret(_attachedEditor);
+                UnsubscribeCaret(_attachedEditor);
             }
             _attachedEditor = null;
 

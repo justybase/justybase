@@ -1,3 +1,10 @@
+# JustyBase 1.3.20
+
+- Improved DuckDB schema discovery and metadata handling.
+- Updated Dock.Avalonia and DuckDB.NET dependencies.
+- Added SQL querying and multi-result export for Excel workbooks, plus the Microsoft Access driver.
+- Added cross-platform self-contained release packages and improved plugin selection.
+
 # JustyBase 1.3.19
 
 - Added SQL querying for `.xlsx` and `.xlsb` workbooks through the Excel file driver.

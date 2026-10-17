@@ -111,6 +111,7 @@ public abstract partial class DatabaseService : IDatabaseService, IDatabaseWithS
     {
         _cacheManager.ClearMainCache();
         DatabaseTableIdColumnIntervalSpan.Clear();
+        DatabaseTableIdColumnIntervalSpan64.Clear();
         DatabaseColumnsList.Clear();
     }
 

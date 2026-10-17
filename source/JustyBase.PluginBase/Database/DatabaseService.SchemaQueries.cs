@@ -2,6 +2,7 @@ using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Models;
 using System.Data.Common;
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace JustyBase.PluginDatabaseBase.Database;
@@ -14,7 +15,10 @@ public abstract partial class DatabaseService
 
     //DatabaseSchemaTableColumn[database][schema][objectName][column]
 
+    // Keep the legacy 32-bit map available to existing plugin subclasses.
     protected readonly Dictionary<string, Dictionary<int, ColumnInterval>> DatabaseTableIdColumnIntervalSpan = new(StringComparer.OrdinalIgnoreCase);
+
+    protected readonly Dictionary<string, Dictionary<long, ColumnInterval>> DatabaseTableIdColumnIntervalSpan64 = new(StringComparer.OrdinalIgnoreCase);
 
     protected readonly Dictionary<string, DatabaseColumn[]> DatabaseColumnsList = new Dictionary<string, DatabaseColumn[]>(StringComparer.OrdinalIgnoreCase);
 
@@ -127,16 +131,25 @@ public abstract partial class DatabaseService
             {
                 if (schemaX is not null && schemaTableDict.TryGetValue(schemaX, out var tableDictionary))
                 {
-                    if (tableDictionary.TryGetValue(table, out var accualObject) &&
-                        DatabaseTableIdColumnIntervalSpan.TryGetValue(resolvedDatabase, out var columnDictionaryOfCurrentDatabase) &&
-                        columnDictionaryOfCurrentDatabase.TryGetValue(accualObject.Id, out var columnInterval))
+                    if (tableDictionary.TryGetValue(table, out var actualObject))
                     {
-                        int firstColumnIndex = columnInterval.FirstIndex;
-                        int lastColumnIndex = columnInterval.LastIndex;
-
-                        if (DatabaseColumnsList.TryGetValue(resolvedDatabase, out var columnsArray))
+                        ColumnInterval? columnInterval = null;
+                        if (DatabaseTableIdColumnIntervalSpan64.TryGetValue(resolvedDatabase, out var columnDictionary64)
+                            && columnDictionary64.TryGetValue(actualObject.CatalogId, out var interval64))
                         {
-                            for (int i = firstColumnIndex; i < lastColumnIndex && i < columnsArray.Length; i++)
+                            columnInterval = interval64;
+                        }
+                        else if (actualObject.CatalogId is >= int.MinValue and <= int.MaxValue
+                            && DatabaseTableIdColumnIntervalSpan.TryGetValue(resolvedDatabase, out var legacyColumnDictionary)
+                            && legacyColumnDictionary.TryGetValue((int)actualObject.CatalogId, out var legacyInterval))
+                        {
+                            columnInterval = legacyInterval;
+                        }
+
+                        if (columnInterval is ColumnInterval foundInterval
+                            && DatabaseColumnsList.TryGetValue(resolvedDatabase, out var columnsArray))
+                        {
+                            for (int i = foundInterval.FirstIndex; i < foundInterval.LastIndex && i < columnsArray.Length; i++)
                             {
                                 var item = columnsArray[i];
                                 if (DatabaseFilterHelper.MatchesContains(item.Name, filter))
@@ -330,7 +343,8 @@ public abstract partial class DatabaseService
         var acualDb = _databaseSchemaTable[database];
         while (rdr.Read())
         {
-            int objId = rdr.GetInt32(0);
+            long catalogId = Convert.ToInt64(rdr.GetValue(0), CultureInfo.InvariantCulture);
+            int objId = catalogId is >= int.MinValue and <= int.MaxValue ? (int)catalogId : 0;
             string objNme = rdr.GetString(1);
             string? desc = rdr.GetValue(2) as string;
             string schema = rdr.GetString(3);
@@ -340,13 +354,16 @@ public abstract partial class DatabaseService
             TypeInDatabaseEnum dbType = databaseObjectType.GetTypeInDatabaseEnumFromDbName();
 
             _ = acualDb.TryAdd(schema, []); // no StringComparer.OrdinalIgnoreCase by purpouse
-            acualDb[schema][objNme] = new DatabaseObject(objId, objNme, desc, dbType, databaseObjectType, owner, crtTime);
+            acualDb[schema][objNme] = new DatabaseObject(objId, objNme, desc, dbType, databaseObjectType, owner, crtTime)
+            {
+                CatalogId = catalogId,
+            };
         }
     }
 
     protected virtual void LoadColumns(string database, DbConnection con)
     {
-        var currentDic = new Dictionary<int, ColumnInterval>();
+        var currentDic64 = new Dictionary<long, ColumnInterval>();
 
         using var cmd = CreateCommandFromConnection(con);
 
@@ -355,13 +372,13 @@ public abstract partial class DatabaseService
 
         List<DatabaseColumn> tempCols = [];
         int num = 0;
-        int prevObjId = -1;
+        long prevObjId = -1;
         int tmpA = 0;
 
         while (rdr.Read())
         {
             string columnName = rdr.GetString(1);
-            int obejctId = rdr.GetInt32(0);
+            long obejctId = Convert.ToInt64(rdr.GetValue(0), CultureInfo.InvariantCulture);
 
             string? desc = rdr.GetValue(2) as string;
             string columnTypeFullName = rdr.GetString(3);
@@ -383,7 +400,7 @@ public abstract partial class DatabaseService
 
             if (prevObjId != -1 && prevObjId != obejctId)
             {
-                currentDic[prevObjId] = new ColumnInterval() { FirstIndex = tmpA, LastIndex = num };
+                currentDic64[prevObjId] = new ColumnInterval() { FirstIndex = tmpA, LastIndex = num };
                 tmpA = num;
             }
             prevObjId = obejctId;
@@ -392,10 +409,22 @@ public abstract partial class DatabaseService
             tempCols.Add(new DatabaseColumn(columnName, desc, columnTypeFullName, columnNotNull, colDefValue));
             num++;
         }
-        currentDic[prevObjId] = new ColumnInterval() { FirstIndex = tmpA, LastIndex = num };
+        if (prevObjId != -1)
+        {
+            currentDic64[prevObjId] = new ColumnInterval() { FirstIndex = tmpA, LastIndex = num };
+        }
+        var currentDic32 = new Dictionary<int, ColumnInterval>();
+        foreach (var (catalogId, interval) in currentDic64)
+        {
+            if (catalogId is >= int.MinValue and <= int.MaxValue)
+            {
+                currentDic32[(int)catalogId] = interval;
+            }
+        }
         lock (_lock2)
         {
-            DatabaseTableIdColumnIntervalSpan[database] = currentDic;
+            DatabaseTableIdColumnIntervalSpan64[database] = currentDic64;
+            DatabaseTableIdColumnIntervalSpan[database] = currentDic32;
             DatabaseColumnsList[database] = tempCols.ToArray();
         }
     }

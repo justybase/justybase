@@ -170,9 +170,9 @@ internal sealed class DatabaseCacheManager
 
                         try
                         {
-                            var cmd = createCommandFromConnection(con);
+                            using var cmd = createCommandFromConnection(con);
                             cmd.CommandText = getObjectCode(typeInDatabase, database, procedureName);
-                            var rdr = cmd.ExecuteReader();
+                            using var rdr = cmd.ExecuteReader();
 
                             if (typeInDatabase == TypeInDatabaseEnum.Procedure)
                             {

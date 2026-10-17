@@ -21,13 +21,19 @@ public sealed class DuckDB : DatabaseService
 
     public override DbConnection GetConnection(string? databaseName, bool pooling = true)
     {
-        databaseName ??= Database;
         if (string.IsNullOrEmpty(Ip))
         {
-            Connection = new DuckDBConnection(@$"Data Source={databaseName}");
+            // DuckDB's current_database() returns a catalog name, which may
+            // differ from the file path stored in the connection settings.
+            // Reopen the configured file when the schema cache supplies that name.
+            var dataSource = string.IsNullOrWhiteSpace(Database) || Database.Equals(":memory:", StringComparison.OrdinalIgnoreCase)
+                ? ":memory:?cache=shared"
+                : Database;
+            Connection = new DuckDBConnection(@$"Data Source={dataSource}");
         }
         else
         {
+            databaseName ??= Database;
             Connection = new DuckDBConnection(@$"Data Source={Ip}\{databaseName}.db");
         }
 
@@ -38,21 +44,29 @@ public sealed class DuckDB : DatabaseService
     {
         return
             """
-            SELECT 
-                coalesce(T.table_oid, V.view_oid)
-                , I.table_name
-                , I.TABLE_COMMENT
-                , I.table_schema
-                , I.table_type
-                , '' AS OWNER
-                , NULL AS CREATEDATATIME
-            FROM information_schema.tables I
-            LEFT JOIN duckdb_tables() T ON T.table_name = I.table_name
-                AND T.schema_name = I.table_schema
-                AND T.database_name = I.table_catalog
-            LEFT JOIN duckdb_views() V ON V.view_name = I.table_name
-                AND v.schema_name = I.table_schema
-                AND v.database_name = I.table_catalog
+            SELECT
+                table_oid AS OBJECT_ID,
+                table_name AS OBJECT_NAME,
+                comment AS DESCRIPTION,
+                schema_name AS SCHEMA_NAME,
+                'BASE TABLE' AS OBJECT_TYPE,
+                '' AS OWNER,
+                NULL AS CREATEDATATIME
+            FROM duckdb_tables()
+            WHERE NOT internal AND database_name = current_database()
+
+            UNION ALL
+
+            SELECT
+                view_oid AS OBJECT_ID,
+                view_name AS OBJECT_NAME,
+                comment AS DESCRIPTION,
+                schema_name AS SCHEMA_NAME,
+                'VIEW' AS OBJECT_TYPE,
+                '' AS OWNER,
+                NULL AS CREATEDATATIME
+            FROM duckdb_views()
+            WHERE NOT internal AND database_name = current_database()
             """;
     }
 
@@ -78,7 +92,9 @@ public sealed class DuckDB : DatabaseService
     {
         return
         """
-        select schema_name, view_name, sql from duckdb_views() where not internal
+        select schema_name, view_name, sql
+        from duckdb_views()
+        where not internal and database_name = current_database()
         """;
     }
 
@@ -91,11 +107,11 @@ public sealed class DuckDB : DatabaseService
             con.Open();
         }
         using var cmd = con.CreateCommand();
-        cmd.CommandText = "SELECT database_name,database_oid, FROM DUCKDB_DATABASES()  WHERE NOT INTERNAL";
-        var rdr = cmd.ExecuteReader();
-        while (rdr.Read())
+        cmd.CommandText = "SELECT current_database()";
+        var databaseName = cmd.ExecuteScalar() as string;
+        if (!string.IsNullOrWhiteSpace(databaseName))
         {
-            databases.Add((rdr.GetString(0), "main"));
+            databases.Add((databaseName, "main"));
         }
 
         return databases;
@@ -104,19 +120,16 @@ public sealed class DuckDB : DatabaseService
     protected override string GetSqlOfColumns(string dbName)
     {
         return
-            $"""
+            """
                 SELECT 
                     table_oid AS OBJECT_ID
                     , column_name
-                    , NULL AS DESCRIPTION
-                    , data_type || 
-                        COALESCE('(' ||character_maximum_length || ')', 
-                        '(' || numeric_precision || ',' || numeric_scale || ')',
-                        '') 
-                        || CASE WHEN is_nullable THEN ' NOT NULL' ELSE '' END  
-                    , is_nullable AS ATTNOTNULL
+                    , comment AS DESCRIPTION
+                    , data_type AS FULL_TYPE_NAME
+                    , NOT is_nullable AS ATTNOTNULL
                     , column_default
                 FROM duckdb_columns()
+                WHERE NOT internal AND database_name = current_database()
                 ORDER BY table_oid, column_index
                 """;
     }
@@ -135,16 +148,27 @@ public sealed class DuckDB : DatabaseService
         {
             using var conn = GetConnection(database);
             conn.Open();
-            var cmd = conn.CreateCommand();
+            using var cmd = conn.CreateCommand();
             cmd.CommandText =
-            $"""
+            """
                 SELECT sql FROM duckdb_tables()
-                where database_name = 'duck'
-                and schema_name = '{schema}'
-                and table_name = '{tableName}'
+                WHERE database_name = $database
+                    AND schema_name = $schema
+                    AND table_name = $tableName
             """;
+            AddParameter(cmd, "database", database);
+            AddParameter(cmd, "schema", schema);
+            AddParameter(cmd, "tableName", tableName);
             string? txt = cmd.ExecuteScalar() as string;
             sb.Append(txt);
         });
+    }
+
+    private static void AddParameter(DbCommand command, string name, string value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value;
+        command.Parameters.Add(parameter);
     }
 }

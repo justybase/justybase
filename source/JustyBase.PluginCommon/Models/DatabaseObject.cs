@@ -5,6 +5,12 @@ namespace JustyBase.PluginCommon.Models;
 public record DatabaseObject(int Id, string Name, string? Desc, TypeInDatabaseEnum TypeInDatabase, string TextType, string Owner, DateTime? CreateDateTime)
 {
     /// <summary>
+    /// Full-width catalog identifier used to associate objects with their columns.
+    /// <see cref="Id"/> remains the legacy 32-bit identifier used by plugins.
+    /// </summary>
+    public long CatalogId { get; init; } = Id;
+
+    /// <summary>
     /// SQLite uses sqlite_schema.tbl_name to associate indexes and triggers with
     /// their target table/view. This is intentionally separate from Desc, which
     /// remains user-facing description/source text for other database engines.

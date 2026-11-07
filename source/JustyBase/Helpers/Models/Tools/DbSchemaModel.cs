@@ -114,6 +114,15 @@ public sealed partial class DbSchemaModel
 
     internal Services.Documents.IDatabaseServiceResolver? Resolver => _resolver;
 
+    /// <summary>True once children were loaded; reading <see cref="Children"/> would start a load.</summary>
+    public bool AreChildrenLoaded => _childrenLoaded;
+
+    /// <summary>Children without the side effect of starting a load.</summary>
+    public IReadOnlyList<DbSchemaModel> LoadedChildren => _children;
+
+    /// <summary>Raised on the UI thread after a node's children were replaced.</summary>
+    public event EventHandler? ChildrenLoaded;
+
     public ObservableCollection<DbSchemaModel> Children
     {
         get
@@ -157,10 +166,26 @@ public sealed partial class DbSchemaModel
     private async Task LoadChildrenCoreAsync(CancellationTokenSource cts, int generation)
     {
         var cancellationToken = cts.Token;
+        DbSchemaModel? placeholder = null;
         IsLoading = true;
         LoadError = null;
         try
         {
+            // A node must expose at least one child as soon as it is expanded,
+            // otherwise the tree has nothing to render and the row collapses
+            // again before the async load finishes.
+            if (IsExpandedable && _children.Count == 0)
+            {
+                placeholder = new DbSchemaModel(TypeInDatabaseEnum.otherNoneEntry, DatabaseTypeEnumValue, _generalApplicationData, _resolver)
+                {
+                    Name = "Loading…",
+                    Parent = this,
+                    ConnectionName = ConnectionName,
+                    IsExpandedable = false
+                };
+                _children.Add(placeholder);
+            }
+
             // F1: connected-level check prefers resolver when available.
             var connectedLevel = _resolver is not null && !string.IsNullOrWhiteSpace(Name)
                 ? _resolver.GetCachedServices().FirstOrDefault(s => s.Name == Name)?.ConnectedLevel
@@ -169,14 +194,6 @@ public sealed partial class DbSchemaModel
             if (ActualTypeInDatabase == TypeInDatabaseEnum.Connection
                 && connectedLevel < DatabaseConnectedLevel.ConnectedDatabaseObjects)
             {
-                _children.Add(new DbSchemaModel(TypeInDatabaseEnum.otherNoneEntry, this.DatabaseTypeEnumValue, _generalApplicationData, _resolver)
-                {
-                    Name = "Loading...",
-                    Parent = this,
-                    ConnectionName = this.ConnectionName,
-                    IsExpandedable = false
-                });
-
                 try
                 {
                     await Task.Run(() => ResolveService(Name))
@@ -233,6 +250,7 @@ public sealed partial class DbSchemaModel
 
                 _childrenLoaded = true;
                 IsLoading = false;
+                ChildrenLoaded?.Invoke(this, EventArgs.Empty);
             });
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -242,6 +260,7 @@ public sealed partial class DbSchemaModel
                 // Keep previous children on cancel; a newer load superseded this one.
                 if (generation == _loadGeneration)
                 {
+                    RemovePlaceholder(placeholder);
                     IsLoading = false;
                 }
             });
@@ -276,6 +295,7 @@ public sealed partial class DbSchemaModel
                 });
                 LoadError = rawMessage;
                 IsLoading = false;
+                ChildrenLoaded?.Invoke(this, EventArgs.Empty);
             });
         }
         finally
@@ -286,6 +306,19 @@ public sealed partial class DbSchemaModel
             }
 
             cts.Dispose();
+        }
+    }
+
+    private void RemovePlaceholder(DbSchemaModel? placeholder)
+    {
+        if (placeholder is null)
+        {
+            return;
+        }
+
+        if (_children.Count == 1 && ReferenceEquals(_children[0], placeholder))
+        {
+            _children.Clear();
         }
     }
 

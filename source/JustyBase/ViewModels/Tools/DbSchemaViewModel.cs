@@ -408,13 +408,39 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
 
             DatabaseTypeEnum dbType = DatabaseServiceHelpers.StringToDatabaseTypeEnum(item.Value.Driver);
 
-            _connectionCollection.Add(new DbSchemaModel(TypeInDatabaseEnum.Connection, dbType, _generalApplicationData)
+            var connectionNode = new DbSchemaModel(TypeInDatabaseEnum.Connection, dbType, _generalApplicationData)
             {
                 Name = item.Key,
                 Info = "connection",
                 ConnectionName = item.Key
-            });
+            };
+            AttachChildrenLoadedHandler(connectionNode);
+            _connectionCollection.Add(connectionNode);
         }
+    }
+
+    /// <summary>
+    /// ProDataGrid's hierarchical model does not pick up children that arrive
+    /// asynchronously, so a load has to be followed by an explicit refresh.
+    /// Handlers are attached lazily to already-loaded children only.
+    /// </summary>
+    private void AttachChildrenLoadedHandler(DbSchemaModel node)
+    {
+        node.ChildrenLoaded -= OnSchemaNodeChildrenLoaded;
+        node.ChildrenLoaded += OnSchemaNodeChildrenLoaded;
+    }
+
+    private void OnSchemaNodeChildrenLoaded(object? sender, EventArgs e)
+    {
+        if (sender is DbSchemaModel node && node.AreChildrenLoaded)
+        {
+            foreach (var child in node.LoadedChildren)
+            {
+                AttachChildrenLoadedHandler(child);
+            }
+        }
+
+        SchemaModel?.Refresh();
     }
 
     //reset after added/deleted new
@@ -433,12 +459,14 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
             DatabaseTypeEnum dbType = DatabaseServiceHelpers.StringToDatabaseTypeEnum(item.Value.Driver);
             if (!_connectionCollection.Select(a => a.Name).Contains(item.Key))
             {
-                _connectionCollection.Add(new DbSchemaModel(TypeInDatabaseEnum.Connection, dbType, _generalApplicationData)
+                var connectionNode = new DbSchemaModel(TypeInDatabaseEnum.Connection, dbType, _generalApplicationData)
                 {
                     Name = item.Key,
                     Info = "connection",
                     ConnectionName = item.Key
-                });
+                };
+                AttachChildrenLoadedHandler(connectionNode);
+                _connectionCollection.Add(connectionNode);
             }
         }
         OnPropertyChanged(nameof(_connectionCollection));

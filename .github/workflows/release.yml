@@ -177,7 +177,7 @@ jobs:
   macos:
     name: macOS ${{ matrix.rid }} ${{ matrix.variant }} package
     needs: [prepare, quality]
-    runs-on: macos-14
+    runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:

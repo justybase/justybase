@@ -337,6 +337,9 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
 
     private bool _editorServicesInitialized;
 
+    /// <summary>Dialect used by parser-driven editor services for this document.</summary>
+    public SqlDialect Dialect => _documentDialect;
+
     public void Initialize(ISqlAutocompleteData sqlAutocompleteData, ISomeEditorOptions someEditorOptions,
         NzCompletionEngine? completionEngine = null, InMemorySchemaProvider? parserSchema = null,
         DocumentParsingCoordinator? parsingCoordinator = null, string? documentUri = null,

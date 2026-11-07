@@ -12,4 +12,8 @@ public sealed record DbConnectionOptions(
     string Port = "",
     string Ip = "",
     string Database = "",
-    int ConnectionTimeout = 0);
+    int ConnectionTimeout = 0)
+{
+    /// <summary>Db2-only connection options; null when not configured.</summary>
+    public Db2ConnectionOptions? Db2Options { get; init; }
+}

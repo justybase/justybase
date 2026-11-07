@@ -5,7 +5,7 @@ JustyBase is **Netezza-first**. Other engines are available with uneven maturity
 | Engine | Maturity | Connect | Schema browse | Run SELECT | DDL / scripts helpers | Notes |
 |--------|----------|---------|---------------|------------|------------------------|-------|
 | **Netezza (dotnet)** | **stable** | Yes | Yes | Yes | Yes | Primary product path |
-| **DB2** | **experimental** | Yes | Yes | Yes | Yes | Highly experimental: in-development managed DRDA driver (`JustyBase.Db2` 0.1.0, LUW-only). Do not use in production. External tables not implemented |
+| **DB2** | **experimental** | Yes | Yes | Yes | Yes | Highly experimental: in-development managed DRDA driver (`JustyBase.Db2` 0.1.0, LUW-only). Do not use in production. External tables not implemented. Schema tree includes indexes, range partitions, triggers and tablespaces; connection options cover current schema, TLS and statement timeout |
 | **Postgres** | **stable** | Yes | Yes | Yes | Yes | External tables / synonyms incomplete |
 | **Oracle** | **experimental** | Yes | Yes | Yes | Partial | Some catalog queries still stubbed |
 | **DuckDB** | **experimental** | Yes | Yes | Yes | Partial | Loaded as optional plugin DLL |
@@ -22,7 +22,7 @@ JustyBase is **Netezza-first**. Other engines are available with uneven maturity
 
 SQLite, DuckDB, Excel File SQL and Microsoft Access may be loaded via the plugin directory rather than the default in-process registration list.
 
-Schema context menus and tree groups are gated by `DatabaseCapabilities` (`JustyBase.PluginCommon/Models/DatabaseCapabilities.cs`). Actions the driver cannot express in valid SQL are hidden instead of producing statements the server rejects — for example, Db2 shows REORG/RUNSTATS where Netezza shows GROOM/GENERATE STATISTICS, offers alias/nickname DDL instead of synonyms, and hides distribution, deleted-row and grant actions until a Db2 implementation exists.
+Schema context menus and tree groups are gated by `DatabaseCapabilities` (`JustyBase.PluginCommon/Models/DatabaseCapabilities.cs`). Actions the driver cannot express in valid SQL are hidden instead of producing statements the server rejects — for example, Db2 shows REORG/RUNSTATS where Netezza shows GROOM/GENERATE STATISTICS, offers alias/nickname DDL instead of synonyms, and hides distribution, deleted-row and grant actions until a Db2 implementation exists. Db2 also exposes its index, data-partition, trigger and tablespace groups, and the schema menu offers comment/drop/PK/UNIQUE/rename/CTAS/EXPLAIN/compare/find-usages helpers where the engine supports them.
 
 SQLite support covers the native SQLite object model rather than a table-editor abstraction: databases and attached catalogs,
 tables, views, columns (including primary-key/generated/hidden flags), indexes (unique/partial/expression/order/collation metadata),

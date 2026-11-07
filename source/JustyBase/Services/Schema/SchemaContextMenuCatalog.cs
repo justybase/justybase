@@ -19,7 +19,16 @@ public enum SchemaContextActionKind
     EmptyTable,
     Recreate,
     ImportData,
-    ExportData
+    ExportData,
+    Comment,
+    Drop,
+    PrimaryKey,
+    Unique,
+    Rename,
+    Explain,
+    Compare,
+    FindUsages,
+    CreateTableFrom
 }
 
 public sealed record SchemaContextMenuEntry(
@@ -74,6 +83,15 @@ public static class SchemaContextMenuCatalog
         new("Recreate", SchemaContextActionKind.Recreate, [TypeInDatabaseEnum.Table], 52, SharedIds.Recreate),
         new("Import data", SchemaContextActionKind.ImportData, [TypeInDatabaseEnum.Table], 60, SharedIds.Import),
         new("Export data", SchemaContextActionKind.ExportData, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View], 61, SharedIds.Export),
+        new("Add comment", SchemaContextActionKind.Comment, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View], 31, SharedIds.Comment),
+        new("Add primary key", SchemaContextActionKind.PrimaryKey, [TypeInDatabaseEnum.Table], 32),
+        new("Add unique constraint", SchemaContextActionKind.Unique, [TypeInDatabaseEnum.Table], 33),
+        new("Explain plan", SchemaContextActionKind.Explain, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View], 24),
+        new("Rename", SchemaContextActionKind.Rename, [TypeInDatabaseEnum.Table], 53),
+        new("Create table from this", SchemaContextActionKind.CreateTableFrom, [TypeInDatabaseEnum.Table], 54),
+        new("Drop object", SchemaContextActionKind.Drop, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View, TypeInDatabaseEnum.Index, TypeInDatabaseEnum.Trigger], 80),
+        new("Compare DDL with editor", SchemaContextActionKind.Compare, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View], 81),
+        new("Find usages", SchemaContextActionKind.FindUsages, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View, TypeInDatabaseEnum.Procedure, TypeInDatabaseEnum.Function], 82),
     ];
 
     public static IEnumerable<SchemaContextMenuEntry> ForType(TypeInDatabaseEnum type)
@@ -109,6 +127,14 @@ public static class SchemaContextMenuCatalog
         "RECREATE_ALL_TABLES" => capabilities.SupportsRecreateAllTables,
         "IMPORT_DATA" => capabilities.SupportsImport,
         "EXPORT_DATA" => capabilities.SupportsExport,
+        "COMMENT" => capabilities.SupportsComments && capabilities.SupportsDdl,
+        "KEY" or "UNIQUE" => capabilities.SupportsDdl,
+        "RENAME" => capabilities.SupportsRenameTable,
+        "CREATE_FROM" => capabilities.SupportsCreateTableFrom,
+        "EXPLAIN" => capabilities.SupportsExplain,
+        "COMPARE_DDL" => capabilities.SupportsDdl,
+        "FIND_USAGES" => capabilities.SupportsFindUsages,
+        "DROP" => capabilities.SupportsDdl,
         "CREATE_INDEX" or "DDL_ALL_INDEXES" or "DDL_INDEX" or "DDL_INDEX_CLIP" or "DROP_INDEX" => capabilities.SupportsIndexes,
         "CREATE_PARTITION" or "DDL_ALL_PARTITIONS" or "DDL_PARTITION" or "DDL_PARTITION_CLIP" => capabilities.SupportsPartitions,
         "DDL_ALL_TRIGGERS" or "DDL_TRIGGER" or "DDL_TRIGGER_CLIP" or "DROP_TRIGGER" => capabilities.SupportsTriggers,
@@ -193,6 +219,20 @@ public static class SchemaContextMenuCatalog
             SchemaContextActionKind.Recreate => "RECREATE_TABLE",
             SchemaContextActionKind.ImportData => "IMPORT_DATA",
             SchemaContextActionKind.ExportData => "EXPORT_DATA",
+            SchemaContextActionKind.Comment => "COMMENT",
+            SchemaContextActionKind.Drop => type switch
+            {
+                TypeInDatabaseEnum.Index => "DROP_INDEX",
+                TypeInDatabaseEnum.Trigger => "DROP_TRIGGER",
+                _ => "DROP",
+            },
+            SchemaContextActionKind.PrimaryKey => "KEY",
+            SchemaContextActionKind.Unique => "UNIQUE",
+            SchemaContextActionKind.Rename => "RENAME",
+            SchemaContextActionKind.Explain => "EXPLAIN",
+            SchemaContextActionKind.Compare => "COMPARE_DDL",
+            SchemaContextActionKind.FindUsages => "FIND_USAGES",
+            SchemaContextActionKind.CreateTableFrom => "CREATE_FROM",
             _ => null
         };
     }

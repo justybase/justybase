@@ -28,6 +28,7 @@ public interface IGeneralApplicationData : IDatabaseInfo, ISomeEditorOptions, IR
     /// stored <c>LoginDataModel</c> besides <c>AddToOrEditLoginData</c>.
     /// </summary>
     void SetAccessOptions(string name, JustyBase.PluginCommon.Models.AccessConnectionOptions? options);
+    void SetDb2Options(string name, JustyBase.PluginCommon.Models.Db2ConnectionOptions? options);
 
     /// <summary>
     /// Persists only the application config (config.json.enc), without

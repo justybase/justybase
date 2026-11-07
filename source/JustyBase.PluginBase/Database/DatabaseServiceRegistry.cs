@@ -180,7 +180,10 @@ public sealed class DatabaseServiceRegistry
                     Port: port ?? string.Empty,
                     Ip: ip ?? string.Empty,
                     Database: db ?? string.Empty,
-                    ConnectionTimeout: connectionTimeout),
+                    ConnectionTimeout: connectionTimeout)
+                {
+                    Db2Options = loginDataModel.Db2Options,
+                },
                 databaseInfo.GetDataDir());
             if (databaseService is ILoginDataAwareDatabaseService loginDataAwareDatabaseService)
             {
@@ -262,7 +265,10 @@ public sealed class DatabaseServiceRegistry
                 Port: loginData.Port ?? string.Empty,
                 Ip: loginData.Server ?? string.Empty,
                 Database: loginData.Database ?? string.Empty,
-                ConnectionTimeout: connectionTimeout > 0 ? connectionTimeout : 15),
+                ConnectionTimeout: connectionTimeout > 0 ? connectionTimeout : 15)
+            {
+                Db2Options = loginData.Db2Options,
+            },
             dataDirectory);
         if (databaseService is ILoginDataAwareDatabaseService loginDataAware)
         {

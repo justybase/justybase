@@ -1,4 +1,6 @@
 ﻿using JustyBase.Editor;
+using JustyBase.NetezzaSqlParser.Dialects;
+using JustyBase.NetezzaSqlParser.Scripts;
 using System.Text.RegularExpressions;
 using JustyBase.PluginCommons;
 
@@ -263,32 +265,35 @@ public static partial class EditorHelpers
     }
 
     public static string SelectQueryPhase(this TextEditor textEditor, out int currentSqlPosiotionInEditor)
+        => textEditor.SelectQueryPhase(SqlDialect.Netezza, out currentSqlPosiotionInEditor);
+
+    /// <summary>
+    /// Selects the statement around the caret using the document dialect's
+    /// statement scanner, so Db2 SQL PL bodies and PostgreSQL dollar-quoted
+    /// blocks are not split at their inner semicolons.
+    /// </summary>
+    public static string SelectQueryPhase(this TextEditor textEditor, SqlDialect dialect, out int currentSqlPosiotionInEditor)
     {
         string query = "";
         currentSqlPosiotionInEditor = textEditor.SelectionStart;
         if (textEditor.SelectionLength > 0)
         {
             query = textEditor.SelectedText;
+            return query;
         }
-        else
+
+        string source = textEditor.Text;
+        IReadOnlyList<SqlStatementSpan> statements = SqlStatementScanner.Scan(source, dialect).Statements;
+        if (statements.Count == 0)
         {
-            var parts = textEditor.Text.MySplitForSqlSplit(';');
-            int offset = textEditor.CaretOffset;
-            int s = 0;
-            int i = 0;
-            for (; i < parts.Count; i++)
-            {
-                s += parts[i].Length;
-                s++;
-                if (s > offset)
-                {
-                    query = parts[i];
-                    break;
-                }
-            }
-            textEditor.Select(s - 1 - query.Length, query.Length);
-            currentSqlPosiotionInEditor = s - 1 - query.Length;
+            return query;
         }
+
+        int index = SqlStatementScanner.FindStatementIndex(statements, textEditor.CaretOffset);
+        SqlStatementSpan span = statements[index];
+        query = source.Substring(span.Start, span.Length);
+        textEditor.Select(span.Start, span.Length);
+        currentSqlPosiotionInEditor = span.Start;
         return query;
     }
 

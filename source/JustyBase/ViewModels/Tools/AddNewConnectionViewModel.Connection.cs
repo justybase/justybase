@@ -233,6 +233,7 @@ public sealed partial class AddNewConnectionViewModel
             AccessOptions = IsAccess
                 ? new AccessConnectionOptions { ReadOnly = AccessReadOnly }
                 : null,
+            Db2Options = BuildDb2Options(),
         };
 
         try
@@ -399,6 +400,7 @@ public sealed partial class AddNewConnectionViewModel
     public bool IsSqlite => SelectedDriver?.Id == "SQLite";
     public bool IsAccess => SelectedDriver?.Id == "Access";
     public bool IsExcel => SelectedDriver?.Id == "Excel";
+    public bool IsDb2 => SelectedDriver?.Id == "DB2";
     public bool IsPortVisible => SelectedDriver is not null && !SelectedDriver.UsesFilePath;
     public bool IsAuthenticationVisible => SelectedDriver?.RequiresAuthentication == true;
     public bool IsCredentialsVisible => IsAuthenticationVisible || IsAccess;
@@ -449,6 +451,10 @@ public sealed partial class AddNewConnectionViewModel
             UserName = data.UserName ?? string.Empty;
             Pass = data.Password ?? string.Empty;
             AccessReadOnly = data.AccessOptions?.ReadOnly ?? true;
+            Db2CurrentSchema = data.Db2Options?.CurrentSchema ?? string.Empty;
+            Db2UseSsl = data.Db2Options?.UseSsl ?? false;
+            Db2StatementTimeoutSeconds = data.Db2Options?.StatementTimeoutSeconds?.ToString(
+                System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
         }
     }
 
@@ -465,6 +471,7 @@ public sealed partial class AddNewConnectionViewModel
         OnPropertyChanged(nameof(IsSqlite));
         OnPropertyChanged(nameof(IsAccess));
         OnPropertyChanged(nameof(IsExcel));
+        OnPropertyChanged(nameof(IsDb2));
         OnPropertyChanged(nameof(IsPortVisible));
         OnPropertyChanged(nameof(IsAuthenticationVisible));
         OnPropertyChanged(nameof(IsCredentialsVisible));
@@ -511,6 +518,9 @@ public sealed partial class AddNewConnectionViewModel
             UserName = string.Empty;
             Pass = string.Empty;
             AccessReadOnly = true;
+            Db2CurrentSchema = string.Empty;
+            Db2UseSsl = false;
+            Db2StatementTimeoutSeconds = string.Empty;
             HasConnectionTestResult = false;
             ConnectionTestStatus = string.Empty;
             ConnectionTestDetails = string.Empty;
@@ -548,6 +558,15 @@ public sealed partial class AddNewConnectionViewModel
 
     [ObservableProperty]
     public partial bool AccessReadOnly { get; set; } = true;
+
+    [ObservableProperty]
+    public partial string Db2CurrentSchema { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial bool Db2UseSsl { get; set; }
+
+    [ObservableProperty]
+    public partial string Db2StatementTimeoutSeconds { get; set; } = string.Empty;
 
     private void ValidateForm(bool checkDuplicate = false)
     {
@@ -713,5 +732,29 @@ public sealed partial class AddNewConnectionViewModel
         _generalApplicationData.SetAccessOptions(
             connectionName,
             IsAccess ? new AccessConnectionOptions { ReadOnly = AccessReadOnly } : null);
+        _generalApplicationData.SetDb2Options(connectionName, BuildDb2Options());
+    }
+
+    private Db2ConnectionOptions? BuildDb2Options()
+    {
+        if (!IsDb2)
+        {
+            return null;
+        }
+
+        int? statementTimeout = int.TryParse(
+            Db2StatementTimeoutSeconds,
+            System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out int parsedTimeout) && parsedTimeout > 0
+                ? parsedTimeout
+                : null;
+
+        return new Db2ConnectionOptions
+        {
+            CurrentSchema = string.IsNullOrWhiteSpace(Db2CurrentSchema) ? null : Db2CurrentSchema.Trim(),
+            UseSsl = Db2UseSsl,
+            StatementTimeoutSeconds = statementTimeout,
+        };
     }
 }

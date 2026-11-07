@@ -296,6 +296,7 @@ public sealed partial class DbSchemaViewModel
         [
             new MenuItem() { Header = "Create code (ddl) to new query window", Command = ContextMenuActionCommand, CommandParameter = "DDL_PROCEDURE" },
             new MenuItem() { Header = "Call/Execute to new query window", Command = ContextMenuActionCommand, CommandParameter = "CALL_PROCEDURE" },
+            .. BuildMenuFromCatalog(TypeInDatabaseEnum.Procedure),
         ];
 
         MenuItemsForFluids =

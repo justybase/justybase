@@ -12,6 +12,11 @@ public interface IDatabaseSchemaQueryService
     IEnumerable<(DatabaseColumn, DatabaseObject)> GetColumnsFromAllTablesAndSchemas(string database, string schema);
     IEnumerable<string> GetDatabases(string filter);
     IEnumerable<DatabaseObject> GetDbObjects(string database, string schema, string filter, TypeInDatabaseEnum typeInDatabase);
+    /// <summary>
+    /// Database-level tablespaces (Db2 SYSCAT.TABLESPACES). Engines without a
+    /// tablespace concept return an empty sequence.
+    /// </summary>
+    IEnumerable<DatabaseObject> GetTablespaces(string database);
     ValueTask<List<ProcedureCachedInfo>> GetProceduresSignaturesFromName(string database, string schema, string procName);
     IEnumerable<string> GetSchemas(string database, string filter);
     bool IsItemSourceContains(TypeInDatabaseEnum typeInDatabase, string database, string schema, string itemNameOrSignature, int procedureId, StringComparison comp, string searchWord, Regex rx);

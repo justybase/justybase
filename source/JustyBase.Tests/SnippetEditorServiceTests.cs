@@ -75,6 +75,7 @@ public sealed class SnippetEditorServiceTests
         public bool AddToOrEditLoginData(string name, string database, string driver, string password, string userName, string server, string? port = null) => throw new NotImplementedException();
         public bool DeleteFromLoginData(string name) => throw new NotImplementedException();
         public void SetAccessOptions(string name, AccessConnectionOptions? options) => throw new NotImplementedException();
+        public void SetDb2Options(string name, Db2ConnectionOptions? options) => throw new NotImplementedException();
         public void SaveAppConfig() => throw new NotImplementedException();
         public void SaveConfig() => throw new NotImplementedException();
         public void SaveCredentials() => throw new NotImplementedException();

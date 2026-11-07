@@ -35,6 +35,9 @@ public sealed class LoginDataModel
 
     [JsonPropertyName("accessOptions")]
     public AccessConnectionOptions? AccessOptions { get; set; }
+
+    [JsonPropertyName("db2Options")]
+    public Db2ConnectionOptions? Db2Options { get; set; }
 }
 
 /// <summary>
@@ -67,6 +70,7 @@ public partial class MyJsonContextLoginDataModelList : JsonSerializerContext
 [JsonSerializable(typeof(SqliteConnectionOptions))]
 [JsonSerializable(typeof(SqliteAttachedDatabaseOptions))]
 [JsonSerializable(typeof(AccessConnectionOptions))]
+[JsonSerializable(typeof(Db2ConnectionOptions))]
 public partial class MyJsonContextLoginDataModel : JsonSerializerContext
 {
 }

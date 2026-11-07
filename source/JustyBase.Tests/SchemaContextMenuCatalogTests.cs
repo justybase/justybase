@@ -19,6 +19,41 @@ public class SchemaContextMenuCatalogTests
         Assert.Contains(SchemaContextActionKind.DistributionShow, kinds);
     }
 
+    [Fact]
+    public void ForType_Table_IncludesEditingHelpers()
+    {
+        var kinds = SchemaContextMenuCatalog.ForType(TypeInDatabaseEnum.Table)
+            .Select(e => e.Kind)
+            .ToHashSet();
+
+        Assert.Contains(SchemaContextActionKind.Comment, kinds);
+        Assert.Contains(SchemaContextActionKind.Drop, kinds);
+        Assert.Contains(SchemaContextActionKind.PrimaryKey, kinds);
+        Assert.Contains(SchemaContextActionKind.Unique, kinds);
+        Assert.Contains(SchemaContextActionKind.Rename, kinds);
+        Assert.Contains(SchemaContextActionKind.CreateTableFrom, kinds);
+        Assert.Contains(SchemaContextActionKind.Explain, kinds);
+        Assert.Contains(SchemaContextActionKind.Compare, kinds);
+        Assert.Contains(SchemaContextActionKind.FindUsages, kinds);
+    }
+
+    [Theory]
+    [InlineData(SchemaContextActionKind.Comment, TypeInDatabaseEnum.Table, "COMMENT")]
+    [InlineData(SchemaContextActionKind.Drop, TypeInDatabaseEnum.Table, "DROP")]
+    [InlineData(SchemaContextActionKind.Drop, TypeInDatabaseEnum.Index, "DROP_INDEX")]
+    [InlineData(SchemaContextActionKind.Drop, TypeInDatabaseEnum.Trigger, "DROP_TRIGGER")]
+    [InlineData(SchemaContextActionKind.PrimaryKey, TypeInDatabaseEnum.Table, "KEY")]
+    [InlineData(SchemaContextActionKind.Unique, TypeInDatabaseEnum.Table, "UNIQUE")]
+    [InlineData(SchemaContextActionKind.Rename, TypeInDatabaseEnum.Table, "RENAME")]
+    [InlineData(SchemaContextActionKind.Explain, TypeInDatabaseEnum.Table, "EXPLAIN")]
+    [InlineData(SchemaContextActionKind.Compare, TypeInDatabaseEnum.Table, "COMPARE_DDL")]
+    [InlineData(SchemaContextActionKind.FindUsages, TypeInDatabaseEnum.Table, "FIND_USAGES")]
+    [InlineData(SchemaContextActionKind.CreateTableFrom, TypeInDatabaseEnum.Table, "CREATE_FROM")]
+    public void GetCommandParameter_MapsEditingHelpers(SchemaContextActionKind kind, TypeInDatabaseEnum type, string expected)
+    {
+        Assert.Equal(expected, SchemaContextMenuCatalog.GetCommandParameter(kind, type));
+    }
+
     [Theory]
     [InlineData(SchemaContextActionKind.ImportData, TypeInDatabaseEnum.Table, "IMPORT_DATA")]
     [InlineData(SchemaContextActionKind.Groom, TypeInDatabaseEnum.Table, "GROOM")]
@@ -75,6 +110,24 @@ public class SchemaContextMenuCatalogTests
     public void ResolveTitle_Db2_ReplacesNetezzaLabels(string parameter, string expected)
     {
         Assert.Equal(expected, SchemaContextMenuCatalog.ResolveTitle(parameter, "default", DatabaseTypeEnum.DB2));
+    }
+
+    [Fact]
+    public void ForType_WithDb2Capabilities_KeepsEditingHelpers()
+    {
+        var kinds = SchemaContextMenuCatalog.ForType(TypeInDatabaseEnum.Table, DatabaseCapabilitiesCatalog.For(DatabaseTypeEnum.DB2))
+            .Select(e => e.Kind)
+            .ToHashSet();
+
+        Assert.Contains(SchemaContextActionKind.Comment, kinds);
+        Assert.Contains(SchemaContextActionKind.Drop, kinds);
+        Assert.Contains(SchemaContextActionKind.PrimaryKey, kinds);
+        Assert.Contains(SchemaContextActionKind.Unique, kinds);
+        Assert.Contains(SchemaContextActionKind.Rename, kinds);
+        Assert.Contains(SchemaContextActionKind.CreateTableFrom, kinds);
+        Assert.Contains(SchemaContextActionKind.Explain, kinds);
+        Assert.Contains(SchemaContextActionKind.Compare, kinds);
+        Assert.Contains(SchemaContextActionKind.FindUsages, kinds);
     }
 
     [Fact]

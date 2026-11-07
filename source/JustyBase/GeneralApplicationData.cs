@@ -218,6 +218,27 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         }
     }
 
+    public void SetDb2Options(string name, Db2ConnectionOptions? options)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        lock (_credentialsLock)
+        {
+            if (_loginTmp is null)
+            {
+                GenerateLoginDicLocked();
+            }
+
+            if (_loginTmp.TryGetValue(name.ToUpperInvariant(), out LoginDataModel? loginData))
+            {
+                loginData.Db2Options = options;
+            }
+        }
+    }
+
     public AppOptions Config { get; set; }
     public string SelectedTabIdFromStart { get; set; }
 

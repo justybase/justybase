@@ -1,5 +1,7 @@
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Models;
+using JustyBase.NetezzaSqlParser.Dialects;
+using JustyBase.NetezzaSqlParser.Scripts;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommons;
@@ -115,18 +117,21 @@ public static partial class SqlDocumentViewModelHelper
 
 
     public static List<string> ConvertSqlTextToListOfSqls(bool singleCommandLocal, string query)
+        => ConvertSqlTextToListOfSqls(singleCommandLocal, query, SqlDialect.Netezza);
+
+    /// <summary>
+    /// Splits a script using the statement scanner for <paramref name="dialect"/>.
+    /// Netezza keeps the historical <c>MySplitForSqlSplit</c> semantics; Db2 and
+    /// PostgreSQL keep procedure/function bodies together.
+    /// </summary>
+    public static List<string> ConvertSqlTextToListOfSqls(bool singleCommandLocal, string query, SqlDialect dialect)
     {
-        List<string> sqls;
         if (singleCommandLocal)
         {
-            sqls = [query];
-        }
-        else
-        {
-            sqls = query.MySplitForSqlSplit(';');
+            return [query];
         }
 
-        return sqls;
+        return SqlStatementScanner.Split(query, dialect);
     }
 
     public static SqlExecutionPlan BuildExecutionPlan(
@@ -134,15 +139,16 @@ public static partial class SqlDocumentViewModelHelper
         string? option,
         string query,
         bool continueOnErrorCurrent,
-        string? sourceQuery = null)
+        string? sourceQuery = null,
+        SqlDialect dialect = SqlDialect.Netezza)
     {
         var singleCommand = ShouldRunAsSingleCommand(singleCommandEnabled, option);
         var tabsWithRows = query.StartsWith(DatabaseService.TABS_WITH_ROWS, StringComparison.Ordinal);
         var timeoutOverride = query.Contains(DatabaseService.TIMEOUT_OVERRIDE, StringComparison.Ordinal);
         var continueOnError = continueOnErrorCurrent || query.Contains(DatabaseService.CONTINUE_ON_ERROR, StringComparison.Ordinal);
         var forcedTimeout = FindForcedTimeout(query);
-        var sqlStatements = ConvertSqlTextToListOfSqls(singleCommand, query);
-        var sourceStatements = ConvertSqlTextToListOfSqls(singleCommand, sourceQuery ?? query);
+        var sqlStatements = ConvertSqlTextToListOfSqls(singleCommand, query, dialect);
+        var sourceStatements = ConvertSqlTextToListOfSqls(singleCommand, sourceQuery ?? query, dialect);
         IReadOnlyList<int>? sourceStatementLengths = sourceStatements.Count == sqlStatements.Count
             ? sourceStatements.Select(static statement => statement.Length).ToArray()
             : null;

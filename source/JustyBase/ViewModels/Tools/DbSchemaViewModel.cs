@@ -6,11 +6,13 @@ using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
 using JustyBase.Converters;
+using JustyBase.Editor;
 using JustyBase.Helpers;
 using JustyBase.NetezzaDdl;
 using JustyBase.Models.Tools;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services;
 using JustyBase.Services.Database;
@@ -322,6 +324,40 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
             return;
         }
 
+        if (optionName == "COMPARE_DDL")
+        {
+            var item = LastItemConrtextMenuReq;
+            string ddlOption = item.ActualTypeInDatabase == TypeInDatabaseEnum.View ? "DDL_VIEW" : "DDL_TABLE";
+            string objectSql = await IDatabaseSchemaItem.GetCode(
+                item,
+                CONNECTION_NAME,
+                ddlOption,
+                _generalApplicationData,
+                _simpleLogger,
+                _databaseServiceResolver);
+
+            var editor = SqlCodeEditorHelpers.LastFocusedEditor;
+            if (editor is null || string.IsNullOrWhiteSpace(editor.Text))
+            {
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    "Open the SQL text to compare in the active editor first.",
+                    "Compare DDL");
+                return;
+            }
+
+            await _messageForUserTools.ShowGitDiffDialogAsync(
+                $"Compare {item.CurrentSchema}.{item.Name}",
+                editor.Text,
+                objectSql);
+            return;
+        }
+
+        if (optionName == "FIND_USAGES")
+        {
+            await FindUsagesAsync(CONNECTION_NAME);
+            return;
+        }
+
         var sql = await IDatabaseSchemaItem.GetCode(LastItemConrtextMenuReq, CONNECTION_NAME, optionName, _generalApplicationData, _simpleLogger, _databaseServiceResolver);
 
         if (optionName.EndsWith("CLIP", StringComparison.Ordinal))
@@ -334,6 +370,94 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
             ((IActiveDocumentManager)Factory).InsertSnippetTextToActiveDocument(sql, CONNECTION_NAME);
         }
     }
+
+    private async Task FindUsagesAsync(string connectionName)
+    {
+        var item = LastItemConrtextMenuReq;
+        if (item is null)
+        {
+            return;
+        }
+
+        try
+        {
+            IDatabaseService? dbService = await Task.Run(() => _databaseServiceResolver is not null
+                ? _databaseServiceResolver.GetDatabaseService(_generalApplicationData, connectionName)
+                : DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, connectionName));
+            if (dbService is null)
+            {
+                _messageForUserTools.ShowSimpleMessageBoxInstance("The connection is not available.", "Find usages");
+                return;
+            }
+
+            // Only procedures and views carry cached source text; other object
+            // types would need the P2 catalog source index.
+            await dbService.CacheAllObjects(
+                [TypeInDatabaseEnum.Procedure, TypeInDatabaseEnum.View],
+                item.Database);
+
+            List<(string Schema, string Name, string Type)> matches = [];
+            foreach (string schema in dbService.GetSchemas(item.Database, ""))
+            {
+                foreach (TypeInDatabaseEnum type in new[] { TypeInDatabaseEnum.Procedure, TypeInDatabaseEnum.View })
+                {
+                    foreach (DatabaseObject databaseObject in dbService.GetDbObjects(item.Database, schema, "", type))
+                    {
+                        if (dbService.IsItemSourceContains(
+                                type,
+                                item.Database,
+                                schema,
+                                databaseObject.Name,
+                                databaseObject.Id,
+                                StringComparison.OrdinalIgnoreCase,
+                                item.Name,
+                                null!))
+                        {
+                            matches.Add((schema, databaseObject.Name, type.ToString()));
+                        }
+                    }
+                }
+            }
+
+            if (matches.Count == 0)
+            {
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    $"No cached procedure or view source mentions {item.Name}.",
+                    "Find usages");
+                return;
+            }
+
+            matches.Sort(static (left, right) =>
+            {
+                int schemaOrder = string.Compare(left.Schema, right.Schema, StringComparison.OrdinalIgnoreCase);
+                return schemaOrder != 0
+                    ? schemaOrder
+                    : string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+            });
+
+            string report = string.Join(
+                Environment.NewLine + "UNION ALL ",
+                matches.Select(static match =>
+                    $"SELECT '{ToSqlLiteral(match.Schema)}' AS SCHEMA, '{ToSqlLiteral(match.Name)}' AS NAME, '{match.Type}' AS OBJECT_TYPE"));
+
+            string sql = $"""
+                -- Find usages: {item.Database}.{item.CurrentSchema}.{item.Name}
+                -- Scanned cached procedure and view source text.
+                {report}
+                ;
+                """;
+            ((IActiveDocumentManager)Factory).AddNewDocument("");
+            ((IActiveDocumentManager)Factory).InsertSnippetTextToActiveDocument(sql, connectionName);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _simpleLogger.TrackError(ex, isCrash: false);
+            _messageForUserTools.ShowSimpleMessageBoxInstance(ex.Message, "Find usages");
+        }
+    }
+
+    private static string ToSqlLiteral(string value)
+        => value.Replace("'", "''", StringComparison.Ordinal);
 
     private async Task ShowDistributionChartAsync(string connectionName)
     {

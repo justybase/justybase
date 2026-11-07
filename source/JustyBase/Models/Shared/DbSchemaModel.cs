@@ -61,6 +61,19 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                 {
                     newNodeCollection.Add(new DbSchemaModel(TypeInDatabaseEnum.Schema, this.DatabaseTypeEnumValue, _generalApplicationData) { Parent = this, Name = item, Info = "schema", ConnectionName = ConnectionName, Database = Name });
                 }
+
+                DatabaseCapabilities databaseCapabilities = DatabaseCapabilitiesCatalog.For(databaseTypeEnum);
+                if (databaseCapabilities.SupportsTablespaces)
+                {
+                    newNodeCollection.Add(new DbSchemaModel(TypeInDatabaseEnum.baseTablespaces, this.DatabaseTypeEnumValue, _generalApplicationData)
+                    {
+                        Parent = this,
+                        Name = "Tablespaces",
+                        Info = "tablespaces",
+                        ConnectionName = ConnectionName,
+                        Database = Name
+                    });
+                }
                 break;
             case TypeInDatabaseEnum.Schema:
                 var currSchema = Name;
@@ -198,6 +211,25 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                 else
                 {
                     LoadDbObjectChildren(newNodeCollection, TypeInDatabaseEnum.Trigger, "trigger");
+                }
+                break;
+            case TypeInDatabaseEnum.baseTablespaces:
+                var tablespaceService = ResolveService(ConnectionName);
+                if (tablespaceService is null)
+                {
+                    break;
+                }
+                foreach (var item in tablespaceService.GetTablespaces(Database))
+                {
+                    newNodeCollection.Add(new DbSchemaModel(TypeInDatabaseEnum.Tablespace, this.DatabaseTypeEnumValue, _generalApplicationData)
+                    {
+                        Parent = this,
+                        Name = item.Name,
+                        Info = $"{item.Owner}'s tablespace",
+                        ConnectionName = ConnectionName,
+                        Database = Database,
+                        Comment = item.Desc
+                    });
                 }
                 break;
             case TypeInDatabaseEnum.Table:

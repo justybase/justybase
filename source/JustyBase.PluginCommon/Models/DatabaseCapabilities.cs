@@ -11,6 +11,9 @@ public sealed record DatabaseCapabilities
 {
     public bool SupportsDdl { get; init; }
     public bool SupportsDdlToClipboard { get; init; }
+    public bool SupportsComments { get; init; }
+    public bool SupportsExplain { get; init; }
+    public bool SupportsFindUsages { get; init; }
     public bool SupportsTop100Select { get; init; }
     public bool SupportsRowCount { get; init; }
     public bool SupportsDuplicateSearch { get; init; }
@@ -53,6 +56,9 @@ public static class DatabaseCapabilitiesCatalog
     {
         SupportsDdl = true,
         SupportsDdlToClipboard = true,
+        SupportsComments = true,
+        SupportsExplain = true,
+        SupportsFindUsages = true,
         SupportsTop100Select = true,
         SupportsRowCount = true,
         SupportsDuplicateSearch = true,
@@ -88,6 +94,9 @@ public static class DatabaseCapabilitiesCatalog
     {
         SupportsDdl = true,
         SupportsDdlToClipboard = true,
+        SupportsComments = true,
+        SupportsExplain = true,
+        SupportsFindUsages = true,
         SupportsTop100Select = true,
         SupportsRowCount = true,
         SupportsDuplicateSearch = true,
@@ -97,6 +106,10 @@ public static class DatabaseCapabilitiesCatalog
         SupportsRecreateTable = true,
         SupportsImport = true,
         SupportsExport = true,
+        SupportsIndexes = true,
+        SupportsPartitions = true,
+        SupportsTriggers = true,
+        SupportsTablespaces = true,
         SupportsSynonyms = true,
         SupportsSequences = true,
         SupportsFunctions = true,
@@ -112,6 +125,9 @@ public static class DatabaseCapabilitiesCatalog
     {
         SupportsDdl = true,
         SupportsDdlToClipboard = true,
+        SupportsComments = true,
+        SupportsExplain = true,
+        SupportsFindUsages = true,
         SupportsTop100Select = true,
         SupportsRowCount = true,
         SupportsDuplicateSearch = true,
@@ -136,6 +152,9 @@ public static class DatabaseCapabilitiesCatalog
     {
         SupportsDdl = true,
         SupportsDdlToClipboard = true,
+        SupportsComments = true,
+        SupportsExplain = true,
+        SupportsFindUsages = true,
         SupportsTop100Select = true,
         SupportsRowCount = true,
         SupportsDuplicateSearch = true,
@@ -161,6 +180,9 @@ public static class DatabaseCapabilitiesCatalog
     {
         SupportsDdl = true,
         SupportsDdlToClipboard = true,
+        SupportsComments = true,
+        SupportsExplain = true,
+        SupportsFindUsages = true,
         SupportsTop100Select = true,
         SupportsRowCount = true,
         SupportsDuplicateSearch = true,

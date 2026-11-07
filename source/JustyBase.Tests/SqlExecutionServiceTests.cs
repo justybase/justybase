@@ -1,3 +1,4 @@
+using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.Services.Documents;
 using JustyBase.Helpers.Shared;
 
@@ -87,6 +88,23 @@ public class SqlExecutionServiceTests
             ["SELECT $value".Length, " SELECT $other".Length],
             plan.SourceStatementLengths);
         Assert.Equal(["SELECT 123456789", " SELECT 7"], plan.SqlStatements);
+    }
+
+    [Fact]
+    public void BuildExecutionPlan_Db2KeepsProcedureBodyInOneStatement()
+    {
+        const string query = "CREATE PROCEDURE p () LANGUAGE SQL BEGIN SET x = 1; SET y = 2; END; SELECT 1 FROM SYSIBM.SYSDUMMY1";
+
+        var plan = SqlDocumentViewModelHelper.BuildExecutionPlan(
+            singleCommandEnabled: false,
+            option: "Grid",
+            query: query,
+            continueOnErrorCurrent: false,
+            dialect: SqlDialect.Db2);
+
+        Assert.Equal(2, plan.SqlStatements.Count);
+        Assert.Contains("SET y = 2", plan.SqlStatements[0]);
+        Assert.StartsWith(" SELECT 1", plan.SqlStatements[1]);
     }
 
     /// <summary>

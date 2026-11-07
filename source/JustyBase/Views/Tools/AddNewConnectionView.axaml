@@ -164,6 +164,24 @@
                             </StackPanel>
                         </Border>
 
+                        <Border IsVisible="{Binding IsDb2}"
+                                BorderBrush="{DynamicResource ThemeBorderLowBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="10"
+                                Margin="0,4,0,0">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Db2 options" FontWeight="SemiBold"/>
+                                <TextBlock Text="Db2 LUW settings. Leave the schema empty to use the server default."
+                                           Classes="muted" FontSize="11"/>
+                                <TextBlock Text="Current schema" Classes="formLabel"/>
+                                <TextBox Text="{Binding Db2CurrentSchema}" PlaceholderText="e.g. APP"/>
+                                <TextBlock Text="Statement timeout (seconds)" Classes="formLabel"/>
+                                <TextBox Text="{Binding Db2StatementTimeoutSeconds}" PlaceholderText="Driver default"/>
+                                <CheckBox Content="Use TLS (SSL)" IsChecked="{Binding Db2UseSsl}"/>
+                            </StackPanel>
+                        </Border>
+
                         <Border IsVisible="{Binding IsSqliteSampleVisible}"
                                 BorderBrush="{DynamicResource SystemAccentColor}"
                                 BorderThickness="1"

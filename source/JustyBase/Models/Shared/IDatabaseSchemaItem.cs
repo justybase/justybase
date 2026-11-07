@@ -246,6 +246,18 @@ internal interface IDatabaseSchemaItem
         {
             sql = dbService.GetKeyUniqueCodeText(DATABASE, SCHEMA, ITEM_NAME);
         }
+        else if (optionName.StartsWith("RENAME", StringComparison.Ordinal))
+        {
+            sql = dbService.GetTableRenameCode(DATABASE, SCHEMA, ITEM_NAME);
+        }
+        else if (optionName.StartsWith("CREATE_FROM", StringComparison.Ordinal))
+        {
+            sql = dbService.GetCreateFromCode(DATABASE, SCHEMA, ITEM_NAME);
+        }
+        else if (optionName.StartsWith("EXPLAIN", StringComparison.Ordinal))
+        {
+            sql = dbService.GetExplainCode(DATABASE, SCHEMA, ITEM_NAME);
+        }
         else if (optionName.StartsWith("DDL_EXTERNAL", StringComparison.Ordinal))
         {
             sql = await dbService.GetCreateExternalText(DATABASE, SCHEMA, ITEM_NAME);
@@ -317,9 +329,9 @@ internal interface IDatabaseSchemaItem
         else if (optionName.StartsWith("DROP", StringComparison.Ordinal))
         {
             sql = optionName.StartsWith("DROP_INDEX", StringComparison.Ordinal)
-                ? $"DROP INDEX IF EXISTS {QuoteSqliteObject(SCHEMA, ITEM_NAME)};"
+                ? dbService.GetDropIndex(DATABASE, SCHEMA, ITEM_NAME)
                 : optionName.StartsWith("DROP_TRIGGER", StringComparison.Ordinal)
-                    ? $"DROP TRIGGER IF EXISTS {QuoteSqliteObject(SCHEMA, ITEM_NAME)};"
+                    ? dbService.GetDropTrigger(DATABASE, SCHEMA, ITEM_NAME)
                     : dbService.GetDrop(ITEM_NAME, DATABASE, SCHEMA);
         }
         else if (optionName.StartsWith("EMPTY", StringComparison.Ordinal))
@@ -339,11 +351,5 @@ internal interface IDatabaseSchemaItem
         return sql;
 
     }
-
-    private static string QuoteSqliteObject(string schema, string name)
-        => $"{QuoteIdentifier(schema)}.{QuoteIdentifier(name)}";
-
-    private static string QuoteIdentifier(string value)
-        => $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
 
 }

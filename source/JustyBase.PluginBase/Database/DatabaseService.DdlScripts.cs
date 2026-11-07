@@ -15,6 +15,10 @@ public abstract partial class DatabaseService
     {
         return $"ALTER TABLE {fullName} RENAME TO ABC;";
     }
+
+    /// <summary>Qualifies <paramref name="table"/> for the engine and delegates to the engine-specific template.</summary>
+    public string GetTableRenameCode(string database, string schema, string table)
+        => GetTableRenameCode(GetQuotedTwoOrTreePartName(database, schema, table));
     public virtual string GetShortSelectCode(string fullName)
     {
         return $"SELECT T1.* FROM {fullName} AS T1 {GetLimitClause(100)};";
@@ -23,6 +27,10 @@ public abstract partial class DatabaseService
     {
         return $"CREATE TABLE ABC AS (SELECT T1.* FROM {fullName} AS T1) DISTRIBUTE ON RANDOM;";
     }
+
+    /// <summary>Qualifies <paramref name="table"/> for the engine and delegates to the engine-specific CTAS template.</summary>
+    public string GetCreateFromCode(string database, string schema, string table)
+        => GetCreateFromCode(GetQuotedTwoOrTreePartName(database, schema, table));
 
     protected string GetQuotedTwoOrTreePartName(string? database, string schema, string table, bool force = false)
     {
@@ -298,6 +306,18 @@ public abstract partial class DatabaseService
 
         return @$"DROP TABLE {tableCl};";
     }
+
+    public virtual string GetDropIndex(string database, string schema, string index)
+    {
+        var indexCl = GetQuotedTwoOrTreePartName(null, schema, index, force: true);
+        return $"DROP INDEX IF EXISTS {indexCl};";
+    }
+
+    public virtual string GetDropTrigger(string database, string schema, string trigger)
+    {
+        var triggerCl = GetQuotedTwoOrTreePartName(null, schema, trigger, force: true);
+        return $"DROP TRIGGER IF EXISTS {triggerCl};";
+    }
     public virtual string GetEmpty(string table, string database, string schema)
     {
         var tableCl = GetQuotedTwoOrTreePartName(database, schema, table);
@@ -335,6 +355,16 @@ public abstract partial class DatabaseService
     public virtual string GetAddComment(string table, string database, string schema)
     {
         return "not supported";
+    }
+
+    /// <summary>
+    /// Engine-specific plan statement. Netezza/PostgreSQL and SQLite accept
+    /// <c>EXPLAIN</c>; Db2 (and Oracle) override this with EXPLAIN PLAN FOR.
+    /// </summary>
+    public virtual string GetExplainCode(string database, string schema, string table)
+    {
+        var tableCl = GetQuotedTwoOrTreePartName(database, schema, table);
+        return $"EXPLAIN SELECT * FROM {tableCl};";
     }
 
     public abstract ValueTask GetCreateTableTextStringBuilder(StringBuilder sb, string database, string schema, string tableName, string? overrideTableName = null, string? middleCode = null, string? endingCode = null, List<string>? distOverride = null);

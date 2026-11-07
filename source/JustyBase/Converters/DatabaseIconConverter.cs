@@ -143,6 +143,8 @@ public sealed class DatabaseIconConverter : IValueConverter
             TypeInDatabaseEnum.baseTriggers or TypeInDatabaseEnum.Trigger => _indexIcon16,
             TypeInDatabaseEnum.basePartitions => _partitionGroupIcon16,
             TypeInDatabaseEnum.Partition => _partitionIcon16,
+            TypeInDatabaseEnum.baseTablespaces => _partitionGroupIcon16,
+            TypeInDatabaseEnum.Tablespace => _partitionIcon16,
             TypeInDatabaseEnum.columnInTables => _columnsIcon16,
             TypeInDatabaseEnum.distributionColumns or TypeInDatabaseEnum.thisDistributionCollumn => _distributedIcon16,
             TypeInDatabaseEnum.references or TypeInDatabaseEnum.thisReference => _refIcon16,

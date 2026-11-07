@@ -56,5 +56,7 @@ public enum TypeInDatabaseEnum
     basePartitions,
     Partition,
     baseTriggers,
-    Trigger
+    Trigger,
+    baseTablespaces,
+    Tablespace
 };

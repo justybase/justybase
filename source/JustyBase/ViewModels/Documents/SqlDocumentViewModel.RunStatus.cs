@@ -88,13 +88,14 @@ public sealed partial class SqlDocumentViewModel
             filePathToExport = chosenExportPath;
         }
 
-        string selectedQuery = sqlEditor!.SelectQueryPhase(out int currentSqlPosiotionInEditor);
+        string selectedQuery = sqlEditor!.SelectQueryPhase(sqlEditor.Dialect, out int currentSqlPosiotionInEditor);
         var queryPreparation = _executionServices.RunPreparationService.PrepareQuery(
             selectedQuery,
             currentSqlPosiotionInEditor,
             option,
             SingleCommand,
-            ContinueOnError);
+            ContinueOnError,
+            sqlEditor.Dialect);
 
         if (!queryPreparation.HasQuery)
         {
@@ -124,7 +125,8 @@ public sealed partial class SqlDocumentViewModel
             option,
             query,
             ContinueOnError,
-            sourceQuery: queryPreparation.Query);
+            sourceQuery: queryPreparation.Query,
+            dialect: sqlEditor.Dialect);
 
         if (executionPlan.ContinueOnError != ContinueOnError)
         {

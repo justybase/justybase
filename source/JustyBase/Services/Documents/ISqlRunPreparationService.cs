@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using JustyBase.Common.Contracts;
 using JustyBase.Helpers.Shared;
+using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.PluginCommon.Contracts;
 
 namespace JustyBase.Services.Documents;
@@ -42,7 +43,7 @@ public interface ISqlRunPreparationService
 {
     SqlRunStartValidationResult ValidateRunStart(bool hasSqlEditor, int selectedConnectionIndex);
     SqlRunExecutionSettings CreateExecutionSettings(bool keepConnectionOpen, bool doPooling, string localTitle, string? option);
-    SqlRunQueryPreparationResult PrepareQuery(string query, int currentSqlPositionInEditor, string? option, bool singleCommand, bool continueOnError);
+    SqlRunQueryPreparationResult PrepareQuery(string query, int currentSqlPositionInEditor, string? option, bool singleCommand, bool continueOnError, SqlDialect dialect = SqlDialect.Netezza);
     Task<IDatabaseService?> InitializeDatabaseServiceAsync(string selectedConnectionName);
 }
 
@@ -83,7 +84,7 @@ public sealed class SqlRunPreparationService : ISqlRunPreparationService
             SqlDocumentViewModelHelper.RequiresExportPathSelection(option));
     }
 
-    public SqlRunQueryPreparationResult PrepareQuery(string query, int currentSqlPositionInEditor, string? option, bool singleCommand, bool continueOnError)
+    public SqlRunQueryPreparationResult PrepareQuery(string query, int currentSqlPositionInEditor, string? option, bool singleCommand, bool continueOnError, SqlDialect dialect = SqlDialect.Netezza)
     {
         if (string.IsNullOrWhiteSpace(query) || query.Length < 7)
         {
@@ -91,7 +92,7 @@ public sealed class SqlRunPreparationService : ISqlRunPreparationService
         }
 
         Match variableDefineMatch = SqlDocumentViewModelHelper.RxSessionVariableDefine.Match(query);
-        var executionPlan = SqlDocumentViewModelHelper.BuildExecutionPlan(singleCommand, option, query, continueOnError);
+        var executionPlan = SqlDocumentViewModelHelper.BuildExecutionPlan(singleCommand, option, query, continueOnError, dialect: dialect);
 
         return new(true, query, currentSqlPositionInEditor, variableDefineMatch, executionPlan);
     }

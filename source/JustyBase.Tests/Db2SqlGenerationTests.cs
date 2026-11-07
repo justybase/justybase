@@ -81,15 +81,67 @@ public sealed class Db2SqlGenerationTests
         DatabaseCapabilities capabilities = CreateService().Capabilities;
 
         Assert.True(capabilities.SupportsDdl);
+        Assert.True(capabilities.SupportsComments);
+        Assert.True(capabilities.SupportsExplain);
+        Assert.True(capabilities.SupportsFindUsages);
         Assert.True(capabilities.SupportsTop100Select);
         Assert.True(capabilities.SupportsGroomTable);
         Assert.True(capabilities.SupportsTableStatistics);
         Assert.True(capabilities.SupportsRecreateTable);
+        Assert.True(capabilities.SupportsIndexes);
+        Assert.True(capabilities.SupportsPartitions);
+        Assert.True(capabilities.SupportsTriggers);
+        Assert.True(capabilities.SupportsTablespaces);
         Assert.True(capabilities.SupportsSynonyms);
         Assert.False(capabilities.SupportsDeletedRows);
         Assert.False(capabilities.SupportsTableDistribution);
         Assert.False(capabilities.SupportsGrants);
         Assert.True(capabilities.SupportsExport);
         Assert.False(capabilities.SupportsExternalTables);
+    }
+
+    [Fact]
+    public void AddComment_UsesCommentOnTable()
+    {
+        string sql = CreateService().GetAddComment("ORDERS", "TESTDB", "APP");
+
+        Assert.Equal("COMMENT ON TABLE APP.ORDERS IS '<comment>';", sql);
+    }
+
+    [Fact]
+    public void Explain_UsesExplainPlanFor()
+    {
+        string sql = CreateService().GetExplainCode("TESTDB", "APP", "ORDERS");
+
+        Assert.Equal("EXPLAIN PLAN FOR SELECT * FROM APP.ORDERS;", sql);
+    }
+
+    [Fact]
+    public void DropIndexAndTrigger_DoNotUseIfExists()
+    {
+        var service = CreateService();
+
+        Assert.Equal("DROP INDEX APP.IX_ORDERS;", service.GetDropIndex("TESTDB", "APP", "IX_ORDERS"));
+        Assert.Equal("DROP TRIGGER APP.TRG_ORDERS;", service.GetDropTrigger("TESTDB", "APP", "TRG_ORDERS"));
+    }
+
+    [Fact]
+    public void GetConnection_AppliesDb2Options()
+    {
+        var service = new DB2DatabaseService(new DbConnectionOptions(Username: "db2inst1", Database: "TESTDB")
+        {
+            Db2Options = new Db2ConnectionOptions
+            {
+                CurrentSchema = "APP",
+                UseSsl = true,
+                StatementTimeoutSeconds = 42,
+            },
+        });
+
+        using var connection = service.GetConnection("TESTDB", pooling: false);
+
+        Assert.Contains("CurrentSchema=APP", connection.ConnectionString, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("StatementTimeout=42", connection.ConnectionString, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("SSL", connection.ConnectionString, StringComparison.OrdinalIgnoreCase);
     }
 }

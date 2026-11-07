@@ -1,4 +1,4 @@
-﻿using JustyBase.ImportExport.Import;
+using JustyBase.ImportExport.Import;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
@@ -6,6 +6,7 @@ using JustyBase.PluginDatabaseBase.Database;
 // Namespace exported by the JustyBase.Db2.IBMCompat package.
 using IBM.Data.Db2;
 using System.Data.Common;
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -15,8 +16,11 @@ public sealed class DB2DatabaseService : DatabaseService
 {
     public override DatabaseTypeEnum DatabaseType => DatabaseTypeEnum.DB2;
 
+    private readonly Db2ConnectionOptions? _db2Options;
+
     public DB2DatabaseService(DbConnectionOptions options) : base(options)
     {
+        _db2Options = options.Db2Options;
         AutoCompletDatabaseMode = CurrentAutoCompletDatabaseMode.SchemaTable;
         preferDatabaseInCodes = false;
     }
@@ -41,6 +45,24 @@ public sealed class DB2DatabaseService : DatabaseService
         builder.Connect_Timeout = CONNECTION_TIMEOUT;
         builder.Pooling = pooling;
 
+        if (_db2Options is { } db2Options)
+        {
+            if (!string.IsNullOrWhiteSpace(db2Options.CurrentSchema))
+            {
+                builder["CurrentSchema"] = db2Options.CurrentSchema.Trim();
+            }
+
+            if (db2Options.UseSsl)
+            {
+                builder.UseSSL = true;
+            }
+
+            if (db2Options.StatementTimeoutSeconds is int timeout && timeout > 0)
+            {
+                builder["StatementTimeout"] = timeout;
+            }
+        }
+
         //Connection = new DB2Connection(builder.ConnectionString);
         var conn = new DB2Connection(builder.ConnectionString);
         conn.InfoMessage += DB2Connection_InfoMessage;
@@ -58,83 +80,231 @@ public sealed class DB2DatabaseService : DatabaseService
         DbMessageAction?.Invoke(string.Join(Environment.NewLine, arr));
     }
 
+    private readonly Dictionary<string, IReadOnlyList<DatabaseObject>> _tablespacesCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Db2 tablespaces are database-level objects, not schema children. The
+    /// schema tree shows them under a dedicated "Tablespaces" node so they do
+    /// not create a phantom empty schema.
+    /// </summary>
+    public override IEnumerable<DatabaseObject> GetTablespaces(string database)
+    {
+        string resolvedDatabase = string.IsNullOrWhiteSpace(database) ? Database : database;
+        lock (_tablespacesCache)
+        {
+            if (_tablespacesCache.TryGetValue(resolvedDatabase, out var cached))
+            {
+                return cached;
+            }
+        }
+
+        List<DatabaseObject> tablespaces = [];
+        try
+        {
+            using var con = GetConnection(resolvedDatabase);
+            con.Open();
+            using var cmd = CreateCommandFromConnection(con);
+            cmd.CommandText =
+                """
+                SELECT TRIM(T.TBSPACE) AS TBSPACE
+                     , T.TBSPACEID
+                     , TRIM(T.OWNER) AS OWNER
+                     , T.TBSPACETYPE
+                     , T.PAGESIZE
+                     , COALESCE(T.REMARKS, '') AS REMARKS
+                  FROM SYSCAT.TABLESPACES T
+                 ORDER BY T.TBSPACE
+                 WITH UR
+                """;
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                string name = reader.GetString(0);
+                int id = Convert.ToInt32(reader.GetValue(1), System.Globalization.CultureInfo.InvariantCulture);
+                string owner = reader.GetString(2);
+                string type = reader.GetString(3);
+                int pageSize = Convert.ToInt32(reader.GetValue(4), System.Globalization.CultureInfo.InvariantCulture);
+                string remarks = reader.GetString(5);
+                string management = type switch
+                {
+                    "D" => "Database managed (DMS)",
+                    "S" => "System managed (SMS)",
+                    _ => $"Unknown management ({type})",
+                };
+                string description = $"ID {id} | Owner {owner} | {management} | Page size {pageSize} bytes";
+                if (!string.IsNullOrWhiteSpace(remarks))
+                {
+                    description += $" | {remarks}";
+                }
+
+                tablespaces.Add(new DatabaseObject(
+                    id,
+                    name,
+                    description,
+                    TypeInDatabaseEnum.Tablespace,
+                    "TABLESPACE",
+                    owner,
+                    null));
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.TrackError(ex, isCrash: false);
+        }
+
+        lock (_tablespacesCache)
+        {
+            _tablespacesCache[resolvedDatabase] = tablespaces;
+        }
+
+        return tablespaces;
+    }
+
+    public override void ClearCachedData()
+    {
+        base.ClearCachedData();
+        lock (_tablespacesCache)
+        {
+            _tablespacesCache.Clear();
+        }
+    }
+
     protected override string GetSqlTablesAndOtherObjects(string dbName)
     {
         //SELECT TABNAME, TABSCHEMA, TABLEORG ,TBSPACE, COMPRESSION, keycolumns, keyindexid, keyunique, checkcount, PARTITION_MODE, REMARKS,PROPERTY FROM SYSCAT.TABLES
         //SELECT * FROM SYSIBM.SQLTABLES;
         return
         """
-            
-            SELECT 
-                   CASE WHEN TYPE = 'PROCEDURE' THEN -1 ELSE ROW_NUMBER() OVER (ORDER BY SCHEMA, TYPE, NAME)::INT END AS NR
-                   , NAME
-                   , REMARKS
-                   ,SCHEMA
-                   , TYPE
-                   , TRIM(OWNER) AS OWNER
-                   , CREATE_TIME
-             FROM 
+
+            SELECT
+                   Y.NR
+                   , Y.NAME
+                   , Y.REMARKS
+                   , Y.SCHEMA
+                   , Y.TYPE
+                   , Y.OWNER
+                   , Y.CREATE_TIME
+                   , Y.PARENT_NAME
+             FROM
             (
-                SELECT 
-                   TRIM(T.TABNAME) AS NAME
-                   , T.REMARKS
-                   , TRIM(T.TABSCHEMA) AS SCHEMA
-                   , CASE 
-                        WHEN T.TYPE = 'T' THEN 'TABLE'
-                        WHEN T.TYPE = 'U' THEN 'TYPED TABLE'
-                        WHEN T.TYPE = 'H' THEN 'HIERARCHY TABLE'
-                        WHEN T.TYPE = 'L' THEN 'DETACHED TABLE'
-                        WHEN T.TYPE = 'S' THEN 'MATERIALIZED QUERY TABLE'
-                        WHEN T.TYPE = 'V' THEN 'VIEW'
-                        WHEN T.TYPE = 'W' THEN 'TYPED VIEW'
-                        WHEN T.TYPE = 'N' THEN 'NICKNAME'
-                        WHEN T.TYPE = 'A' THEN 'ALIAS'
-                        WHEN T.TYPE = 'I' THEN 'INDEX'
-                        
-                        ELSE 'OTHER TYPE'
-                   END AS TYPE
-                   , OWNER
-                   , CREATE_TIME
-                FROM 
-                    SYSCAT.TABLES T
+                SELECT
+                       CASE WHEN TYPE = 'PROCEDURE' THEN -1 ELSE ROW_NUMBER() OVER (ORDER BY SCHEMA, TYPE, NAME)::INT END AS NR
+                       , NAME
+                       , REMARKS
+                       , SCHEMA
+                       , TYPE
+                       , TRIM(OWNER) AS OWNER
+                       , CREATE_TIME
+                       , CAST(NULL AS VARCHAR(257)) AS PARENT_NAME
+                 FROM
+                (
+                    SELECT
+                       TRIM(T.TABNAME) AS NAME
+                       , T.REMARKS
+                       , TRIM(T.TABSCHEMA) AS SCHEMA
+                       , CASE
+                            WHEN T.TYPE = 'T' THEN 'TABLE'
+                            WHEN T.TYPE = 'U' THEN 'TYPED TABLE'
+                            WHEN T.TYPE = 'H' THEN 'HIERARCHY TABLE'
+                            WHEN T.TYPE = 'L' THEN 'DETACHED TABLE'
+                            WHEN T.TYPE = 'S' THEN 'MATERIALIZED QUERY TABLE'
+                            WHEN T.TYPE = 'V' THEN 'VIEW'
+                            WHEN T.TYPE = 'W' THEN 'TYPED VIEW'
+                            WHEN T.TYPE = 'N' THEN 'NICKNAME'
+                            WHEN T.TYPE = 'A' THEN 'ALIAS'
+                            WHEN T.TYPE = 'I' THEN 'INDEX'
 
-            UNION ALL 
+                            ELSE 'OTHER TYPE'
+                       END AS TYPE
+                       , OWNER
+                       , CREATE_TIME
+                    FROM
+                        SYSCAT.TABLES T
 
-            select 
-                   TRIM(R.ROUTINENAME) || ' - ' ||R.PARM_COUNT::VARCHAR(5) AS NAME
-                   , R.REMARKS
-                   , TRIM(R.ROUTINESCHEMA) AS SCHEMA
-                      , CASE 
-                        WHEN R.ROUTINETYPE = 'F' THEN 'FUNCTION'
-                        WHEN R.ROUTINETYPE = 'M' THEN 'METHOD'      
-                        WHEN R.ROUTINETYPE = 'P' THEN 'PROCEDURE'      
-                        ELSE 'OTHER TYPE'
-                   END AS TYPE
-                   , OWNER
-                   , CREATE_TIME
-            from 
-            SYSCAT.ROUTINES R
+                UNION ALL
 
-            UNION ALL
+                select
+                       TRIM(R.ROUTINENAME) || ' - ' ||R.PARM_COUNT::VARCHAR(5) AS NAME
+                       , R.REMARKS
+                       , TRIM(R.ROUTINESCHEMA) AS SCHEMA
+                          , CASE
+                            WHEN R.ROUTINETYPE = 'F' THEN 'FUNCTION'
+                            WHEN R.ROUTINETYPE = 'M' THEN 'METHOD'
+                            WHEN R.ROUTINETYPE = 'P' THEN 'PROCEDURE'
+                            ELSE 'OTHER TYPE'
+                       END AS TYPE
+                       , OWNER
+                       , CREATE_TIME
+                from
+                SYSCAT.ROUTINES R
 
-            SELECT 
-               TRIM(S.SEQNAME) AS NAME
-               , S.REMARKS
-               , TRIM(S.SEQSCHEMA) AS SCHEMA
-                                  , CASE 
-                                    WHEN S.SEQTYPE = 'A' THEN 'ALIAS'
-                                    WHEN S.SEQTYPE = 'I' THEN 'IDENTITY SEQUENCE'
-                                    WHEN S.SEQTYPE = 'S' THEN 'SEQUENCE'                        
-                                    ELSE 'OTHER TYPE'
-                               END AS TYPE
-                , OWNER
-                , CREATE_TIME
-            FROM SYSCAT.SEQUENCES S
-            WHERE S.SEQTYPE IN ('A','S','I')
-            ) X 
-            ORDER BY SCHEMA, TYPE, NAME
+                UNION ALL
+
+                SELECT
+                   TRIM(S.SEQNAME) AS NAME
+                   , S.REMARKS
+                   , TRIM(S.SEQSCHEMA) AS SCHEMA
+                                      , CASE
+                                        WHEN S.SEQTYPE = 'A' THEN 'ALIAS'
+                                        WHEN S.SEQTYPE = 'I' THEN 'IDENTITY SEQUENCE'
+                                        WHEN S.SEQTYPE = 'S' THEN 'SEQUENCE'
+                                        ELSE 'OTHER TYPE'
+                                   END AS TYPE
+                    , OWNER
+                    , CREATE_TIME
+                FROM SYSCAT.SEQUENCES S
+                WHERE S.SEQTYPE IN ('A','S','I')
+                ) X
+
+                UNION ALL
+
+                -- Non-column objects keep NR = -1 so the numbered subquery in
+                -- GetSqlOfColumns stays aligned with table column intervals.
+                SELECT
+                       -1 AS NR
+                       , TRIM(I.INDNAME) AS NAME
+                       , CAST(NULL AS VARCHAR(254)) AS REMARKS
+                       , TRIM(I.INDSCHEMA) AS SCHEMA
+                       , 'INDEX' AS TYPE
+                       , CAST('' AS VARCHAR(128)) AS OWNER
+                       , CAST(NULL AS TIMESTAMP) AS CREATE_TIME
+                       , TRIM(I.TABNAME) AS PARENT_NAME
+                FROM SYSCAT.INDEXES I
+                WHERE TRIM(I.INDSCHEMA) NOT LIKE 'SYS%'
+
+                UNION ALL
+
+                SELECT
+                       -1 AS NR
+                       , TRIM(T.TRIGNAME) AS NAME
+                       , T.REMARKS
+                       , TRIM(T.TRIGSCHEMA) AS SCHEMA
+                       , 'TRIGGER' AS TYPE
+                       , TRIM(T.OWNER) AS OWNER
+                       , T.CREATE_TIME
+                       , TRIM(T.TABNAME) AS PARENT_NAME
+                FROM SYSCAT.TRIGGERS T
+                WHERE TRIM(T.TRIGSCHEMA) NOT LIKE 'SYS%'
+
+                UNION ALL
+
+                SELECT
+                       -1 AS NR
+                       , TRIM(P.TABNAME) || '.' || TRIM(P.DATAPARTITIONNAME) AS NAME
+                       , CAST(NULL AS VARCHAR(254)) AS REMARKS
+                       , TRIM(P.TABSCHEMA) AS SCHEMA
+                       , 'PARTITION' AS TYPE
+                       , COALESCE(TRIM(TB.OWNER), CAST('' AS VARCHAR(128))) AS OWNER
+                       , TB.CREATE_TIME
+                       , TRIM(P.TABNAME) AS PARENT_NAME
+                FROM SYSCAT.DATAPARTITIONS P
+                LEFT JOIN SYSCAT.TABLES TB
+                       ON TB.TABSCHEMA = P.TABSCHEMA AND TB.TABNAME = P.TABNAME
+                WHERE TRIM(P.TABSCHEMA) NOT LIKE 'SYS%'
+            ) Y
+            ORDER BY Y.SCHEMA, Y.TYPE, Y.NAME
             WITH UR
-            """;
+""";
     }
 
     private readonly Dictionary<int, (string PROVIDER_TYPE_NAME, string CREATE_PARAMS, string SQL_TYPE_NAME)> dataTypes = new();
@@ -989,9 +1159,169 @@ public sealed class DB2DatabaseService : DatabaseService
     /// <summary>Db2 renames with RENAME TABLE; ALTER TABLE ... RENAME TO is rejected (-104).</summary>
     public override string GetTableRenameCode(string fullName) => $"RENAME TABLE {fullName} TO NEW_NAME;";
 
+    /// <summary>Db2 does not accept the SQLite-style DROP ... IF EXISTS spelling.</summary>
+    public override string GetDropIndex(string database, string schema, string index)
+        => $"DROP INDEX {GetQuotedTwoOrTreePartName(null, schema, index, force: true)};";
+
+    public override string GetDropTrigger(string database, string schema, string trigger)
+        => $"DROP TRIGGER {GetQuotedTwoOrTreePartName(null, schema, trigger, force: true)};";
+
     /// <summary>Db2 CTAS requires WITH DATA instead of Netezza's DISTRIBUTE ON RANDOM.</summary>
     public override string GetCreateFromCode(string fullName)
         => $"CREATE TABLE ABC AS (SELECT T1.* FROM {fullName} AS T1) WITH DATA;";
+
+    public override string GetAddComment(string table, string database, string schema)
+    {
+        string tableCl = GetQuotedTwoOrTreePartName(database, schema, table);
+        return $"COMMENT ON TABLE {tableCl} IS '<comment>';";
+    }
+
+    /// <summary>Db2 LUW explains a statement with EXPLAIN PLAN FOR.</summary>
+    public override string GetExplainCode(string database, string schema, string table)
+    {
+        string tableCl = GetQuotedTwoOrTreePartName(database, schema, table);
+        return $"EXPLAIN PLAN FOR SELECT * FROM {tableCl};";
+    }
+
+    public override async ValueTask GetCreateIndexTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string indexName)
+    {
+        StringBuilder result = new();
+        await Task.Run(() =>
+        {
+            using var conn = GetConnection(database);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"""
+                SELECT TRIM(I.INDSCHEMA), TRIM(I.INDNAME), TRIM(I.TABSCHEMA), TRIM(I.TABNAME),
+                       I.UNIQUERULE, I.INDEXTYPE, I.COMPRESSION
+                  FROM SYSCAT.INDEXES I
+                 WHERE I.INDSCHEMA = '{EscapeSqlLiteral(schema)}'
+                   AND I.INDNAME = '{EscapeSqlLiteral(indexName)}'
+                 WITH UR
+                """;
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read())
+            {
+                result.AppendLine(CultureInfo.InvariantCulture, $"-- Index {schema}.{indexName} was not found.");
+                return;
+            }
+
+            string indexSchema = reader.GetString(0);
+            string foundIndex = reader.GetString(1);
+            string tableSchema = reader.GetString(2);
+            string tableName = reader.GetString(3);
+            string uniqueRule = reader.GetString(4);
+            string indexType = reader.GetString(5);
+            string compression = reader.GetString(6);
+
+            List<string> columns = [];
+            using (var columnCmd = conn.CreateCommand())
+            {
+                columnCmd.CommandText = $"""
+                    SELECT TRIM(COLNAME), COLORDER
+                      FROM SYSCAT.INDEXCOLUSE
+                     WHERE INDSCHEMA = '{EscapeSqlLiteral(indexSchema)}'
+                       AND INDNAME = '{EscapeSqlLiteral(foundIndex)}'
+                     ORDER BY COLSEQ
+                     WITH UR
+                    """;
+                using var columnReader = columnCmd.ExecuteReader();
+                while (columnReader.Read())
+                {
+                    string column = QuoteNameIfNeeded(columnReader.GetString(0));
+                    string order = columnReader.IsDBNull(1) ? string.Empty : columnReader.GetString(1).Trim();
+                    columns.Add(order == "D" ? $"{column} DESC" : column);
+                }
+            }
+
+            string unique = uniqueRule == "U" ? " UNIQUE" : string.Empty;
+            string cluster = indexType == "CLUS" ? " CLUSTER" : string.Empty;
+            string compress = compression == "Y" ? " COMPRESS YES" : string.Empty;
+            string qualifiedIndex = GetQuotedTwoOrTreePartName(null, indexSchema, foundIndex, force: true);
+            string qualifiedTable = GetQuotedTwoOrTreePartName(null, tableSchema, tableName, force: true);
+            result.AppendLine(CultureInfo.InvariantCulture, $"CREATE{unique} INDEX {qualifiedIndex} ON {qualifiedTable}({string.Join(", ", columns)}){cluster}{compress};");
+        });
+
+        stringBuilder.Append(result);
+    }
+
+    public override async ValueTask GetCreateTriggerTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string triggerName)
+    {
+        StringBuilder result = new();
+        await Task.Run(() =>
+        {
+            using var conn = GetConnection(database);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"""
+                SELECT TEXT
+                  FROM SYSCAT.TRIGGERS
+                 WHERE TRIGSCHEMA = '{EscapeSqlLiteral(schema)}'
+                   AND TRIGNAME = '{EscapeSqlLiteral(triggerName)}'
+                 WITH UR
+                """;
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read() || reader.IsDBNull(0))
+            {
+                result.AppendLine(CultureInfo.InvariantCulture, $"-- Trigger {schema}.{triggerName} was not found.");
+                return;
+            }
+
+            string text = reader.GetString(0).Trim();
+            result.AppendLine(text);
+            if (!text.EndsWith(';'))
+            {
+                result.AppendLine(";");
+            }
+        });
+
+        stringBuilder.Append(result);
+    }
+
+    public override async ValueTask GetCreatePartitionTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string partitionName)
+    {
+        StringBuilder result = new();
+        await Task.Run(() =>
+        {
+            using var conn = GetConnection(database);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"""
+                SELECT TRIM(P.TABSCHEMA), TRIM(P.TABNAME), TRIM(P.DATAPARTITIONNAME),
+                       P.LOWVALUE, P.HIGHVALUE, P.LOWINCLUSIVE, P.HIGHINCLUSIVE,
+                       COALESCE(TRIM(S.TBSPACE), '')
+                  FROM SYSCAT.DATAPARTITIONS P
+                  LEFT JOIN SYSCAT.TABLESPACES S ON S.TBSPACEID = P.TBSPACEID
+                 WHERE P.TABSCHEMA = '{EscapeSqlLiteral(schema)}'
+                   AND TRIM(P.TABNAME) || '.' || TRIM(P.DATAPARTITIONNAME) = '{EscapeSqlLiteral(partitionName)}'
+                 WITH UR
+                """;
+            using var reader = cmd.ExecuteReader();
+            if (!reader.Read())
+            {
+                result.AppendLine(CultureInfo.InvariantCulture, $"-- Partition {partitionName} was not found.");
+                return;
+            }
+
+            string tableSchema = reader.GetString(0);
+            string tableName = reader.GetString(1);
+            string foundPartition = reader.GetString(2);
+            string lowValue = reader.IsDBNull(3) ? "MINVALUE" : reader.GetValue(3).ToString() ?? "MINVALUE";
+            string highValue = reader.IsDBNull(4) ? "MAXVALUE" : reader.GetValue(4).ToString() ?? "MAXVALUE";
+            string lowInclusive = reader.IsDBNull(5) || reader.GetString(5) == "Y" ? "INCLUSIVE" : "EXCLUSIVE";
+            string highInclusive = reader.IsDBNull(6) || reader.GetString(6) == "Y" ? "INCLUSIVE" : "EXCLUSIVE";
+            string tablespace = reader.GetString(7);
+
+            string qualifiedTable = GetQuotedTwoOrTreePartName(null, tableSchema, tableName, force: true);
+            string tablespaceSuffix = string.IsNullOrWhiteSpace(tablespace) ? string.Empty : $" IN {tablespace}";
+            result.AppendLine(CultureInfo.InvariantCulture, $"-- Partition {foundPartition} of table {qualifiedTable}.");
+            result.AppendLine(CultureInfo.InvariantCulture, $"-- Range: STARTING FROM {lowValue} {lowInclusive} ENDING AT {highValue} {highInclusive}{tablespaceSuffix}.");
+            result.AppendLine("-- Db2 creates range partitions through CREATE TABLE ... PARTITION BY RANGE or");
+            result.AppendLine("-- ALTER TABLE ... ATTACH PARTITION with a matching staging table.");
+        });
+
+        stringBuilder.Append(result);
+    }
 
     public override string GetCreateSynonymPatternText()
         => "CREATE ALIAS <schema>.<alias> FOR TABLE <schema>.<table>;";

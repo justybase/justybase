@@ -106,6 +106,12 @@ public abstract partial class DatabaseService
         }
     }
 
+    public virtual IEnumerable<DatabaseObject> GetTablespaces(string database)
+    {
+        _ = database;
+        return [];
+    }
+
     public virtual IEnumerable<DatabaseColumn> GetColumns(string? database, string? schema, string? table, string filter)
     {
         if (table is null)
@@ -351,12 +357,14 @@ public abstract partial class DatabaseService
             string databaseObjectType = rdr.GetString(4);
             string owner = rdr.GetString(5);
             DateTime? crtTime = rdr.GetValue(6) as DateTime?;
+            string? parentObjectName = rdr.FieldCount > 7 && !rdr.IsDBNull(7) ? rdr.GetString(7) : null;
             TypeInDatabaseEnum dbType = databaseObjectType.GetTypeInDatabaseEnumFromDbName();
 
             _ = acualDb.TryAdd(schema, []); // no StringComparer.OrdinalIgnoreCase by purpouse
             acualDb[schema][objNme] = new DatabaseObject(objId, objNme, desc, dbType, databaseObjectType, owner, crtTime)
             {
                 CatalogId = catalogId,
+                ParentObjectName = parentObjectName,
             };
         }
     }

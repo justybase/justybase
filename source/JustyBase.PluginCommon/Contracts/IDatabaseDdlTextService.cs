@@ -11,6 +11,7 @@ public interface IDatabaseDdlTextService
     ValueTask<string> GetCreateExternalText(string database, string schema, string tableName);
     ValueTask GetCreateExternalTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string tableName);
     string GetCreateFromCode(string fullName);
+    string GetCreateFromCode(string database, string schema, string table);
     string GetCreateProcedureCall(string database, string schema, string tableName);
     string GetCreateProcedurePatternText();
     string GetCreateIndexPatternText(string database, string schema, string tableName);
@@ -33,10 +34,13 @@ public interface IDatabaseDdlTextService
     ValueTask GetCreateViewTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string tableName);
     string GetDeleted(string table, string database, string schema);
     string GetDrop(string table, string database, string schema);
+    string GetDropIndex(string database, string schema, string index);
+    string GetDropTrigger(string database, string schema, string trigger);
     string GetDuplicates(string table, string database, string schema);
     string GetEmpty(string table, string database, string schema);
     string GetCountRows(string table, string database, string schema);
     string GetExport(string table, string database, string schema);
+    string GetExplainCode(string database, string schema, string table);
     string GetGenerateStats(string database, string schema, string table);
     string GetGrant(string database, string schema, string table);
     string GetGroom(string database, string schema, string table);
@@ -49,6 +53,7 @@ public interface IDatabaseDdlTextService
     string GetShortSelectCode(string fullName);
     string GetTableDropCode(string fullName);
     string GetTableRenameCode(string fullName);
+    string GetTableRenameCode(string database, string schema, string table);
     string GetTop100Select(string database, string schema, string table, bool snippetMode, bool addWhereToTextCols = false);
     string GetTop100SelectNumberFromTables(string database, string schema, IEnumerable<DatabaseObject> tables);
     string GetTop100SelectTextFromTables(string database, string schema, IEnumerable<DatabaseObject> tables);

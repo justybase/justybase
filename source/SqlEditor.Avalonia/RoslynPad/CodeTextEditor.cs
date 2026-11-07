@@ -110,6 +110,12 @@ public partial class CodeTextEditor : TextEditor
 
         CompletionResult results = await CompletionProvider.GetCompletionData(offset, completionChar, requestKind).ConfigureAwait(true);
 
+        if (requestKind == CompletionProviders.CompletionRequestKind.SignatureHelp && results?.OverloadProvider is null)
+        {
+            CloseInsightWindow();
+            return;
+        }
+
         if (results?.CompletionData?.Count == 0)
         {
             _completionWindow?.Close();
@@ -117,6 +123,11 @@ public partial class CodeTextEditor : TextEditor
 
         if (results?.OverloadProvider != null)
         {
+            // Signature help and the completion list are mutually exclusive:
+            // auto-triggering insight on '(' / ',' must not leave a stale
+            // completion popup stacked underneath it.
+            CloseCompletionWindow();
+
             results.OverloadProvider.Refresh();
 
             if (_insightWindow != null && _insightWindow.IsOpen())
@@ -302,6 +313,29 @@ public partial class CodeTextEditor : TextEditor
         //{
         if (this.SyntaxHighlighting?.Name == "GeneralSql")
         {
+            var typed = e.Text;
+            if (typed is "(" or ",")
+            {
+                _sqlCompletionTimer?.Stop();
+                _ = ShowCompletion(TriggerMode.SignatureHelp);
+                return;
+            }
+
+            if (typed is ")")
+            {
+                _sqlCompletionTimer?.Stop();
+                if (IsInsightWindowOpen)
+                {
+                    _ = ShowCompletion(TriggerMode.SignatureHelp);
+                }
+                else
+                {
+                    _sqlCompletionTimer?.Start();
+                }
+
+                return;
+            }
+
             _sqlCompletionTimer?.Stop();
             _sqlCompletionTimer?.Start();
         }

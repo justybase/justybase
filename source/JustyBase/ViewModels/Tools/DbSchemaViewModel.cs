@@ -72,7 +72,9 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
                     // The database load itself is shared by the node and may not
                     // support cancellation. Wait for it cancellably so a newer
                     // reveal can become active without applying stale UI changes.
-                    await current.LoadChildrenAsync().WaitAsync(cancellationToken);
+                    // Forward the token so the load is cancelled with the reveal,
+                    // and still wait cancellably as a second safety net.
+                    await current.LoadChildrenAsync(cancellationToken).WaitAsync(cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
                     level = current.Children;
                 }

@@ -74,6 +74,31 @@ public sealed class NzSqlDocumentFormatterTests
         Assert.False(string.IsNullOrWhiteSpace(result));
     }
 
+    [Fact]
+    public void Format_KeywordCaseLower_LowersKeywordsButPreservesIdentifiers()
+    {
+        const string sql = "select id, name from emp where id = 1";
+        var result = NzSqlDocumentFormatter.Format(sql, SqlDialect.Netezza, new SqlFormatOptions(2, SqlKeywordCase.Lower));
+
+        Assert.Contains("select", result, StringComparison.Ordinal);
+        Assert.Contains("from", result, StringComparison.Ordinal);
+        Assert.Contains("where", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("SELECT", result, StringComparison.Ordinal);
+        Assert.Contains("emp", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Format_IndentWidth_RescalesLeadingIndent()
+    {
+        const string sql = "CREATE TABLE t (a INT, b VARCHAR(10))";
+        var narrow = NzSqlDocumentFormatter.Format(sql, SqlDialect.Netezza, new SqlFormatOptions(2, SqlKeywordCase.Upper));
+        var wide = NzSqlDocumentFormatter.Format(sql, SqlDialect.Netezza, new SqlFormatOptions(4, SqlKeywordCase.Upper));
+
+        Assert.Equal(narrow, NzSqlDocumentFormatter.Format(sql, SqlDialect.Netezza));
+        Assert.NotEqual(narrow, wide);
+        Assert.Contains("CREATE TABLE", wide, StringComparison.Ordinal);
+    }
+
     private static string NormalizeNewlines(string value) =>
         value.Replace("\r\n", "\n", StringComparison.Ordinal);
 }

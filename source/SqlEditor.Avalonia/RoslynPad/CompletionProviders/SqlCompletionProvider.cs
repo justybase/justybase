@@ -119,7 +119,8 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
         foreach (var item in orchestration.WordListItems)
             completionData.Add(FromWordListItem(item));
 
-        return new CompletionResult(completionData, null, true);
+        var ranked = SqlCompletionRanker.SortAndDeduplicate(completionData, completionPrefix);
+        return new CompletionResult(ranked, null, true);
     }
 
     public static bool ShouldRunLegacyPath(IReadOnlyList<CompletionItem> engineItems, string sql)

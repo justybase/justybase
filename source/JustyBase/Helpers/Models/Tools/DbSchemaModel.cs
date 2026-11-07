@@ -20,6 +20,12 @@ public sealed partial class DbSchemaModel
     [ObservableProperty]
     public partial bool IsExpandedable { get; set; }
 
+    [ObservableProperty]
+    public partial bool IsLoading { get; set; }
+
+    [ObservableProperty]
+    public partial string? LoadError { get; set; }
+
     private readonly IGeneralApplicationData _generalApplicationData;
     private readonly Services.Documents.IDatabaseServiceResolver? _resolver;
 
@@ -54,12 +60,36 @@ public sealed partial class DbSchemaModel
 
     private bool _childrenLoaded;
     private Task? _loadChildrenTask;
+    private CancellationTokenSource? _loadCts;
+    private int _loadGeneration;
+    private const int MaxChildrenBeforeTruncation = 500;
+    private const int MaxErrorMessageLength = 200;
 
     public void ClearChildren()
     {
+        // Bump the generation first so an in-flight load cannot resurrect its
+        // results (or null out a newer task) after this reset.
+        _loadGeneration++;
+
+        var cts = _loadCts;
+        _loadCts = null;
+        if (cts is not null)
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already finished; the owning load disposes it.
+            }
+        }
+
         _children.Clear();
         _childrenLoaded = false;
         _loadChildrenTask = null;
+        LoadError = null;
+        IsLoading = false;
     }
 
     private readonly ObservableCollection<DbSchemaModel> _children = [];
@@ -96,7 +126,7 @@ public sealed partial class DbSchemaModel
         }
     }
 
-    public Task LoadChildrenAsync()
+    public Task LoadChildrenAsync(CancellationToken cancellationToken = default)
     {
         if (_childrenLoaded)
             return Task.CompletedTask;
@@ -104,12 +134,31 @@ public sealed partial class DbSchemaModel
         if (_loadChildrenTask is not null)
             return _loadChildrenTask;
 
-        _loadChildrenTask = LoadChildrenCoreAsync();
+        var previousCts = _loadCts;
+        if (previousCts is not null)
+        {
+            try
+            {
+                previousCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // The owning load already released it.
+            }
+        }
+
+        var generation = ++_loadGeneration;
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _loadCts = cts;
+        _loadChildrenTask = LoadChildrenCoreAsync(cts, generation);
         return _loadChildrenTask;
     }
 
-    private async Task LoadChildrenCoreAsync()
+    private async Task LoadChildrenCoreAsync(CancellationTokenSource cts, int generation)
     {
+        var cancellationToken = cts.Token;
+        IsLoading = true;
+        LoadError = null;
         try
         {
             // F1: connected-level check prefers resolver when available.
@@ -139,22 +188,62 @@ public sealed partial class DbSchemaModel
                 }
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             var loadedChildren = await Task.Run(() =>
             {
                 var collection = new ObservableCollection<DbSchemaModel>();
                 LoadChildren(collection);
                 return collection;
-            }).ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                _children.Clear();
-                foreach (var child in loadedChildren)
+                if (generation != _loadGeneration)
                 {
-                    _children.Add(child);
+                    // A reset or newer load superseded this one; drop the results.
+                    return;
+                }
+
+                _children.Clear();
+                if (loadedChildren.Count > MaxChildrenBeforeTruncation)
+                {
+                    for (var i = 0; i < MaxChildrenBeforeTruncation; i++)
+                    {
+                        _children.Add(loadedChildren[i]);
+                    }
+
+                    _children.Add(new DbSchemaModel(TypeInDatabaseEnum.otherNoneEntry, DatabaseTypeEnumValue, _generalApplicationData, _resolver)
+                    {
+                        Name = $"… +{loadedChildren.Count - MaxChildrenBeforeTruncation} more (use search)",
+                        Parent = this,
+                        ConnectionName = ConnectionName,
+                        IsExpandedable = false,
+                    });
+                }
+                else
+                {
+                    foreach (var child in loadedChildren)
+                    {
+                        _children.Add(child);
+                    }
                 }
 
                 _childrenLoaded = true;
+                IsLoading = false;
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                // Keep previous children on cancel; a newer load superseded this one.
+                if (generation == _loadGeneration)
+                {
+                    IsLoading = false;
+                }
             });
         }
         catch (Exception ex)
@@ -163,11 +252,66 @@ public sealed partial class DbSchemaModel
             // builds the first symptom of an incompatible API is an empty
             // tree, and without this log entry there is nothing to diagnose.
             _generalApplicationData.GlobalLoggerObject.TrackError(ex, isCrash: false);
-            _loadChildrenTask = null;
+            if (generation == _loadGeneration)
+            {
+                _loadChildrenTask = null;
+            }
+
+            var rawMessage = ex.Message;
+            var message = SummarizeError(rawMessage);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
+                if (generation != _loadGeneration)
+                {
+                    return;
+                }
+
                 _children.Clear();
+                _children.Add(new DbSchemaModel(TypeInDatabaseEnum.otherNoneEntry, DatabaseTypeEnumValue, _generalApplicationData, _resolver)
+                {
+                    Name = $"⚠ {message}",
+                    Parent = this,
+                    ConnectionName = ConnectionName,
+                    IsExpandedable = false,
+                });
+                LoadError = rawMessage;
+                IsLoading = false;
             });
         }
+        finally
+        {
+            if (ReferenceEquals(_loadCts, cts))
+            {
+                _loadCts = null;
+            }
+
+            cts.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Provider messages can be multi-line and echo server details; keep the tree
+    /// node readable and let the full text live in the log / <see cref="LoadError"/>.
+    /// </summary>
+    private static string SummarizeError(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return "Failed to load schema";
+        }
+
+        var firstLine = message
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line))?
+            .Trim();
+
+        if (string.IsNullOrEmpty(firstLine))
+        {
+            return "Failed to load schema";
+        }
+
+        return firstLine.Length <= MaxErrorMessageLength
+            ? firstLine
+            : firstLine[..MaxErrorMessageLength] + "…";
     }
 }

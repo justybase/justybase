@@ -11,7 +11,9 @@ public sealed class CompletionDataSql(
     SnippetManager? snippetManager,
     string? insertText = null,
     string? detailText = null,
-    string? descriptionText = null)
+    string? descriptionText = null,
+    string? sortText = null,
+    double priority = 0)
     : ICompletionDataEx
 {
     private readonly SnippetManager? _snippetManager = snippetManager;
@@ -24,7 +26,7 @@ public sealed class CompletionDataSql(
 
     public bool IsSelected { get; } = isSelected;
 
-    public string SortText => throw new NotImplementedException();
+    public string SortText { get; } = sortText ?? SqlCompletionRanker.BuildSortText(glyph, text);
 
     public string Text { get; } = text;
 
@@ -40,7 +42,7 @@ public sealed class CompletionDataSql(
 
     public object Description { get; } = BuildTip(desc, detailText, descriptionText);
 
-    public double Priority { get; }
+    public double Priority { get; } = priority;
 
     public bool AutocompleteOnReturn { get; set; }
 

@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Slim release variant (Netezza + SQLite + DB2 only, `EnableAi=false`, static splash): portable ZIPs for Windows, Linux and macOS via `publishWindows.bat` mode 2 / `scripts/package-windows.ps1 -Slim` / `publishLinux.sh --slim` / `publishMacOS.sh --slim`
+- Slim release variant (Netezza + SQLite + DB2 only, `EnableAi=false`, static splash): portable ZIPs for Windows, Linux and macOS plus a Windows Velopack installer on its own `win-slim` update channel via `publishWindows.bat` mode 2 / `scripts/package-windows.ps1 -Slim` / `publishLinux.sh --slim` / `publishMacOS.sh --slim`
 - Full release variant now includes every database driver (Oracle, MySQL, DuckDB) with AI chat on all platforms
 - `EnableLottie` build flag and `LOTTIE` constant; `LiveMarkdown.Avalonia` now follows `EnableAi` with runtime-loaded styles (`App.LiveMarkdown.cs`)
 

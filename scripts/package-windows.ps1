@@ -4,20 +4,28 @@ param(
     [Parameter(Mandatory = $true)] [string] $OutputRoot,
     [Parameter(Mandatory = $false)] [string] $GitHubToken = '',
     [Parameter(Mandatory = $false)] [switch] $Slim,
-    # Slim ships as a portable ZIP only: no Velopack feed, delta or Setup.exe,
-    # so the Slim package never collides with the Full auto-update channel.
+    # Slim ships its own Velopack installer (separate id/channel), so -NoVelopack
+    # is only an offline/measurement escape hatch: ZIP without feed or Setup.exe.
     [Parameter(Mandatory = $false)] [switch] $NoVelopack
 )
 
 $ErrorActionPreference = 'Stop'
+if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$') { throw "Invalid version format: $Version (expected e.g. 1.4.0 or 1.4.0-rc.1)" }
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $project = Join-Path $root 'source\JustyBase\JustyBase.csproj'
 $releaseNotes = Join-Path $root 'source\JustyBase\ReleaseNotes.md'
 $icon = Join-Path $root 'source\JustyBase\Assets\Icon2.ico'
 $output = [IO.Path]::GetFullPath((Join-Path $root $OutputRoot))
-# Full: all database drivers + AI + animated splash.
-# Slim: Netezza + SQLite + DB2 only, no AI, static splash.
+# Full: all database drivers + AI + animated splash (Velopack channel win).
+# Slim: Netezza + SQLite + DB2 only, no AI, static splash (Velopack channel
+# win-slim). Same package id: channels are Velopack's native mechanism for
+# parallel variants and UpdateManager automatically tracks the channel the
+# release was built for (see https://docs.velopack.io/packaging/channels).
+# Channel names are part of the nupkg filenames, so Full and Slim assets
+# never collide within one GitHub release.
 $variant = if ($Slim) { 'aot-self-contained-slim' } else { 'aot-self-contained' }
+$channel = if ($Slim) { 'win-slim' } else { 'win' }
+$packTitle = if ($Slim) { 'JustyBase Slim' } else { 'JustyBase' }
 $publish = Join-Path $output "work\win-x64-$variant"
 $velopack = Join-Path $output 'velopack'
 $zip = Join-Path $output "JustyBase-$Version-win-x64-$variant.zip"
@@ -101,7 +109,7 @@ $downloadArgs = @(
     'download', 'github',
     '--repoUrl', $githubRepoUrl,
     '--outputDir', $velopack,
-    '--channel', 'win',
+    '--channel', $channel,
     '--pre'
 )
 if (-not [string]::IsNullOrWhiteSpace($GitHubToken)) {
@@ -116,14 +124,17 @@ catch {
 }
 
 vpk pack -u JustyBase -v $Version -p $publish -e JustyBase.exe --runtime win-x64 `
-    --packAuthors 'JustyBase' --packTitle 'JustyBase' --channel win -o $velopack `
+    --packAuthors 'JustyBase' --packTitle $packTitle --channel $channel -o $velopack `
     -i $icon --releaseNotes $releaseNotes
 if ($LASTEXITCODE -ne 0) { throw "vpk pack failed with exit code $LASTEXITCODE" }
 
-$feed = Join-Path $velopack 'releases.win.json'
-$fullPackage = Get-ChildItem $velopack -Filter "JustyBase-$Version-full.nupkg" -File | Select-Object -First 1
-if (-not (Test-Path $feed)) { throw 'Velopack did not produce releases.win.json' }
-if ($null -eq $fullPackage) { throw "Velopack did not produce JustyBase-$Version-full.nupkg" }
+$feed = Join-Path $velopack "releases.$channel.json"
+# The nupkg filename embeds the channel (e.g. JustyBase-1.0-full.nupkg vs
+# JustyBase-1.0-win-slim-full.nupkg), so exactly one full package is expected.
+$fullPackages = @(Get-ChildItem $velopack -Filter '*-full.nupkg' -File)
+if ($fullPackages.Count -ne 1) { throw "Expected exactly one full nupkg in $velopack, found $($fullPackages.Count)" }
+$fullPackage = $fullPackages[0]
+if (-not (Test-Path $feed)) { throw "Velopack did not produce releases.$channel.json" }
 
 $feedDocument = Get-Content $feed -Raw | ConvertFrom-Json
 $feedAsset = @($feedDocument.Assets) |

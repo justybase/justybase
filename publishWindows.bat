@@ -34,7 +34,7 @@ goto finish
 
 :slimMode
 set "variant=aot-self-contained-slim"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\package-windows.ps1" -Version "%version%" -OutputRoot "artifacts" -Slim -NoVelopack
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\package-windows.ps1" -Version "%version%" -OutputRoot "artifacts" -Slim
 set "publishExit=%ERRORLEVEL%"
 goto finish
 

@@ -82,10 +82,9 @@ jobs:
       - name: Restore
         run: dotnet restore .\source\JustyBase\JustyBase.csproj --force-evaluate
       - name: Install Velopack CLI
-        if: matrix.variant == 'full'
         shell: pwsh
         run: |
-          dotnet tool install --global vpk --version 1.2.0
+          dotnet tool install --global vpk --version 1.2.161
           "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Build Windows packages
         shell: pwsh
@@ -94,7 +93,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           if ('${{ matrix.variant }}' -eq 'slim') {
-            .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts -Slim -NoVelopack
+            .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts -Slim -GitHubToken $env:GITHUB_TOKEN
           } else {
             .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts -GitHubToken $env:GITHUB_TOKEN
           }
@@ -108,12 +107,14 @@ jobs:
             JustyBase/artifacts/*-self-contained-Setup.exe
           if-no-files-found: error
 
-      - name: Upload Windows Slim package
+      - name: Upload Windows Slim packages
         if: matrix.variant == 'slim'
         uses: actions/upload-artifact@v4
         with:
           name: release-windows-slim
-          path: JustyBase/artifacts/*-self-contained-slim.zip
+          path: |
+            JustyBase/artifacts/*-self-contained-slim.zip
+            JustyBase/artifacts/*-self-contained-slim-Setup.exe
           if-no-files-found: error
 
       - name: Upload Windows Velopack packages
@@ -121,6 +122,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-windows-velopack
+          path: JustyBase/artifacts/velopack/*
+          if-no-files-found: error
+
+      - name: Upload Windows Slim Velopack packages
+        if: matrix.variant == 'slim'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-velopack-slim
           path: JustyBase/artifacts/velopack/*
           if-no-files-found: error
 
@@ -247,6 +256,11 @@ jobs:
         with:
           name: release-windows-velopack
           path: dist/velopack
+      - name: Download Windows Slim Velopack packages
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows-velopack-slim
+          path: dist/velopack-slim
       - name: Download Linux Full package
         uses: actions/download-artifact@v4
         with:
@@ -282,6 +296,11 @@ jobs:
           test -s "dist/macos-slim/JustyBase-${VERSION}-macos-arm64-self-contained-slim.zip" || { echo 'Missing macOS Slim ZIP' >&2; exit 1; }
           test -s dist/velopack/releases.win.json || { echo 'Missing Velopack release feed' >&2; exit 1; }
           test -s "dist/velopack/JustyBase-${VERSION}-full.nupkg" || { echo 'Missing Velopack full package' >&2; exit 1; }
+          test -s "dist/windows-slim/JustyBase-${VERSION}-win-x64-aot-self-contained-slim-Setup.exe" || { echo 'Missing Windows Slim Setup.exe' >&2; exit 1; }
+          test -s dist/velopack-slim/releases.win-slim.json || { echo 'Missing Velopack Slim release feed' >&2; exit 1; }
+          slim_nupkgs=(dist/velopack-slim/*-full.nupkg)
+          test ${#slim_nupkgs[@]} -eq 1 || { echo 'Expected exactly one Slim full nupkg' >&2; exit 1; }
+          grep -Fq "$(basename "${slim_nupkgs[0]}")" dist/velopack-slim/releases.win-slim.json || { echo 'Slim feed does not reference its nupkg' >&2; exit 1; }
           if find dist -type f \( -name '*.pdb' -o -name '*.dbg' -o -name '*.log' \) -print -quit | grep -q .; then
             echo 'Debug/log files found in release assets' >&2
             exit 1
@@ -300,7 +319,7 @@ jobs:
       - name: Install Velopack CLI
         shell: bash
         run: |
-          dotnet tool install --global vpk --version 1.2.0
+          dotnet tool install --global vpk --version 1.2.161
           echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
       - name: Create or update prerelease with Velopack
         shell: bash
@@ -325,6 +344,14 @@ jobs:
             --tag "$TAG" \
             --releaseName "JustyBase $VERSION" \
             --pre --merge --publish
+          vpk upload github \
+            --outputDir dist/velopack-slim \
+            --channel win-slim \
+            --repoUrl "https://github.com/$GITHUB_REPOSITORY" \
+            --token "$GH_TOKEN" \
+            --tag "$TAG" \
+            --releaseName "JustyBase $VERSION" \
+            --pre --merge --publish
           gh release edit "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --title "JustyBase $VERSION" \
@@ -332,6 +359,7 @@ jobs:
           gh release upload "$TAG" \
             "dist/windows/JustyBase-${VERSION}-win-x64-aot-self-contained-Setup.exe" \
             "dist/windows/JustyBase-${VERSION}-win-x64-aot-self-contained.zip" \
+            "dist/windows-slim/JustyBase-${VERSION}-win-x64-aot-self-contained-slim-Setup.exe" \
             "dist/windows-slim/JustyBase-${VERSION}-win-x64-aot-self-contained-slim.zip" \
             "dist/linux/JustyBase-${VERSION}-linux-x64-self-contained.zip" \
             "dist/linux-slim/JustyBase-${VERSION}-linux-x64-self-contained-slim.zip" \
@@ -341,3 +369,5 @@ jobs:
           assets="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
           grep -Fx 'releases.win.json' <<<"$assets"
           grep -Fx "JustyBase-${VERSION}-full.nupkg" <<<"$assets"
+          grep -Fx 'releases.win-slim.json' <<<"$assets"
+          grep -E "^JustyBase-${VERSION}-win-slim-full\.nupkg$" <<<"$assets"

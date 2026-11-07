@@ -1,6 +1,6 @@
 # JustyBase 1.4.0
 
-- Added Slim packages (Netezza + SQLite + DB2 only, no AI): smaller portable ZIPs for Windows, Linux and macOS.
+- Added Slim packages (Netezza + SQLite + DB2 only, no AI): smaller download as a portable ZIP and a Velopack installer with its own update channel for Windows, plus portable ZIPs for Linux and macOS.
 - Full packages now include all database drivers (Oracle, MySQL, DuckDB) with AI chat.
 - Slim uses a static splash screen; Full keeps the animated splash.
 

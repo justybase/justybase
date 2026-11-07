@@ -130,9 +130,10 @@ if ($LASTEXITCODE -ne 0) { throw "vpk pack failed with exit code $LASTEXITCODE" 
 
 $feed = Join-Path $velopack "releases.$channel.json"
 # The nupkg filename embeds the channel (e.g. JustyBase-1.0-full.nupkg vs
-# JustyBase-1.0-win-slim-full.nupkg), so exactly one full package is expected.
-$fullPackages = @(Get-ChildItem $velopack -Filter '*-full.nupkg' -File)
-if ($fullPackages.Count -ne 1) { throw "Expected exactly one full nupkg in $velopack, found $($fullPackages.Count)" }
+# JustyBase-1.0-win-slim-full.nupkg). A delta build also leaves the downloaded
+# previous full nupkg next to the new one, so match by current version.
+$fullPackages = @(Get-ChildItem $velopack -Filter '*-full.nupkg' -File | Where-Object { $_.Name -like "*-$Version-*" })
+if ($fullPackages.Count -ne 1) { throw "Expected exactly one $Version full nupkg in $velopack, found $($fullPackages.Count)" }
 $fullPackage = $fullPackages[0]
 if (-not (Test-Path $feed)) { throw "Velopack did not produce releases.$channel.json" }
 

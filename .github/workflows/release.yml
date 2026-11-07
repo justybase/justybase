@@ -298,9 +298,8 @@ jobs:
           test -s "dist/velopack/JustyBase-${VERSION}-full.nupkg" || { echo 'Missing Velopack full package' >&2; exit 1; }
           test -s "dist/windows-slim/JustyBase-${VERSION}-win-x64-aot-self-contained-slim-Setup.exe" || { echo 'Missing Windows Slim Setup.exe' >&2; exit 1; }
           test -s dist/velopack-slim/releases.win-slim.json || { echo 'Missing Velopack Slim release feed' >&2; exit 1; }
-          slim_nupkgs=(dist/velopack-slim/*-full.nupkg)
-          test ${#slim_nupkgs[@]} -eq 1 || { echo 'Expected exactly one Slim full nupkg' >&2; exit 1; }
-          grep -Fq "$(basename "${slim_nupkgs[0]}")" dist/velopack-slim/releases.win-slim.json || { echo 'Slim feed does not reference its nupkg' >&2; exit 1; }
+          test -s "dist/velopack-slim/JustyBase-${VERSION}-win-slim-full.nupkg" || { echo 'Missing Velopack Slim full package' >&2; exit 1; }
+          grep -Fq "JustyBase-${VERSION}-win-slim-full.nupkg" dist/velopack-slim/releases.win-slim.json || { echo 'Slim feed does not reference its nupkg' >&2; exit 1; }
           if find dist -type f \( -name '*.pdb' -o -name '*.dbg' -o -name '*.log' \) -print -quit | grep -q .; then
             echo 'Debug/log files found in release assets' >&2
             exit 1

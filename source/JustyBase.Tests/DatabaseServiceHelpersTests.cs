@@ -13,11 +13,15 @@ public class DatabaseServiceHelpersTests
     [InlineData("PROCEDURE", TypeInDatabaseEnum.Procedure)]
     [InlineData("FUNCTION", TypeInDatabaseEnum.Function)]
     [InlineData("SEQUENCE", TypeInDatabaseEnum.Sequence)]
+    [InlineData("IDENTITY SEQUENCE", TypeInDatabaseEnum.Sequence)]
     [InlineData("SYNONYM", TypeInDatabaseEnum.Synonym)]
+    [InlineData("NICKNAME", TypeInDatabaseEnum.Synonym)]
+    [InlineData("ALIAS", TypeInDatabaseEnum.Synonym)]
     [InlineData("EXTERNAL TABLE", TypeInDatabaseEnum.ExternalTable)]
     [InlineData("INDEX", TypeInDatabaseEnum.Index)]
     [InlineData("PARTITION", TypeInDatabaseEnum.Partition)]
     [InlineData("BASE TABLE", TypeInDatabaseEnum.Table)]
+    [InlineData("MATERIALIZED QUERY TABLE", TypeInDatabaseEnum.Table)]
     [InlineData("UNKNOWN_TYPE", TypeInDatabaseEnum.otherNoneGroup)]
     public void GetTypeInDatabaseEnumFromDbName_MapsCorrectly(string input, TypeInDatabaseEnum expected)
     {

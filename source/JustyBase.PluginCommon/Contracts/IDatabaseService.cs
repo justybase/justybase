@@ -1,3 +1,5 @@
+using JustyBase.PluginCommon.Models;
+
 namespace JustyBase.PluginCommon.Contracts;
 
 public interface IDatabaseService :
@@ -6,4 +8,6 @@ public interface IDatabaseService :
     IDatabaseSchemaQueryService,
     IDatabaseDdlTextService
 {
+    /// <summary>Engine feature switches used by the host to gate schema/editor actions.</summary>
+    DatabaseCapabilities Capabilities { get; }
 }

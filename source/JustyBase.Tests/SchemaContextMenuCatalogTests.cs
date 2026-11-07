@@ -1,4 +1,5 @@
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.Services.Schema;
 
 namespace JustyBase.Tests;
@@ -36,5 +37,49 @@ public class SchemaContextMenuCatalogTests
     {
         var orders = SchemaContextMenuCatalog.Entries.Select(e => e.SortOrder).ToList();
         Assert.Equal(orders.Count, orders.Distinct().Count());
+    }
+
+    [Fact]
+    public void ForType_WithDb2Capabilities_HidesNetezzaOnlyActions()
+    {
+        var kinds = SchemaContextMenuCatalog.ForType(TypeInDatabaseEnum.Table, DatabaseCapabilitiesCatalog.For(DatabaseTypeEnum.DB2))
+            .Select(e => e.Kind)
+            .ToHashSet();
+
+        Assert.Contains(SchemaContextActionKind.Groom, kinds);
+        Assert.Contains(SchemaContextActionKind.GenerateStatistics, kinds);
+        Assert.Contains(SchemaContextActionKind.Recreate, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.DistributionShow, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.DistributionChange, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.DeletedRows, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.GrantTemplate, kinds);
+    }
+
+    [Fact]
+    public void ForType_WithNetezzaCapabilities_KeepsNetezzaActions()
+    {
+        var kinds = SchemaContextMenuCatalog.ForType(TypeInDatabaseEnum.Table, DatabaseCapabilitiesCatalog.For(DatabaseTypeEnum.NetezzaSQL))
+            .Select(e => e.Kind)
+            .ToHashSet();
+
+        Assert.Contains(SchemaContextActionKind.DistributionShow, kinds);
+        Assert.Contains(SchemaContextActionKind.DeletedRows, kinds);
+        Assert.Contains(SchemaContextActionKind.GrantTemplate, kinds);
+        Assert.Contains(SchemaContextActionKind.Recreate, kinds);
+    }
+
+    [Theory]
+    [InlineData("GROOM", "Reorganize table (REORG)…")]
+    [InlineData("STATS", "Run statistics (RUNSTATS)…")]
+    [InlineData("CREATE_SYNONYM", "Create alias template")]
+    public void ResolveTitle_Db2_ReplacesNetezzaLabels(string parameter, string expected)
+    {
+        Assert.Equal(expected, SchemaContextMenuCatalog.ResolveTitle(parameter, "default", DatabaseTypeEnum.DB2));
+    }
+
+    [Fact]
+    public void ResolveTitle_OtherEngines_KeepDefaultLabel()
+    {
+        Assert.Equal("GROOM…", SchemaContextMenuCatalog.ResolveTitle("GROOM", "GROOM…", DatabaseTypeEnum.NetezzaSQL));
     }
 }

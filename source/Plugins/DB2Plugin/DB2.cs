@@ -120,7 +120,7 @@ public sealed class DB2DatabaseService : DatabaseService
             SELECT 
                TRIM(S.SEQNAME) AS NAME
                , S.REMARKS
-               , TRIM(S.SEQNAME) AS SCHEMA
+               , TRIM(S.SEQSCHEMA) AS SCHEMA
                                   , CASE 
                                     WHEN S.SEQTYPE = 'A' THEN 'ALIAS'
                                     WHEN S.SEQTYPE = 'I' THEN 'IDENTITY SEQUENCE'
@@ -130,7 +130,7 @@ public sealed class DB2DatabaseService : DatabaseService
                 , OWNER
                 , CREATE_TIME
             FROM SYSCAT.SEQUENCES S
-            WHERE S.SEQTYPE IN ('A','I')
+            WHERE S.SEQTYPE IN ('A','S','I')
             ) X 
             ORDER BY SCHEMA, TYPE, NAME
             WITH UR
@@ -242,7 +242,7 @@ public sealed class DB2DatabaseService : DatabaseService
                                NULL AS OBJDB
                                , TRIM(S.SEQNAME) AS NAME
                                , S.REMARKS
-                               , TRIM(S.SEQNAME) AS SCHEMA
+                               , TRIM(S.SEQSCHEMA) AS SCHEMA
                                                   , CASE 
                                                     WHEN S.SEQTYPE = 'A' THEN 'ALIAS'
                                                     WHEN S.SEQTYPE = 'I' THEN 'IDENTITY SEQUENCE'
@@ -250,14 +250,12 @@ public sealed class DB2DatabaseService : DatabaseService
                                                     ELSE 'OTHER TYPE'
                                                END AS TYPE
                             FROM SYSCAT.SEQUENCES S
-                            WHERE S.SEQTYPE IN ('A','I')
+                            WHERE S.SEQTYPE IN ('A','S','I')
                             ) X 
                             ORDER BY SCHEMA, TYPE, NAME
 
 
                     ) X ON X.SCHEMA = C.TABSCHEMA AND X.NAME = C.TABNAME AND X.NR !=-1
-                WHERE 
-                    C.RANDDISTKEY = 'N' -- HIDDEN, GENERATED
                 ORDER BY 
                     C.TABSCHEMA, C.TABNAME, C.COLNO
                 WITH UR;
@@ -266,18 +264,23 @@ public sealed class DB2DatabaseService : DatabaseService
 
     protected override string? GetProceduresSql(string database, string objectFilterName)
     {
+        // SYSCAT.PROCEDURES is deprecated on current LUW releases and has no
+        // SPECIFICNAME, so overloads collapse. ROUTINES keeps the specific name
+        // and still exposes the stored SQL PL text for DDL/source search.
         return
             $"""
-                SELECT TRIM(PROCSCHEMA), TEXT,-1
+                SELECT TRIM(ROUTINESCHEMA), TEXT, -1
                     , '' AS RETURNS
                     , FALSE AS EXECUTEDASOWNER
                     , REMARKS
-                    , TRIM(PROCNAME) || ' - ' ||PARM_COUNT::VARCHAR(5) AS PROCEDURESIGNATURE
+                    , TRIM(ROUTINENAME) || ' - ' || PARM_COUNT::VARCHAR(5) AS PROCEDURESIGNATURE
                     , '' AS ARGUMENTS
-                    , NULL AS LANGUAGE
-                    --, TRIM(SPECIFICNAME)
-                FROM SYSCAT.PROCEDURES
-                    ORDER BY PROCSCHEMA,PROCNAME;
+                    , LANGUAGE
+                    , TRIM(SPECIFICNAME) AS SPECIFICNAME
+                FROM SYSCAT.ROUTINES
+                WHERE ROUTINETYPE = 'P'
+                ORDER BY ROUTINESCHEMA, ROUTINENAME, PARM_COUNT, SPECIFICNAME
+                WITH UR;
                 """;
     }
 
@@ -297,7 +300,37 @@ public sealed class DB2DatabaseService : DatabaseService
 
     protected override string? GetSynonymSql(string database)
     {
-        return @$"SELECT TRIM(A.TABSCHEMA) AS SCHEMA, TRIM(A.TABNAME) AS NAME, A.REMOTE_TABLE, A.SERVERNAME,NVL(A.REMOTE_SCHEMA,'ADMIN') AS REMOTE_SCHEMA, A.REMARKS FROM SYSCAT.NICKNAMES A;";
+        // Db2 exposes three "synonym-like" object families. Table aliases and
+        // sequence aliases resolve through BASE_* columns (verified live on LUW);
+        // nicknames keep the remote server/schema/table path.
+        return
+            """
+            SELECT TRIM(TABSCHEMA) AS SCHEMA
+                 , TRIM(TABNAME) AS NAME
+                 , CAST(TRIM(BASE_TABNAME) AS VARCHAR(128)) AS REMOTE_TABLE
+                 , CAST('' AS VARCHAR(128)) AS SERVERNAME
+                 , CAST(TRIM(BASE_TABSCHEMA) AS VARCHAR(128)) AS REMOTE_SCHEMA
+                 , REMARKS
+              FROM SYSCAT.TABLES
+             WHERE TYPE = 'A'
+            UNION ALL
+            SELECT TRIM(SEQSCHEMA) AS SCHEMA
+                 , TRIM(SEQNAME) AS NAME
+                 , CAST(TRIM(BASE_SEQNAME) AS VARCHAR(128)) AS REMOTE_TABLE
+                 , CAST('' AS VARCHAR(128)) AS SERVERNAME
+                 , CAST(TRIM(BASE_SEQSCHEMA) AS VARCHAR(128)) AS REMOTE_SCHEMA
+                 , REMARKS
+              FROM SYSCAT.SEQUENCES
+             WHERE SEQTYPE = 'A'
+            UNION ALL
+            SELECT TRIM(A.TABSCHEMA) AS SCHEMA
+                 , TRIM(A.TABNAME) AS NAME
+                 , A.REMOTE_TABLE
+                 , A.SERVERNAME
+                 , NVL(A.REMOTE_SCHEMA, 'ADMIN') AS REMOTE_SCHEMA
+                 , A.REMARKS
+              FROM SYSCAT.NICKNAMES A;
+            """;
     }
 
     public override async ValueTask<List<ProcedureCachedInfo>> GetProceduresSignaturesFromName(string database, string schema, string procName)
@@ -336,6 +369,15 @@ public sealed class DB2DatabaseService : DatabaseService
 
     public override async ValueTask GetCreateSynonymTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string synonymName)
     {
+        // Db2 aliases are not returned by SYSCAT.NICKNAMES; resolve them from the
+        // BASE_* columns first, then fall back to the nickname cache.
+        string? aliasDdl = await Task.Run(() => TryGetAliasDdl(database, schema, synonymName));
+        if (aliasDdl is not null)
+        {
+            stringBuilder.Append(aliasDdl);
+            return;
+        }
+
         if (!_synonymTableDictCache.ContainsKey(database))
         {
             await CacheAllObjects([TypeInDatabaseEnum.Synonym], database);
@@ -346,10 +388,64 @@ public sealed class DB2DatabaseService : DatabaseService
         {
             var f = GetQuotedTwoOrTreePartName(database, schema, synonymName);
             var g = GetQuotedTwoOrTreePartName(d3.RefObjNamePart1, d3.RefObjNamePart2, d3.RefObjNamePart3, force: true);
-            stringBuilder.Append($"CREATE NICKNAME {f} FOR {g}");
+            stringBuilder.Append($"CREATE NICKNAME {f} FOR {g};");
             return;
         }
         stringBuilder.Append($"PROBLEM ! {database}.{schema}.{synonymName}");
+    }
+
+    private string? TryGetAliasDdl(string database, string schema, string aliasName)
+    {
+        string literalSchema = EscapeSqlLiteral(schema);
+        string literalName = EscapeSqlLiteral(aliasName);
+        try
+        {
+            using var con = GetConnection(database);
+            con.Open();
+            using var cmd = CreateCommandFromConnection(con);
+
+            cmd.CommandText = $"""
+                SELECT TRIM(BASE_TABSCHEMA), TRIM(BASE_TABNAME)
+                  FROM SYSCAT.TABLES
+                 WHERE TYPE = 'A'
+                   AND TABSCHEMA = '{literalSchema}'
+                   AND TABNAME = '{literalName}'
+                 WITH UR
+                """;
+            using (var rdr = cmd.ExecuteReader())
+            {
+                if (rdr.Read())
+                {
+                    var alias = GetQuotedTwoOrTreePartName(null, schema, aliasName, force: true);
+                    var target = GetQuotedTwoOrTreePartName(null, rdr.GetString(0), rdr.GetString(1), force: true);
+                    return $"CREATE ALIAS {alias} FOR TABLE {target};{Environment.NewLine}";
+                }
+            }
+
+            cmd.CommandText = $"""
+                SELECT TRIM(BASE_SEQSCHEMA), TRIM(BASE_SEQNAME)
+                  FROM SYSCAT.SEQUENCES
+                 WHERE SEQTYPE = 'A'
+                   AND SEQSCHEMA = '{literalSchema}'
+                   AND SEQNAME = '{literalName}'
+                 WITH UR
+                """;
+            using (var rdr = cmd.ExecuteReader())
+            {
+                if (rdr.Read())
+                {
+                    var alias = GetQuotedTwoOrTreePartName(null, schema, aliasName, force: true);
+                    var target = GetQuotedTwoOrTreePartName(null, rdr.GetString(0), rdr.GetString(1), force: true);
+                    return $"CREATE ALIAS {alias} FOR SEQUENCE {target};{Environment.NewLine}";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.TrackError(ex, isCrash: false);
+        }
+
+        return null;
     }
 
     public override async ValueTask GetCreateProcedureTextStringBuilder(StringBuilder sb, string database, string schema, string procName, bool forceFreshCode = false)
@@ -885,6 +981,95 @@ public sealed class DB2DatabaseService : DatabaseService
                                 where tabschema = '{schema}'
                                       AND  TABNAME = '{tablename}'
                                 order by trigname";
+    }
+
+    /// <summary>Db2 LUW paginates with FETCH FIRST; LIMIT is rejected (-104).</summary>
+    protected override string GetLimitClause(object rowsCnt) => $"FETCH FIRST {rowsCnt} ROWS ONLY";
+
+    /// <summary>Db2 renames with RENAME TABLE; ALTER TABLE ... RENAME TO is rejected (-104).</summary>
+    public override string GetTableRenameCode(string fullName) => $"RENAME TABLE {fullName} TO NEW_NAME;";
+
+    /// <summary>Db2 CTAS requires WITH DATA instead of Netezza's DISTRIBUTE ON RANDOM.</summary>
+    public override string GetCreateFromCode(string fullName)
+        => $"CREATE TABLE ABC AS (SELECT T1.* FROM {fullName} AS T1) WITH DATA;";
+
+    public override string GetCreateSynonymPatternText()
+        => "CREATE ALIAS <schema>.<alias> FOR TABLE <schema>.<table>;";
+
+    public override string GetCreateProcedureCall(string database, string schema, string tableName)
+    {
+        // Procedure objects are keyed as "NAME - PARAM_COUNT" so overloads stay
+        // distinct in the tree; Db2 CALL itself takes "schema.name(args)".
+        string name = tableName;
+        string arguments = string.Empty;
+
+        int paren = name.IndexOf('(');
+        if (paren >= 0)
+        {
+            arguments = name[paren..];
+            name = name[..paren];
+        }
+        else
+        {
+            int suffix = name.LastIndexOf(" - ", StringComparison.Ordinal);
+            if (suffix > 0)
+            {
+                string countText = name[(suffix + 3)..].Trim();
+                name = name[..suffix].Trim();
+                if (int.TryParse(countText, out int count) && count > 0)
+                {
+                    arguments = "(" + string.Join(", ", Enumerable.Range(1, count).Select(i => $"<ARG{i}>")) + ")";
+                }
+            }
+        }
+
+        string qualified = GetQuotedTwoOrTreePartName(database, schema, name);
+        return $"CALL {qualified}{arguments};";
+    }
+
+    /// <summary>Db2 maintenance equivalent of Netezza GROOM.</summary>
+    public override string GetGroom(string database, string schema, string table)
+    {
+        string tableCl = GetQuotedTwoOrTreePartName(database, schema, table);
+        return $"REORG TABLE {tableCl};";
+    }
+
+    /// <summary>Db2 maintenance equivalent of Netezza GENERATE STATISTICS.</summary>
+    public override string GetGenerateStats(string database, string schema, string table)
+    {
+        string tableCl = GetQuotedTwoOrTreePartName(database, schema, table);
+        return $"RUNSTATS ON TABLE {tableCl} WITH DISTRIBUTION AND DETAILED INDEXES ALL;";
+    }
+
+    public override async ValueTask GetReCreateTableTextStringBuilder(StringBuilder sb, string database, string schema, string tableName)
+    {
+        var ddl = new StringBuilder();
+        await GetCreateTableTextStringBuilder(ddl, database, schema, tableName);
+
+        string qualified = GetQuotedTwoOrTreePartName(database, schema, tableName);
+        string backupName = BuildBackupTableName(tableName);
+        string backupQualified = GetQuotedTwoOrTreePartName(database, schema, backupName);
+
+        sb.AppendLine($"-- Recreate {qualified} in place. Review dependencies, privileges and the backup name before running.");
+        sb.AppendLine("-- 1. Keep the current table as a backup (Db2 requires an unqualified rename target).");
+        sb.AppendLine($"RENAME TABLE {qualified} TO {QuoteNameIfNeeded(backupName)};");
+        sb.AppendLine();
+        sb.AppendLine("-- 2. Create the replacement table.");
+        sb.Append(ddl);
+        sb.AppendLine();
+        sb.AppendLine("-- 3. Copy the data.");
+        sb.AppendLine($"INSERT INTO {qualified} SELECT * FROM {backupQualified};");
+        sb.AppendLine();
+        sb.AppendLine("-- 4. Refresh statistics.");
+        sb.AppendLine($"RUNSTATS ON TABLE {qualified} WITH DISTRIBUTION AND DETAILED INDEXES ALL;");
+        sb.AppendLine();
+        sb.AppendLine($"-- 5. Drop {backupQualified} only after verifying the rebuilt table and its dependants.");
+    }
+
+    private static string BuildBackupTableName(string tableName)
+    {
+        string prefix = tableName.Length > 110 ? tableName[..110] : tableName;
+        return $"{prefix}_BAK_{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
     }
 
     private static string GetChecksSql(string schema, string tablename)

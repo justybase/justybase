@@ -63,7 +63,9 @@ public static class DatabaseServiceHelpers
             "HIERARCHY TABLE" => TypeInDatabaseEnum.Table,
             "DETACHED TABLE" => TypeInDatabaseEnum.Table,
             "MATERIALIZED QUERY TABLE" => TypeInDatabaseEnum.Table,
-            "ALIAS" => TypeInDatabaseEnum.db2alias,
+            // Db2 LUW aliases (SYSCAT.TABLES.TYPE='A') and sequence aliases share
+            // the synonym surface so they are browsable, searchable and scriptable.
+            "ALIAS" => TypeInDatabaseEnum.Synonym,
             "VIEW" => TypeInDatabaseEnum.View,
             "TYPED VIEW" => TypeInDatabaseEnum.View,
             "PROCEDURE" => TypeInDatabaseEnum.Procedure,

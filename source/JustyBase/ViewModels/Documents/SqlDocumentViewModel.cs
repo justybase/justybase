@@ -11,6 +11,7 @@ using JustyBase.Editor;
 using JustyBase.Helpers;
 using JustyBase.Models.Tools;
 using JustyBase.PluginCommon.Contracts;
+using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommons;
 using JustyBase.Services;
 using JustyBase.Helpers.Shared;
@@ -1160,6 +1161,12 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         UpdateDocumentDialect();
         _ = _linterService?.SyncSchemaFromAllConnectionsAsync();
     }
+
+    /// <summary>Engine of the selected connection, or NotSupportedDatabase when none is selected.</summary>
+    public DatabaseTypeEnum CurrentDatabaseType
+        => SelectedConnectionIndex >= 0 && SelectedConnectionIndex < ConnectionsList.Count
+            ? ConnectionsList[SelectedConnectionIndex].DatabaseType
+            : DatabaseTypeEnum.NotSupportedDatabase;
 
     /// <summary>
     /// Resolves the SQL dialect of the currently selected connection

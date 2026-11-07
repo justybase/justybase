@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using JustyBase.Common.Contracts;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.Services;
 using JustyBase.Services.Schema;
 using System.Collections.ObjectModel;
@@ -82,6 +83,8 @@ public sealed partial class DbSchemaViewModel
     public void PrepareContextMenu(object? data)
     {
         TypeInDatabaseEnum selRowType = GetSelectedType(data);
+        DatabaseTypeEnum databaseType = SelectedSchemaItem?.DatabaseTypeEnumValue ?? DatabaseTypeEnum.NotSupportedDatabase;
+        DatabaseCapabilities capabilities = DatabaseCapabilitiesCatalog.For(databaseType);
         switch (selRowType)
         {
             case TypeInDatabaseEnum.otherNoneEntry:
@@ -152,6 +155,7 @@ public sealed partial class DbSchemaViewModel
                 break;
         }
 
+        MenuItems = SchemaContextMenuFilter.Filter(MenuItems, capabilities, databaseType);
         SyncMenuItemViewModels();
     }
 

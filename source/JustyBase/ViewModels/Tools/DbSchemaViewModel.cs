@@ -277,11 +277,23 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
 
         if (optionName == "DISTRIBUTE_CHART_NZ")
         {
+            if (LastItemConrtextMenuReq.DatabaseTypeEnumValue != DatabaseTypeEnum.NetezzaSQL)
+            {
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    "Distribution slices are a Netezza feature; this connection does not expose them.",
+                    "Distribution chart");
+                return;
+            }
+
             await ShowDistributionChartAsync(CONNECTION_NAME);
             return;
         }
 
-        if ((optionName is "GROOM" or "STATS") && _netezzaMaintenanceDialogService is not null)
+        // The GROOM/STATS wizard emits Netezza SQL. Other engines must fall through
+        // to their own GetGroom/GetGenerateStats implementation (Db2: REORG/RUNSTATS).
+        if ((optionName is "GROOM" or "STATS")
+            && _netezzaMaintenanceDialogService is not null
+            && LastItemConrtextMenuReq.DatabaseTypeEnumValue == DatabaseTypeEnum.NetezzaSQL)
         {
             var item = LastItemConrtextMenuReq;
             var qualified = NetezzaMaintenanceSql.Qualify(item.Database, item.CurrentSchema, item.Name);

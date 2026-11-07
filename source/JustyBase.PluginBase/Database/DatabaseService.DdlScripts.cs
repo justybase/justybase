@@ -395,7 +395,7 @@ public abstract partial class DatabaseService
     }
 
 
-    public string GetCreateSynonymPatternText()
+    public virtual string GetCreateSynonymPatternText()
     {
         return "CREATE SYNONYM <synonym> FOR <name>";
     }

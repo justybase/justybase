@@ -18,6 +18,7 @@ public abstract partial class DatabaseService : IDatabaseService, IDatabaseWithS
     public ISimpleLogger Logger { get; set; } = ISimpleLogger.EmptyLogger;
     public CurrentAutoCompletDatabaseMode AutoCompletDatabaseMode { get; init; }
     public abstract DatabaseTypeEnum DatabaseType { get; }
+    public virtual DatabaseCapabilities Capabilities => DatabaseCapabilitiesCatalog.For(DatabaseType);
 
     private DbConnection? _connection;
     public DbConnection Connection

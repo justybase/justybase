@@ -22,6 +22,8 @@ JustyBase is **Netezza-first**. Other engines are available with uneven maturity
 
 SQLite, DuckDB, Excel File SQL and Microsoft Access may be loaded via the plugin directory rather than the default in-process registration list.
 
+Schema context menus and tree groups are gated by `DatabaseCapabilities` (`JustyBase.PluginCommon/Models/DatabaseCapabilities.cs`). Actions the driver cannot express in valid SQL are hidden instead of producing statements the server rejects — for example, Db2 shows REORG/RUNSTATS where Netezza shows GROOM/GENERATE STATISTICS, offers alias/nickname DDL instead of synonyms, and hides distribution, deleted-row and grant actions until a Db2 implementation exists.
+
 SQLite support covers the native SQLite object model rather than a table-editor abstraction: databases and attached catalogs,
 tables, views, columns (including primary-key/generated/hidden flags), indexes (unique/partial/expression/order/collation metadata),
 triggers, foreign keys, schema DDL, read-only/immutable sessions, shared in-memory databases, and integrity/foreign-key diagnostics.

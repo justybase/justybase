@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 using JustyBase.ViewModels.Documents;
 using System.Collections.ObjectModel;
 
@@ -17,18 +19,52 @@ public sealed class DbObjectQuickMenuViewModel : ObservableObject
         set
         {
             field = value;
-            OptionsList = new ObservableCollection<QuickMenuItem>([
-            new QuickMenuItem("Jump to [F6]", 12, SqlDocVM.JumpToSelectedItem),
-            new QuickMenuItem("Select [F7]", 1, SqlDocVM.SelectSelectedItem),
-            new QuickMenuItem("Drop", 12, SqlDocVM.DropSelectedItem),
-            new QuickMenuItem("Rename", 12, SqlDocVM.RenameSelectedItem),
-            new QuickMenuItem("Groom", 6, SqlDocVM.GroomSelectedItem),
-            new QuickMenuItem("Recreate", 10, SqlDocVM.RecreateSelectedItem),
-            new QuickMenuItem("DDL", 10, SqlDocVM.DdlSelectedItem),
-            new QuickMenuItem("Top 100", 3, SqlDocVM.SelectSelectedItem),
-            new QuickMenuItem("Generate statistics", 7, SqlDocVM.GenerateStatsSelectedItem),
-            new QuickMenuItem("Create from", 6, SqlDocVM.CreateFromSelectedItem),
-        ]);
+            DatabaseTypeEnum databaseType = value.CurrentDatabaseType;
+            DatabaseCapabilities capabilities = DatabaseCapabilitiesCatalog.For(databaseType);
+
+            var items = new List<QuickMenuItem>
+            {
+                new("Jump to [F6]", 12, SqlDocVM.JumpToSelectedItem),
+                new("Select [F7]", 1, SqlDocVM.SelectSelectedItem),
+                new("Drop", 12, SqlDocVM.DropSelectedItem),
+            };
+
+            if (capabilities.SupportsRenameTable)
+            {
+                items.Add(new QuickMenuItem("Rename", 12, SqlDocVM.RenameSelectedItem));
+            }
+            if (capabilities.SupportsGroomTable)
+            {
+                items.Add(new QuickMenuItem(
+                    databaseType == DatabaseTypeEnum.DB2 ? "Reorganize (REORG)" : "Groom",
+                    6,
+                    SqlDocVM.GroomSelectedItem));
+            }
+            if (capabilities.SupportsRecreateTable)
+            {
+                items.Add(new QuickMenuItem("Recreate", 10, SqlDocVM.RecreateSelectedItem));
+            }
+            if (capabilities.SupportsDdl)
+            {
+                items.Add(new QuickMenuItem("DDL", 10, SqlDocVM.DdlSelectedItem));
+            }
+            if (capabilities.SupportsTop100Select)
+            {
+                items.Add(new QuickMenuItem("Top 100", 3, SqlDocVM.SelectSelectedItem));
+            }
+            if (capabilities.SupportsTableStatistics)
+            {
+                items.Add(new QuickMenuItem(
+                    databaseType == DatabaseTypeEnum.DB2 ? "Run statistics (RUNSTATS)" : "Generate statistics",
+                    7,
+                    SqlDocVM.GenerateStatsSelectedItem));
+            }
+            if (capabilities.SupportsCreateTableFrom)
+            {
+                items.Add(new QuickMenuItem("Create from", 6, SqlDocVM.CreateFromSelectedItem));
+            }
+
+            OptionsList = new ObservableCollection<QuickMenuItem>(items);
         }
     }
 }

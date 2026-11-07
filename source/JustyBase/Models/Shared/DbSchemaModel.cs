@@ -77,23 +77,42 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                     ("Fluid Query Data Sources","fluids",TypeInDatabaseEnum.baseFluides),//8
                     ("Others","others", TypeInDatabaseEnum.otherNoneGroup)//9
                 };
-                if (databaseTypeEnum != DatabaseTypeEnum.NetezzaSQL)
+                DatabaseCapabilities capabilities = DatabaseCapabilitiesCatalog.For(databaseTypeEnum);
+                if (!capabilities.SupportsFluids)
                 {
-                    itemsCollection.RemoveAt(8); //fluids
+                    itemsCollection.RemoveAll(i => i.typeInDatabase == TypeInDatabaseEnum.baseFluides);
                 }
-                if (databaseTypeEnum != DatabaseTypeEnum.NetezzaSQL)
+                if (!capabilities.SupportsExternalTables)
                 {
-                    itemsCollection.RemoveAt(1); //external
+                    itemsCollection.RemoveAll(i => i.typeInDatabase == TypeInDatabaseEnum.baseExternals);
                 }
-                if (databaseTypeEnum == DatabaseTypeEnum.PostgreSql)
+                if (!capabilities.SupportsSynonyms)
                 {
-                    itemsCollection.Insert(7, ("Indexes", "indexes", TypeInDatabaseEnum.baseIndexes));
-                    itemsCollection.Insert(8, ("Partitions", "partitions", TypeInDatabaseEnum.basePartitions));
+                    itemsCollection.RemoveAll(i => i.typeInDatabase == TypeInDatabaseEnum.baseSynonyms);
                 }
-                else if (databaseTypeEnum == DatabaseTypeEnum.Sqlite)
+                if (!capabilities.SupportsAggregates)
                 {
-                    itemsCollection.Add(("Indexes", "indexes", TypeInDatabaseEnum.baseIndexes));
-                    itemsCollection.Add(("Triggers", "triggers", TypeInDatabaseEnum.baseTriggers));
+                    itemsCollection.RemoveAll(i => i.typeInDatabase == TypeInDatabaseEnum.baseAggregates);
+                }
+                if (!capabilities.SupportsProcedures)
+                {
+                    itemsCollection.RemoveAll(i => i.typeInDatabase == TypeInDatabaseEnum.baseProcedures);
+                }
+                if (capabilities.SupportsIndexes)
+                {
+                    if (capabilities.SupportsPartitions)
+                    {
+                        itemsCollection.Insert(7, ("Indexes", "indexes", TypeInDatabaseEnum.baseIndexes));
+                        itemsCollection.Insert(8, ("Partitions", "partitions", TypeInDatabaseEnum.basePartitions));
+                    }
+                    else
+                    {
+                        itemsCollection.Add(("Indexes", "indexes", TypeInDatabaseEnum.baseIndexes));
+                        if (capabilities.SupportsTriggers)
+                        {
+                            itemsCollection.Add(("Triggers", "triggers", TypeInDatabaseEnum.baseTriggers));
+                        }
+                    }
                 }
 
                 foreach (var item in itemsCollection)
@@ -183,14 +202,17 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                 break;
             case TypeInDatabaseEnum.Table:
                 AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.columnInTables, "Columns", "columns");
-                if (databaseTypeEnum == DatabaseTypeEnum.PostgreSql)
+                DatabaseCapabilities tableCapabilities = DatabaseCapabilitiesCatalog.For(databaseTypeEnum);
+                if (tableCapabilities.SupportsIndexes)
                 {
                     AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.baseIndexes, "Indexes", "indexes", parentObjectName: Name);
+                }
+                if (tableCapabilities.SupportsPartitions)
+                {
                     AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.basePartitions, "Partitions", "partitions", parentObjectName: Name);
                 }
-                else if (databaseTypeEnum == DatabaseTypeEnum.Sqlite)
+                if (tableCapabilities.SupportsTriggers)
                 {
-                    AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.baseIndexes, "Indexes", "indexes", parentObjectName: Name);
                     AddMetadataNode(newNodeCollection, TypeInDatabaseEnum.baseTriggers, "Triggers", "triggers", parentObjectName: Name);
                 }
                 if (databaseTypeEnum == DatabaseTypeEnum.NetezzaSQL)

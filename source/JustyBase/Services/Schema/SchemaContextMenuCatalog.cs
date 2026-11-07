@@ -1,4 +1,5 @@
 using JustyBase.PluginCommon.Enums;
+using JustyBase.PluginCommon.Models;
 
 namespace JustyBase.Services.Schema;
 
@@ -77,6 +78,71 @@ public static class SchemaContextMenuCatalog
 
     public static IEnumerable<SchemaContextMenuEntry> ForType(TypeInDatabaseEnum type)
         => Entries.Where(e => e.SupportedTypes.Contains(type)).OrderBy(e => e.SortOrder);
+
+    /// <summary>Actions available for an object type on an engine with the given capabilities.</summary>
+    public static IEnumerable<SchemaContextMenuEntry> ForType(TypeInDatabaseEnum type, DatabaseCapabilities capabilities)
+        => ForType(type).Where(e => IsActionEnabled(GetCommandParameter(e.Kind, type), capabilities));
+
+    /// <summary>
+    /// Maps a menu command parameter onto the capability that must be present for
+    /// the action to produce valid SQL on the active engine. Unknown/parameterless
+    /// entries stay enabled so host-only commands (copy, refresh, show header)
+    /// keep working.
+    /// </summary>
+    public static bool IsActionEnabled(string? commandParameter, DatabaseCapabilities capabilities) => commandParameter switch
+    {
+        null or "" => true,
+        "DDL_TABLE" or "DDL_VIEW" or "DDL_ALL_TABLES" or "DDL_ALL_VIEWS" or "DDL_ALL_PROCEDURES" => capabilities.SupportsDdl,
+        "DDL_EXTERNAL" => capabilities.SupportsDdl && capabilities.SupportsExternalTables,
+        "DDL_ALL_EXTERNALS" => capabilities.SupportsExternalTables,
+        "DDL_TABLE_CLIP" or "DDL_VIEW_CLIP" => capabilities.SupportsDdlToClipboard,
+        "SELECT" or "SELECT_VIEW" => capabilities.SupportsTop100Select,
+        "COUNT_ROWS" => capabilities.SupportsRowCount,
+        "DUPLICATES_CLIP" => capabilities.SupportsDuplicateSearch,
+        "DELETED" => capabilities.SupportsDeletedRows,
+        "GRANT_CLIP" => capabilities.SupportsGrants,
+        "GROOM" => capabilities.SupportsGroomTable,
+        "DISTRIBUTE_CHART_NZ" or "DISTRIBUTE_CLIP" => capabilities.SupportsTableDistribution,
+        "STATS" => capabilities.SupportsTableStatistics,
+        "EMPTY" => capabilities.SupportsTruncateTable,
+        "RECREATE_TABLE" => capabilities.SupportsRecreateTable,
+        "RECREATE_ALL_TABLES" => capabilities.SupportsRecreateAllTables,
+        "IMPORT_DATA" => capabilities.SupportsImport,
+        "EXPORT_DATA" => capabilities.SupportsExport,
+        "CREATE_INDEX" or "DDL_ALL_INDEXES" or "DDL_INDEX" or "DDL_INDEX_CLIP" or "DROP_INDEX" => capabilities.SupportsIndexes,
+        "CREATE_PARTITION" or "DDL_ALL_PARTITIONS" or "DDL_PARTITION" or "DDL_PARTITION_CLIP" => capabilities.SupportsPartitions,
+        "DDL_ALL_TRIGGERS" or "DDL_TRIGGER" or "DDL_TRIGGER_CLIP" or "DROP_TRIGGER" => capabilities.SupportsTriggers,
+        "CREATE_SYNONYM" => capabilities.SupportsSynonyms && capabilities.SupportsCreateTemplates,
+        "DDL_SYNONYM" or "DDL_ALL_SYNONYMS" => capabilities.SupportsSynonyms,
+        "CREATE_SEQUENCE" => capabilities.SupportsSequences && capabilities.SupportsCreateTemplates,
+        "CREATE_PROCEDURE" => capabilities.SupportsProcedures && capabilities.SupportsCreateTemplates,
+        "CALL_PROCEDURE" => capabilities.SupportsProcedures,
+        "FLUID_SAMPLE" => capabilities.SupportsFluids,
+        "SELECT_ALL_SEARCH_TEXT" or "SELECT_ALL_SEARCH_NUMBER" => capabilities.SupportsSchemaValueSearch,
+        _ => true,
+    };
+
+    /// <summary>
+    /// Engine-specific label for actions whose SQL meaning changes per database
+    /// (Db2 uses REORG/RUNSTATS where Netezza uses GROOM/GENERATE STATISTICS).
+    /// </summary>
+    public static string ResolveTitle(string? commandParameter, string defaultTitle, DatabaseTypeEnum databaseType)
+    {
+        if (databaseType != DatabaseTypeEnum.DB2)
+        {
+            return defaultTitle;
+        }
+
+        return commandParameter switch
+        {
+            "GROOM" => "Reorganize table (REORG)…",
+            "STATS" => "Run statistics (RUNSTATS)…",
+            "CREATE_SYNONYM" => "Create alias template",
+            "DDL_SYNONYM" => "Create alias/nickname DDL to new query window",
+            "DDL_ALL_SYNONYMS" => "Create all alias/nickname DDL to new query window",
+            _ => defaultTitle,
+        };
+    }
 
     /// <summary>Formats shared SQL when <paramref name="kind"/> maps to a Core template.</summary>
     public static string? TryFormatSharedSql(SchemaContextActionKind kind, string qualifiedObject)

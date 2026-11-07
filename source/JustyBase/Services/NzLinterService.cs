@@ -36,7 +36,7 @@ public sealed class NzLinterService : IDisposable
     private volatile SqlDialect _documentDialect = SqlDialect.Netezza;
     private SqlDialect _engineDialect = SqlDialect.Netezza;
     private static readonly string[] Db2LintRuleIds =
-        ["DB2001", "DB2002", "DB2003", "DB2004", "DB2005", "DB2006", "DB2007", "DB2008"];
+        ["DB2L001", "DB2L002", "DB2L003", "DB2L004", "DB2L005", "DB2L006", "DB2L007", "DB2L008"];
     private readonly object _schemaLock = new();
     private bool _disposed;
     private volatile bool _schemaSynced;
@@ -284,7 +284,7 @@ public sealed class NzLinterService : IDisposable
         options ??= Program.ServiceProvider?.GetService<IGeneralApplicationData>()?.Config;
         if (options is null) return;
 
-        // Db2 documents are analyzed with the Db2-only rule registry (DB2001–DB2008).
+        // Db2 documents are analyzed with the Db2-only rule registry (DB2L001–DB2L008).
         // The shared NZ severity options map onto the closest Db2 equivalents.
         bool isDb2 = _documentDialect == SqlDialect.Db2;
         if (isDb2)
@@ -346,9 +346,9 @@ public sealed class NzLinterService : IDisposable
     }
 
     /// <summary>
-    /// Applies the shared linter options to the Db2-only rule registry (DB2001–DB2008).
+    /// Applies the shared linter options to the Db2-only rule registry (DB2L001–DB2L008).
     /// The global switch turns every Db2 rule off; otherwise the closest NZ severity
-    /// options are mapped (DB2001/DB2002/DB2003 mirror NZ001/NZ002/NZ003) and the
+    /// options are mapped (DB2L001/DB2L002/DB2L003 mirror NZ001/NZ002/NZ003) and the
     /// remaining rules keep their defaults.
     /// </summary>
     private void ApplyDb2LintSeveritySettings(JustyBase.Common.AppOptions options)
@@ -360,10 +360,10 @@ public sealed class NzLinterService : IDisposable
             return;
         }
 
-        SetRuleSeverity("DB2001", options.LintSeverityNz001); // SELECT *
-        SetRuleSeverity("DB2002", options.LintSeverityNz002); // DELETE without WHERE
-        SetRuleSeverity("DB2003", options.LintSeverityNz003); // UPDATE without WHERE
-        // DB2004–DB2008 stay at their defaults.
+        SetRuleSeverity("DB2L001", options.LintSeverityNz001); // SELECT *
+        SetRuleSeverity("DB2L002", options.LintSeverityNz002); // DELETE without WHERE
+        SetRuleSeverity("DB2L003", options.LintSeverityNz003); // UPDATE without WHERE
+        // DB2L004–DB2L008 stay at their defaults.
     }
 
     /// <summary>

@@ -69,6 +69,10 @@ public sealed class ResultHelper
         bool IsXlsx = filePathToExport.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase);
         bool IsCsvZip = filePathToExport.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
         bool IsParquet = filePathToExport.EndsWith(".parquet", StringComparison.OrdinalIgnoreCase);
+        bool IsJson = filePathToExport.EndsWith(".json", StringComparison.OrdinalIgnoreCase);
+        bool IsXml = filePathToExport.EndsWith(".xml", StringComparison.OrdinalIgnoreCase);
+        bool IsTsv = filePathToExport.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase);
+        bool IsSqlScript = filePathToExport.EndsWith(".sql", StringComparison.OrdinalIgnoreCase);
         var csvCompression = filePathToExport.GetCsvCompressionEnum();
 
         try
@@ -121,6 +125,36 @@ public sealed class ResultHelper
                 ParquetExportWriter parquetWritter = new ParquetExportWriter(rdr);
                 using var fileStream = File.Open(filePathToExport, FileMode.Create, FileAccess.Write, FileShare.None);
                 await parquetWritter.CreateFile(fileStream).ConfigureAwait(false);
+            }
+            else if (IsJson)
+            {
+                await ResultExportWriters.WriteJsonAsync(rdr, filePathToExport, _csvEncoding);
+            }
+            else if (IsXml)
+            {
+                await ResultExportWriters.WriteXmlAsync(rdr, filePathToExport, _csvEncoding);
+            }
+            else if (IsTsv)
+            {
+                await ResultExportWriters.WriteTsvAsync(rdr, filePathToExport, _csvEncoding);
+            }
+            else if (IsSqlScript)
+            {
+                string tableName = new(
+                    Path.GetFileNameWithoutExtension(filePathToExport)
+                        .Select(character => char.IsLetterOrDigit(character) || character == '_' ? character : '_')
+                        .ToArray());
+                if (string.IsNullOrWhiteSpace(tableName))
+                {
+                    tableName = "exported_data";
+                }
+
+                await ResultExportWriters.WriteSqlScriptAsync(
+                    rdr,
+                    filePathToExport,
+                    tableName,
+                    DatabaseTypeEnum.NotSupportedDatabase,
+                    encoding: _csvEncoding);
             }
             else
             {

@@ -198,7 +198,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         ("File explorer", "Files"),
         ("Git", "Git"),
         ("LogTool", "Log"),
-        ("NetezzaSessionMonitor", "NZ Sessions"),
+        ("NetezzaSessionMonitor", "Sessions"),
         ("FastViewModel", "Results"),
         ("SqlDiagnostics", "Diagnostics")
 #if AI

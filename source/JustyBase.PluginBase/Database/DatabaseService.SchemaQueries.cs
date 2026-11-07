@@ -270,39 +270,42 @@ public abstract partial class DatabaseService
         return res;
     }
 
-    public bool IsItemSourceContains(TypeInDatabaseEnum typeInDatabase, string database, string schema, string itemNameOrSignature, int procedureId, StringComparison comp, string searchWord, Regex rx)
+    public string? GetItemSource(TypeInDatabaseEnum typeInDatabase, string database, string schema, string itemNameOrSignature, int procedureId)
     {
-        string? res = "";
-        if (database is not null)
+        if (string.IsNullOrEmpty(database))
         {
-            switch (typeInDatabase)
+            return null;
+        }
+
+        return typeInDatabase switch
+        {
+            TypeInDatabaseEnum.Procedure => GetProcedureSource(database, schema, itemNameOrSignature, procedureId),
+            TypeInDatabaseEnum.View => GetViewSource(database, schema, itemNameOrSignature),
+            TypeInDatabaseEnum.ExternalTable when this is INetezza netezza
+                => netezza.GetExternalDataObject(database, schema, itemNameOrSignature),
+            TypeInDatabaseEnum.Synonym => GetSynonymTarget(database, schema, itemNameOrSignature),
+            _ => null,
+        };
+    }
+
+    private string? GetSynonymTarget(string database, string schema, string itemNameOrSignature)
+    {
+        lock (_synonymTableDictCache)
+        {
+            if (_synonymTableDictCache.TryGetValue(database, out var schemas)
+                && schema is not null && schemas.TryGetValue(schema, out var synonyms)
+                && itemNameOrSignature is not null && synonyms.TryGetValue(itemNameOrSignature, out var synonym))
             {
-                case TypeInDatabaseEnum.Procedure:
-                    res = GetProcedureSource(database, schema, itemNameOrSignature, procedureId);
-                    break;
-                case TypeInDatabaseEnum.View:
-                    res = GetViewSource(database, schema, itemNameOrSignature);
-                    break;
-                case TypeInDatabaseEnum.ExternalTable:
-                    if (this is INetezza netezza)
-                    {
-                        res = netezza.GetExternalDataObject(database, schema, itemNameOrSignature);
-                    }
-                    break;
-                case TypeInDatabaseEnum.Synonym:
-                    lock (_synonymTableDictCache)
-                    {
-                        if (_synonymTableDictCache.TryGetValue(database, out var tmp1) && schema is not null && tmp1.TryGetValue(schema, out var tmp2)
-                            && itemNameOrSignature is not null && tmp2.TryGetValue(itemNameOrSignature, out var finalX))
-                        {
-                            res = finalX.RefObjNamePart3;
-                        }
-                    }
-                    break;
-                default:
-                    break;
+                return synonym.RefObjNamePart3;
             }
         }
+
+        return null;
+    }
+
+    public bool IsItemSourceContains(TypeInDatabaseEnum typeInDatabase, string database, string schema, string itemNameOrSignature, int procedureId, StringComparison comp, string searchWord, Regex rx)
+    {
+        string? res = GetItemSource(typeInDatabase, database, schema, itemNameOrSignature, procedureId);
         if (string.IsNullOrEmpty(res))
         {
             return false;
@@ -312,10 +315,8 @@ public abstract partial class DatabaseService
         {
             return rx.IsMatch(res);
         }
-        else
-        {
-            return res.Contains(searchWord, comp);
-        }
+
+        return res.Contains(searchWord, comp);
     }
 
     public virtual async ValueTask<List<ProcedureCachedInfo>> GetProceduresSignaturesFromName(string database, string schema, string procName)

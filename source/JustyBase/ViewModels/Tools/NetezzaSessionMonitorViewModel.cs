@@ -27,7 +27,7 @@ public sealed partial class NetezzaSessionMonitorViewModel : Tool, IDisposable
         _generalApplicationData = generalApplicationData;
         _messageForUserTools = messageForUserTools;
         _logger = logger;
-        Title = "NZ Sessions";
+        Title = "Sessions";
         Id = "NetezzaSessionMonitor";
         CanClose = true;
         CanPin = true;
@@ -117,8 +117,8 @@ public sealed partial class NetezzaSessionMonitorViewModel : Tool, IDisposable
         }
 
         var confirm = await _messageForUserTools.ShowConfirmationDialogAsync(
-            $"Kill session {SelectedSession.SessionId} ({SelectedSession.UserName})?\n\n{SelectedSession.KillSql}",
-            "Kill session");
+            $"{SelectedSession.TerminationLabel} {SelectedSession.SessionId} ({SelectedSession.UserName})?\n\n{SelectedSession.KillSql}",
+            SelectedSession.TerminationLabel);
         if (!confirm)
         {
             return;
@@ -128,14 +128,14 @@ public sealed partial class NetezzaSessionMonitorViewModel : Tool, IDisposable
         try
         {
             await _monitorService.KillSessionAsync(SelectedConnectionName, SelectedSession.SessionId);
-            StatusMessage = $"Dropped session {SelectedSession.SessionId}.";
+            StatusMessage = $"{SelectedSession.TerminationLabel} completed for {SelectedSession.SessionId}.";
             await RefreshAsync();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.TrackError(ex, isCrash: false);
-            StatusMessage = $"Kill failed: {ex.Message}";
-            _messageForUserTools.ShowSimpleMessageBoxInstance(ex.Message, "Kill session");
+            StatusMessage = $"{SelectedSession.TerminationLabel} failed: {ex.Message}";
+            _messageForUserTools.ShowSimpleMessageBoxInstance(ex.Message, SelectedSession.TerminationLabel);
         }
         finally
         {

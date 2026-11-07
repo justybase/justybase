@@ -17,6 +17,9 @@ public sealed partial class DbSchemaViewModel
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly INetezzaMaintenanceDialogService? _netezzaMaintenanceDialogService;
     private readonly Services.NetezzaSessionMonitorService? _sessionMonitorService;
+    private readonly SourceIndexService? _sourceIndexService;
+    private readonly Services.DataCopy.IDataCopyDialogService? _dataCopyDialogService;
+    private readonly Services.Export.TableScriptExportService? _tableScriptExportService;
     private readonly IAvaloniaSpecificHelpers? _avaloniaHelpers;
     private readonly Services.Documents.IDatabaseServiceResolver? _databaseServiceResolver;
 

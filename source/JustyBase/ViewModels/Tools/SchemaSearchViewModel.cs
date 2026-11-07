@@ -9,6 +9,7 @@ using JustyBase.Models;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
+using JustyBase.Services.Schema;
 using System.Collections.ObjectModel;
 
 namespace JustyBase.ViewModels.Tools;
@@ -56,14 +57,17 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly LogToolViewModel _logToolViewModel;
     private readonly Services.Documents.IDatabaseServiceResolver? _resolver;
+    private readonly SourceIndexService? _sourceIndexService;
     private ObservableCollection<SchemaSearchItem> _allItems;
     public SchemaSearchViewModel(IFactory factory, IGeneralApplicationData generalApplicationData, IMessageForUserTools messageForUserTools,
-        LogToolViewModel logToolViewModel, Services.Documents.IDatabaseServiceResolver? resolver = null)
+        LogToolViewModel logToolViewModel, Services.Documents.IDatabaseServiceResolver? resolver = null,
+        SourceIndexService? sourceIndexService = null)
     {
         _generalApplicationData = generalApplicationData;
         _messageForUserTools = messageForUserTools;
         _logToolViewModel = logToolViewModel;
         _resolver = resolver;
+        _sourceIndexService = sourceIndexService;
         this.Factory = factory;
 
         SchemaSearchItemCollections = new ObservableCollection<SchemaSearchItem>();
@@ -252,13 +256,12 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
 
                     if (SearchInSource)
                     {
-                        await _service.CacheAllObjects(new TypeInDatabaseEnum[] { TypeInDatabaseEnum.Procedure,
-                            TypeInDatabaseEnum.View, TypeInDatabaseEnum.ExternalTable, TypeInDatabaseEnum.Synonym
-                    });
+                        // The definition index loads its own source snapshot; a schema
+                        // refresh must invalidate it instead of re-reading the old cache.
+                        _sourceIndexService?.Invalidate(ConnectionName);
 
-                        // Source text is loaded after the metadata list. Re-run the
-                        // filter now that IsItemSourceContains can see the fresh cache;
-                        // otherwise source-only matches appear only after a later edit.
+                        // Re-run the filter now that the source index can see the fresh
+                        // snapshot; otherwise source-only matches appear only after a later edit.
                         await ApplyFilter();
                     }
                 }
@@ -348,6 +351,54 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
 
         try
         {
+            Dictionary<SourceMatchKey, SourceTextHit>? sourceMatches = null;
+            if (SearchInSource
+                && _sourceIndexService is not null
+                && _service is not null
+                && !string.IsNullOrWhiteSpace(ConnectionName)
+                && !string.IsNullOrWhiteSpace(SearchText))
+            {
+                try
+                {
+                    var result = await _sourceIndexService.SearchAsync(
+                        ConnectionName,
+                        new SourceTextQuery
+                        {
+                            Term = SearchText,
+                            CaseSensitive = CaseSensitive,
+                            WholeWord = WholeWord,
+                            Regex = RegexMode,
+                            IgnoreComments = false,
+                            ObjectTypes = ["PROCEDURE", "VIEW", "EXTERNAL TABLE"],
+                            Limit = 2000,
+                        },
+                        refresh: false,
+                        cancellationToken: token);
+                    sourceMatches = new Dictionary<SourceMatchKey, SourceTextHit>();
+                    foreach (var hit in result.Hits)
+                    {
+                        sourceMatches[SourceMatchKey.Create(hit.Object)] = hit;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+                catch (ArgumentException ex)
+                {
+                    // Invalid regular expression: the name/description filters already
+                    // use a never-match regex in this case.
+                    _generalApplicationData.GlobalLoggerObject.TrackError(ex, isCrash: false);
+                    sourceMatches = [];
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _generalApplicationData.GlobalLoggerObject.TrackError(ex, isCrash: false);
+                    sourceMatches = [];
+                }
+            }
+
+            var matches = sourceMatches;
             // Run filtering in background thread
             var filteredItems = await Task.Run(() =>
             {
@@ -357,9 +408,21 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
                     if (token.IsCancellationRequested)
                         return null;
                     
-                    if (IsFilterOk(item))
+                    if (IsFilterOk(item, matches))
                     {
-                        result.Add(item);
+                        if (matches is not null && matches.TryGetValue(SourceMatchKey.Create(item), out var hit))
+                        {
+                            result.Add(item with
+                            {
+                                SourceLine = hit.Line,
+                                SourceSnippet = hit.Snippet,
+                                SourceMatches = hit.Matches,
+                            });
+                        }
+                        else
+                        {
+                            result.Add(item);
+                        }
                     }
                 }
                 return result;
@@ -388,6 +451,29 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
         }
     }
 
+    /// <summary>Stable, case-insensitive lookup key shared by schema rows and source hits.</summary>
+    private readonly record struct SourceMatchKey(string Database, string Schema, string Name, string Type)
+    {
+        public static SourceMatchKey Create(SchemaSearchItem item)
+            => new(
+                item.Db?.ToUpperInvariant() ?? "",
+                item.Schema?.ToUpperInvariant() ?? "",
+                SourceNameOf(item).ToUpperInvariant(),
+                NormalizeType(item.Type));
+
+        public static SourceMatchKey Create(SourceObjectRef source)
+            => new(
+                source.Database.ToUpperInvariant(),
+                source.Schema.ToUpperInvariant(),
+                source.Name.ToUpperInvariant(),
+                NormalizeType(source.ObjectType));
+
+        private static string NormalizeType(string type)
+            => type.Replace(" ", "", StringComparison.Ordinal)
+                .Replace("_", "", StringComparison.Ordinal)
+                .ToUpperInvariant();
+    }
+
     public void Dispose()
     {
         _filterCancellationTokenSource?.Cancel();
@@ -410,7 +496,7 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
     [ObservableProperty]
     public partial bool ShowSettings { get; set; }
 
-    private bool IsFilterOk(SchemaSearchItem item)
+    private bool IsFilterOk(SchemaSearchItem item, IReadOnlyDictionary<SourceMatchKey, SourceTextHit>? sourceMatches)
     {
         if (SearchText is null && item.Type != "Column")
         {
@@ -431,8 +517,7 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
                         ColumnFilters(item) && (
                         item.Name is not null && RxWholeWorld.IsMatch(item.Name) ||
                         item.Desc is not null && RxWholeWorld.IsMatch(item.Desc) ||
-                        SearchInSource && (item.Type == "Procedure" || item.Type == "View" || item.Type == "External table" || item.Type == "Synonym")
-                        && _service.IsItemSourceContains(DatabaseServiceHelpers.FromStringEx(item.Type), item.Db, item.Schema, item.Name, item.Id, _currentStringComparation, null, RxWholeWorld));
+                        SourceSearchMatches(item, sourceMatches));
                 }
             }
             else
@@ -441,12 +526,51 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
                     ColumnFilters(item) && (
                     item.Name is not null && item.Name.Contains(SearchText, _currentStringComparation) ||
                     item.Desc is not null && item.Desc.Contains(SearchText, _currentStringComparation) ||
-                    SearchInSource && (item.Type == "Procedure" || item.Type == "View" || item.Type == "External table" || item.Type == "Synonym")
-                    && _service.IsItemSourceContains(DatabaseServiceHelpers.FromStringEx(item.Type), item.Db, item.Schema, item.Name, item.Id, _currentStringComparation, SearchText, null));
+                    SourceSearchMatches(item, sourceMatches));
             }
         }
         return true;
     }
+
+    private bool SourceSearchMatches(
+        SchemaSearchItem item,
+        IReadOnlyDictionary<SourceMatchKey, SourceTextHit>? sourceMatches)
+    {
+        if (!SearchInSource)
+        {
+            return false;
+        }
+
+        if (sourceMatches is not null && item.Type != "Synonym")
+        {
+            return sourceMatches.ContainsKey(SourceMatchKey.Create(item));
+        }
+
+        return SearchInSource
+            && item.Type is "Procedure" or "View" or "External table" or "Synonym"
+            && _service is not null
+            && _service.IsItemSourceContains(
+                DatabaseServiceHelpers.FromStringEx(item.Type),
+                item.Db,
+                item.Schema,
+                SourceNameOf(item),
+                item.Id,
+                _currentStringComparation,
+                SearchText,
+                null);
+    }
+
+    private static string SourceNameOf(SchemaSearchItem item)
+    {
+        if (item.Type != "Procedure")
+        {
+            return item.Name;
+        }
+
+        int parenthesis = item.Name.IndexOf('(');
+        return parenthesis > 0 ? item.Name[..parenthesis].Trim() : item.Name;
+    }
+
     private bool ColumnFilters(SchemaSearchItem item)
     {
         return (string.IsNullOrEmpty(TypeFilterString) || item.Type?.Contains(TypeFilterString, _currentStringComparation) == true)

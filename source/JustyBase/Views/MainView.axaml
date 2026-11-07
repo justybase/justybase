@@ -85,7 +85,7 @@
 					          IsChecked="{Binding IsLogPanelVisible, Mode=OneWay}"
 					          Command="{Binding ToggleToolPanelCommand}"
 					          CommandParameter="LogTool"/>
-					<MenuItem Header="NZ Sessions"
+					<MenuItem Header="Sessions"
 					          ToggleType="CheckBox"
 					          StaysOpenOnClick="True"
 					          IsChecked="{Binding IsNzSessionsPanelVisible, Mode=OneWay}"

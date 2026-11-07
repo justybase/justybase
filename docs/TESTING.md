@@ -29,6 +29,16 @@ dotnet test .\source\JustyBase.LiveTests\JustyBase.LiveTests.csproj -c Debug --f
 dotnet test .\source\JustyBase.LiveTests\JustyBase.LiveTests.csproj -c Debug --filter FullyQualifiedName~ReadmeSqlResultsHero
 ```
 
+Db2 LUW live checks are environment-gated and soft-skip when `DB2_LIVE_TEST_*` is absent. Set `DB2_LIVE_TEST_REQUIRED=true` to turn missing configuration or privilege errors into failures.
+
+```powershell
+# Host layer (schema tree, capability-gated menu, DDL) inside JustyBase.Tests
+dotnet test .\source\JustyBase.Tests\JustyBase.Tests.csproj -c Debug --filter Category=LiveDatabase
+
+# Parser/linter proof in the sibling checkout
+pwsh ..\JustyBase.NetezzaSql\eng\Run-Db2LiveProof.ps1
+```
+
 Hero scenario expects a configured connection that can run `SELECT * FROM JUST_DATA..DIMDATE`. Screenshots land in `pictures/live/` (and refresh `pictures/main.png`). UIA dump: `pictures/live/uia-tree*.txt`.
 
 Each live test maximizes Justy Base, widens the left Schema/Schema Search panel (dock splitter drag clamped inside the window), and forces Justy Base to the foreground before input. It does **not** use the clipboard (clipboard changes can activate Google Keep), does **not** send global Ctrl+V, and refuses input unless the foreground window belongs to the Justy Base process. Live run logs under `pictures/live/*.txt` are gitignored.

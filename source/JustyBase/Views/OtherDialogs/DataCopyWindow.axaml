@@ -1,0 +1,55 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:JustyBase.ViewModels"
+        mc:Ignorable="d"
+        d:DesignHeight="520" d:DesignWidth="620"
+        x:Class="JustyBase.Views.OtherDialogs.DataCopyWindow"
+        x:DataType="vm:DataCopyViewModel"
+        Title="Copy data to another connection"
+        Width="640" Height="540"
+        MinWidth="520" MinHeight="420"
+        WindowStartupLocation="CenterOwner">
+    <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto">
+        <TextBlock Grid.Row="0" Text="{Binding SourceDescription}" FontWeight="Bold" TextWrapping="Wrap"/>
+
+        <Grid Grid.Row="1" ColumnDefinitions="150,*,150,*" RowDefinitions="Auto,Auto,Auto" Margin="0,10,0,0">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Target connection" VerticalAlignment="Center"/>
+            <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding ConnectionNames}"
+                      SelectedItem="{Binding SelectedTargetConnection}" Margin="0,2"/>
+            <TextBlock Grid.Row="0" Grid.Column="2" Text="Target database" VerticalAlignment="Center" Margin="10,0,0,0"/>
+            <TextBox Grid.Row="0" Grid.Column="3" Text="{Binding TargetDatabase}" Margin="0,2"/>
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Target schema" VerticalAlignment="Center"/>
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding TargetSchema}" Margin="0,2"/>
+            <TextBlock Grid.Row="1" Grid.Column="2" Text="Target table" VerticalAlignment="Center" Margin="10,0,0,0"/>
+            <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding TargetTable}" Margin="0,2"/>
+
+            <CheckBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Content="Create target table"
+                      IsChecked="{Binding CreateTarget}" Margin="0,4"/>
+            <CheckBox Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Content="Delete target rows first"
+                      IsChecked="{Binding ReplaceTarget}" Margin="10,4,0,0"/>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+            <Button Content="Preview" Command="{Binding PreviewCommand}" IsEnabled="{Binding !IsBusy}"/>
+            <Button Content="Copy" Command="{Binding CopyCommand}" IsEnabled="{Binding !IsBusy}"/>
+            <Button Content="Cancel" Command="{Binding CancelCommand}" IsEnabled="{Binding IsBusy}"/>
+        </StackPanel>
+
+        <ProgressBar Grid.Row="3" IsIndeterminate="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Margin="0,8,0,0"/>
+
+        <HeaderedContentControl Grid.Row="4" Header="Columns" Margin="0,10,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="{Binding ColumnsSummary}" TextWrapping="Wrap"
+                           FontFamily="Consolas,monospace" FontSize="12"/>
+            </ScrollViewer>
+        </HeaderedContentControl>
+
+        <Grid Grid.Row="5" ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+            <TextBlock Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Content="Close" Command="{Binding CloseCommand}" Margin="10,0,0,0"/>
+        </Grid>
+    </Grid>
+</Window>

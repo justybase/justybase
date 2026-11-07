@@ -144,6 +144,10 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<InMemorySchemaProvider>()));
         collection.AddSingleton<NetezzaSessionMonitorService>();
         collection.AddSingleton<NetezzaSessionMonitorViewModel>();
+        collection.AddSingleton<Services.Schema.SourceIndexService>();
+        collection.AddSingleton<Services.DataCopy.DataCopyService>();
+        collection.AddSingleton<Services.DataCopy.IDataCopyDialogService, Services.DataCopy.DataCopyDialogService>();
+        collection.AddSingleton<Services.Export.TableScriptExportService>();
         collection.AddSingleton<SqlResultSessionStore>();
         collection.AddSingleton<NzCompletionEngine>(sp =>
         {

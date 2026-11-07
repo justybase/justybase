@@ -16,6 +16,7 @@ using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services;
 using JustyBase.Services.Database;
+using JustyBase.Services.Schema;
 using Microsoft.Extensions.DependencyInjection;
 using System.Collections.ObjectModel;
 
@@ -210,7 +211,10 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
         INetezzaMaintenanceDialogService? netezzaMaintenanceDialogService = null,
         Services.NetezzaSessionMonitorService? sessionMonitorService = null,
         IAvaloniaSpecificHelpers? avaloniaHelpers = null,
-        Services.Documents.IDatabaseServiceResolver? databaseServiceResolver = null)
+        Services.Documents.IDatabaseServiceResolver? databaseServiceResolver = null,
+        SourceIndexService? sourceIndexService = null,
+        Services.DataCopy.IDataCopyDialogService? dataCopyDialogService = null,
+        Services.Export.TableScriptExportService? tableScriptExportService = null)
     {
         _clipboardService = clipboard;
         _generalApplicationData = generalApplicationData;
@@ -219,6 +223,9 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
         _messageForUserTools = messageForUserTools;
         _netezzaMaintenanceDialogService = netezzaMaintenanceDialogService;
         _sessionMonitorService = sessionMonitorService;
+        _sourceIndexService = sourceIndexService;
+        _dataCopyDialogService = dataCopyDialogService;
+        _tableScriptExportService = tableScriptExportService;
         _avaloniaHelpers = avaloniaHelpers;
         _databaseServiceResolver = databaseServiceResolver;
 
@@ -352,9 +359,76 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
             return;
         }
 
-        if (optionName == "FIND_USAGES")
+        if (optionName is "FIND_USAGES" or "IMPACT_ANALYSIS")
         {
-            await FindUsagesAsync(CONNECTION_NAME);
+            await FindUsagesAsync(CONNECTION_NAME, optionName == "IMPACT_ANALYSIS" ? 3 : 1);
+            return;
+        }
+
+        if (optionName == "COPY_TO_CONNECTION")
+        {
+            var dialogService = _dataCopyDialogService
+                ?? Program.ServiceProvider?.GetService<Services.DataCopy.IDataCopyDialogService>();
+            if (dialogService is null)
+            {
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    "The data copy dialog service is not available.",
+                    "Copy data");
+                return;
+            }
+
+            var copyItem = LastItemConrtextMenuReq;
+            await dialogService.ShowAsync(
+                CONNECTION_NAME,
+                copyItem.Database,
+                copyItem.CurrentSchema,
+                copyItem.Name,
+                copyItem.ActualTypeInDatabase == TypeInDatabaseEnum.View);
+            return;
+        }
+
+        if (optionName == "EXPORT_DDL_DATA")
+        {
+            var exportItem = LastItemConrtextMenuReq;
+            var exportService = _tableScriptExportService
+                ?? Program.ServiceProvider?.GetService<Services.Export.TableScriptExportService>();
+            if (exportService is null)
+            {
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    "The table script export service is not available.",
+                    "Export DDL and data");
+                return;
+            }
+
+            string? fileName = await _messageForUserTools.ShowAskForFileNameDialogAsync();
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return;
+            }
+
+            string safeName = string.Concat(
+                fileName.Select(character => Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
+            string filePath = Path.Combine(
+                IGeneralApplicationData.DataDirectory,
+                $"{safeName}.sql");
+            try
+            {
+                var exportResult = await exportService.ExportAsync(
+                    CONNECTION_NAME,
+                    exportItem.Database,
+                    exportItem.CurrentSchema,
+                    exportItem.Name,
+                    filePath);
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    $"Exported {exportResult.RowsExported:N0} row(s) to\n{exportResult.FilePath}",
+                    "Export DDL and data");
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _simpleLogger.TrackError(ex, isCrash: false);
+                _messageForUserTools.ShowSimpleMessageBoxInstance(ex.Message, "Export DDL and data");
+            }
+
             return;
         }
 
@@ -371,7 +445,7 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
         }
     }
 
-    private async Task FindUsagesAsync(string connectionName)
+    private async Task FindUsagesAsync(string connectionName, int depth)
     {
         var item = LastItemConrtextMenuReq;
         if (item is null)
@@ -381,69 +455,62 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
 
         try
         {
-            IDatabaseService? dbService = await Task.Run(() => _databaseServiceResolver is not null
-                ? _databaseServiceResolver.GetDatabaseService(_generalApplicationData, connectionName)
-                : DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, connectionName));
-            if (dbService is null)
-            {
-                _messageForUserTools.ShowSimpleMessageBoxInstance("The connection is not available.", "Find usages");
-                return;
-            }
-
-            // Only procedures and views carry cached source text; other object
-            // types would need the P2 catalog source index.
-            await dbService.CacheAllObjects(
-                [TypeInDatabaseEnum.Procedure, TypeInDatabaseEnum.View],
-                item.Database);
-
-            List<(string Schema, string Name, string Type)> matches = [];
-            foreach (string schema in dbService.GetSchemas(item.Database, ""))
-            {
-                foreach (TypeInDatabaseEnum type in new[] { TypeInDatabaseEnum.Procedure, TypeInDatabaseEnum.View })
-                {
-                    foreach (DatabaseObject databaseObject in dbService.GetDbObjects(item.Database, schema, "", type))
-                    {
-                        if (dbService.IsItemSourceContains(
-                                type,
-                                item.Database,
-                                schema,
-                                databaseObject.Name,
-                                databaseObject.Id,
-                                StringComparison.OrdinalIgnoreCase,
-                                item.Name,
-                                null!))
-                        {
-                            matches.Add((schema, databaseObject.Name, type.ToString()));
-                        }
-                    }
-                }
-            }
-
-            if (matches.Count == 0)
+            var indexService = _sourceIndexService
+                ?? Program.ServiceProvider?.GetService<SourceIndexService>();
+            if (indexService is null)
             {
                 _messageForUserTools.ShowSimpleMessageBoxInstance(
-                    $"No cached procedure or view source mentions {item.Name}.",
+                    "The definition index service is not available.",
                     "Find usages");
                 return;
             }
 
-            matches.Sort(static (left, right) =>
+            var result = await indexService.GetUsagesAsync(
+                connectionName,
+                new SourceTarget(item.Database, item.CurrentSchema, item.Name),
+                depth,
+                maxNodes: 500);
+
+            if (result.Nodes.Count == 0)
             {
-                int schemaOrder = string.Compare(left.Schema, right.Schema, StringComparison.OrdinalIgnoreCase);
-                return schemaOrder != 0
-                    ? schemaOrder
-                    : string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
-            });
+                string skipped = result.SkippedDatabases.Count == 0
+                    ? ""
+                    : $"\nSkipped catalogs: {string.Join(", ", result.SkippedDatabases)}.";
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    $"No definition references {item.CurrentSchema}.{item.Name}.\n"
+                    + $"Scanned {result.ObjectsScanned} procedure, view and external-table definitions.{skipped}",
+                    depth > 1 ? "Impact analysis" : "Find usages");
+                return;
+            }
 
-            string report = string.Join(
-                Environment.NewLine + "UNION ALL ",
-                matches.Select(static match =>
-                    $"SELECT '{ToSqlLiteral(match.Schema)}' AS SCHEMA, '{ToSqlLiteral(match.Name)}' AS NAME, '{match.Type}' AS OBJECT_TYPE"));
+            var rows = new List<string>(result.Nodes.Count);
+            foreach (var node in result.Nodes)
+            {
+                var hit = node.Hit;
+                rows.Add(
+                    $"SELECT {node.Depth} AS DEPTH"
+                    + $", '{ToSqlLiteral(hit.Object.Database)}' AS DATABASE_NAME"
+                    + $", '{ToSqlLiteral(hit.Object.Schema)}' AS SCHEMA_NAME"
+                    + $", '{ToSqlLiteral(hit.Object.Name)}' AS OBJECT_NAME"
+                    + $", '{ToSqlLiteral(hit.Object.ObjectType)}' AS OBJECT_TYPE"
+                    + $", '{hit.Confidence.ToString().ToUpperInvariant()}' AS CONFIDENCE"
+                    + $", {hit.References} AS REFERENCE_COUNT"
+                    + $", {hit.Line} AS LINE_NUMBER"
+                    + $", '{ToSqlLiteral(hit.Snippet)}' AS SNIPPET"
+                    + $", {(node.Parent is int parent ? parent.ToString(System.Globalization.CultureInfo.InvariantCulture) : "NULL")} AS PARENT_INDEX");
+            }
 
+            string title = depth > 1 ? "Impact analysis" : "Find usages";
+            string skippedLine = result.SkippedDatabases.Count == 0
+                ? ""
+                : $"\n-- Skipped catalogs: {string.Join(", ", result.SkippedDatabases)}";
+            string truncatedLine = result.Truncated
+                ? "\n-- Result truncated at the node limit."
+                : "";
             string sql = $"""
-                -- Find usages: {item.Database}.{item.CurrentSchema}.{item.Name}
-                -- Scanned cached procedure and view source text.
-                {report}
+                -- {title}: {item.Database}.{item.CurrentSchema}.{item.Name}
+                -- Local definition index: {result.ObjectsScanned} objects, indexed {result.IndexedAt:u}.{skippedLine}{truncatedLine}
+                {string.Join(Environment.NewLine + "UNION ALL ", rows)}
                 ;
                 """;
             ((IActiveDocumentManager)Factory).AddNewDocument("");

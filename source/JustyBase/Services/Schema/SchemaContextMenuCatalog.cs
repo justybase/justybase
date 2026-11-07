@@ -20,6 +20,7 @@ public enum SchemaContextActionKind
     Recreate,
     ImportData,
     ExportData,
+    ExportDdlAndData,
     Comment,
     Drop,
     PrimaryKey,
@@ -28,6 +29,8 @@ public enum SchemaContextActionKind
     Explain,
     Compare,
     FindUsages,
+    ImpactAnalysis,
+    CopyToConnection,
     CreateTableFrom
 }
 
@@ -83,6 +86,7 @@ public static class SchemaContextMenuCatalog
         new("Recreate", SchemaContextActionKind.Recreate, [TypeInDatabaseEnum.Table], 52, SharedIds.Recreate),
         new("Import data", SchemaContextActionKind.ImportData, [TypeInDatabaseEnum.Table], 60, SharedIds.Import),
         new("Export data", SchemaContextActionKind.ExportData, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View], 61, SharedIds.Export),
+        new("Export DDL + data…", SchemaContextActionKind.ExportDdlAndData, [TypeInDatabaseEnum.Table], 62),
         new("Add comment", SchemaContextActionKind.Comment, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View], 31, SharedIds.Comment),
         new("Add primary key", SchemaContextActionKind.PrimaryKey, [TypeInDatabaseEnum.Table], 32),
         new("Add unique constraint", SchemaContextActionKind.Unique, [TypeInDatabaseEnum.Table], 33),
@@ -92,6 +96,8 @@ public static class SchemaContextMenuCatalog
         new("Drop object", SchemaContextActionKind.Drop, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View, TypeInDatabaseEnum.Index, TypeInDatabaseEnum.Trigger], 80),
         new("Compare DDL with editor", SchemaContextActionKind.Compare, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View], 81),
         new("Find usages", SchemaContextActionKind.FindUsages, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View, TypeInDatabaseEnum.Procedure, TypeInDatabaseEnum.Function], 82),
+        new("Impact analysis", SchemaContextActionKind.ImpactAnalysis, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View, TypeInDatabaseEnum.Procedure, TypeInDatabaseEnum.Function], 83),
+        new("Copy to another connection…", SchemaContextActionKind.CopyToConnection, [TypeInDatabaseEnum.Table, TypeInDatabaseEnum.View], 63),
     ];
 
     public static IEnumerable<SchemaContextMenuEntry> ForType(TypeInDatabaseEnum type)
@@ -127,6 +133,7 @@ public static class SchemaContextMenuCatalog
         "RECREATE_ALL_TABLES" => capabilities.SupportsRecreateAllTables,
         "IMPORT_DATA" => capabilities.SupportsImport,
         "EXPORT_DATA" => capabilities.SupportsExport,
+        "EXPORT_DDL_DATA" => capabilities.SupportsExport && capabilities.SupportsDdl,
         "COMMENT" => capabilities.SupportsComments && capabilities.SupportsDdl,
         "KEY" or "UNIQUE" => capabilities.SupportsDdl,
         "RENAME" => capabilities.SupportsRenameTable,
@@ -134,6 +141,8 @@ public static class SchemaContextMenuCatalog
         "EXPLAIN" => capabilities.SupportsExplain,
         "COMPARE_DDL" => capabilities.SupportsDdl,
         "FIND_USAGES" => capabilities.SupportsFindUsages,
+        "IMPACT_ANALYSIS" => capabilities.SupportsFindUsages,
+        "COPY_TO_CONNECTION" => capabilities.SupportsExport,
         "DROP" => capabilities.SupportsDdl,
         "CREATE_INDEX" or "DDL_ALL_INDEXES" or "DDL_INDEX" or "DDL_INDEX_CLIP" or "DROP_INDEX" => capabilities.SupportsIndexes,
         "CREATE_PARTITION" or "DDL_ALL_PARTITIONS" or "DDL_PARTITION" or "DDL_PARTITION_CLIP" => capabilities.SupportsPartitions,
@@ -219,6 +228,7 @@ public static class SchemaContextMenuCatalog
             SchemaContextActionKind.Recreate => "RECREATE_TABLE",
             SchemaContextActionKind.ImportData => "IMPORT_DATA",
             SchemaContextActionKind.ExportData => "EXPORT_DATA",
+            SchemaContextActionKind.ExportDdlAndData => "EXPORT_DDL_DATA",
             SchemaContextActionKind.Comment => "COMMENT",
             SchemaContextActionKind.Drop => type switch
             {
@@ -232,6 +242,8 @@ public static class SchemaContextMenuCatalog
             SchemaContextActionKind.Explain => "EXPLAIN",
             SchemaContextActionKind.Compare => "COMPARE_DDL",
             SchemaContextActionKind.FindUsages => "FIND_USAGES",
+            SchemaContextActionKind.ImpactAnalysis => "IMPACT_ANALYSIS",
+            SchemaContextActionKind.CopyToConnection => "COPY_TO_CONNECTION",
             SchemaContextActionKind.CreateTableFrom => "CREATE_FROM",
             _ => null
         };

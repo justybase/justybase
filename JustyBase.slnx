@@ -33,6 +33,8 @@
     <Project Path="source/JustyBase.IntegrationTests/JustyBase.IntegrationTests.csproj" />
     <Project Path="source/JustyBase.LiveTests/JustyBase.LiveTests.csproj" />
     <Project Path="source/JustyBase.Tests/JustyBase.Tests.csproj" />
+    <!-- Live Db2 LUW parser/linter proof; soft-skips without DB2_LIVE_TEST_*. -->
+    <Project Path="../JustyBase.NetezzaSql/tests/JustyBase.NetezzaSql.Db2LiveTests/JustyBase.NetezzaSql.Db2LiveTests.csproj" />
   </Folder>
   <Folder Name="/JustyBase.NetezzaSql/">
     <!-- Required sibling checkout; referenced as projects by the app and plugins. -->

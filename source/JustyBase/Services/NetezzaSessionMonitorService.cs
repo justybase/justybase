@@ -1,6 +1,7 @@
 using JustyBase.Common.Contracts;
 using JustyBase.NetezzaCatalogSql;
 using JustyBase.PluginCommon.Contracts;
+using JustyBase.PluginCommon.Enums;
 using JustyBase.Services.Documents;
 
 namespace JustyBase.Services;
@@ -14,7 +15,9 @@ public sealed class NetezzaSessionInfo
     public string Command { get; init; } = "";
     public string IpAddress { get; init; } = "";
     public string SqlPreview { get; init; } = "";
-    public string KillSql => $"{NetezzaSystemSql.GetDropSessionSql(SessionId)};";
+    public string KillSql { get; init; } = "";
+    /// <summary>Engine-specific name for terminating this session.</summary>
+    public string TerminationLabel { get; init; } = "Drop session";
 }
 
 public sealed class NetezzaSkewSlice
@@ -55,20 +58,67 @@ public sealed class NetezzaSessionMonitorService
 
     public static string BuildSessionSnapshotSql() => NetezzaSystemSql.SessionMonitorSnapshotSql;
 
+    /// <summary>
+    /// Db2 LUW connections visible in the current database. The monitor's own
+    /// short-lived connection is filtered out by application handle.
+    /// </summary>
+    public static string BuildDb2SessionSnapshotSql() => """
+        SELECT C.APPLICATION_HANDLE
+             , C.CLIENT_PID
+             , TRIM(C.SESSION_AUTH_ID)
+             , TRIM(C.APPLICATION_NAME)
+             , VARCHAR(C.CONNECTION_START_TIME)
+             , TRIM(C.WORKLOAD_OCCURRENCE_STATE)
+             , TRIM(C.CLIENT_APPLNAME)
+             , TRIM(C.CLIENT_IPADDR)
+             , TRIM(C.CLIENT_USERID)
+          FROM TABLE(SYSPROC.MON_GET_CONNECTION(CAST(NULL AS BIGINT), -2)) AS C
+         WHERE C.APPLICATION_HANDLE <> SYSPROC.MON_GET_APPLICATION_HANDLE()
+         ORDER BY C.CONNECTION_START_TIME DESC
+         FETCH FIRST 1000 ROWS ONLY
+        """;
+
+    public static string BuildDb2CurrentApplicationHandleSql()
+        => "VALUES SYSPROC.MON_GET_APPLICATION_HANDLE()";
+
+    /// <summary>
+    /// FORCE APPLICATION via ADMIN_CMD. This ends the whole connection, not a
+    /// single statement; Db2 requires SYSADM, SYSCTRL or SYSMAINT authority.
+    /// </summary>
+    public static string BuildDb2ForceApplicationSql(long applicationHandle)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(applicationHandle);
+        return $"CALL SYSPROC.ADMIN_CMD('force application ( {applicationHandle} ) MODE ASYNC')";
+    }
+
     public static string BuildSkewSnapshotSql(string qualifiedTable) =>
         NetezzaSystemSql.GetTableSkewByDatasliceSql(qualifiedTable);
 
     public async Task<IReadOnlyList<NetezzaSessionInfo>> GetSessionsAsync(string connectionName, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(connectionName))
+        {
+            return [];
+        }
+
+        var db = _databaseServiceResolver.GetDatabaseService(_generalApplicationData, connectionName);
+        if (db is null)
+        {
+            return [];
+        }
+
+        return db.DatabaseType == DatabaseTypeEnum.DB2
+            ? await GetDb2SessionsAsync(db, cancellationToken).ConfigureAwait(false)
+            : await GetNetezzaSessionsAsync(db, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<IReadOnlyList<NetezzaSessionInfo>> GetNetezzaSessionsAsync(
+        IDatabaseService db,
+        CancellationToken cancellationToken)
+    {
         return await Task.Run(() =>
         {
             var list = new List<NetezzaSessionInfo>();
-            var db = _databaseServiceResolver.GetDatabaseService(_generalApplicationData, connectionName);
-            if (db is null)
-            {
-                return (IReadOnlyList<NetezzaSessionInfo>)list;
-            }
-
             using var con = db.GetConnection(null);
             con.Open();
             using var cmd = db.CreateCommandFromConnection(con);
@@ -78,41 +128,120 @@ public sealed class NetezzaSessionMonitorService
             while (rdr.Read())
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                long sessionId = Convert.ToInt64(rdr.GetValue(0), System.Globalization.CultureInfo.InvariantCulture);
                 list.Add(new NetezzaSessionInfo
                 {
-                    SessionId = Convert.ToInt64(rdr.GetValue(0), System.Globalization.CultureInfo.InvariantCulture),
+                    SessionId = sessionId,
                     UserName = rdr.IsDBNull(1) ? "" : Convert.ToString(rdr.GetValue(1), System.Globalization.CultureInfo.InvariantCulture) ?? "",
                     Database = rdr.IsDBNull(2) ? "" : Convert.ToString(rdr.GetValue(2), System.Globalization.CultureInfo.InvariantCulture) ?? "",
                     Status = rdr.IsDBNull(3) ? "" : Convert.ToString(rdr.GetValue(3), System.Globalization.CultureInfo.InvariantCulture) ?? "",
                     Command = rdr.IsDBNull(4) ? "" : Convert.ToString(rdr.GetValue(4), System.Globalization.CultureInfo.InvariantCulture) ?? "",
                     IpAddress = rdr.IsDBNull(5) ? "" : Convert.ToString(rdr.GetValue(5), System.Globalization.CultureInfo.InvariantCulture) ?? "",
-                    SqlPreview = rdr.IsDBNull(6) ? "" : Convert.ToString(rdr.GetValue(6), System.Globalization.CultureInfo.InvariantCulture) ?? ""
+                    SqlPreview = rdr.IsDBNull(6) ? "" : Convert.ToString(rdr.GetValue(6), System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                    KillSql = $"{NetezzaSystemSql.GetDropSessionSql(sessionId)};",
+                    TerminationLabel = "Drop session",
                 });
             }
 
-            return list;
-        }, cancellationToken);
+            return (IReadOnlyList<NetezzaSessionInfo>)list;
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task<IReadOnlyList<NetezzaSessionInfo>> GetDb2SessionsAsync(
+        IDatabaseService db,
+        CancellationToken cancellationToken)
+    {
+        return await Task.Run(() =>
+        {
+            var list = new List<NetezzaSessionInfo>();
+            using var con = db.GetConnection(null);
+            con.Open();
+            using var cmd = db.CreateCommandFromConnection(con);
+            cmd.CommandText = BuildDb2SessionSnapshotSql();
+            cmd.CommandTimeout = 60;
+            using var rdr = cmd.ExecuteReader();
+            while (rdr.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                long applicationHandle = Convert.ToInt64(rdr.GetValue(0), System.Globalization.CultureInfo.InvariantCulture);
+                string clientApplication = rdr.IsDBNull(6)
+                    ? ""
+                    : Convert.ToString(rdr.GetValue(6), System.Globalization.CultureInfo.InvariantCulture) ?? "";
+                list.Add(new NetezzaSessionInfo
+                {
+                    SessionId = applicationHandle,
+                    UserName = rdr.IsDBNull(2) ? "" : Convert.ToString(rdr.GetValue(2), System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                    Database = db.Database,
+                    Status = rdr.IsDBNull(5) ? "" : Convert.ToString(rdr.GetValue(5), System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                    Command = string.IsNullOrWhiteSpace(clientApplication)
+                        ? (rdr.IsDBNull(3) ? "" : Convert.ToString(rdr.GetValue(3), System.Globalization.CultureInfo.InvariantCulture) ?? "")
+                        : clientApplication,
+                    IpAddress = rdr.IsDBNull(7) ? "" : Convert.ToString(rdr.GetValue(7), System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                    SqlPreview = rdr.IsDBNull(8) ? "" : Convert.ToString(rdr.GetValue(8), System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                    KillSql = BuildDb2ForceApplicationSql(applicationHandle),
+                    TerminationLabel = "Force application",
+                });
+            }
+
+            return (IReadOnlyList<NetezzaSessionInfo>)list;
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task KillSessionAsync(string connectionName, long sessionId, CancellationToken cancellationToken = default)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(sessionId);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sessionId);
+
+        var db = _databaseServiceResolver.GetDatabaseService(_generalApplicationData, connectionName);
+        if (db is null)
+        {
+            throw new InvalidOperationException($"Connection '{connectionName}' is not available.");
+        }
+
+        if (db.DatabaseType == DatabaseTypeEnum.DB2)
+        {
+            await Task.Run(() => ForceDb2Application(db, sessionId), cancellationToken).ConfigureAwait(false);
+            return;
+        }
 
         await Task.Run(() =>
         {
-            var db = _databaseServiceResolver.GetDatabaseService(_generalApplicationData, connectionName);
-            if (db is null)
-            {
-                throw new InvalidOperationException($"Connection '{connectionName}' is not available.");
-            }
-
             using var con = db.GetConnection(null);
             con.Open();
             using var cmd = db.CreateCommandFromConnection(con);
             cmd.CommandText = NetezzaSystemSql.GetDropSessionSql(sessionId);
             cmd.CommandTimeout = 30;
             cmd.ExecuteNonQuery();
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void ForceDb2Application(IDatabaseService db, long applicationHandle)
+    {
+        using var con = db.GetConnection(null);
+        con.Open();
+
+        using (var current = db.CreateCommandFromConnection(con))
+        {
+            current.CommandText = BuildDb2CurrentApplicationHandleSql();
+            current.CommandTimeout = 30;
+            object? result = current.ExecuteScalar();
+            if (result is not null and not DBNull
+                && Convert.ToInt64(result, System.Globalization.CultureInfo.InvariantCulture) == applicationHandle)
+            {
+                throw new InvalidOperationException("The session monitor cannot terminate its own Db2 connection.");
+            }
+        }
+
+        using var cmd = db.CreateCommandFromConnection(con);
+        cmd.CommandText = BuildDb2ForceApplicationSql(applicationHandle);
+        cmd.CommandTimeout = 60;
+        using var reader = cmd.ExecuteReader();
+        do
+        {
+            while (reader.Read())
+            {
+            }
+        }
+        while (reader.NextResult());
     }
 
     public async Task<NetezzaSkewResult> GetTableSkewAsync(

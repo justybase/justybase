@@ -14,6 +14,19 @@ public record class SchemaSearchItem
     public string ParentName { get; init; }
     public bool FilterNotOk { get; set; }
 
+    /// <summary>Best matching definition line when source search is active.</summary>
+    public int? SourceLine { get; init; }
+
+    /// <summary>Trimmed definition line around the best source match.</summary>
+    public string? SourceSnippet { get; init; }
+
+    /// <summary>Number of matches inside the definition.</summary>
+    public int SourceMatches { get; init; }
+
+    public string? SourceMatch => SourceLine is int line
+        ? $"line {line}: {SourceSnippet}"
+        : null;
+
 
     public string[] GetPath(string connectionName)
     {

@@ -233,6 +233,11 @@ Data="M24 16.4999C19.8579 16.4999 16.5 19.8578 16.5 23.9999C16.5 28.1421 19.8579
 							<TextBlock FontWeight="Bold" Text="Info: "/>
 							<TextBlock Text="{Binding MoreInfo}" TextWrapping="Wrap"/>
 						</StackPanel>
+						<StackPanel Orientation="Horizontal"
+									IsVisible="{Binding SourceMatch, Converter={x:Static ObjectConverters.IsNotNull}}">
+							<TextBlock FontWeight="Bold" Text="Source: "/>
+							<TextBlock Text="{Binding SourceMatch}" TextWrapping="Wrap"/>
+						</StackPanel>
 					</StackPanel>
 				</ScrollViewer>
 			</DockPanel>

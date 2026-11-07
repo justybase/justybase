@@ -35,6 +35,9 @@ public class SchemaContextMenuCatalogTests
         Assert.Contains(SchemaContextActionKind.Explain, kinds);
         Assert.Contains(SchemaContextActionKind.Compare, kinds);
         Assert.Contains(SchemaContextActionKind.FindUsages, kinds);
+        Assert.Contains(SchemaContextActionKind.ImpactAnalysis, kinds);
+        Assert.Contains(SchemaContextActionKind.CopyToConnection, kinds);
+        Assert.Contains(SchemaContextActionKind.ExportDdlAndData, kinds);
     }
 
     [Theory]

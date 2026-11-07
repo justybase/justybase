@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Definition index with lexer-aware "Find usages", three-level impact analysis and definition search (line numbers and snippets; shared by Schema Search)
+- Db2 LUW session monitor via `SYSPROC.MON_GET_CONNECTION` with `FORCE APPLICATION` termination
+- Cross-connection table copy dialog with column mapping, target table creation and streamed parameterized inserts
+- JSON, XML, TSV and SQL INSERT result exports, plus schema "Export DDL + data…" scripts
+- Live Db2 host-layer tests (tree, capability-gated menu, DDL) and the sibling Db2 parser/linter live test project in `JustyBase.slnx`
+- Db2 lint rules renamed to `DB2L001`–`DB2L008` to avoid collisions with Rust language diagnostics
 - Postgres driver in the Slim variant (now Netezza + SQLite + DB2 + Postgres, still no AI)
 - MySQL driver in the Slim variant (now Netezza + SQLite + DB2 + Postgres + MySQL, still no AI)
 

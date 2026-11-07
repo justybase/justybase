@@ -7,6 +7,7 @@ using JustyBase.ViewModels.Docks;
 using JustyBase.ViewModels.Documents;
 using JustyBase.ViewModels.Tools;
 using JustyBase.ViewModels.Views;
+using JustyBase.Services.Schema;
 using Orientation = Dock.Model.Core.Orientation;
 
 namespace JustyBase.Services.Docking;
@@ -28,17 +29,20 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly IDockViewModelFactory _viewModelFactory;
     private readonly IDockSqlDocumentFactory _dockSqlDocumentFactory;
+    private readonly SourceIndexService _sourceIndexService;
 
     public DockLayoutBuilder(
         IGeneralApplicationData generalApplicationData,
         IMessageForUserTools messageForUserTools,
         IDockViewModelFactory viewModelFactory,
-        IDockSqlDocumentFactory dockSqlDocumentFactory)
+        IDockSqlDocumentFactory dockSqlDocumentFactory,
+        SourceIndexService sourceIndexService)
     {
         _generalApplicationData = generalApplicationData;
         _messageForUserTools = messageForUserTools;
         _viewModelFactory = viewModelFactory;
         _dockSqlDocumentFactory = dockSqlDocumentFactory;
+        _sourceIndexService = sourceIndexService;
     }
 
     public DockLayoutBuildResult BuildLayout(IFactory dockFactory, IList<IDockable> documentsList)
@@ -75,10 +79,10 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
         ConfigureDockable(logViewModel, "LogTool", "Log");
 
         var sessionMonitorViewModel = _viewModelFactory.CreateNetezzaSessionMonitorViewModel();
-        ConfigureDockable(sessionMonitorViewModel, "NetezzaSessionMonitor", "NZ Sessions");
+        ConfigureDockable(sessionMonitorViewModel, "NetezzaSessionMonitor", "Sessions");
 
 #pragma warning disable CA2000 // The dock layout owns this view model for the application lifetime.
-        var schemaSearchViewModel = new SchemaSearchViewModel(dockFactory, _generalApplicationData, _messageForUserTools, logViewModel)
+        var schemaSearchViewModel = new SchemaSearchViewModel(dockFactory, _generalApplicationData, _messageForUserTools, logViewModel, sourceIndexService: _sourceIndexService)
         {
             Id = "schemaSearch",
             Title = "Schema search",

@@ -46,7 +46,9 @@ public sealed partial class AddNewConnectionViewModel
 #if EXCEL_SQL
         new("Excel", "Excel / File SQL", "Query XLSX and XLSB workbooks with SQL", string.Empty, false, true),
 #endif
+#if ACCESS
         new("Access", "Microsoft Access", "Query and edit MDB and ACCDB files", string.Empty, false, true),
+#endif
     ];
 
     public AddNewConnectionViewModel(IFactory factory, IGeneralApplicationData generalApplicationData, IMessageForUserTools messageForUserTools, ISimpleLogger simpleLogger, IAvaloniaSpecificHelpers avaloniaSpecificHelpers, Services.Documents.IDatabaseServiceResolver? resolver = null)

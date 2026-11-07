@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-07
+
+### Added
+
+- Slim release variant (Netezza + SQLite + DB2 only, `EnableAi=false`, static splash): portable ZIPs for Windows, Linux and macOS via `publishWindows.bat` mode 2 / `scripts/package-windows.ps1 -Slim` / `publishLinux.sh --slim` / `publishMacOS.sh --slim`
+- Full release variant now includes every database driver (Oracle, MySQL, DuckDB) with AI chat on all platforms
+- `EnableLottie` build flag and `LOTTIE` constant; `LiveMarkdown.Avalonia` now follows `EnableAi` with runtime-loaded styles (`App.LiveMarkdown.cs`)
+
+### Removed
+
+- Light Windows package variant (replaced by Slim)
+
 ## [1.3.20] - 2026-10-17
 
 ### Added

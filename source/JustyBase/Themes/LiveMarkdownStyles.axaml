@@ -1,0 +1,11 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:md="clr-namespace:LiveMarkdown.Avalonia;assembly=LiveMarkdown.Avalonia">
+  <!-- AI-only chat markdown styling. Compiled in Full builds only (see JustyBase.csproj No-AI AvaloniaXaml Remove);
+       loaded at runtime from App.LiveMarkdown.cs. -->
+  <StyleInclude Source="avares://LiveMarkdown.Avalonia/Styles.axaml" />
+  <Style Selector="md|MarkdownTextBlock">
+    <Setter Property="FontSize" Value="{DynamicResource ControlContentThemeFontSize}" />
+    <Setter Property="LineHeight" Value="17" />
+    <Setter Property="Foreground" Value="{DynamicResource MarkdownTextForegroundBrush}" />
+  </Style>
+</Styles>

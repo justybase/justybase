@@ -17,7 +17,7 @@ using System.Diagnostics;
 
 namespace JustyBase;
 
-public class App : Application
+public partial class App : Application
 {
     private static IThemeManager? _themeManager;
     private static IGeneralApplicationData _generalApplicationData;
@@ -48,6 +48,10 @@ public class App : Application
         StartupTrace.Write("App.Initialize theme initialized; before AvaloniaXamlLoader.Load");
         AvaloniaXamlLoader.Load(this);
         StartupTrace.Write("App.Initialize AvaloniaXamlLoader.Load completed");
+#if AI
+        LoadLiveMarkdownResources();
+        StartupTrace.Write("App.Initialize LiveMarkdown resources loaded");
+#endif
 
         try
         {

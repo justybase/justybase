@@ -3,7 +3,10 @@ param(
     [Parameter(Mandatory = $true)] [string] $Version,
     [Parameter(Mandatory = $true)] [string] $OutputRoot,
     [Parameter(Mandatory = $false)] [string] $GitHubToken = '',
-    [Parameter(Mandatory = $false)] [switch] $Light
+    [Parameter(Mandatory = $false)] [switch] $Slim,
+    # Slim ships as a portable ZIP only: no Velopack feed, delta or Setup.exe,
+    # so the Slim package never collides with the Full auto-update channel.
+    [Parameter(Mandatory = $false)] [switch] $NoVelopack
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,7 +15,9 @@ $project = Join-Path $root 'source\JustyBase\JustyBase.csproj'
 $releaseNotes = Join-Path $root 'source\JustyBase\ReleaseNotes.md'
 $icon = Join-Path $root 'source\JustyBase\Assets\Icon2.ico'
 $output = [IO.Path]::GetFullPath((Join-Path $root $OutputRoot))
-$variant = if ($Light) { 'aot-self-contained-light' } else { 'aot-self-contained' }
+# Full: all database drivers + AI + animated splash.
+# Slim: Netezza + SQLite + DB2 only, no AI, static splash.
+$variant = if ($Slim) { 'aot-self-contained-slim' } else { 'aot-self-contained' }
 $publish = Join-Path $output "work\win-x64-$variant"
 $velopack = Join-Path $output 'velopack'
 $zip = Join-Path $output "JustyBase-$Version-win-x64-$variant.zip"
@@ -22,7 +27,7 @@ if (-not (Test-Path $project)) { throw "Project not found: $project" }
 if (-not (Test-Path $releaseNotes)) { throw "Release notes not found: $releaseNotes" }
 if (-not (Test-Path $icon)) { throw "Icon not found: $icon" }
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) { throw 'dotnet is required' }
-if (-not (Get-Command vpk -ErrorAction SilentlyContinue)) { throw 'vpk is required' }
+if (-not $NoVelopack -and -not (Get-Command vpk -ErrorAction SilentlyContinue)) { throw 'vpk is required' }
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
 if (-not (Test-Path $vswhere)) { throw 'Visual Studio C++ Build Tools are required for Native AOT' }
 $vsInstallPath = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
@@ -44,20 +49,32 @@ if (-not (Test-Path (Join-Path $env:VCToolsInstallDir 'bin\Hostx64\x64\cl.exe'))
     throw 'Visual Studio x64 C++ compiler was not added to the build environment'
 }
 
-Remove-Item $publish, $velopack, $zip, $setup -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path $publish, $velopack, $output -Force | Out-Null
+Remove-Item $publish, $zip, $setup -Recurse -Force -ErrorAction SilentlyContinue
+if (-not $NoVelopack) { Remove-Item $velopack -Recurse -Force -ErrorAction SilentlyContinue }
+$dirsToCreate = @($publish, $output)
+if (-not $NoVelopack) { $dirsToCreate += $velopack }
+New-Item -ItemType Directory -Path $dirsToCreate -Force | Out-Null
 
-$enableAccessPlugin = if ($Light) { 'false' } else { 'true' }
-$enablePostgresPlugin = if ($Light) { 'false' } else { 'true' }
-$enableExcelPlugin = if ($Light) { 'false' } else { 'true' }
+$enableDb2Plugin = 'true'
+$enableAccessPlugin = if ($Slim) { 'false' } else { 'true' }
+$enablePostgresPlugin = if ($Slim) { 'false' } else { 'true' }
+$enableOraclePlugin = if ($Slim) { 'false' } else { 'true' }
+$enableMySqlPlugin = if ($Slim) { 'false' } else { 'true' }
+$enableDuckDbPlugin = if ($Slim) { 'false' } else { 'true' }
+$enableExcelPlugin = if ($Slim) { 'false' } else { 'true' }
+$enableAi = if ($Slim) { 'false' } else { 'true' }
+$enableLottie = if ($Slim) { 'false' } else { 'true' }
 
 dotnet publish $project -r win-x64 -c Release -f net10.0 `
-    -p:EnableDb2Plugin=true `
+    "-p:EnableDb2Plugin=$enableDb2Plugin" `
     "-p:EnableAccessPlugin=$enableAccessPlugin" `
     "-p:EnablePostgresPlugin=$enablePostgresPlugin" `
+    "-p:EnableOraclePlugin=$enableOraclePlugin" `
+    "-p:EnableMySqlPlugin=$enableMySqlPlugin" `
+    "-p:EnableDuckDbPlugin=$enableDuckDbPlugin" `
     "-p:EnableExcelPlugin=$enableExcelPlugin" `
-    -p:EnableOraclePlugin=false `
-    -p:EnableDuckDbPlugin=false `
+    "-p:EnableAi=$enableAi" `
+    "-p:EnableLottie=$enableLottie" `
     -p:CopilotSkipCliDownload=true `
     -p:PublishAot=true `
     -p:PublishReadyToRun=false `
@@ -77,7 +94,9 @@ Get-ChildItem $publish -Recurse -Include '*.pdb', '*.dbg' -File -ErrorAction Sil
 # Download the latest prerelease feed before packing so vpk can generate deltas.
 # A first release, an unavailable GitHub API, or an offline local build may still
 # produce a valid full package, so this step is intentionally best effort.
+# Skipped entirely with -NoVelopack (Slim ships as a portable ZIP only).
 $githubRepoUrl = 'https://github.com/justybase/justybase'
+if (-not $NoVelopack) {
 $downloadArgs = @(
     'download', 'github',
     '--repoUrl', $githubRepoUrl,
@@ -117,6 +136,7 @@ if ([int64]$feedAsset.Size -ne $fullPackage.Length) { throw 'Velopack feed size 
 $setupSource = Get-ChildItem $velopack -Filter '*-Setup.exe' -File | Select-Object -First 1
 if ($null -eq $setupSource) { throw 'Velopack did not produce a Setup.exe' }
 Copy-Item $setupSource.FullName $setup -Force
+}
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 [IO.Compression.ZipFile]::CreateFromDirectory($publish, $zip)
@@ -135,5 +155,5 @@ finally {
 }
 Write-Host ''
 Write-Host 'Publikacja Windows zakonczona pomyslnie.'
-Write-Host "Instalator: $setup"
+if (-not $NoVelopack) { Write-Host "Instalator: $setup" }
 Write-Host "Archiwum:   $zip"

@@ -1,3 +1,9 @@
+# JustyBase 1.4.0
+
+- Added Slim packages (Netezza + SQLite + DB2 only, no AI): smaller portable ZIPs for Windows, Linux and macOS.
+- Full packages now include all database drivers (Oracle, MySQL, DuckDB) with AI chat.
+- Slim uses a static splash screen; Full keeps the animated splash.
+
 # JustyBase 1.3.20
 
 - Improved DuckDB schema discovery and metadata handling.

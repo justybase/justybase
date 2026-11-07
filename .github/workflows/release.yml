@@ -48,9 +48,13 @@ jobs:
       contents: read
 
   windows:
-    name: Windows x64 self-contained ReadyToRun package
+    name: Windows x64 ${{ matrix.variant }} package
     needs: [prepare, quality]
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [full, slim]
     permissions:
       contents: read
     defaults:
@@ -78,6 +82,7 @@ jobs:
       - name: Restore
         run: dotnet restore .\source\JustyBase\JustyBase.csproj --force-evaluate
       - name: Install Velopack CLI
+        if: matrix.variant == 'full'
         shell: pwsh
         run: |
           dotnet tool install --global vpk --version 1.2.0
@@ -87,17 +92,32 @@ jobs:
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts -GitHubToken $env:GITHUB_TOKEN
-      - name: Upload Windows packages
+        run: |
+          if ('${{ matrix.variant }}' -eq 'slim') {
+            .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts -Slim -NoVelopack
+          } else {
+            .\scripts\package-windows.ps1 -Version $env:VERSION -OutputRoot .\artifacts -GitHubToken $env:GITHUB_TOKEN
+          }
+      - name: Upload Windows Full packages
+        if: matrix.variant == 'full'
         uses: actions/upload-artifact@v4
         with:
-          name: release-windows-self-contained
+          name: release-windows-full
           path: |
             JustyBase/artifacts/*-self-contained.zip
             JustyBase/artifacts/*-self-contained-Setup.exe
           if-no-files-found: error
 
+      - name: Upload Windows Slim package
+        if: matrix.variant == 'slim'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-slim
+          path: JustyBase/artifacts/*-self-contained-slim.zip
+          if-no-files-found: error
+
       - name: Upload Windows Velopack packages
+        if: matrix.variant == 'full'
         uses: actions/upload-artifact@v4
         with:
           name: release-windows-velopack
@@ -105,9 +125,13 @@ jobs:
           if-no-files-found: error
 
   linux:
-    name: Linux x64 self-contained ReadyToRun package
+    name: Linux x64 ${{ matrix.variant }} package
     needs: [prepare, quality]
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [full, slim]
     defaults:
       run:
         working-directory: JustyBase
@@ -137,22 +161,28 @@ jobs:
       - name: Build Linux package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
-        run: bash ./publishLinux.sh "$VERSION" ./artifacts
+        run: |
+          if [ '${{ matrix.variant }}' = 'slim' ]; then
+            bash ./publishLinux.sh "$VERSION" ./artifacts --slim
+          else
+            bash ./publishLinux.sh "$VERSION" ./artifacts
+          fi
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
         with:
-          name: release-linux-self-contained
+          name: release-linux-${{ matrix.variant }}
           path: JustyBase/artifacts/*.zip
           if-no-files-found: error
 
   macos:
-    name: macOS ${{ matrix.rid }} self-contained package
+    name: macOS ${{ matrix.rid }} ${{ matrix.variant }} package
     needs: [prepare, quality]
     runs-on: macos-14
     strategy:
       fail-fast: false
       matrix:
         rid: [osx-arm64]
+        variant: [full, slim]
     defaults:
       run:
         working-directory: JustyBase
@@ -180,11 +210,16 @@ jobs:
       - name: Build macOS self-contained package
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
-        run: bash ./publishMacOS.sh "$VERSION" "${{ matrix.rid }}" ./artifacts
+        run: |
+          if [ '${{ matrix.variant }}' = 'slim' ]; then
+            bash ./publishMacOS.sh "$VERSION" "${{ matrix.rid }}" ./artifacts --slim
+          else
+            bash ./publishMacOS.sh "$VERSION" "${{ matrix.rid }}" ./artifacts
+          fi
       - name: Upload macOS package
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ matrix.rid }}
+          name: release-${{ matrix.rid }}-${{ matrix.variant }}
           path: JustyBase/artifacts/*.zip
           if-no-files-found: error
 
@@ -197,43 +232,54 @@ jobs:
     steps:
       - name: Checkout release notes
         uses: actions/checkout@v4
-      - name: Download release packages
+      - name: Download Windows Full packages
         uses: actions/download-artifact@v4
         with:
-          name: release-windows-self-contained
+          name: release-windows-full
           path: dist/windows
+      - name: Download Windows Slim package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows-slim
+          path: dist/windows-slim
       - name: Download Windows Velopack packages
         uses: actions/download-artifact@v4
         with:
           name: release-windows-velopack
           path: dist/velopack
-      - name: Download Linux package
+      - name: Download Linux Full package
         uses: actions/download-artifact@v4
         with:
-          name: release-linux-self-contained
+          name: release-linux-full
           path: dist/linux
-      - name: Download macOS package
+      - name: Download Linux Slim package
         uses: actions/download-artifact@v4
         with:
-          name: release-osx-arm64
+          name: release-linux-slim
+          path: dist/linux-slim
+      - name: Download macOS Full package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-osx-arm64-full
           path: dist/macos
+      - name: Download macOS Slim package
+        uses: actions/download-artifact@v4
+        with:
+          name: release-osx-arm64-slim
+          path: dist/macos-slim
       - name: Validate release assets
         shell: bash
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           set -euo pipefail
-          expected=(
-            "JustyBase-${VERSION}-win-x64-aot-self-contained-Setup.exe"
-            "JustyBase-${VERSION}-win-x64-aot-self-contained.zip"
-            "JustyBase-${VERSION}-linux-x64-self-contained.zip"
-            "JustyBase-${VERSION}-macos-arm64-self-contained.zip"
-          )
-          for file in "${expected[0]}" "${expected[1]}"; do
-            test -s "dist/windows/$file" || { echo "Missing release asset: $file" >&2; exit 1; }
-          done
-          test -s "dist/linux/${expected[2]}" || { echo "Missing release asset: ${expected[2]}" >&2; exit 1; }
-          test -s "dist/macos/${expected[3]}" || { echo "Missing release asset: ${expected[3]}" >&2; exit 1; }
+          test -s "dist/windows/JustyBase-${VERSION}-win-x64-aot-self-contained-Setup.exe" || { echo 'Missing Windows Setup.exe' >&2; exit 1; }
+          test -s "dist/windows/JustyBase-${VERSION}-win-x64-aot-self-contained.zip" || { echo 'Missing Windows Full ZIP' >&2; exit 1; }
+          test -s "dist/windows-slim/JustyBase-${VERSION}-win-x64-aot-self-contained-slim.zip" || { echo 'Missing Windows Slim ZIP' >&2; exit 1; }
+          test -s "dist/linux/JustyBase-${VERSION}-linux-x64-self-contained.zip" || { echo 'Missing Linux Full ZIP' >&2; exit 1; }
+          test -s "dist/linux-slim/JustyBase-${VERSION}-linux-x64-self-contained-slim.zip" || { echo 'Missing Linux Slim ZIP' >&2; exit 1; }
+          test -s "dist/macos/JustyBase-${VERSION}-macos-arm64-self-contained.zip" || { echo 'Missing macOS Full ZIP' >&2; exit 1; }
+          test -s "dist/macos-slim/JustyBase-${VERSION}-macos-arm64-self-contained-slim.zip" || { echo 'Missing macOS Slim ZIP' >&2; exit 1; }
           test -s dist/velopack/releases.win.json || { echo 'Missing Velopack release feed' >&2; exit 1; }
           test -s "dist/velopack/JustyBase-${VERSION}-full.nupkg" || { echo 'Missing Velopack full package' >&2; exit 1; }
           if find dist -type f \( -name '*.pdb' -o -name '*.dbg' -o -name '*.log' \) -print -quit | grep -q .; then
@@ -286,8 +332,11 @@ jobs:
           gh release upload "$TAG" \
             "dist/windows/JustyBase-${VERSION}-win-x64-aot-self-contained-Setup.exe" \
             "dist/windows/JustyBase-${VERSION}-win-x64-aot-self-contained.zip" \
+            "dist/windows-slim/JustyBase-${VERSION}-win-x64-aot-self-contained-slim.zip" \
             "dist/linux/JustyBase-${VERSION}-linux-x64-self-contained.zip" \
+            "dist/linux-slim/JustyBase-${VERSION}-linux-x64-self-contained-slim.zip" \
             "dist/macos/JustyBase-${VERSION}-macos-arm64-self-contained.zip" \
+            "dist/macos-slim/JustyBase-${VERSION}-macos-arm64-self-contained-slim.zip" \
             --repo "$GITHUB_REPOSITORY" --clobber
           assets="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
           grep -Fx 'releases.win.json' <<<"$assets"

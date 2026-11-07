@@ -6,12 +6,10 @@
 			 xmlns:core="using:Dock.Model.Core"
 			 xmlns:vmDoc="using:JustyBase.ViewModels.Documents"
 			 xmlns:conv="using:JustyBase.Converters"
-			 xmlns:md="clr-namespace:LiveMarkdown.Avalonia;assembly=LiveMarkdown.Avalonia"
              x:Class="JustyBase.App">
 	<Application.Resources>
 		<ResourceDictionary>
 			<ResourceDictionary.MergedDictionaries>
-				<ResourceInclude Source="avares://LiveMarkdown.Avalonia/Defaults.axaml" />
 				<ResourceInclude Source="avares://JustyBase/Themes/SqlDocumentTabContextMenu.axaml" />
 			</ResourceDictionary.MergedDictionaries>
 			<!-- LiveMarkdown uses Color resources for its cards and text. Keep the
@@ -180,17 +178,11 @@
 		<StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
 		<StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.v2.xaml"/>
 		<StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Flat.xaml"/>
-		<StyleInclude Source="avares://LiveMarkdown.Avalonia/Styles.axaml" />
 		<Style Selector="NotificationCard">
 			<Setter Property="MinHeight" Value="88"/>
 			<Setter Property="CornerRadius" Value="8"/>
 			<Setter Property="BorderThickness" Value="1"/>
 			<Setter Property="BorderBrush" Value="{DynamicResource DockThemeBorderLowBrush}"/>
-		</Style>
-		<Style Selector="md|MarkdownTextBlock">
-			<Setter Property="FontSize" Value="{DynamicResource ControlContentThemeFontSize}" />
-			<Setter Property="LineHeight" Value="17" />
-			<Setter Property="Foreground" Value="{DynamicResource MarkdownTextForegroundBrush}" />
 		</Style>
 		<Style Selector="ScrollBar">
 			<Setter Property="ShowDelay" Value="0.01"/>

@@ -1,5 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
+		<!-- Set EnableAi=false to build without the optional AI components and their heavy NuGet dependencies. -->
+		<EnableAi Condition="'$(EnableAi)' == ''">true</EnableAi>
+		<DefineConstants Condition="'$(EnableAi)' == 'true'">$(DefineConstants);AI</DefineConstants>
 		<!-- Driver implementations are linked into the application at build time. -->
 		<EnableDb2Plugin Condition="'$(EnableDb2Plugin)' == ''">true</EnableDb2Plugin>
 		<EnableAccessPlugin Condition="'$(EnableAccessPlugin)' == ''">true</EnableAccessPlugin>
@@ -8,6 +11,8 @@
 		<EnableMySqlPlugin Condition="'$(EnableMySqlPlugin)' == ''">false</EnableMySqlPlugin>
 		<EnableDuckDbPlugin Condition="'$(EnableDuckDbPlugin)' == ''">true</EnableDuckDbPlugin>
 		<EnableExcelPlugin Condition="'$(EnableExcelPlugin)' == ''">true</EnableExcelPlugin>
+		<!-- Slim builds set EnableLottie=false for a static splash screen instead of the animated one. -->
+		<EnableLottie Condition="'$(EnableLottie)' == ''">true</EnableLottie>
 		<DefineConstants Condition="'$(EnableDb2Plugin)' == 'true'">$(DefineConstants);DB2</DefineConstants>
 		<DefineConstants Condition="'$(EnableAccessPlugin)' == 'true'">$(DefineConstants);ACCESS</DefineConstants>
 		<DefineConstants Condition="'$(EnablePostgresPlugin)' == 'true'">$(DefineConstants);POSTGRES</DefineConstants>
@@ -15,6 +20,7 @@
 		<DefineConstants Condition="'$(EnableMySqlPlugin)' == 'true'">$(DefineConstants);MYSQL</DefineConstants>
 		<DefineConstants Condition="'$(EnableDuckDbPlugin)' == 'true'">$(DefineConstants);DUCKDB</DefineConstants>
 		<DefineConstants Condition="'$(EnableExcelPlugin)' == 'true'">$(DefineConstants);EXCEL_SQL</DefineConstants>
+		<DefineConstants Condition="'$(EnableLottie)' == 'true'">$(DefineConstants);LOTTIE</DefineConstants>
 		<OutputType>WinExe</OutputType>
 		<PlatformTarget>AnyCPU</PlatformTarget>
 		<TargetFramework>net10.0</TargetFramework>
@@ -77,29 +83,30 @@
 	<ItemGroup>
 		<PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
 		<PackageReference Include="DiffPlex" Version="1.9.0" />
-		<PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.0.11" />
-		<PackageReference Include="Microsoft.Extensions.AI" Version="10.11.0" />
-		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.11.0" />
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.13" />
-		<PackageReference Include="ProDataGrid" Version="12.1.0.6" />
+		<PackageReference Include="Dock.Avalonia.Themes.Fluent" Version="12.1.5" />
+		<PackageReference Include="Microsoft.Extensions.AI" Version="10.11.0" Condition="'$(EnableAi)' == 'true'" />
+		<PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.11.0" Condition="'$(EnableAi)' == 'true'" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.14" />
+		<PackageReference Include="ProDataGrid" Version="12.1.5" />
 		<PackageReference Include="Velopack" Version="1.2.161" />
-		<PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.4" />
-		<PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
-		<PackageReference Include="Avalonia.Labs.Lottie" Version="12.0.2" />
-		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+		<PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.5" />
+		<PackageReference Include="Avalonia.Desktop" Version="12.1.5" />
+		<PackageReference Include="Avalonia.Labs.Lottie" Version="12.1.0" Condition="'$(EnableLottie)' == 'true'" />
+		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-		<PackageReference Include="Dock.Model.Mvvm" Version="12.1.0.11" />
-		<PackageReference Include="Dock.Model" Version="12.1.0.11" />
-		<PackageReference Include="Dock.Avalonia" Version="12.1.0.11" />
+		<PackageReference Include="Dock.Model.Mvvm" Version="12.1.5" />
+		<PackageReference Include="Dock.Model" Version="12.1.5" />
+		<PackageReference Include="Dock.Avalonia" Version="12.1.5" />
 		<PackageReference Include="K4os.Compression.LZ4.Streams" Version="1.3.8" />
-		<PackageReference Include="LiveMarkdown.Avalonia" Version="2.4.3" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
-		<PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.13" />
+		<!-- LiveMarkdown is only used by the AI chat UI; No-AI/Slim builds skip it. -->
+		<PackageReference Include="LiveMarkdown.Avalonia" Version="2.5.1" Condition="'$(EnableAi)' == 'true'" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
 		<!-- Override Microsoft.Data.Sqlite's vulnerable SQLite native dependency. -->
 		<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
 		<PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
-		<PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.13" />
-		<PackageReference Include="Xaml.Behaviors.Avalonia" Version="12.0.7" />
+		<PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
+		<PackageReference Include="Xaml.Behaviors.Avalonia" Version="12.1.5" />
 	</ItemGroup>
 	<ItemGroup>
 		<Compile Update="Views\CustomListBox.axaml.cs">
@@ -148,8 +155,46 @@
 		<ProjectReference Include="$(JustyBaseLocalNetezzaCatalogSqlProject)" />
 		<ProjectReference Include="$(JustyBaseLocalCoreProject)" />
 		<ProjectReference Include="$(JustyBaseLocalImportExportProject)" />
-		<ProjectReference Include="$(JustyBaseLocalAiProject)" />
-		<ProjectReference Include="$(JustyBaseLocalAiEmbeddedProject)" />
+		<ProjectReference Include="$(JustyBaseLocalAiContractsProject)" />
+		<ProjectReference Include="$(JustyBaseLocalAiProject)" Condition="'$(EnableAi)' == 'true'" />
+		<ProjectReference Include="$(JustyBaseLocalAiEmbeddedProject)" Condition="'$(EnableAi)' == 'true'" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(EnableAi)' != 'true'">
+		<!--
+			No-AI build: remove every source file that depends on the optional AI
+			packages. Non-AI integration points are compiled against
+			JustyBase.Ai.Contracts and use #if AI for the remaining calls.
+		-->
+		<Compile Remove="Services\Ai\**\*.cs" />
+		<Compile Remove="Services\Embedded\**\*.cs" />
+		<Compile Remove="Services\Fim\**\*.cs" />
+		<Compile Remove="ViewModels\Tools\AiChatViewModel*.cs" />
+		<Compile Remove="ViewModels\Tools\Converters\AiChatConverters.cs" />
+		<Compile Remove="ViewModels\Documents\SettingsViewModel.AiChat.cs" />
+		<Compile Remove="ViewModels\Documents\SettingsViewModel.EmbeddedChat.cs" />
+		<Compile Remove="ViewModels\Documents\SettingsViewModel.Fim.cs" />
+		<Compile Remove="Views\Tools\AiChatView.axaml.cs" />
+		<Compile Remove="Views\Tools\AiChatMessageBubble.cs" />
+		<Compile Remove="Views\Tools\ChatMarkdownView.cs" />
+		<Compile Remove="App.LiveMarkdown.cs" />
+		<AvaloniaXaml Remove="Views\Tools\AiChatView.axaml" />
+		<None Remove="Views\Tools\AiChatView.axaml" />
+		<AvaloniaXaml Remove="Themes\LiveMarkdownStyles.axaml" />
+		<None Remove="Themes\LiveMarkdownStyles.axaml" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(EnableLottie)' != 'true'">
+		<!-- Slim splash is static; do not ship the Lottie animations. -->
+		<AvaloniaResource Remove="Assets\gears.json" />
+		<AvaloniaResource Remove="Assets\frog.json" />
+		<AvaloniaResource Remove="Assets\loading.json" />
+		<AvaloniaResource Remove="Assets\welcome.json" />
+		<AvaloniaResource Remove="Assets\Hearth1.json" />
+		<None Remove="Assets\Hearth1.json" />
+		<None Remove="Assets\loading.json" />
+		<None Remove="Assets\welcome.json" />
+	</ItemGroup>
+	<ItemGroup Condition="'$(EnableAi)' == 'true'">
+		<Compile Remove="ViewModels\Documents\SettingsViewModel.NoAi.cs" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(EnableMySqlPlugin)' == 'true'">
 		<ProjectReference Include="..\Plugins\MySqlPlugin\MySqlPlugin.csproj" />

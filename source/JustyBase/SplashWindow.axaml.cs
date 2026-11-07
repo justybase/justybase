@@ -1,6 +1,9 @@
 using Microsoft.Win32;
 using System.Runtime.InteropServices;
 using JustyBase.PluginCommon.Contracts;
+#if LOTTIE
+using Avalonia.Labs.Lottie;
+#endif
 
 namespace JustyBase;
 
@@ -8,6 +11,9 @@ public partial class SplashWindow : Window
 {
     private readonly Action? _mainAction;
     private readonly ISimpleLogger _simpleLogger;
+#if LOTTIE
+    private Lottie? _lottie;
+#endif
 
     public SplashWindow() : this(null, null!)
     {
@@ -24,28 +30,31 @@ public partial class SplashWindow : Window
         StartupTrace.Write($"SplashWindow constructor completed waitMs={_timeToWait}");
     }
 
-    private static readonly List<(int timeInMs, string assetPath)> StartupOptions =
-        [
-            (1_000, @"avares://JustyBase/Assets/gears.json"),
-            //(1_500, @"avares://JustyBase/Assets/done.json"),
-            //(500, @"avares://JustyBase/Assets/infinite_rainbow.json"),
-            //(1_000, @"avares://JustyBase/Assets/preloader.json"),
-            //(1_500, @"avares://JustyBase/Assets/rejection.json"),
-            (3_000, @"avares://JustyBase/Assets/frog.json"),
-            //(3_600, @"avares://JustyBase/Assets/rocket.json"),
-            (1_650, @"avares://JustyBase/Assets/loading.json"),
-            (2_300, @"avares://JustyBase/Assets/welcome.json")
-        ];
-
-    //public static bool SpecialWasShown = false;
-
-
     public static bool IsValentine()
     {
         return DateTime.Now.Month == 2 && DateTime.Now.Day == 14;
     }
+#if LOTTIE
+    private static readonly List<(int timeInMs, string assetPath)> StartupOptions =
+        [
+            (1_000, @"avares://JustyBase/Assets/gears.json"),
+            (3_000, @"avares://JustyBase/Assets/frog.json"),
+            (1_650, @"avares://JustyBase/Assets/loading.json"),
+            (2_300, @"avares://JustyBase/Assets/welcome.json")
+        ];
+#endif
+
     private void SetLottie()
     {
+#if LOTTIE
+        _lottie = new Lottie(new Uri("avares://JustyBase/SplashWindow.axaml"))
+        {
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            RepeatCount = -1
+        };
+        LottieHost.Content = _lottie;
+        StaticSplash.IsVisible = false;
         if (IsValentine())
         {
             //SpecialWasShown = true;
@@ -55,8 +64,8 @@ public partial class SplashWindow : Window
             Width *= 2.0;
             Height *= 2.0;
             _timeToWait = 4_000;
-            Lottie.RepeatCount = 2;
-            Lottie.Path = @"avares://JustyBase/Assets/Hearth1.json";
+            _lottie.RepeatCount = 2;
+            _lottie.Path = @"avares://JustyBase/Assets/Hearth1.json";
         }
         else
         {
@@ -64,8 +73,14 @@ public partial class SplashWindow : Window
             var nm = Random.Shared.Next(0, StartupOptions.Count);
 #pragma warning restore CA5394
             _timeToWait = StartupOptions[nm].timeInMs;
-            Lottie.Path = StartupOptions[nm].assetPath;
+            _lottie.Path = StartupOptions[nm].assetPath;
         }
+#else
+        // Slim build without Lottie: static logo instead of the animation.
+        LottieHost.IsVisible = false;
+        StaticSplash.IsVisible = true;
+        _timeToWait = 1_500;
+#endif
     }
 
     protected override async void OnLoaded(RoutedEventArgs e)

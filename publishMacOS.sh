@@ -1,11 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${1:-}"
-RID="${2:-}"
-OUTPUT_ROOT="${3:-artifacts}"
+VERSION=""
+RID=""
+OUTPUT_ROOT="artifacts"
+SLIM=0
+for arg in "$@"; do
+  case "$arg" in
+    --slim) SLIM=1 ;;
+    *)
+      if [[ -z "$VERSION" ]]; then
+        VERSION="$arg"
+      elif [[ -z "$RID" ]]; then
+        RID="$arg"
+      else
+        OUTPUT_ROOT="$arg"
+      fi
+      ;;
+  esac
+done
 if [[ -z "$VERSION" || -z "$RID" ]]; then
-  echo "Usage: ./publishMacOS.sh <version> <osx-arm64|osx-x64> [output-root]" >&2
+  echo "Usage: ./publishMacOS.sh <version> <osx-arm64|osx-x64> [output-root] [--slim]" >&2
   exit 1
 fi
 case "$RID" in
@@ -18,13 +33,22 @@ command -v zip >/dev/null || { echo "zip is required" >&2; exit 1; }
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT="$ROOT/source/JustyBase/JustyBase.csproj"
+# Full: all database drivers + AI + animated splash.
+# Slim: Netezza + SQLite + DB2 only, no AI, static splash.
+if [[ "$SLIM" == "1" ]]; then
+  SELF_CONTAINED_VARIANT="self-contained-slim"
+  PLUGIN_FLAGS=(-p:EnableDb2Plugin=true -p:EnableAccessPlugin=false -p:EnablePostgresPlugin=false -p:EnableOraclePlugin=false -p:EnableMySqlPlugin=false -p:EnableDuckDbPlugin=false -p:EnableExcelPlugin=false -p:EnableAi=false -p:EnableLottie=false)
+else
+  SELF_CONTAINED_VARIANT="self-contained"
+  PLUGIN_FLAGS=(-p:EnableDb2Plugin=true -p:EnableAccessPlugin=true -p:EnablePostgresPlugin=true -p:EnableOraclePlugin=true -p:EnableMySqlPlugin=true -p:EnableDuckDbPlugin=true -p:EnableExcelPlugin=true -p:EnableAi=true -p:EnableLottie=true)
+fi
 PUBLISH_DIR="$ROOT/$OUTPUT_ROOT/work/$RID"
-ZIP_PATH="$ROOT/$OUTPUT_ROOT/JustyBase-${VERSION}-macos-${ARCH}-self-contained.zip"
+ZIP_PATH="$ROOT/$OUTPUT_ROOT/JustyBase-${VERSION}-macos-${ARCH}-${SELF_CONTAINED_VARIANT}.zip"
 
 rm -rf "$PUBLISH_DIR"
 mkdir -p "$PUBLISH_DIR" "$(dirname "$ZIP_PATH")"
 dotnet publish "$PROJECT" -r "$RID" -c Release -f net10.0 \
-  -p:EnableDb2Plugin=true -p:PublishAot=false \
+  "${PLUGIN_FLAGS[@]}" -p:PublishAot=false \
   -p:CopilotSkipCliDownload=true \
   -p:PublishReadyToRun=true -p:PublishTrimmed=false \
   --self-contained true -p:DebugType=None -p:DebugSymbols=false \

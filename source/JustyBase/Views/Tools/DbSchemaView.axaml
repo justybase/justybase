@@ -33,6 +33,11 @@
 						   VerticalAlignment="Center"
 						   Stretch="Uniform"/>
 					<TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+					<TextBlock Text="Loading…"
+							   IsVisible="{Binding IsLoading}"
+							   VerticalAlignment="Center"
+							   FontStyle="Italic"
+							   Opacity="0.7"/>
 				</StackPanel>
 			</DataTemplate>
 		</DataGrid.Resources>

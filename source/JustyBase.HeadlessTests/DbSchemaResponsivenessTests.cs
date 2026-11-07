@@ -47,6 +47,7 @@ public sealed class DbSchemaResponsivenessTests : HeadlessSessionTestBase
         // collapses before the async load completes.
         Assert.Single(placeholderChildren);
         Assert.Equal("Loading…", placeholderChildren[0].Name);
+        Assert.True(node.IsLoading);
 
         DatabaseServiceHelpers.RemoveCachedConnection(connectionName);
     });

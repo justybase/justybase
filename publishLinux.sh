@@ -21,10 +21,10 @@ if [[ -z "$VERSION" ]]; then
   exit 1
 fi
 # Full: all database drivers + AI + animated splash.
-# Slim: Netezza + SQLite + DB2 only, no AI, static splash.
+# Slim: Netezza + SQLite + DB2 + Postgres, no AI, static splash.
 if [[ "$SLIM" == "1" ]]; then
   VARIANT="self-contained-slim"
-  PLUGIN_FLAGS=(-p:EnableDb2Plugin=true -p:EnableAccessPlugin=false -p:EnablePostgresPlugin=false -p:EnableOraclePlugin=false -p:EnableMySqlPlugin=false -p:EnableDuckDbPlugin=false -p:EnableExcelPlugin=false -p:EnableAi=false -p:EnableLottie=false)
+  PLUGIN_FLAGS=(-p:EnableDb2Plugin=true -p:EnableAccessPlugin=false -p:EnablePostgresPlugin=true -p:EnableOraclePlugin=false -p:EnableMySqlPlugin=false -p:EnableDuckDbPlugin=false -p:EnableExcelPlugin=false -p:EnableAi=false -p:EnableLottie=false)
 else
   VARIANT="self-contained"
   PLUGIN_FLAGS=(-p:EnableDb2Plugin=true -p:EnableAccessPlugin=true -p:EnablePostgresPlugin=true -p:EnableOraclePlugin=true -p:EnableMySqlPlugin=true -p:EnableDuckDbPlugin=true -p:EnableExcelPlugin=true -p:EnableAi=true -p:EnableLottie=true)

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-07
+
+### Added
+
+- Windows Velopack installer for the Slim variant on its own `win-slim` update channel (same `JustyBase` package id, channel-suffixed assets)
+
 ## [1.4.0] - 2026-11-07
 
 ### Added

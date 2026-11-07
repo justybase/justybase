@@ -1,3 +1,8 @@
+# JustyBase 1.4.1
+
+- Added a Velopack installer for Slim (`win-slim` update channel), alongside the portable ZIP.
+- Slim update checks stay on the Slim channel and never collide with Full.
+
 # JustyBase 1.4.0
 
 - Added Slim packages (Netezza + SQLite + DB2 only, no AI): smaller download as a portable ZIP and a Velopack installer with its own update channel for Windows, plus portable ZIPs for Linux and macOS.

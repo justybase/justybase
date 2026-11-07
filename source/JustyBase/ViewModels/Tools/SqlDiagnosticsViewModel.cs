@@ -62,10 +62,14 @@ public sealed partial class SqlDiagnosticsViewModel : Tool
     /// Feature availability flag for AI Chat (reads the live master switch). When false, the
     /// "Fix in AI Chat" entry points in this panel are hidden.
     /// </summary>
+#if AI
     public bool IsAiChatEnabled
         => _generalApplicationData?.Config.EnableAiChat
             ?? Program.ServiceProvider?.GetService<IGeneralApplicationData>()?.Config.EnableAiChat
             ?? false;
+#else
+    public bool IsAiChatEnabled => false;
+#endif
 
     // ── Performance metrics ────────────────────────────────────────────────
 
@@ -221,6 +225,7 @@ public sealed partial class SqlDiagnosticsViewModel : Tool
     }
 
     [RelayCommand]
+#if AI
     private async Task SendToAiChatAsync()
     {
         if (_items.Count == 0) return;
@@ -232,6 +237,9 @@ public sealed partial class SqlDiagnosticsViewModel : Tool
         if (aiChatVm is not null)
             await aiChatVm.SendToAiChatAsync();
     }
+#else
+    private Task SendToAiChatAsync() => Task.CompletedTask;
+#endif
 
     [RelayCommand]
     private void ToggleMetricsPanel()

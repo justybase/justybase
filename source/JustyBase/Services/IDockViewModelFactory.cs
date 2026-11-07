@@ -49,10 +49,12 @@ public interface IDockViewModelFactory
     /// </summary>
     SqlResultsFastViewModel CreateSqlResultsFastViewModel();
     
+#if AI
     /// <summary>
     /// Creates a new AiChatViewModel instance.
     /// </summary>
     AiChatViewModel CreateAiChatViewModel();
+#endif
     
     /// <summary>
     /// Creates a new SqlResultsViewModel instance.

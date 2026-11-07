@@ -137,7 +137,7 @@ On first launch, add an IBM Netezza connection from the schema or connections UI
 | Dependency | How it is resolved |
 |------------|--------------------|
 | **ProDataGrid** | NuGet package `ProDataGrid` version `12.0.5`. |
-| **Netezza SQL libraries** | Required `../JustyBase.NetezzaSql` sibling, referenced as projects for parser, DDL, catalog, core, import/export, and AI libraries. `JustyBase.NetezzaDriver` remains a separate NuGet dependency. |
+| **Netezza SQL libraries** | Required `../JustyBase.NetezzaSql` sibling, referenced as projects for parser, DDL, catalog, core, and import/export. The AI libraries (`JustyBase.Ai`, `JustyBase.Ai.Embedded`) are referenced only when `EnableAi=true` (the default); `JustyBase.Ai.Contracts` is dependency-free and is always referenced. `JustyBase.NetezzaDriver` remains a separate NuGet dependency. |
 | **JustyBase.UCanAccessCs** | Required `../JustyBase.UCanAccessCs` sibling, referenced by `AccessPlugin` for `.mdb`/`.accdb` execution and optional encrypted-ACCDB support. Its parser dependency also points to the local Netezza parser project. |
 | **JustyBase.Db2** | NuGet packages `JustyBase.Db2` + `JustyBase.Db2.IBMCompat`, restored from NuGet (default `0.1.0-alpha.1`; pin with `-p:JustyBaseDb2PackageVersion=...`). No local sibling checkout. |
 | **GitHub Copilot CLI** | Required for the Copilot AI-chat backend. The app resolves `copilot` from `PATH` (or `JUSTYBASE_COPILOT_COMMAND`) and does **not** bundle it: `JustyBase.Ai` defaults to `CopilotSkipCliDownload=true` and the packaging scripts pass it explicitly, so no ~200 MB Copilot runtime is shipped. When the CLI is missing, the AI Chat panel shows an install hint with a **Check again** button. Install with `winget install GitHub.Copilot` (Windows) or `npm install -g @github/copilot` (all platforms). |
@@ -161,6 +161,20 @@ The application does not expose arbitrary workspace file reads or result-grid ro
 ```bash
 dotnet build JustyBase.slnx -c Release
 ```
+
+### No-AI build
+
+Set `EnableAi=false` to build the application without the optional AI components and their heavy NuGet dependencies (`GitHub.Copilot.SDK`, `Microsoft.Extensions.AI`, `Microsoft.Extensions.AI.OpenAI`, `OpenAI`, and embedded llama.cpp model management). The no-AI build keeps the dependency-free `JustyBase.Ai.Contracts` project for shared chat models and SQL error contracts.
+
+```bash
+# Whole no-AI solution (excludes the AI projects)
+dotnet build JustyBase.NoAi.slnx -c Release -p:EnableAi=false
+
+# Or only the application
+dotnet build source/JustyBase/JustyBase.csproj -c Release -p:EnableAi=false
+```
+
+In this variant the AI Chat/FIM menu entries and settings pages are hidden, AI-specific source files are excluded by the project file, and the remaining integration points use `#if AI`. The library-only no-AI build is available from the sibling repository as `JustyBase.NetezzaSql.NoAi.slnf`. See [docs/NO_AI_BUILD.md](docs/NO_AI_BUILD.md) for the full list of excluded components and verification commands.
 
 ### Publish variants
 

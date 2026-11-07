@@ -41,8 +41,10 @@ public sealed class DockViewModelFactory : IDockViewModelFactory
     public SqlResultsFastViewModel CreateSqlResultsFastViewModel()
         => _serviceProvider.GetRequiredService<SqlResultsFastViewModel>();
 
+#if AI
     public AiChatViewModel CreateAiChatViewModel()
         => _serviceProvider.GetRequiredService<AiChatViewModel>();
+#endif
 
     public SqlResultsViewModel CreateSqlResultsViewModel()
         => _serviceProvider.GetRequiredService<SqlResultsViewModel>();

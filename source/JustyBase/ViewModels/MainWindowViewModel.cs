@@ -157,8 +157,10 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
+#if AI
         _dockFactory?.ShowAiChat();
         RefreshViewPanelStates();
+#endif
     }
 
     /// <summary>
@@ -166,7 +168,11 @@ public partial class MainWindowViewModel : ObservableObject
     /// AI Chat dock panel is not created, "Fix in AI Chat" entry points are blocked, and the
     /// main-menu item is hidden.
     /// </summary>
+#if AI
     public bool IsAiChatEnabled => _generalApplicationData?.Config?.EnableAiChat ?? false;
+#else
+    public bool IsAiChatEnabled => false;
+#endif
 
     [RelayCommand]
     private void ToggleToolPanel(string? toolId)

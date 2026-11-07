@@ -6,7 +6,7 @@
 		<Copyright>JustyBaseTeam</Copyright>
 	</PropertyGroup>
 	<ItemGroup>
-	  <PackageReference Include="MySql.Data" Version="26.7.0" />
+	  <PackageReference Include="MySql.Data" Version="26.10.0" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\..\JustyBase.PluginBase\JustyBase.PluginBase.csproj">

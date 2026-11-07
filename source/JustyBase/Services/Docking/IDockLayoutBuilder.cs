@@ -104,12 +104,14 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
         var diagnosticsViewModel = _viewModelFactory.CreateSqlDiagnosticsViewModel();
         ConfigureDockable(diagnosticsViewModel, "SqlDiagnostics", "Diagnostics");
 
+#if AI
         AiChatViewModel? aiChatViewModel = null;
         if (_generalApplicationData.Config.EnableAiChat)
         {
             aiChatViewModel = _viewModelFactory.CreateAiChatViewModel();
             ConfigureDockable(aiChatViewModel, "AiChat", "AI Chat");
         }
+#endif
 
         return new(
             dbSchemaViewModel,
@@ -122,8 +124,11 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
             sessionMonitorViewModel,
             resultsViewModel,
             diagnosticsViewModel,
-            outlineViewModel,
-            aiChatViewModel);
+            outlineViewModel
+#if AI
+            , aiChatViewModel
+#endif
+            );
     }
 
     private CustomDocumentDock CreateDocumentDock(IList<IDockable> documentsList)
@@ -207,11 +212,13 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
             middleDock
         };
 
+#if AI
         if (toolSet.AiChatViewModel is not null)
         {
             layoutDockables.Add(new ProportionalDockSplitter());
             layoutDockables.Add(CreateAiChatDock(dockFactory, toolSet.AiChatViewModel));
         }
+#endif
 
         return new ProportionalDock
         {
@@ -242,6 +249,7 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
         };
     }
 
+#if AI
     private static ToolDock CreateAiChatDock(IFactory dockFactory, AiChatViewModel aiChatViewModel)
     {
         var rightDock = new ToolDock
@@ -256,6 +264,7 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
         DockCapabilityHelper.SyncOverridesFromFlags(rightDock);
         return rightDock;
     }
+#endif
 
     private static ToolDock CreateToolDock(
         IFactory dockFactory,
@@ -298,6 +307,9 @@ public sealed class DockLayoutBuilder : IDockLayoutBuilder
         NetezzaSessionMonitorViewModel SessionMonitorViewModel,
         SqlResultsFastViewModel ResultsViewModel,
         SqlDiagnosticsViewModel DiagnosticsViewModel,
-        SqlOutlineViewModel OutlineViewModel,
-        AiChatViewModel? AiChatViewModel);
+        SqlOutlineViewModel OutlineViewModel
+#if AI
+        , AiChatViewModel? AiChatViewModel
+#endif
+        );
 }

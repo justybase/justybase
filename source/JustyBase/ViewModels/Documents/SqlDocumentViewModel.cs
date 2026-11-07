@@ -25,7 +25,9 @@ using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.NetezzaSqlParser.Visitor;
 using JustyBase.NetezzaSqlParser.Authoring;
 using JustyBase.Editor.InlineCompletion;
+#if AI
 using JustyBase.Services.Fim;
+#endif
 
 namespace JustyBase.ViewModels.Documents;
 
@@ -61,8 +63,10 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private readonly InMemorySchemaProvider? _parserSchema;
     private readonly DocumentParsingCoordinator? _parsingCoordinator;
     private readonly ISqlDbWordListProvider? _wordListProvider;
+#if AI
     private readonly JustyBase.Services.Ai.IAiChatNavigator? _aiChatNavigator;
     private readonly FimEditorAttachment _fimAttachment;
+#endif
     private readonly Queue<string> _pendingSnippetTexts = [];
     private int _cleanupStarted;
     private List<SymbolOccurrence> _lastReferenceOccurrences = [];
@@ -85,9 +89,13 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
           NzCompletionEngine? completionEngine = null,
           InMemorySchemaProvider? parserSchema = null,
           DocumentParsingCoordinator? parsingCoordinator = null,
+#if AI
            FimInlineCompletionBridge? fimBridge = null,
-           ISqlDbWordListProvider? wordListProvider = null,
-           JustyBase.Services.Ai.IAiChatNavigator? aiChatNavigator = null
+#endif
+           ISqlDbWordListProvider? wordListProvider = null
+#if AI
+           , JustyBase.Services.Ai.IAiChatNavigator? aiChatNavigator = null
+#endif
             )
         : base(generalApplicationData, messageForUserTools, documentCloseDecisionService, activeDocumentManager)
     {
@@ -110,8 +118,10 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         _parserSchema = parserSchema;
         _parsingCoordinator = parsingCoordinator;
         _wordListProvider = wordListProvider;
+#if AI
         _aiChatNavigator = aiChatNavigator;
         _fimAttachment = new FimEditorAttachment(fimBridge);
+#endif
         this.Factory = factory;
         _sqlVariableProcessor = sqlVariableProcessor;
         _logToolViewModel = logToolViewModel;
@@ -268,7 +278,9 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         editor.RenameRequested = null;
         editor.GoToDefinitionRequested = null;
         editor.FindReferencesRequested = null;
+#if AI
         _fimAttachment.Detach();
+#endif
     }
 
     partial void OnSqlEditorChanged(SqlCodeEditor value)
@@ -327,6 +339,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             wordListProvider: _wordListProvider,
             connectionNameProvider: () => SelectedConnectionName,
             databaseNameProvider: () => SelectedDatabase);
+#if AI
         _fimAttachment.Attach(
             value,
             () => _generalApplicationData.Config.EnableFimServer,
@@ -335,6 +348,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
                     ? _generalApplicationData.Config.FimDebounceMs
                     : InlineCompletionController.DefaultDebounceMs),
             BuildFimSchemaHintProvider(documentUri));
+#endif
         _completionEngine?.SetDocumentUri(documentUri);
         _linterService?.AttachToEditor(value, documentUri, _documentDialect, SelectedDatabase);
         if (contentWasSet)
@@ -358,6 +372,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         ResetFontStyle.Invoke();
     }
 
+#if AI
     /// <summary>
     /// Builds the per-document FIM schema-context hook: resolved from the in-memory schema
     /// snapshot + shared parse runtime for this document's URI/dialect, gated by the
@@ -389,6 +404,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
                 maxTokens * JustyBase.Ai.Embedded.Prompting.FimPresets.ApproxCharsPerToken);
         };
     }
+#endif
 
     private static void TransferEditorContent(
         SqlCodeEditor editor,
@@ -577,6 +593,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     public ICommand RedoCommand { get; }
 
     [RelayCommand]
+#if AI
     private async Task SendToAiChatAsync()
     {
         if (!_generalApplicationData.Config.EnableAiChat)
@@ -598,6 +615,15 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         if (aiChatVm is not null)
             await aiChatVm.SendToAiChatAsync();
     }
+#else
+    private Task SendToAiChatAsync()
+    {
+        _messageForUserTools.ShowSimpleMessageBoxInstance(
+            "AI Chat is not available in this build.",
+            "AI Chat");
+        return Task.CompletedTask;
+    }
+#endif
 
     [RelayCommand]
     private async Task ImportFromClipboardAsync()
@@ -1089,7 +1115,11 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
     public bool ShowDetailsButtonX => _generalApplicationData.Config.ShowDetailsButton;
 
+#if AI
     public bool IsAiChatEnabled => _generalApplicationData.Config.EnableAiChat;
+#else
+    public bool IsAiChatEnabled => false;
+#endif
 
 
     [ObservableProperty]
@@ -1412,7 +1442,9 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         _generalApplicationData.RemoveDocumentById(Id);
         _interactionServices.EnableRaisingEvents = false;
         _interactionServices.Dispose();
+#if AI
         _fimAttachment.Dispose();
+#endif
 
         _executionServices.ConnectionManager.EmergencyCleanup(async () => await AbortSqlAsync());
     }

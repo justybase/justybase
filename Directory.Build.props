@@ -16,6 +16,14 @@
     -->
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900</WarningsNotAsErrors>
 
+    <!--
+      Set EnableAi=false to build the application without the optional AI
+      components and their heavy NuGet dependencies (GitHub.Copilot.SDK,
+      Microsoft.Extensions.AI, OpenAI, embedded llama.cpp model management).
+      The no-AI build keeps the lightweight JustyBase.Ai.Contracts project only.
+    -->
+    <EnableAi Condition="'$(EnableAi)' == ''">true</EnableAi>
+
     <!-- These sibling checkouts are required for local builds and CI. -->
     <JustyBaseLibrariesRoot Condition="'$(JustyBaseLibrariesRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</JustyBaseLibrariesRoot>
     <JustyBaseLocalNetezzaProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Netezza\JustyBase.Netezza.csproj</JustyBaseLocalNetezzaProject>
@@ -24,6 +32,7 @@
     <JustyBaseLocalNetezzaCatalogSqlProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.NetezzaCatalogSql\JustyBase.NetezzaCatalogSql.csproj</JustyBaseLocalNetezzaCatalogSqlProject>
     <JustyBaseLocalCoreProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Core\JustyBase.Core.csproj</JustyBaseLocalCoreProject>
     <JustyBaseLocalImportExportProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.ImportExport\JustyBase.ImportExport.csproj</JustyBaseLocalImportExportProject>
+    <JustyBaseLocalAiContractsProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Ai.Contracts\JustyBase.Ai.Contracts.csproj</JustyBaseLocalAiContractsProject>
     <JustyBaseLocalAiProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Ai\JustyBase.Ai.csproj</JustyBaseLocalAiProject>
     <JustyBaseLocalAiEmbeddedProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Ai.Embedded\JustyBase.Ai.Embedded.csproj</JustyBaseLocalAiEmbeddedProject>
     <JustyBaseLocalUCanAccessProject>$(JustyBaseLibrariesRoot)JustyBase.UCanAccessCs\src\UCanAccess\UCanAccess.csproj</JustyBaseLocalUCanAccessProject>

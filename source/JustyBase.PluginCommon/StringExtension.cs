@@ -66,24 +66,91 @@ public static partial class StringExtension
                 }
                 else if (c == '-' && i < chars.Length - 1 && buf[i + 1] == '-')
                 {
+                    // Line comments run to end-of-line: scalar-probe up to 16 chars first
+                    // (tight single-branch loop, no vector setup cost for short comments),
+                    // then IndexOf('\n') + Fill for long comments. Preserves \r and \n
+                    // exactly like the previous char-by-char loop.
                     chars[i] = ' ';
-                    c = (char)0;
-                    i++;
-                    while (i < chars.Length && c != '\n')
+                    chars[i + 1] = ' ';
+                    int j = i + 2;
+                    if (j >= chars.Length)
                     {
-                        c = buf[i];
-                        if (c != '\r' && c != '\n')
-                        {
-                            chars[i] = ' ';
-                        }
-                        else
-                        {
-                            chars[i] = c;
-                        }
-
-                        i++;
+                        break;
                     }
-                    i--;
+                    int k = j;
+                    int probeEnd = Math.Min(j + 16, chars.Length);
+                    while (k < probeEnd && buf[k] != '\n')
+                    {
+                        k++;
+                    }
+                    if (k < chars.Length && buf[k] == '\n')
+                    {
+                        int m = j;
+                        while (m < k)
+                        {
+                            char cc = buf[m];
+                            chars[m] = cc == '\r' ? '\r' : ' ';
+                            m++;
+                        }
+                        chars[k] = '\n';
+                        i = k; // for-loop i++ moves past \n
+                        continue;
+                    }
+                    if (k >= chars.Length)
+                    {
+                        int m = j;
+                        while (m < chars.Length)
+                        {
+                            char cc = buf[m];
+                            chars[m] = cc == '\r' ? '\r' : ' ';
+                            m++;
+                        }
+                        i = chars.Length; // for-loop i++ exits
+                        continue;
+                    }
+                    int nl = orginalBufAsSpan[j..].IndexOf('\n');
+                    if (nl == -1)
+                    {
+                        chars[j..].Fill(' ');
+                        int s = j;
+                        while (true)
+                        {
+                            int r = orginalBufAsSpan[s..].IndexOf('\r');
+                            if (r == -1)
+                            {
+                                break;
+                            }
+                            chars[s + r] = '\r';
+                            s += r + 1;
+                            if (s >= chars.Length)
+                            {
+                                break;
+                            }
+                        }
+                        i = chars.Length;
+                    }
+                    else
+                    {
+                        chars.Slice(j, nl).Fill(' ');
+                        chars[j + nl] = '\n';
+                        if (buf[j + nl - 1] == '\r')
+                        {
+                            chars[j + nl - 1] = '\r';
+                        }
+                        int s = j;
+                        int end = j + nl - 1;
+                        while (true)
+                        {
+                            int r = orginalBufAsSpan.Slice(s, end - s).IndexOf('\r');
+                            if (r == -1)
+                            {
+                                break;
+                            }
+                            chars[s + r] = '\r';
+                            s += r + 1;
+                        }
+                        i = j + nl;
+                    }
                     continue;
                 }
                 else if (c == '/' && i < chars.Length - 1 && buf[i + 1] == '*')

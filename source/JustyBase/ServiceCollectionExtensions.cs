@@ -1,5 +1,7 @@
 using Dock.Model.Core;
+#if AI
 using JustyBase.Ai.Chat;
+#endif
 using JustyBase.Ai.Ports;
 using JustyBase.Ai.Services;
 using JustyBase.Common;
@@ -12,13 +14,18 @@ using JustyBase.Helpers.Interactions;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services;
+#if AI
 using JustyBase.Services.Ai;
+#endif
 using JustyBase.Services.Credentials;
 using JustyBase.Services.Docking;
 using JustyBase.Services.DataGrid;
 using JustyBase.Services.Documents;
+#if AI
 using JustyBase.Services.Embedded;
+#endif
 using JustyBase.Ai.Git;
+using JustyBase.Services.Ui;
 using JustyBase.Services.Logging;
 using JustyBase.Themes;
 using JustyBase.ViewModels;
@@ -167,6 +174,7 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<FileExplorerViewModel>();
         collection.AddTransient<FileSearchViewModel>();
         collection.AddSingleton<JustyBase.Core.Git.IGitService, JustyBase.Core.Git.SystemGitService>();
+#if AI
         collection.AddSingleton<JustyBase.Ai.Git.IGitCommitMessageAiService>(sp =>
         {
             var settingsStore = sp.GetRequiredService<JustyBase.Ai.Embedded.Settings.IFimSettingsStore>();
@@ -182,6 +190,9 @@ public static class ServiceCollectionExtensions
                 store,
                 settingsStore);
         });
+#else
+        collection.AddSingleton<JustyBase.Ai.Git.IGitCommitMessageAiService, JustyBase.Ai.Git.UnavailableGitCommitMessageAiService>();
+#endif
         collection.AddTransient<GitViewModel>();
         collection.AddTransient<GitDiffDocumentViewModel>();
         collection.AddTransient<SqlResultsFastViewModel>();
@@ -190,11 +201,11 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<SqlDocumentViewModel>();
         collection.AddTransient<SqlResultsViewModel>();
         collection.AddTransient<HistoryViewModel>();
+#if AI
         collection.AddSingleton<AiChatViewModel>();
         collection.AddSingleton<Services.Ai.IAiChatNavigator, Services.Ai.AiChatNavigator>();
         collection.AddSingleton<IChatSettingsStore, AppOptionsChatSettingsStore>();
         collection.AddSingleton<JustyBase.Ai.Embedded.Settings.IFimSettingsStore, AppOptionsFimSettingsStore>();
-        collection.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         collection.AddSingleton<IChatDatabaseAccessProvider, ChatDatabaseAccessProvider>();
         collection.AddSingleton<ISqlDiagnosticsProvider>(sp =>
             new SqlDiagnosticsProviderAdapter(sp.GetRequiredService<SqlDiagnosticsViewModel>()));
@@ -206,7 +217,6 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<LocalChatClientFactory>();
         collection.AddSingleton<ILocalStateProvider, LocalStateProvider>();
         collection.AddSingleton<ILocalModelConfigurationService, LocalModelConfigurationService>();
-        collection.AddSingleton<SqlExecutionErrorStore>();
         collection.AddSingleton<CodexAppServerClient>();
         // LocalChatService depends on the concrete Copilot backend as well as the
         // ICopilotChatService facade. Without this registration startup fails while
@@ -215,6 +225,9 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ICopilotChatService, LocalChatService>();
 
         collection.AddEmbeddedLlamaServerServices();
+#endif
+        collection.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
+        collection.AddSingleton<SqlExecutionErrorStore>();
 
         collection.AddTransient<ISqlCodeFormatterService, SqlCodeFormatterService>();
         collection.AddTransient<ISqlVariableProcessor, SqlVariableProcessor>();

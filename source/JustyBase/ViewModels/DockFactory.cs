@@ -200,8 +200,10 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         ("LogTool", "Log"),
         ("NetezzaSessionMonitor", "NZ Sessions"),
         ("FastViewModel", "Results"),
-        ("SqlDiagnostics", "Diagnostics"),
-        ("AiChat", "AI Chat")
+        ("SqlDiagnostics", "Diagnostics")
+#if AI
+        , ("AiChat", "AI Chat")
+#endif
     ];
 
     public void HideOrShowSideElements()
@@ -241,12 +243,14 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
             return false;
         }
 
+#if AI
         if (toolId == "AiChat")
         {
             return FindDockable(_rootDock, x => x.Id == "AiChat") is not null
                 && _rootDock?.ActiveDockable is MainViewModel { ActiveDockable: ProportionalDock layoutDock }
                 && layoutDock.VisibleDockables?.Any(DockSidePanelService.IsAiChatDock) == true;
         }
+#endif
 
         return FindDockable(_rootDock, x => x.Id == toolId) is not null;
     }
@@ -278,11 +282,13 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         if (_hiddenToolPanels.TryGetValue(toolId, out var hidden))
         {
             _hiddenToolPanels.Remove(toolId);
+#if AI
             if (toolId == "AiChat")
             {
                 EnsureAiChatDockedOnRight(hidden.Tool as AiChatViewModel);
                 return;
             }
+#endif
 
             if (hidden.Owner.VisibleDockables is null)
             {
@@ -296,11 +302,13 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
             return;
         }
 
+#if AI
         if (toolId == "AiChat")
         {
             ShowAiChat();
             return;
         }
+#endif
 
         var tool = FindDockable(_rootDock, x => x.Id == toolId);
         if (tool is null)
@@ -322,11 +330,13 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
             return;
         }
 
+#if AI
         if (toolId == "AiChat")
         {
             HideAiChatPanel();
             return;
         }
+#endif
 
         var tool = FindDockable(_rootDock, x => x.Id == toolId);
         if (tool?.Owner is not IDock owner || owner.VisibleDockables is null)
@@ -344,6 +354,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         RemoveDockable(tool, collapse: false);
     }
 
+#if AI
     private void HideAiChatPanel()
     {
         if (_rootDock?.ActiveDockable is not MainViewModel { ActiveDockable: ProportionalDock layoutDock }
@@ -369,6 +380,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
             layoutDock.VisibleDockables.RemoveAt(layoutDock.VisibleDockables.Count - 1);
         }
     }
+#endif
 
     private sealed record HiddenToolPanel(IDockable Tool, IDock Owner, int Index);
     public override void InitLayout(IDockable layout)
@@ -541,6 +553,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
     public void AddImportDocument()
         => OpenImportDocument();
 
+#if AI
     public void ShowAiChat()
     {
         if (_hidenDockables.Count > 0)
@@ -636,6 +649,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         AddDockable(layoutDock, rightDock);
         return aiChat;
     }
+#endif
 
     public void OpenImportDocument(string? connectionName = null, string? database = null, string? schema = null, string? table = null)
     {

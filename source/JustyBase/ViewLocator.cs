@@ -53,8 +53,10 @@ public class ViewLocator : IDataTemplate, IRecyclingDataTemplate
             // SQL documents are owned by SqlDocumentDataTemplate + Dock content cache.
             case SqlDocumentViewModel:
                 return new TextBlock { Text = "SqlDocumentViewModel requires SqlDocumentDataTemplate" };
+#if AI
             case AiChatViewModel:
                 return new AiChatView();
+#endif
             case DbSchemaViewModel:
                 {
                     var avaloniaHelpers = _services.GetRequiredService<IAvaloniaSpecificHelpers>();

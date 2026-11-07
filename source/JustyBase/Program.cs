@@ -72,6 +72,7 @@ internal class Program
             return;
         }
 
+#if AI
         // Kill llama-server children orphaned by a previously crashed or force-killed
         // instance (they hold VRAM/RAM and are never auto-exited). Only servers whose
         // owner process is dead are touched — a running second instance is safe.
@@ -80,6 +81,7 @@ internal class Program
         {
             Debug.WriteLine($"Cleaned up {orphanedServers} orphaned llama-server process(es).");
         }
+#endif
 
         try
         {

@@ -207,7 +207,7 @@
 						</StackPanel>
 					</TreeViewItem.Header>
 				</TreeViewItem>
-				<TreeViewItem Tag="EmbeddedAi">
+				<TreeViewItem Tag="EmbeddedAi" IsVisible="{Binding IsAiSettingsVisible}">
 					<TreeViewItem.Header>
 						<StackPanel Orientation="Horizontal">
 							<PathIcon Classes="settings-nav-icon" Data="{StaticResource FormaterIconPath}" />
@@ -215,7 +215,7 @@
 						</StackPanel>
 					</TreeViewItem.Header>
 				</TreeViewItem>
-				<TreeViewItem Tag="EmbeddedAiChat">
+				<TreeViewItem Tag="EmbeddedAiChat" IsVisible="{Binding IsAiSettingsVisible}">
 					<TreeViewItem.Header>
 						<StackPanel Orientation="Horizontal">
 							<PathIcon Classes="settings-nav-icon" Data="{StaticResource FormaterIconPath}" />
@@ -223,7 +223,7 @@
 						</StackPanel>
 					</TreeViewItem.Header>
 				</TreeViewItem>
-				<TreeViewItem Tag="AiChat">
+				<TreeViewItem Tag="AiChat" IsVisible="{Binding IsAiSettingsVisible}">
 					<TreeViewItem.Header>
 						<StackPanel Orientation="Horizontal">
 							<PathIcon Classes="settings-nav-icon" Data="{StaticResource FormaterIconPath}" />

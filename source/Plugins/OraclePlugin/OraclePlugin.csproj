@@ -7,7 +7,7 @@
 	  <Copyright>JustyBaseTeam</Copyright>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.26.301" />
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="23.26.400" />
   </ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\..\JustyBase.PluginBase\JustyBase.PluginBase.csproj">

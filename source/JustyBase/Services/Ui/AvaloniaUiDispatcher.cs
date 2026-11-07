@@ -1,9 +1,9 @@
 using Avalonia.Threading;
 using JustyBase.Ai.Ports;
 
-namespace JustyBase.Services.Ai;
+namespace JustyBase.Services.Ui;
 
-/// <summary>Adapter over the Avalonia UI dispatcher for the shared chat pipeline.</summary>
+/// <summary>Adapter over the Avalonia UI dispatcher for host services.</summary>
 public sealed class AvaloniaUiDispatcher : IUiDispatcher
 {
     public bool CheckAccess() => Dispatcher.UIThread.CheckAccess();

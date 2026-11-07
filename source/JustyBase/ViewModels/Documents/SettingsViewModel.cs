@@ -1,19 +1,21 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+#if AI
 using JustyBase.Ai.Chat;
 using JustyBase.Ai.Embedded.Abstractions;
 using JustyBase.Ai.Embedded.Download;
 using JustyBase.Ai.Embedded.Prompting;
 using JustyBase.Ai.Embedded.Server;
+using JustyBase.Services.Embedded;
+using JustyBase.Services.Fim;
+using JustyBase.Editor.InlineCompletion;
+#endif
 using JustyBase.Common;
 using JustyBase.Common.Contracts;
 using JustyBase.Ai.Models;
 using JustyBase.Common.Models;
 using JustyBase.Ai.Services;
 using JustyBase.Services;
-using JustyBase.Services.Embedded;
-using JustyBase.Services.Fim;
-using JustyBase.Editor.InlineCompletion;
 using JustyBase.PluginCommon.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
@@ -26,13 +28,14 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly IGeneralApplicationData _generalApplicationData;
     private readonly IClipboardService _clipboardService;
+    private readonly NzLinterService? _linterService;
+#if AI
     private readonly ICopilotChatService _chatService;
     private readonly IFimModelBootstrapService _fimBootstrap;
     private readonly FimModelCatalog _fimCatalog;
     private readonly EmbeddedChatModelCatalog _embeddedChatCatalog;
     private readonly IModelStore _embeddedChatStore;
     private readonly JustyBase.Ai.Embedded.Server.LlamaServerManager? _llamaServerManager;
-    private readonly NzLinterService? _linterService;
     private bool _fimPrepareInFlight;
     private bool _chatPrepareInFlight;
     private bool _suppressFimSideEffects;
@@ -43,6 +46,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
 
     private bool _suppressAiChatSideEffects;
     private bool _applyingAiChatPreset;
+#endif
 
     public SettingsViewModel(IGeneralApplicationData generalApplicationData,
         IMessageForUserTools messageForUserTools,
@@ -50,21 +54,24 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         IActiveDocumentManager activeDocumentManager,
         IAvaloniaSpecificHelpers avaloniaSpecificHelpers,
         IClipboardService clipboardService,
+#if AI
         ICopilotChatService chatService,
         IFimModelBootstrapService fimBootstrap,
         FimModelCatalog fimCatalog,
         EmbeddedChatModelCatalog embeddedChatCatalog,
         [FromKeyedServices(EmbeddedChatBackend.ChatModelStoreKey)] IModelStore embeddedChatStore,
         JustyBase.Ai.Embedded.Server.LlamaServerManager? llamaServerManager = null,
+#endif
         NzLinterService? linterService = null)
         : base(generalApplicationData, messageForUserTools, documentCloseDecisionService, activeDocumentManager)
     {
         _generalApplicationData = generalApplicationData;
         _messageForUserTools = messageForUserTools;
         _clipboardService = clipboardService;
-        _chatService = chatService;
         _ = avaloniaSpecificHelpers;
         _linterService = linterService;
+#if AI
+        _chatService = chatService;
         _fimBootstrap = fimBootstrap ?? throw new ArgumentNullException(nameof(fimBootstrap));
         _fimCatalog = fimCatalog ?? throw new ArgumentNullException(nameof(fimCatalog));
         _embeddedChatCatalog = embeddedChatCatalog ?? throw new ArgumentNullException(nameof(embeddedChatCatalog));
@@ -96,6 +103,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
                 LicenseUrl: m.LicenseUrl?.ToString(),
                 LicenseSummary: m.LicenseSummary))
             .ToArray();
+#endif
         Title = "Settings";
 
         ReloadSettings();
@@ -103,11 +111,14 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         InitializeTheme();
     }
 
+#if AI
     public bool IsCodexSignedIn => _chatService.CodexAccount?.IsAuthenticated == true;
+#endif
 
     [ObservableProperty]
     public partial bool ShowCodexEmail { get; set; }
 
+#if AI
     public string CodexAccountStatus
         => _chatService.CodexAccount?.IsAuthenticated == true
             ? ShowCodexEmail && !string.IsNullOrWhiteSpace(_chatService.CodexAccount.Email)
@@ -131,6 +142,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         OnPropertyChanged(nameof(IsCodexSignedIn));
         OnPropertyChanged(nameof(CodexAccountStatus));
     }
+#endif
 
     [RelayCommand]
     private void ToggleShowCodexEmail()
@@ -143,6 +155,12 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
     {
         OnPropertyChanged(nameof(CodexAccountStatus));
     }
+
+#if AI
+    public bool IsAiSettingsVisible => true;
+#else
+    public bool IsAiSettingsVisible => false;
+#endif
 
     partial void InitializeTheme();
 
@@ -182,6 +200,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         AutoDownloadUpdate = _generalApplicationData.Config.AutoDownloadUpdate;
         //UpdateMitigatePaloAlto = _generalApplicationData.Config.UpdateMitigateNextGenFirewalls;
         SqlLinterEnabled = _generalApplicationData.Config.SqlLinterEnabled;
+#if AI
         _suppressFimSideEffects = true;
         try
         {
@@ -292,7 +311,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         {
             _suppressAiChatSideEffects = false;
         }
-
+#endif
 
         LintSeverityNz002 = _generalApplicationData.Config.LintSeverityNz002;
         LintSeverityNz003 = _generalApplicationData.Config.LintSeverityNz003;
@@ -859,9 +878,11 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         new("Export", "Export data", ["export", "csv", "column separator", "row separator", "encoding", "decimal", "excel", "xlsx", "xlsb", "sheet"]),
         new("SnipettsANDkeywords", "Snippets", ["snippet", "snippets", "keywords", "edit snippets"]),
         new("SqlLinter", "SQL Linter", ["sql", "linter", "lint", "nz001", "nz002", "nz003", "nz004", "nz005", "nz008", "nz011", "nz012", "nz013", "nz015", "nz102", "select *", "where", "distribute", "cross join", "like", "truncate", "union", "join"]),
+#if AI
         new("EmbeddedAi", "Embedded AI (FIM)", ["fim", "ai", "autocomplete", "ghost", "llama", "gguf", "qwen", "coder", "1.5b", "3b", "7b", "14b", "preset", "vulkan", "inline", "model", "codestral", "starcoder", "codegemma", "llama-server", "server"]),
         new("EmbeddedAiChat", "Embedded AI (Chat)", ["chat", "ai", "embedded", "gguf", "llama", "server", "model", "gemma", "qwen", "devstral", "moe", "vulkan", "download", "gpu", "context"]),
         new("AiChat", "AI Chat", ["chat", "ai", "openai", "compatible", "endpoint", "api key", "codex", "chatgpt", "model", "expert", "sqlfix", "assistant", "copilot", "preset", "system prompt", "temperature", "tokens", "timeout", "embedded"]),
+#endif
         new("Results", "Results", ["results", "rows", "limit", "rows count"]),
         new("Limits", "Limits", ["limits", "rows count limit", "result rows"]),
         new("Apperance", "Appearance", ["appearance", "theme", "color", "font", "splash", "details button", "accent", "dark", "folding", "collapse"]),
@@ -884,6 +905,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
 
     public void Dispose()
     {
+#if AI
         _fimPrepareCts?.Cancel();
         _fimPrepareCts?.Dispose();
         _fimPrepareCts = null;
@@ -891,6 +913,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         _chatPrepareCts?.Cancel();
         _chatPrepareCts?.Dispose();
         _chatPrepareCts = null;
+#endif
 
         GC.SuppressFinalize(this);
     }
@@ -933,11 +956,15 @@ public sealed record AiChatPresetChoiceItem(
 
     public static AiChatPresetChoiceItem FromId(string? id)
     {
+#if AI
         var preset = ChatPresets.All.FirstOrDefault(p =>
             string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
         return preset is null
             ? new AiChatPresetChoiceItem(ChatPresets.Balanced.Id, ChatPresets.Balanced.DisplayName, ChatPresets.Balanced.Description)
             : new AiChatPresetChoiceItem(preset.Id, preset.DisplayName, preset.Description);
+#else
+        return new AiChatPresetChoiceItem(id ?? "balanced", "Balanced", string.Empty);
+#endif
     }
 }
 
@@ -951,10 +978,14 @@ public sealed record AiChatModeChoiceItem(
     public static AiChatModeChoiceItem FromSlug(string? slug)
     {
         var resolved = JustyBase.Ai.Models.ChatModeExtensions.FromSlug(slug ?? string.Empty);
+#if AI
         var match = ChatPresets.AllModes.FirstOrDefault(m =>
             string.Equals(m.Id, resolved.ToSlug(), StringComparison.OrdinalIgnoreCase))
             ?? ChatPresets.AllModes[0];
         return new AiChatModeChoiceItem(match.Id, match.DisplayName, match.Description);
+#else
+        return new AiChatModeChoiceItem(resolved.ToSlug(), resolved.ToDisplayName(), string.Empty);
+#endif
     }
 }
 

@@ -9,10 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.1.4" />
-    <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
-    <PackageReference Include="Avalonia.Headless" Version="12.1.4" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+    <PackageReference Include="Avalonia" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Headless" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageReference Include="Moq" Version="4.21.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -28,6 +28,12 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(EnableAi)' != 'true'">
+    <!-- These tests instantiate the optional AI Chat views. -->
+    <Compile Remove="AiChatViewKeyRoutingHeadlessTests.cs" />
+    <Compile Remove="ChatMarkdownViewHeadlessTests.cs" />
   </ItemGroup>
 
 </Project>

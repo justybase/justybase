@@ -17,7 +17,7 @@ $releaseNotes = Join-Path $root 'source\JustyBase\ReleaseNotes.md'
 $icon = Join-Path $root 'source\JustyBase\Assets\Icon2.ico'
 $output = [IO.Path]::GetFullPath((Join-Path $root $OutputRoot))
 # Full: all database drivers + AI + animated splash (Velopack channel win).
-# Slim: Netezza + SQLite + DB2 + Postgres, no AI, static splash (Velopack channel
+# Slim: Netezza + SQLite + DB2 + Postgres + MySQL, no AI, static splash (Velopack channel
 # win-slim). Same package id: channels are Velopack's native mechanism for
 # parallel variants and UpdateManager automatically tracks the channel the
 # release was built for (see https://docs.velopack.io/packaging/channels).
@@ -67,7 +67,7 @@ $enableDb2Plugin = 'true'
 $enableAccessPlugin = if ($Slim) { 'false' } else { 'true' }
 $enablePostgresPlugin = 'true'
 $enableOraclePlugin = if ($Slim) { 'false' } else { 'true' }
-$enableMySqlPlugin = if ($Slim) { 'false' } else { 'true' }
+$enableMySqlPlugin = 'true'
 $enableDuckDbPlugin = if ($Slim) { 'false' } else { 'true' }
 $enableExcelPlugin = if ($Slim) { 'false' } else { 'true' }
 $enableAi = if ($Slim) { 'false' } else { 'true' }

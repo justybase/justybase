@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Postgres driver in the Slim variant (now Netezza + SQLite + DB2 + Postgres, still no AI)
+- MySQL driver in the Slim variant (now Netezza + SQLite + DB2 + Postgres + MySQL, still no AI)
 
 ## [1.4.1] - 2026-11-07
 

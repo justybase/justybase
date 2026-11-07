@@ -17,7 +17,7 @@ set "packageMode=1"
 echo.
 echo Select installer variant:
 echo   1^) Full - all database drivers + AI [default]
-echo   2^) Slim - Netezza + SQLite + DB2 + Postgres, no AI
+echo   2^) Slim - Netezza + SQLite + DB2 + Postgres + MySQL, no AI
 set /p "packageMode=Choice [1]: "
 if "%packageMode%"=="" set "packageMode=1"
 if "%packageMode%"=="1" goto fullMode

@@ -96,6 +96,8 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IAvaloniaSpecificHelpers, AvaloniaSpecificHelpers>();
         collection.AddSingleton<Services.FileExplorer.IFileIconProvider, Services.FileExplorer.FileIconProvider>();
         collection.AddSingleton<Services.Dialogs.IQuickOpenDialogService, Services.Dialogs.QuickOpenDialogService>();
+        collection.AddSingleton<Services.Actions.ActionRegistry>();
+        collection.AddSingleton<Services.Dialogs.IActionPaletteService, Services.Dialogs.ActionPaletteService>();
         collection.AddSingleton<IMainWindowActivationService, MainWindowActivationService>();
         collection.AddSingleton<IDockableCleanupService, DockableCleanupService>();
         collection.AddSingleton<IDockDocumentActivationService, DockDocumentActivationService>();
@@ -145,6 +147,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<NetezzaSessionMonitorService>();
         collection.AddSingleton<NetezzaSessionMonitorViewModel>();
         collection.AddSingleton<Services.Schema.SourceIndexService>();
+        collection.AddSingleton<Services.Workspace.ISqlSymbolIndexService, Services.Workspace.SqlSymbolIndexService>();
         collection.AddSingleton<Services.DataCopy.DataCopyService>();
         collection.AddSingleton<Services.DataCopy.IDataCopyDialogService, Services.DataCopy.DataCopyDialogService>();
         collection.AddSingleton<Services.Export.TableScriptExportService>();
@@ -165,6 +168,8 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ISchemaProvider>(sp => sp.GetRequiredService<InMemorySchemaProvider>());
         collection.AddSingleton<AboutViewModel>();
         collection.AddSingleton<HistoryService>();
+        collection.AddSingleton<JustyBase.Services.History.ILocalHistoryService, JustyBase.Services.History.LocalHistoryService>();
+        collection.AddSingleton<Services.Dialogs.ILocalHistoryDialogService, Services.Dialogs.LocalHistoryDialogService>();
         collection.AddSingleton<DockFactory>();
         collection.AddSingleton<IFactory>(sp => sp.GetRequiredService<DockFactory>());
         collection.AddSingleton<IActiveDocumentManager>(sp => (IActiveDocumentManager)sp.GetRequiredService<DockFactory>());

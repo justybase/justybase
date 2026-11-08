@@ -30,6 +30,7 @@ public sealed class QuickOpenDialogService : IQuickOpenDialogService
         IReadOnlyList<QuickOpenCandidate> candidates,
         string? initialQuery,
         Action<int>? gotoLine,
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? symbolSearch = null,
         CancellationToken cancellationToken = default)
     {
         QuickOpenHit? accepted = null;
@@ -66,7 +67,8 @@ public sealed class QuickOpenDialogService : IQuickOpenDialogService
                 }
             },
             initialQuery: initialQuery,
-            gotoLine: gotoLine);
+            gotoLine: gotoLine,
+            symbolSearch: symbolSearch);
 
         var owner = _windows.GetMainWindow();
         if (owner is null)

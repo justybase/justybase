@@ -50,11 +50,14 @@ public sealed partial class QuickOpenViewModel : ObservableObject
     private readonly Action _closeCancel;
     private readonly Action<QuickOpenHit> _closeAccept;
     private readonly Action<int>? _gotoLine;
+    private readonly Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? _symbolSearch;
 
     private CancellationTokenSource? _contentCts;
+    private CancellationTokenSource? _symbolCts;
     private CancellationTokenSource? _debounceCts;
     private IReadOnlyList<QuickOpenHit> _nameHits = [];
     private IReadOnlyList<QuickOpenHit> _contentHits = [];
+    private IReadOnlyList<QuickOpenHit> _symbolHits = [];
 
     public QuickOpenViewModel(
         QuickOpenSearchService searchService,
@@ -63,7 +66,8 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         Action closeCancel,
         Action<QuickOpenHit> closeAccept,
         string? initialQuery = null,
-        Action<int>? gotoLine = null)
+        Action<int>? gotoLine = null,
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? symbolSearch = null)
     {
         _searchService = searchService;
         _candidates = candidates;
@@ -71,6 +75,7 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         _closeCancel = closeCancel;
         _closeAccept = closeAccept;
         _gotoLine = gotoLine;
+        _symbolSearch = symbolSearch;
         ApplyFilter(string.Empty);
         if (!string.IsNullOrWhiteSpace(initialQuery))
         {
@@ -97,13 +102,27 @@ public sealed partial class QuickOpenViewModel : ObservableObject
             // VS Code prefixes: no name/content search, handled in RebuildList/Accept.
             _nameHits = [];
             _contentHits = [];
+            _symbolHits = [];
             CancelContentSearch();
+            CancelSymbolSearch();
+            RebuildList();
+            return;
+        }
+
+        if (trimmed.StartsWith('@'))
+        {
+            // Symbol search: SQL names from the workspace index only.
+            _nameHits = [];
+            _contentHits = [];
+            CancelContentSearch();
+            _ = ScheduleSymbolSearchAsync(trimmed[1..]);
             RebuildList();
             return;
         }
 
         ApplyFilter(value);
         _ = ScheduleContentSearchAsync(value);
+        _ = ScheduleSymbolSearchAsync(value);
     }
 
     [RelayCommand]
@@ -143,6 +162,7 @@ public sealed partial class QuickOpenViewModel : ObservableObject
             return;
 
         CancelContentSearch();
+        CancelSymbolSearch();
         _closeAccept(hit);
     }
 
@@ -150,6 +170,7 @@ public sealed partial class QuickOpenViewModel : ObservableObject
     public void Cancel()
     {
         CancelContentSearch();
+        CancelSymbolSearch();
         _closeCancel();
     }
 
@@ -246,6 +267,61 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         }
     }
 
+    private async Task ScheduleSymbolSearchAsync(string query)
+    {
+        _symbolCts?.Cancel();
+        _symbolCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _symbolCts = cts;
+
+        string trimmed = query?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0 || _symbolSearch is null)
+        {
+            _symbolHits = [];
+            RebuildList();
+            return;
+        }
+
+        try
+        {
+            await Task.Delay(200, cts.Token).ConfigureAwait(true);
+            IReadOnlyList<QuickOpenHit> hits = await _symbolSearch(trimmed, cts.Token).ConfigureAwait(true);
+            if (cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _symbolHits = hits;
+            RebuildList();
+        }
+        catch (OperationCanceledException)
+        {
+            // expected on debounce / close
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            _symbolHits = [];
+            RebuildList();
+        }
+    }
+
+    private void CancelSymbolSearch()
+    {
+        try
+        {
+            _symbolCts?.Cancel();
+            _symbolCts?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+            // ignore dispose races
+        }
+        finally
+        {
+            _symbolCts = null;
+        }
+    }
+
     private void RebuildList()
     {
         string trimmed = Query?.Trim() ?? string.Empty;
@@ -253,7 +329,8 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         {
             Entries.Clear();
             Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "Type file name to open", null)));
-            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, ":42 — go to line 42 in active file", null)));
+            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, ":42 - go to line 42 in active file", null)));
+            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "@name - find a SQL symbol in the workspace", null)));
             Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "letters match in order (fuzzy), open files first", null)));
             SelectedEntry = null;
             HintText = "Esc close";
@@ -274,7 +351,7 @@ public sealed partial class QuickOpenViewModel : ObservableObject
             ? HitKey(prev)
             : null;
 
-        var list = QuickOpenSearchService.BuildList(_nameHits, _contentHits);
+        var list = QuickOpenSearchService.BuildList(_nameHits, _contentHits, _symbolHits);
         Entries.Clear();
         foreach (var entry in list)
             Entries.Add(new QuickOpenEntryViewModel(entry));

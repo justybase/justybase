@@ -3,6 +3,7 @@ using JustyBase.Common.Contracts;
 using JustyBase.Editor;
 using JustyBase.Helpers;
 using JustyBase.PluginCommon.Contracts;
+using JustyBase.Services.History;
 using JustyBase.Themes;
 using JustyBase.ViewModels.Documents;
 
@@ -28,17 +29,23 @@ public sealed class SqlDocumentUiServices : ISqlDocumentUiServices
     private readonly IDocumentFontService _documentFontService;
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly ISimpleLogger _simpleLogger;
+    private readonly ILocalHistoryService? _localHistoryService;
+    private readonly JustyBase.Services.Workspace.ISqlSymbolIndexService? _symbolIndex;
 
     public SqlDocumentUiServices(
         IAvaloniaSpecificHelpers avaloniaSpecificHelpers,
         IDocumentFontService documentFontService,
         IMessageForUserTools messageForUserTools,
-        ISimpleLogger simpleLogger)
+        ISimpleLogger simpleLogger,
+        ILocalHistoryService? localHistoryService = null,
+        JustyBase.Services.Workspace.ISqlSymbolIndexService? symbolIndex = null)
     {
         _avaloniaSpecificHelpers = avaloniaSpecificHelpers;
         _documentFontService = documentFontService;
         _messageForUserTools = messageForUserTools;
         _simpleLogger = simpleLogger;
+        _localHistoryService = localHistoryService;
+        _symbolIndex = symbolIndex;
     }
 
     public IClipboard? GetClipboard()
@@ -64,7 +71,19 @@ public sealed class SqlDocumentUiServices : ISqlDocumentUiServices
         }
 
         _messageForUserTools.DispatcherActionInstance(
-            () => editor.Text = File.ReadAllText(filePath),
+            () =>
+            {
+                string text = File.ReadAllText(filePath);
+                if (_localHistoryService is not null)
+                {
+                    BackgroundWork.Track(
+                        _localHistoryService.RecordAsync(filePath, text, "external change"),
+                        $"local history (external): {Path.GetFileName(filePath)}");
+                }
+
+                _symbolIndex?.IndexDocument(filePath, text);
+                editor.Text = text;
+            },
             DispatcherPriority.MaxValue);
     }
 

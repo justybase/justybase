@@ -1,3 +1,5 @@
+using JustyBase.Services.Workspace;
+
 namespace JustyBase.QuickOpen;
 
 public sealed class QuickOpenSearchService
@@ -291,9 +293,18 @@ public sealed class QuickOpenSearchService
 
     public static IReadOnlyList<QuickOpenListEntry> BuildList(
         IReadOnlyList<QuickOpenHit> nameHits,
-        IReadOnlyList<QuickOpenHit> contentHits)
+        IReadOnlyList<QuickOpenHit> contentHits,
+        IReadOnlyList<QuickOpenHit>? symbolHits = null)
     {
-        var list = new List<QuickOpenListEntry>(nameHits.Count + contentHits.Count + 2);
+        symbolHits ??= [];
+        var list = new List<QuickOpenListEntry>(nameHits.Count + contentHits.Count + symbolHits.Count + 3);
+        if (symbolHits.Count > 0)
+        {
+            list.Add(new QuickOpenListEntry(true, "symbols", null));
+            foreach (var hit in symbolHits)
+                list.Add(new QuickOpenListEntry(false, null, hit));
+        }
+
         if (nameHits.Count > 0)
         {
             list.Add(new QuickOpenListEntry(true, "files", null));
@@ -309,6 +320,38 @@ public sealed class QuickOpenSearchService
         }
 
         return list;
+    }
+
+    /// <summary>Maps indexed SQL symbols to Quick Open rows, best kinds first.</summary>
+    public static IReadOnlyList<QuickOpenHit> SearchSymbols(
+        IReadOnlyList<SqlIndexedSymbol> symbols,
+        string query)
+    {
+        string q = query?.Trim() ?? string.Empty;
+        if (q.Length == 0)
+        {
+            return [];
+        }
+
+        return symbols
+            .Where(symbol => symbol.Name.Contains(q, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(symbol => symbol.Kind)
+            .ThenBy(symbol => symbol.Name.Length)
+            .ThenBy(symbol => symbol.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(MaxNameHits)
+            .Select(symbol => new QuickOpenHit(
+                QuickOpenHitKind.Symbol,
+                symbol.Name,
+                $"{symbol.Kind.ToString().ToLowerInvariant()}  {symbol.FilePath}:{symbol.Line}",
+                symbol.FilePath,
+                DocumentId: null,
+                QuickOpenSource.Files,
+                Score: 100 - (int)symbol.Kind,
+                Query: q,
+                LineNumber: symbol.Line,
+                MatchIndex: Math.Max(0, symbol.Column - 1),
+                MatchLength: symbol.Name.Length))
+            .ToArray();
     }
 
     private static QuickOpenHit[] OrderContentHits(IEnumerable<QuickOpenHit> hits)

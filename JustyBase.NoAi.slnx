@@ -6,6 +6,9 @@
   <Folder Name="/Benchmarks/">
     <Project Path="source/Benchmarks/Benchy/Benchy.csproj" />
   </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="source/JustyBase.Screenshot/JustyBase.Screenshot.csproj" />
+  </Folder>
   <Folder Name="/JustyBase.Common/">
     <Project Path="source/JustyBase.Common/JustyBase.Common.Tools/JustyBase.Common.Tools.csproj" />
     <Project Path="source/JustyBase.Common/JustyBase.Common/JustyBase.Common.csproj" />

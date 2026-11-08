@@ -26,6 +26,8 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly ISqlDocumentUiServices _sqlDocumentUiServices;
     private readonly IApplicationUpdateService _applicationUpdateService;
     private readonly Services.Dialogs.IQuickOpenDialogService? _quickOpenDialogs;
+    private readonly Services.Dialogs.IActionPaletteService? _actionPalette;
+    private readonly Services.Workspace.ISqlSymbolIndexService? _symbolIndex;
     private readonly JustyBase.Ai.Ports.IUiDispatcher? _uiDispatcher;
     private int _automaticUpdateCheckStarted;
 
@@ -44,6 +46,24 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task ShowAbout()
     {
         await _messageForUserTools.ShowAboutDialogAsync();
+    }
+
+    [RelayCommand]
+    private async Task ShowActionPalette()
+    {
+        if (_actionPalette is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _actionPalette.ShowAsync();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance(ex);
+        }
     }
 
     [RelayCommand]
@@ -258,6 +278,12 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void WindowClosing()
     {
+        // A screenshot run must leave the person's session and configuration untouched.
+        if (JustyBase.Services.Screenshot.ScreenshotMode.IsRequested)
+        {
+            return;
+        }
+
         _dockFactory.SaveStartupSqlAndFiles();
         _generalApplicationData.SaveConfig();
     }
@@ -338,6 +364,22 @@ public partial class MainWindowViewModel : ObservableObject
 
             var candidates = await searchService.CollectCandidatesAsync(roots, knownFiles, gitRepo, openDocs);
 
+            Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? symbolSearch = null;
+            if (_symbolIndex is not null)
+            {
+                _symbolIndex.StartIndexing(roots);
+                foreach (var document in _dockFactory.GetOpenSqlDocuments())
+                {
+                    if (!string.IsNullOrWhiteSpace(document.FilePath) && document.SqlEditor is not null)
+                    {
+                        _symbolIndex.IndexDocument(document.FilePath, document.SqlEditor.Text);
+                    }
+                }
+
+                symbolSearch = (query, cancellationToken) => Task.FromResult(
+                    QuickOpenSearchService.SearchSymbols(_symbolIndex.Search(query, 50), query));
+            }
+
             // VS Code preselects the current editor selection in Ctrl+P.
             string? initialQuery = null;
             string? selected = _dockFactory.ActiveSqlDocumentViewModel?.SqlEditor?.SelectedText;
@@ -354,11 +396,11 @@ public partial class MainWindowViewModel : ObservableObject
             QuickOpenHit? accepted;
             if (_quickOpenDialogs is not null)
             {
-                accepted = await _quickOpenDialogs.ShowAsync(candidates, initialQuery, GotoQuickOpenLine);
+                accepted = await _quickOpenDialogs.ShowAsync(candidates, initialQuery, GotoQuickOpenLine, symbolSearch);
             }
             else
             {
-                accepted = await ShowQuickOpenLegacyAsync(searchService, candidates, initialQuery);
+                accepted = await ShowQuickOpenLegacyAsync(searchService, candidates, initialQuery, symbolSearch);
             }
 
             if (accepted is null)
@@ -403,7 +445,8 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task<QuickOpenHit?> ShowQuickOpenLegacyAsync(
         QuickOpenSearchService searchService,
         IReadOnlyList<QuickOpenCandidate> candidates,
-        string? initialQuery)
+        string? initialQuery,
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? symbolSearch = null)
     {
         Window owner = _avaloniaSpecificHelpers.GetMainWindow();
         QuickOpenHit? accepted = null;
@@ -434,7 +477,8 @@ public partial class MainWindowViewModel : ObservableObject
                 }
             },
             initialQuery: initialQuery,
-            gotoLine: GotoQuickOpenLine);
+            gotoLine: GotoQuickOpenLine,
+            symbolSearch: symbolSearch);
 
         dialog = new QuickOpenWindow(vm);
         await dialog.ShowDialog(owner);
@@ -470,7 +514,7 @@ public partial class MainWindowViewModel : ObservableObject
         // Always focus synchronously — do not rely only on the deferred Post inside AddNewDocumentFromFile.
         _dockFactory.FocusSqlDocument(document);
 
-        if (hit.Kind == QuickOpenHitKind.Content
+        if (hit.Kind is QuickOpenHitKind.Content or QuickOpenHitKind.Symbol
             && hit.LineNumber is int lineNumber
             && lineNumber > 0
             && hit.MatchIndex is int matchIndex
@@ -539,7 +583,9 @@ public partial class MainWindowViewModel : ObservableObject
         ISqlDocumentUiServices sqlDocumentUiServices,
         IApplicationUpdateService applicationUpdateService,
         Services.Dialogs.IQuickOpenDialogService? quickOpenDialogs = null,
-        JustyBase.Ai.Ports.IUiDispatcher? uiDispatcher = null)
+        JustyBase.Ai.Ports.IUiDispatcher? uiDispatcher = null,
+        Services.Dialogs.IActionPaletteService? actionPalette = null,
+        Services.Workspace.ISqlSymbolIndexService? symbolIndex = null)
     {
         _dockFactory = dockFactory;
         _avaloniaSpecificHelpers = avaloniaSpecificHelpers;
@@ -551,6 +597,8 @@ public partial class MainWindowViewModel : ObservableObject
         _applicationUpdateService = applicationUpdateService;
         _quickOpenDialogs = quickOpenDialogs;
         _uiDispatcher = uiDispatcher;
+        _actionPalette = actionPalette;
+        _symbolIndex = symbolIndex;
 
         CharAtMessage = "";
         ConfigureDockFactoryBindings();

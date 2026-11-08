@@ -14,6 +14,9 @@ using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommons;
 using JustyBase.Services;
+using JustyBase.Services.Files;
+using JustyBase.Services.History;
+using JustyBase.Services.Dialogs;
 using JustyBase.Helpers.Shared;
 using JustyBase.ViewModels.Tools;
 using System.Collections.ObjectModel;
@@ -64,6 +67,9 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private readonly InMemorySchemaProvider? _parserSchema;
     private readonly DocumentParsingCoordinator? _parsingCoordinator;
     private readonly ISqlDbWordListProvider? _wordListProvider;
+    private readonly ILocalHistoryService? _localHistoryService;
+    private readonly ILocalHistoryDialogService? _localHistoryDialogs;
+    private readonly JustyBase.Services.Workspace.ISqlSymbolIndexService? _symbolIndex;
 #if AI
     private readonly JustyBase.Services.Ai.IAiChatNavigator? _aiChatNavigator;
     private readonly FimEditorAttachment _fimAttachment;
@@ -73,6 +79,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private List<SymbolOccurrence> _lastReferenceOccurrences = [];
     private int _referenceNavigateIndex;
     private SqlDialect _documentDialect = SqlDialect.Netezza;
+    private TextFileFormat? _fileFormat;
 
     public SqlDocumentViewModel(IFactory factory,
        IGeneralApplicationData generalApplicationData, HistoryService historyService,
@@ -93,7 +100,10 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 #if AI
            FimInlineCompletionBridge? fimBridge = null,
 #endif
-           ISqlDbWordListProvider? wordListProvider = null
+           ISqlDbWordListProvider? wordListProvider = null,
+           ILocalHistoryService? localHistoryService = null,
+           ILocalHistoryDialogService? localHistoryDialogs = null,
+           JustyBase.Services.Workspace.ISqlSymbolIndexService? symbolIndex = null
 #if AI
            , JustyBase.Services.Ai.IAiChatNavigator? aiChatNavigator = null
 #endif
@@ -119,6 +129,9 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         _parserSchema = parserSchema;
         _parsingCoordinator = parsingCoordinator;
         _wordListProvider = wordListProvider;
+        _localHistoryService = localHistoryService;
+        _localHistoryDialogs = localHistoryDialogs;
+        _symbolIndex = symbolIndex;
 #if AI
         _aiChatNavigator = aiChatNavigator;
         _fimAttachment = new FimEditorAttachment(fimBridge);
@@ -439,7 +452,9 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             && !string.IsNullOrWhiteSpace(FilePath)
             && File.Exists(FilePath))
         {
+            TryDetectFileFormat(FilePath);
             _interactionServices.LoadEditorFromFile(editor, FilePath, SelectConnectionFromContext);
+            RecordLocalHistory(FilePath, editor.Document.Text, "open");
             return;
         }
 
@@ -453,6 +468,30 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private void ApplyEditorChrome(SqlCodeEditor editor)
     {
         _interactionServices.ApplyEditorChrome(editor, FilePath, TxtPreview, SelectConnectionFromContext);
+    }
+
+    private void TryDetectFileFormat(string path)
+    {
+        try
+        {
+            _fileFormat = SafeFileWriter.Read(path).Format;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            _simpleLogger.TrackError(ex, isCrash: false);
+        }
+    }
+
+    private void RecordLocalHistory(string path, string text, string reason)
+    {
+        if (_localHistoryService is null || string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        BackgroundWork.Track(
+            _localHistoryService.RecordAsync(path, text, reason),
+            $"local history ({reason}): {Path.GetFileName(path)}");
     }
 
 
@@ -808,14 +847,43 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         }
 
         _interactionServices.EnableRaisingEvents = false;
+        string textToSave = editor.Document.Text;
+        TextFileFormat format;
         try
         {
-            using StreamWriter fileStream = new(fileFullPath, false, Encoding.UTF8);
-            editor.Document.WriteTextTo(fileStream);
+            bool sameTarget = string.Equals(FilePath, fileFullPath, StringComparison.Ordinal);
+            format = sameTarget
+                ? _fileFormat ?? (File.Exists(fileFullPath)
+                    ? SafeFileWriter.Read(fileFullPath).Format
+                    : TextFileFormat.Default)
+                : File.Exists(fileFullPath)
+                    ? SafeFileWriter.Read(fileFullPath).Format
+                    : TextFileFormat.Default;
+
+            await SafeFileWriter.WriteAsync(fileFullPath, textToSave, format).ConfigureAwait(true);
+            _fileFormat = format;
+            RecordLocalHistory(fileFullPath, textToSave, "save");
+            _symbolIndex?.IndexDocument(fileFullPath, textToSave);
+        }
+        catch (ReadOnlyFileException)
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance(
+                $"The file is read-only and was not saved:\n{fileFullPath}",
+                "Save");
+            if (File.Exists(fileFullPath))
+            {
+                _interactionServices.EnableRaisingEvents = true;
+            }
+            return;
         }
         catch (Exception ex)
         {
             _simpleLogger.LogAndShowError(ex, _messageForUserTools);
+            if (File.Exists(fileFullPath))
+            {
+                _interactionServices.EnableRaisingEvents = true;
+            }
+            return;
         }
 
         Title = Path.GetFileName(fileFullPath);
@@ -832,6 +900,36 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             _interactionServices.EnableRaisingEvents = true;
         }
     }
+
+    [RelayCommand]
+    private async Task ShowLocalHistoryAsync()
+    {
+        if (_localHistoryService is null || _localHistoryDialogs is null)
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance(
+                "Local History is not available in this build.",
+                "Local History");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(FilePath))
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance(
+                "Save the document first; Local History records files on disk.",
+                "Local History");
+            return;
+        }
+
+        try
+        {
+            await _localHistoryDialogs.ShowAsync(FilePath);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _simpleLogger.LogAndShowError(ex, _messageForUserTools);
+        }
+    }
+
     public string TitleFromDocumentVm => Title;
 
     public void RemoveAsterixFromTitleFromDocumentVM()

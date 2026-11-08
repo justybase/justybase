@@ -1,4 +1,5 @@
 using JustyBase.QuickOpen;
+using JustyBase.Services.Workspace;
 
 namespace JustyBase.Tests;
 
@@ -56,5 +57,39 @@ public sealed class QuickOpenSearchServiceTests
             if (Directory.Exists(root))
                 Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public void SearchSymbols_MapsPositionAndOrdersByKind()
+    {
+        SqlIndexedSymbol[] symbols =
+        [
+            new("customer_alias", SqlIndexedSymbolKind.Alias, "C:\\a.sql", 12, 8, 120),
+            new("customers", SqlIndexedSymbolKind.Table, "C:\\b.sql", 3, 15, 30),
+        ];
+
+        IReadOnlyList<QuickOpenHit> hits = QuickOpenSearchService.SearchSymbols(symbols, "customer");
+
+        Assert.Equal(2, hits.Count);
+        Assert.Equal(QuickOpenHitKind.Symbol, hits[0].Kind);
+        Assert.Equal("customers", hits[0].DisplayName);
+        Assert.Equal("C:\\b.sql", hits[0].FilePath);
+        Assert.Equal(3, hits[0].LineNumber);
+        Assert.Equal(14, hits[0].MatchIndex);
+        Assert.Equal(9, hits[0].MatchLength);
+    }
+
+    [Fact]
+    public void BuildList_AddsSymbolsHeader()
+    {
+        SqlIndexedSymbol[] symbols =
+        [
+            new("customers", SqlIndexedSymbolKind.Table, "C:\\b.sql", 3, 15, 30),
+        ];
+
+        IReadOnlyList<QuickOpenHit> hits = QuickOpenSearchService.SearchSymbols(symbols, "cust");
+        IReadOnlyList<QuickOpenListEntry> list = QuickOpenSearchService.BuildList([], [], hits);
+
+        Assert.Contains(list, entry => entry.IsHeader && entry.HeaderText == "symbols");
     }
 }

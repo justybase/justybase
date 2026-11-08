@@ -25,6 +25,7 @@ public partial class DocumentBaseVM : Document, IDeferredContentPresentation
     public SqlDocumentViewModel? SqlDocument => this as SqlDocumentViewModel;
     public ICommand? TabShowInExplorerCommand => SqlDocument?.ShowInExplorerCommand;
     public ICommand? TabCopyFullFilePathCommand => SqlDocument?.CopyFullFilePathCommand;
+    public ICommand? TabShowLocalHistoryCommand => SqlDocument?.ShowLocalHistoryCommand;
     public bool IsImport => this is ImportViewModel;
     public bool IsEtl => this is EtlViewModel;
     private bool _skipCloseQuestion;

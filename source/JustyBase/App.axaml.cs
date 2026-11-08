@@ -28,6 +28,8 @@ public partial class App : Application
         collection.AddCommonServices();
         _services = collection.BuildServiceProvider();
         Program.SetServiceProvider(_services);
+        JustyBase.Services.Actions.SqlDocumentActions.Register(
+            _services.GetRequiredService<JustyBase.Services.Actions.ActionRegistry>());
         // F1: bridge for manually-constructed models/services (DbSchemaModel children,
         // error-handling static path) so they resolve via DI instead of ServiceLocator.
         // Per-instance ctor params take precedence; this is only a fallback.
@@ -158,6 +160,26 @@ public partial class App : Application
                         DataContext = mainWindowViewModel
                     };
                     StartupTrace.Write("MainWindow constructed");
+
+                    if (JustyBase.Services.Screenshot.ScreenshotMode.IsRequested)
+                    {
+                        // The screenshot harness supplies its own headless lifetime; never cover the
+                        // window with a splash and never wait for a person to dismiss one.
+                        if (JustyBase.Services.Screenshot.ScreenshotMode.Width is double width)
+                        {
+                            mainWindow.Width = width;
+                        }
+
+                        if (JustyBase.Services.Screenshot.ScreenshotMode.Height is double height)
+                        {
+                            mainWindow.Height = height;
+                        }
+
+                        mainWindow.Show();
+                        desktopLifetime.MainWindow = mainWindow;
+                        StartupTrace.Write("screenshot mode: MainWindow shown without splash");
+                        break;
+                    }
 
                     if (Debugger.IsAttached || !_generalApplicationData.Config.UseSplashScreen)
                     {

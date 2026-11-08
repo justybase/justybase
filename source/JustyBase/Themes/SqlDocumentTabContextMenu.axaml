@@ -18,6 +18,9 @@
 		<MenuItem Header="Copy full filepath to clipboard"
 		          Command="{Binding TabCopyFullFilePathCommand}"
 		          IsVisible="{Binding IsSql}" />
+		<MenuItem Header="Local history…"
+		          Command="{Binding TabShowLocalHistoryCommand}"
+		          IsVisible="{Binding IsSql}" />
 		<Separator IsVisible="{Binding IsSql}" />
 
 		<MenuItem Header="{DynamicResource DocumentTabStripItemFloatString}"

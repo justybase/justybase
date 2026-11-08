@@ -13,6 +13,7 @@ public enum QuickOpenHitKind
 {
     FileName,
     Content,
+    Symbol,
 }
 
 public sealed record QuickOpenCandidate(

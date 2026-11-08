@@ -19,5 +19,6 @@ public interface IQuickOpenDialogService
         IReadOnlyList<QuickOpenCandidate> candidates,
         string? initialQuery,
         Action<int>? gotoLine,
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? symbolSearch = null,
         CancellationToken cancellationToken = default);
 }

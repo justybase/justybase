@@ -18,8 +18,10 @@ public sealed partial class QuickOpenEntryViewModel : ObservableObject
             SecondaryText = hit.Kind == QuickOpenHitKind.Content && hit.LineNumber is int line
                 ? $"{hit.DisplayPath}  :{line}"
                 : hit.DisplayPath;
-            Snippet = hit.Kind == QuickOpenHitKind.Content ? hit.Snippet : null;
-            IsContent = hit.Kind == QuickOpenHitKind.Content;
+            Snippet = hit.Kind is QuickOpenHitKind.Content or QuickOpenHitKind.History
+                ? hit.Snippet
+                : null;
+            IsContent = Snippet is not null;
             Query = hit.Query;
         }
         else
@@ -49,15 +51,31 @@ public sealed partial class QuickOpenViewModel : ObservableObject
     private readonly TimeSpan _contentTimeout;
     private readonly Action _closeCancel;
     private readonly Action<QuickOpenHit> _closeAccept;
-    private readonly Action<int>? _gotoLine;
+    private readonly Action<QuickOpenGotoTarget>? _gotoPosition;
     private readonly Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? _symbolSearch;
+    private readonly Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? _actionSearch;
+    private readonly Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? _schemaSearch;
+    private readonly Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? _historySearch;
+    private readonly bool _searchEverything;
 
     private CancellationTokenSource? _contentCts;
     private CancellationTokenSource? _symbolCts;
+    private CancellationTokenSource? _actionCts;
+    private CancellationTokenSource? _schemaCts;
+    private CancellationTokenSource? _historyCts;
     private CancellationTokenSource? _debounceCts;
     private IReadOnlyList<QuickOpenHit> _nameHits = [];
     private IReadOnlyList<QuickOpenHit> _contentHits = [];
     private IReadOnlyList<QuickOpenHit> _symbolHits = [];
+    private IReadOnlyList<QuickOpenHit> _actionHits = [];
+    private IReadOnlyList<QuickOpenHit> _schemaHits = [];
+    private IReadOnlyList<QuickOpenHit> _historyHits = [];
+
+    public string WindowTitle => _searchEverything ? "Go to Everything" : "Quick Open";
+
+    public string SearchPlaceholder => _searchEverything
+        ? "Search actions, files, symbols, tables and query history  ( :42:7   >   #   %   @   ? )"
+        : "Search SQL files  ( :42:7 go to line and column   ? help )";
 
     public QuickOpenViewModel(
         QuickOpenSearchService searchService,
@@ -66,20 +84,32 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         Action closeCancel,
         Action<QuickOpenHit> closeAccept,
         string? initialQuery = null,
-        Action<int>? gotoLine = null,
-        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? symbolSearch = null)
+        Action<QuickOpenGotoTarget>? gotoPosition = null,
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? symbolSearch = null,
+        bool searchEverything = false,
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? actionSearch = null,
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? schemaSearch = null,
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? historySearch = null)
     {
         _searchService = searchService;
         _candidates = candidates;
         _contentTimeout = contentTimeout <= TimeSpan.Zero ? TimeSpan.FromSeconds(10) : contentTimeout;
         _closeCancel = closeCancel;
         _closeAccept = closeAccept;
-        _gotoLine = gotoLine;
+        _gotoPosition = gotoPosition;
         _symbolSearch = symbolSearch;
+        _searchEverything = searchEverything;
+        _actionSearch = actionSearch;
+        _schemaSearch = schemaSearch;
+        _historySearch = historySearch;
         ApplyFilter(string.Empty);
         if (!string.IsNullOrWhiteSpace(initialQuery))
         {
             Query = initialQuery;
+        }
+        else if (_searchEverything)
+        {
+            _ = ScheduleEverythingAsync(string.Empty);
         }
     }
 
@@ -100,11 +130,35 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         if (trimmed == "?" || trimmed.StartsWith(':'))
         {
             // VS Code prefixes: no name/content search, handled in RebuildList/Accept.
-            _nameHits = [];
-            _contentHits = [];
-            _symbolHits = [];
-            CancelContentSearch();
-            CancelSymbolSearch();
+            ClearAllHits();
+            CancelAllSearches();
+            RebuildList();
+            return;
+        }
+
+        if (trimmed.StartsWith('>'))
+        {
+            ClearAllHits();
+            CancelAllSearches();
+            _ = ScheduleActionSearchAsync(trimmed[1..]);
+            RebuildList();
+            return;
+        }
+
+        if (trimmed.StartsWith('#'))
+        {
+            ClearAllHits();
+            CancelAllSearches();
+            _ = ScheduleSchemaSearchAsync(trimmed[1..]);
+            RebuildList();
+            return;
+        }
+
+        if (trimmed.StartsWith('%'))
+        {
+            ClearAllHits();
+            CancelAllSearches();
+            _ = ScheduleHistorySearchAsync(trimmed[1..]);
             RebuildList();
             return;
         }
@@ -112,17 +166,72 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         if (trimmed.StartsWith('@'))
         {
             // Symbol search: SQL names from the workspace index only.
-            _nameHits = [];
-            _contentHits = [];
-            CancelContentSearch();
+            ClearAllHits();
+            CancelAllSearches();
             _ = ScheduleSymbolSearchAsync(trimmed[1..]);
             RebuildList();
             return;
         }
 
+        if (!_searchEverything)
+        {
+            // Prefix searches are only refreshed by ScheduleEverythingAsync, so leaving a
+            // prefix in plain Quick Open must clear their rows before the list is rebuilt.
+            _actionHits = [];
+            _schemaHits = [];
+            _historyHits = [];
+            CancelActionSearch();
+            CancelSchemaSearch();
+            CancelHistorySearch();
+        }
+
         ApplyFilter(value);
-        _ = ScheduleContentSearchAsync(value);
-        _ = ScheduleSymbolSearchAsync(value);
+        if (_searchEverything)
+        {
+            _ = ScheduleEverythingAsync(trimmed);
+        }
+        else
+        {
+            _ = ScheduleContentSearchAsync(value);
+            _ = ScheduleSymbolSearchAsync(value);
+        }
+    }
+
+    private void ClearAllHits()
+    {
+        _nameHits = [];
+        _contentHits = [];
+        _symbolHits = [];
+        _actionHits = [];
+        _schemaHits = [];
+        _historyHits = [];
+    }
+
+    private void CancelAllSearches()
+    {
+        CancelDebounce();
+        CancelContentSearch();
+        CancelSymbolSearch();
+        CancelActionSearch();
+        CancelSchemaSearch();
+        CancelHistorySearch();
+    }
+
+    private void CancelDebounce()
+    {
+        try
+        {
+            _debounceCts?.Cancel();
+            _debounceCts?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+            // ignore dispose races
+        }
+        finally
+        {
+            _debounceCts = null;
+        }
     }
 
     [RelayCommand]
@@ -144,13 +253,13 @@ public sealed partial class QuickOpenViewModel : ObservableObject
     [RelayCommand]
     public void AcceptSelection()
     {
-        // VS Code ":42" goes to that line in the active document.
-        if (_gotoLine is not null && TryParseGotoLine(Query, out int line))
+        // VS Code ":42" or ":42:7" goes to that line (and column) in the active document.
+        if (_gotoPosition is not null && TryParseGotoTarget(Query, out QuickOpenGotoTarget target))
         {
-            CancelContentSearch();
-            var navigate = _gotoLine;
+            CancelAllSearches();
+            var navigate = _gotoPosition;
             _closeCancel();
-            navigate(line);
+            navigate(target);
             return;
         }
 
@@ -161,18 +270,19 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         if (hit is null)
             return;
 
-        CancelContentSearch();
-        CancelSymbolSearch();
+        CancelAllSearches();
         _closeAccept(hit);
     }
 
     [RelayCommand]
     public void Cancel()
     {
-        CancelContentSearch();
-        CancelSymbolSearch();
+        CancelSearches();
         _closeCancel();
     }
+
+    /// <summary>Stops every in-flight search without closing the window (used by OnClosing).</summary>
+    public void CancelSearches() => CancelAllSearches();
 
     public void SelectEntryFromClick(QuickOpenEntryViewModel? entry)
     {
@@ -215,6 +325,11 @@ public sealed partial class QuickOpenViewModel : ObservableObject
             await Task.Delay(DebounceMs, debounce.Token).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (debounce.IsCancellationRequested)
         {
             return;
         }
@@ -322,15 +437,149 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         }
     }
 
+    private async Task ScheduleActionSearchAsync(string query)
+    {
+        _actionCts?.Cancel();
+        _actionCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _actionCts = cts;
+
+        IReadOnlyList<QuickOpenHit>? hits = await RunProviderAsync(
+            _actionSearch, query?.Trim() ?? string.Empty, cts, 120).ConfigureAwait(true);
+        if (hits is null)
+        {
+            return;
+        }
+
+        _actionHits = hits;
+        RebuildList();
+    }
+
+    private async Task ScheduleSchemaSearchAsync(string query)
+    {
+        _schemaCts?.Cancel();
+        _schemaCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _schemaCts = cts;
+
+        IReadOnlyList<QuickOpenHit>? hits = await RunProviderAsync(
+            _schemaSearch, query?.Trim() ?? string.Empty, cts, 160).ConfigureAwait(true);
+        if (hits is null)
+        {
+            return;
+        }
+
+        _schemaHits = hits;
+        RebuildList();
+    }
+
+    private async Task ScheduleHistorySearchAsync(string query)
+    {
+        _historyCts?.Cancel();
+        _historyCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _historyCts = cts;
+
+        IReadOnlyList<QuickOpenHit>? hits = await RunProviderAsync(
+            _historySearch, query?.Trim() ?? string.Empty, cts, 120).ConfigureAwait(true);
+        if (hits is null)
+        {
+            return;
+        }
+
+        _historyHits = hits;
+        RebuildList();
+    }
+
+    private static async Task<IReadOnlyList<QuickOpenHit>?> RunProviderAsync(
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? provider,
+        string query,
+        CancellationTokenSource cts,
+        int debounceMs)
+    {
+        if (provider is null)
+        {
+            return [];
+        }
+
+        try
+        {
+            if (debounceMs > 0)
+            {
+                await Task.Delay(debounceMs, cts.Token).ConfigureAwait(true);
+            }
+
+            IReadOnlyList<QuickOpenHit> hits = await provider(query, cts.Token).ConfigureAwait(true);
+            return cts.IsCancellationRequested ? null : hits;
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            return [];
+        }
+    }
+
+    private Task ScheduleEverythingAsync(string query)
+    {
+        var searches = new List<Task>(5)
+        {
+            ScheduleActionSearchAsync(query),
+            ScheduleSchemaSearchAsync(query),
+            ScheduleHistorySearchAsync(query),
+        };
+
+        if (query.Length > 0)
+        {
+            searches.Add(ScheduleSymbolSearchAsync(query));
+            searches.Add(ScheduleContentSearchAsync(query));
+        }
+        else
+        {
+            _symbolHits = [];
+            _contentHits = [];
+        }
+
+        return Task.WhenAll(searches);
+    }
+
+    private void CancelActionSearch() => CancelProvider(ref _actionCts);
+
+    private void CancelSchemaSearch() => CancelProvider(ref _schemaCts);
+
+    private void CancelHistorySearch() => CancelProvider(ref _historyCts);
+
+    private static void CancelProvider(ref CancellationTokenSource? source)
+    {
+        try
+        {
+            source?.Cancel();
+            source?.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
+            // ignore dispose races
+        }
+        finally
+        {
+            source = null;
+        }
+    }
+
     private void RebuildList()
     {
         string trimmed = Query?.Trim() ?? string.Empty;
         if (trimmed == "?")
         {
             Entries.Clear();
-            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "Type file name to open", null)));
-            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, ":42 - go to line 42 in active file", null)));
-            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "@name - find a SQL symbol in the workspace", null)));
+            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "Type to search files, symbols, actions, tables and history", null)));
+            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, ":42:7 - go to line 42, column 7 in the active file", null)));
+            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "> - find an action (command palette)", null)));
+            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "# - find a table, view or column", null)));
+            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "% - find a recent query", null)));
+            Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "@ - find a SQL symbol in the workspace", null)));
             Entries.Add(new QuickOpenEntryViewModel(new QuickOpenListEntry(true, "letters match in order (fuzzy), open files first", null)));
             SelectedEntry = null;
             HintText = "Esc close";
@@ -341,9 +590,9 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         {
             Entries.Clear();
             SelectedEntry = null;
-            HintText = TryParseGotoLine(trimmed, out _)
-                ? "Enter go to line  ·  Esc close"
-                : "Type a line number, e.g. :42  ·  Esc close";
+            HintText = TryParseGotoTarget(trimmed, out _)
+                ? "Enter go to line and column  ·  Esc close"
+                : "Type a line or line:column, e.g. :42 or :42:7  ·  Esc close";
             return;
         }
 
@@ -351,7 +600,13 @@ public sealed partial class QuickOpenViewModel : ObservableObject
             ? HitKey(prev)
             : null;
 
-        var list = QuickOpenSearchService.BuildList(_nameHits, _contentHits, _symbolHits);
+        var list = QuickOpenSearchService.BuildList(
+            _nameHits,
+            _contentHits,
+            _symbolHits,
+            _actionHits,
+            _schemaHits,
+            _historyHits);
         Entries.Clear();
         foreach (var entry in list)
             Entries.Add(new QuickOpenEntryViewModel(entry));
@@ -360,9 +615,11 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         if (selectable.Count == 0)
         {
             SelectedEntry = null;
-            HintText = _candidates.Count == 0
-                ? "No SQL files in Files / Git / open editors"
-                : "No matches";
+            HintText = _searchEverything
+                ? "No matches"
+                : _candidates.Count == 0
+                    ? "No SQL files in Files / Git / open editors"
+                    : "No matches";
             return;
         }
 
@@ -376,18 +633,42 @@ public sealed partial class QuickOpenViewModel : ObservableObject
         HintText = $"{selectable.Count} results  ·  ↑↓ navigate  ·  Enter open  ·  Esc close";
     }
 
-    private static bool TryParseGotoLine(string? query, out int line)
+    private static bool TryParseGotoTarget(string? query, out QuickOpenGotoTarget target)
     {
-        line = 0;
+        target = default;
         string trimmed = query?.Trim() ?? string.Empty;
         if (!trimmed.StartsWith(':') || trimmed.Length < 2)
         {
             return false;
         }
 
-        return int.TryParse(trimmed[1..].Trim(), out line) && line > 0;
+        string body = trimmed[1..].Trim();
+        int separator = body.IndexOfAny([':', ',']);
+        if (separator < 0)
+        {
+            if (int.TryParse(body, out int line) && line > 0)
+            {
+                target = new QuickOpenGotoTarget(line, 1);
+                return true;
+            }
+
+            return false;
+        }
+
+        string lineText = body[..separator].Trim();
+        string columnText = body[(separator + 1)..].Trim();
+        if (!int.TryParse(lineText, out int parsedLine)
+            || !int.TryParse(columnText, out int parsedColumn)
+            || parsedLine <= 0
+            || parsedColumn <= 0)
+        {
+            return false;
+        }
+
+        target = new QuickOpenGotoTarget(parsedLine, parsedColumn);
+        return true;
     }
 
     private static string HitKey(QuickOpenHit hit)
-        => $"{hit.Kind}|{hit.FilePath}|{hit.DocumentId}|{hit.LineNumber}|{hit.MatchIndex}";
+        => $"{hit.Kind}|{hit.FilePath}|{hit.DocumentId}|{hit.LineNumber}|{hit.MatchIndex}|{hit.ActionId}|{hit.DisplayPath}|{hit.InsertText}|{hit.DisplayName}";
 }

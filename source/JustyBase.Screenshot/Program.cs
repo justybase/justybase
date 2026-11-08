@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using JustyBase.Helpers;
 using JustyBase.Services.Screenshot;
@@ -38,12 +39,12 @@ internal static class Program
         Environment.SetEnvironmentVariable(ScreenshotMode.Variable, absolute);
         if (width is double w)
         {
-            Environment.SetEnvironmentVariable(ScreenshotMode.WidthVariable, w.ToString("0"));
+            Environment.SetEnvironmentVariable(ScreenshotMode.WidthVariable, w.ToString("0", System.Globalization.CultureInfo.InvariantCulture));
         }
 
         if (height is double h)
         {
-            Environment.SetEnvironmentVariable(ScreenshotMode.HeightVariable, h.ToString("0"));
+            Environment.SetEnvironmentVariable(ScreenshotMode.HeightVariable, h.ToString("0", System.Globalization.CultureInfo.InvariantCulture));
         }
 
         int exitCode = 1;
@@ -107,7 +108,7 @@ internal static class Program
                 return;
             }
 
-            frame.Save(path);
+            frame.Save(path, PngBitmapEncoderOptions.Default);
             Console.WriteLine($"screenshot: {path}");
             complete(0);
         }

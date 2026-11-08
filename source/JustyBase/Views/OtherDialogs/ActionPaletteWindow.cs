@@ -2,18 +2,22 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Layout;
+using Avalonia.Media;
 using JustyBase.Services.Actions;
 
 namespace JustyBase.Views.OtherDialogs;
 
 /// <summary>
 /// Find Action: every action by name, narrowed as words are typed, with its group and shortcut.
-/// Enter runs the selected one; Escape closes without running anything.
+/// Enter runs the selected one; an action that cannot run in the current context explains why
+/// instead of failing silently. Escape closes without running anything.
 /// </summary>
 public sealed class ActionPaletteWindow : Window
 {
     private readonly ActionRegistry _registry;
+    private readonly ActionContext _context;
     private readonly Action<IdeAction?> _accept;
+    private readonly Func<string, string?>? _getGesture;
     private readonly TextBox _query = new()
     {
         PlaceholderText = "Type an action name…",
@@ -21,11 +25,24 @@ public sealed class ActionPaletteWindow : Window
     };
 
     private readonly ListBox _results = new();
+    private readonly TextBlock _status = new()
+    {
+        TextWrapping = TextWrapping.Wrap,
+        Foreground = Brushes.IndianRed,
+        MinHeight = 20,
+        Margin = new Thickness(0, 6, 0, 0),
+    };
 
-    public ActionPaletteWindow(ActionRegistry registry, Action<IdeAction?> accept)
+    public ActionPaletteWindow(
+        ActionRegistry registry,
+        ActionContext context,
+        Action<IdeAction?> accept,
+        Func<string, string?>? getGesture = null)
     {
         _registry = registry;
+        _context = context;
         _accept = accept;
+        _getGesture = getGesture;
 
         Title = "Find Action";
         Width = 640;
@@ -40,7 +57,9 @@ public sealed class ActionPaletteWindow : Window
 
         var body = new DockPanel();
         DockPanel.SetDock(_query, Avalonia.Controls.Dock.Top);
+        DockPanel.SetDock(_status, Avalonia.Controls.Dock.Bottom);
         body.Children.Add(_query);
+        body.Children.Add(_status);
         body.Children.Add(_results);
         Content = body;
 
@@ -54,8 +73,14 @@ public sealed class ActionPaletteWindow : Window
     private void Rebuild()
     {
         IReadOnlyList<IdeAction> actions = _registry.Search(_query.Text);
-        _results.ItemsSource = actions.Select(action => new Row(action)).ToArray();
+        _results.ItemsSource = actions
+            .Select(action => new Row(
+                action,
+                action.GetWhyNot(_context),
+                _getGesture is null ? action.Shortcut : _getGesture(action.Id)))
+            .ToArray();
         _results.SelectedIndex = actions.Count > 0 ? 0 : -1;
+        _status.Text = string.Empty;
     }
 
     private void OnQueryKeyDown(object? sender, KeyEventArgs e)
@@ -97,10 +122,18 @@ public sealed class ActionPaletteWindow : Window
 
     private void Accept()
     {
-        if (_results.SelectedItem is Row row)
+        if (_results.SelectedItem is not Row row)
         {
-            CloseWith(row.Action);
+            return;
         }
+
+        if (row.Reason is not null)
+        {
+            _status.Text = row.Reason;
+            return;
+        }
+
+        CloseWith(row.Action);
     }
 
     private void CloseWith(IdeAction? action)
@@ -109,12 +142,13 @@ public sealed class ActionPaletteWindow : Window
         Close();
     }
 
-    private sealed record Row(IdeAction Action)
+    private sealed record Row(IdeAction Action, string? Reason, string? Gesture)
     {
         public override string ToString()
         {
-            string shortcut = string.IsNullOrWhiteSpace(Action.Shortcut) ? string.Empty : $"    {Action.Shortcut}";
-            return $"{Action.Title}    ·    {Action.Group}{shortcut}";
+            string shortcut = string.IsNullOrWhiteSpace(Gesture) ? string.Empty : $"    {Gesture}";
+            string reason = Reason is null ? string.Empty : $"    ({Reason})";
+            return $"{Action.Title}    ·    {Action.Group}{shortcut}{reason}";
         }
     }
 }

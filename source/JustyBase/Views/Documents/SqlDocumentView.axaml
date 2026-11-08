@@ -38,8 +38,6 @@
 		</Grid.RowDefinitions>
 		<Grid.KeyBindings>
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter="Grid" Gesture="Ctrl+Return"/>
-			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter="Grid" Gesture="F5"/>
-			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter="Grid|SingleBath" Gesture="Ctrl+F5"/>
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter=".xlsb" Gesture="Ctrl+F7"/>
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter=".xlsx" Gesture="Ctrl+Shift+F7"/>
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter=".csv" Gesture="Ctrl+F8"/>
@@ -47,30 +45,29 @@
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter=".csv.br" Gesture="Ctrl+F10"/>
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter=".csv.zip" Gesture="Ctrl+F11"/>
 			<KeyBinding Command="{Binding RunSqlCommand}" CommandParameter=".parquet" Gesture="Ctrl+F12"/>
-			<KeyBinding Command="{Binding CopyWithFormatsCommand}" Gesture="Ctrl+Shift+C"/>
 		</Grid.KeyBindings>
 		<Border Grid.Row="0" BorderBrush="{DynamicResource SystemAccentColor}" BorderThickness="0 0 0 1" Margin="0 0 0 3">
 			<WrapPanel  Orientation="Horizontal" Margin="1">
-				<Button Name="openFile" Background="Transparent" Command="{Binding OpenFileCommand}"
+				<Button Name="openFile" Background="Transparent" Command="{Binding RunActionCommand}" CommandParameter="document.openFile"
 						IsEnabled="True" 
 						ToolTip.Tip="Open SQL file in new tab">
 					<PathIcon Data="{StaticResource NewFileInconPath}"/>
 				</Button>
 				<Button Name="saveBt" Background="Transparent"
-					Command="{Binding SaveFileCommand}" CommandParameter="Save"
-					ToolTip.Tip="save">
+					Command="{Binding RunActionCommand}" CommandParameter="document.save"
+					ToolTip.Tip="{Binding SaveShortcutText}">
 					<PathIcon Data="{StaticResource SaveIconPath}" />
 				</Button>
 				<Button Name="saveAsBt" Background="Transparent"
-					Command="{Binding SaveFileCommand}" CommandParameter="SaveAs"
-					ToolTip.Tip="save as">
+					Command="{Binding RunActionCommand}" CommandParameter="document.saveAs"
+					ToolTip.Tip="{Binding SaveAsShortcutText}">
 					<PathIcon Data="{StaticResource DocumentSaveIcon}"/>
 				</Button>
 				<SplitButton Name="runSqlButton" Command="{Binding RunSqlCommand}"
 							 CommandParameter="Grid"
 							 IsEnabled="{Binding IsRunEnabled}"
 							 Classes.semivisibleSbt="{Binding !!HowManyRunning}"
-							 ToolTip.Tip="run query"
+							 ToolTip.Tip="{Binding RunShortcutText}"
 							 AutomationProperties.Name="RunSql"
 							 AutomationProperties.AutomationId="RunSql">
 					<SplitButton.Flyout>
@@ -89,11 +86,12 @@
 					<PathIcon Data="{StaticResource RunSqlIconPath}" Margin="0" Foreground="{DynamicResource SystemAccentColor}"/>
 				</SplitButton>
 				<Button Name="stopBt"
-						Command="{Binding AbortSqlCommand}"
+						Command="{Binding RunActionCommand}"
+						CommandParameter="document.stopSql"
 						IsEnabled="{Binding !!TasksToAbort}"
 						Background="Transparent"
 						Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}"
-						ToolTip.Tip="stop executing queries">
+						ToolTip.Tip="stop executing queries (Esc)">
 					<Panel>
 						<PathIcon Data="{StaticResource AbortIconPath}" IsVisible="{Binding !!TasksToAbort}" Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}"/>
 						<PathIcon Data="{StaticResource AbortIconPath}" IsVisible="{Binding !TasksToAbort}" Foreground="{DynamicResource TextControlForegroundDisabled}"/>
@@ -103,13 +101,13 @@
 						 Width="70" MinWidth="70" Minimum="0" Maximum="100"
 						 Value="{Binding ProgressValue}"/>
 				<Button Name="commentBt" Background="Transparent"
-					Command="{Binding CommentLinesCommand}" HotKey="Ctrl+Oem2"
-					ToolTip.Tip="Comment selected lines" ToolTip.ShowDelay="10"
+					Command="{Binding RunActionCommand}" CommandParameter="document.commentLines"
+					ToolTip.Tip="{Binding CommentShortcutText}" ToolTip.ShowDelay="10"
 					IsVisible="True">
 					<PathIcon Data="{StaticResource CommentIconPath}"/>
 				</Button>
-				<Button Name="formatBt" Background="Transparent" Command="{Binding FormatSqlCommand}"
-					FontSize="22" ToolTip.Tip="format document (make sql prettier)"
+				<Button Name="formatBt" Background="Transparent" Command="{Binding RunActionCommand}" CommandParameter="document.formatSql"
+					FontSize="22" ToolTip.Tip="{Binding FormatShortcutText}"
 					ToolTip.ShowDelay="10" IsVisible="True">
 					<PathIcon Data="{StaticResource FormaterIconPath}" Margin="0"/>
 				</Button>

@@ -71,6 +71,13 @@ jobs:
           name: responsiveness-metrics
           path: JustyBase/TestResults/responsiveness-metrics.jsonl
           if-no-files-found: warn
+      - name: Upload visual regression artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression
+          path: JustyBase/TestResults/visual/**
+          if-no-files-found: ignore
       # Keep this last: it replaces the app output with the no-AI variant, so it
       # must not run before the AI-enabled test assemblies are executed.
       - name: Build no-AI application

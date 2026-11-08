@@ -1,3 +1,5 @@
+using JustyBase.Common.Models;
+using JustyBase.Services.Actions;
 using JustyBase.Services.Workspace;
 
 namespace JustyBase.QuickOpen;
@@ -294,32 +296,178 @@ public sealed class QuickOpenSearchService
     public static IReadOnlyList<QuickOpenListEntry> BuildList(
         IReadOnlyList<QuickOpenHit> nameHits,
         IReadOnlyList<QuickOpenHit> contentHits,
-        IReadOnlyList<QuickOpenHit>? symbolHits = null)
+        IReadOnlyList<QuickOpenHit>? symbolHits = null,
+        IReadOnlyList<QuickOpenHit>? actionHits = null,
+        IReadOnlyList<QuickOpenHit>? schemaHits = null,
+        IReadOnlyList<QuickOpenHit>? historyHits = null)
     {
         symbolHits ??= [];
-        var list = new List<QuickOpenListEntry>(nameHits.Count + contentHits.Count + symbolHits.Count + 3);
-        if (symbolHits.Count > 0)
-        {
-            list.Add(new QuickOpenListEntry(true, "symbols", null));
-            foreach (var hit in symbolHits)
-                list.Add(new QuickOpenListEntry(false, null, hit));
-        }
+        actionHits ??= [];
+        schemaHits ??= [];
+        historyHits ??= [];
+        var list = new List<QuickOpenListEntry>(
+            nameHits.Count + contentHits.Count + symbolHits.Count
+            + actionHits.Count + schemaHits.Count + historyHits.Count + 6);
 
-        if (nameHits.Count > 0)
-        {
-            list.Add(new QuickOpenListEntry(true, "files", null));
-            foreach (var hit in nameHits)
-                list.Add(new QuickOpenListEntry(false, null, hit));
-        }
-
-        if (contentHits.Count > 0)
-        {
-            list.Add(new QuickOpenListEntry(true, "in files", null));
-            foreach (var hit in contentHits)
-                list.Add(new QuickOpenListEntry(false, null, hit));
-        }
-
+        AddSection(list, "actions", actionHits);
+        AddSection(list, "files", nameHits);
+        AddSection(list, "symbols", symbolHits);
+        AddSection(list, "tables and columns", schemaHits);
+        AddSection(list, "query history", historyHits);
+        AddSection(list, "in files", contentHits);
         return list;
+    }
+
+    private static void AddSection(
+        List<QuickOpenListEntry> list,
+        string header,
+        IReadOnlyList<QuickOpenHit> hits)
+    {
+        if (hits.Count == 0)
+        {
+            return;
+        }
+
+        list.Add(new QuickOpenListEntry(true, header, null));
+        foreach (var hit in hits)
+        {
+            list.Add(new QuickOpenListEntry(false, null, hit));
+        }
+    }
+
+    /// <summary>Maps registry actions to Go to Everything rows.</summary>
+    public static IReadOnlyList<QuickOpenHit> SearchActions(
+        IReadOnlyList<IdeAction> actions,
+        string query,
+        Func<string, string?>? getGesture = null)
+    {
+        string q = query?.Trim() ?? string.Empty;
+        IEnumerable<IdeAction> matching = actions;
+        if (q.Length > 0)
+        {
+            string[] words = q.Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            matching = actions.Where(action => words.All(word =>
+                action.Title.Contains(word, StringComparison.OrdinalIgnoreCase)
+                || action.Group.Contains(word, StringComparison.OrdinalIgnoreCase)
+                || action.Id.Contains(word, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        return matching
+            .Take(MaxNameHits)
+            .Select((action, index) =>
+            {
+                string? gesture = getGesture is null ? action.Shortcut : getGesture(action.Id);
+                return new QuickOpenHit(
+                    QuickOpenHitKind.Action,
+                    action.Title,
+                    string.IsNullOrWhiteSpace(gesture)
+                        ? action.Group
+                        : $"{action.Group}  ·  {gesture}",
+                    FilePath: null,
+                    DocumentId: null,
+                    QuickOpenSource.None,
+                    Score: MaxNameHits - index,
+                    Query: q,
+                    ActionId: action.Id);
+            })
+            .ToArray();
+    }
+
+    /// <summary>Maps catalog tables, views and columns to Go to Everything rows.</summary>
+    public static IReadOnlyList<QuickOpenHit> SearchSchema(
+        IReadOnlyList<QuickOpenSchemaObject> objects,
+        string query)
+    {
+        string q = query?.Trim() ?? string.Empty;
+        IEnumerable<QuickOpenSchemaObject> matching = objects;
+        if (q.Length > 0)
+        {
+            matching = objects.Where(item =>
+                item.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || item.DisplayDetail.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return matching
+            .OrderBy(item => item.Kind)
+            .ThenBy(item => item.Name.Length)
+            .ThenBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(MaxNameHits)
+            .Select(item => new QuickOpenHit(
+                QuickOpenHitKind.SchemaObject,
+                item.Name,
+                $"{KindLabel(item.Kind)}  ·  {item.DisplayDetail}",
+                FilePath: null,
+                DocumentId: null,
+                QuickOpenSource.None,
+                Score: 100 - (int)item.Kind,
+                Query: q,
+                InsertText: item.InsertText))
+            .ToArray();
+    }
+
+    /// <summary>Maps recent SQL history to Go to Everything rows.</summary>
+    public static IReadOnlyList<QuickOpenHit> SearchHistory(
+        IReadOnlyList<HistoryEntry> entries,
+        string query,
+        int limit = 20)
+    {
+        string q = query?.Trim() ?? string.Empty;
+        IEnumerable<HistoryEntry> matching = entries;
+        if (q.Length > 0)
+        {
+            matching = entries.Where(entry =>
+                entry.SQL.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || entry.Connection.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || entry.Database.Contains(q, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return matching
+            .OrderByDescending(entry => entry.Date)
+            .Take(Math.Clamp(limit, 1, MaxNameHits))
+            .Select((entry, index) =>
+            {
+                string sql = entry.SQL.Trim();
+                int lineEnd = sql.IndexOfAny(['\r', '\n']);
+                string headline = lineEnd > 0 ? sql[..lineEnd] : sql;
+                if (headline.Length > 90)
+                {
+                    headline = headline[..90] + "…";
+                }
+
+                string status = entry.DurationText.Length > 0
+                    ? $"  ·  {entry.StatusText}  ·  {entry.DurationText}"
+                    : entry.StatusText is "Unknown" or ""
+                        ? string.Empty
+                        : $"  ·  {entry.StatusText}";
+
+                return new QuickOpenHit(
+                    QuickOpenHitKind.History,
+                    headline,
+                    $"{entry.Date:yyyy-MM-dd HH:mm:ss}  ·  {entry.Connection}  ·  {entry.Database}{status}",
+                    FilePath: null,
+                    DocumentId: null,
+                    QuickOpenSource.None,
+                    Score: MaxNameHits - index,
+                    Query: q,
+                    Snippet: TrimHistorySnippet(sql),
+                    Payload: entry.SQL);
+            })
+            .ToArray();
+    }
+
+    private static string KindLabel(QuickOpenSchemaObjectKind kind) => kind switch
+    {
+        QuickOpenSchemaObjectKind.Table => "table",
+        QuickOpenSchemaObjectKind.View => "view",
+        _ => "column",
+    };
+
+    private static string TrimHistorySnippet(string sql)
+    {
+        string oneLine = sql.ReplaceLineEndings(" ").Trim();
+        return oneLine.Length <= 160 ? oneLine : oneLine[..160] + "…";
     }
 
     /// <summary>Maps indexed SQL symbols to Quick Open rows, best kinds first.</summary>

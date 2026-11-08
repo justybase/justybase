@@ -75,4 +75,34 @@ public sealed class ActionRegistryTests
 
         Assert.False(action.CanExecute(new ActionContext()));
     }
+
+    [Fact]
+    public void WhyNot_ExplainsARefusedContext()
+    {
+        var action = new IdeAction(
+            "action",
+            "Action",
+            "Group",
+            _ => Task.CompletedTask,
+            _ => false,
+            WhyNot: _ => "Open a document first.");
+
+        Assert.False(action.CanExecute(new ActionContext()));
+        Assert.Equal("Open a document first.", action.GetWhyNot(new ActionContext()));
+    }
+
+    [Fact]
+    public void WhyNot_IsNullWhenTheActionCanRun()
+    {
+        var action = new IdeAction(
+            "action",
+            "Action",
+            "Group",
+            _ => Task.CompletedTask,
+            _ => true,
+            WhyNot: _ => "never shown");
+
+        Assert.True(action.CanExecute(new ActionContext()));
+        Assert.Null(action.GetWhyNot(new ActionContext()));
+    }
 }

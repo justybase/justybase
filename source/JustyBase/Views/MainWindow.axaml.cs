@@ -1,5 +1,9 @@
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Threading;
 using JustyBase.Common.Contracts;
 using JustyBase.Helpers.Interactions;
+using JustyBase.Services.Actions;
 using JustyBase.ViewModels;
 
 namespace JustyBase.Views;
@@ -9,6 +13,8 @@ public partial class MainWindow : Window
     private readonly INotificationManagerProvider _notificationManagerProvider;
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly AboutViewModel _aboutViewModel;
+    private readonly List<KeyBinding> _dynamicBindings = [];
+    private MainWindowViewModel? _boundViewModel;
 
     public MainWindow(INotificationManagerProvider notificationManagerProvider, IMessageForUserTools messageForUserTools, AboutViewModel aboutViewModel)
     {
@@ -19,11 +25,85 @@ public partial class MainWindow : Window
         InitializeComponent();
         // Tunnel so Ctrl+B still works when the SQL editor has focus and would otherwise eat the key.
         AddHandler(KeyDownEvent, OnPreviewKeyDown, RoutingStrategies.Tunnel);
+        DataContextChanged += MainWindow_DataContextChanged;
         Closing += MainWindow_Closing;
         Loaded += MainWindow_Loaded;
         Closed += MainWindow_Closed;
         Program.SetUpDispatcherExceptionHandling();
         StartupTrace.Write("MainWindow constructor completed");
+    }
+
+    private void MainWindow_DataContextChanged(object? sender, EventArgs e)
+    {
+        if (_boundViewModel?.Keymap is { } oldKeymap)
+        {
+            oldKeymap.Changed -= Keymap_Changed;
+        }
+
+        _boundViewModel = DataContext as MainWindowViewModel;
+        if (_boundViewModel?.Keymap is { } keymap)
+        {
+            keymap.Changed += Keymap_Changed;
+        }
+
+        RebuildActionKeyBindings();
+    }
+
+    private void Keymap_Changed(object? sender, EventArgs e)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            RebuildActionKeyBindings();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(RebuildActionKeyBindings);
+        }
+    }
+
+    private void RebuildActionKeyBindings()
+    {
+        foreach (KeyBinding binding in _dynamicBindings)
+        {
+            KeyBindings.Remove(binding);
+        }
+
+        _dynamicBindings.Clear();
+
+        if (_boundViewModel?.Actions is not { } actions || _boundViewModel.Keymap is not { } keymap)
+        {
+            return;
+        }
+
+        foreach (IdeAction action in actions.All)
+        {
+            string? gesture = keymap.GetGesture(action.Id);
+            if (string.IsNullOrWhiteSpace(gesture))
+            {
+                continue;
+            }
+
+            KeyGesture parsed;
+            try
+            {
+                parsed = KeyGesture.Parse(gesture);
+            }
+            catch (Exception exception) when (exception is FormatException or ArgumentException)
+            {
+                // A hand-edited keymap can contain a stale gesture; the editor will show it as
+                // unbound rather than preventing the application from receiving keys.
+                continue;
+            }
+
+            var binding = new KeyBinding
+            {
+                Gesture = parsed,
+                Command = _boundViewModel.RunActionCommand,
+                CommandParameter = action.Id,
+            };
+            KeyBindings.Add(binding);
+            _dynamicBindings.Add(binding);
+        }
     }
 
     private void OnPreviewKeyDown(object? sender, KeyEventArgs e)
@@ -59,6 +139,11 @@ public partial class MainWindow : Window
 
     private void MainWindow_Closed(object? sender, EventArgs e)
     {
+        if (_boundViewModel?.Keymap is { } keymap)
+        {
+            keymap.Changed -= Keymap_Changed;
+        }
+
         StartupTrace.Write("MainWindow Closed");
     }
 }

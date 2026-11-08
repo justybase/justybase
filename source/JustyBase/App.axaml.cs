@@ -30,6 +30,8 @@ public partial class App : Application
         Program.SetServiceProvider(_services);
         JustyBase.Services.Actions.SqlDocumentActions.Register(
             _services.GetRequiredService<JustyBase.Services.Actions.ActionRegistry>());
+        JustyBase.Services.Actions.WorkspaceActions.Register(
+            _services.GetRequiredService<JustyBase.Services.Actions.ActionRegistry>());
         // F1: bridge for manually-constructed models/services (DbSchemaModel children,
         // error-handling static path) so they resolve via DI instead of ServiceLocator.
         // Per-instance ctor params take precedence; this is only a fallback.

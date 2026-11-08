@@ -4,6 +4,8 @@ using Avalonia.Threading;
 using Dock.Model.Core;
 using JustyBase.Common.Contracts;
 using JustyBase.PluginCommon.Contracts;
+using JustyBase.Themes;
+using JustyBase.Views;
 using JustyBase.Views.Documents;
 using JustyBase.Views.Tools;
 using JustyBase.Views.OtherDialogs;
@@ -43,6 +45,26 @@ public sealed class ProductViewSmokeTests : HeadlessSessionTestBase
         window.Show();
         Dispatcher.UIThread.RunJobs();
         Assert.NotNull(window.CaptureRenderedFrame());
+    });
+
+    [Fact]
+    public Task MainView_LoadsWithStatusBarAndGoMenu() => RunOnUi(() =>
+    {
+        var view = new MainView(
+            Mock.Of<IGeneralApplicationData>(),
+            Mock.Of<IThemeManager>());
+        var window = new Window
+        {
+            Width = 1200,
+            Height = 720,
+            Content = view,
+            Title = "MainView status bar smoke",
+        };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.NotNull(window.CaptureRenderedFrame());
+        Assert.Same(view, window.Content);
     });
 
     [Fact]

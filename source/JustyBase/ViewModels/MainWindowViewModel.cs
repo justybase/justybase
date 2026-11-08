@@ -3,9 +3,14 @@ using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Controls;
 using Dock.Model.Core.Events;
 using JustyBase.Common.Contracts;
+using JustyBase.Common.Models;
+using JustyBase.Common.Services;
+using JustyBase.NetezzaSqlParser.Ast;
+using JustyBase.NetezzaSqlParser.Visitor;
 using JustyBase.Public.Lib.Services;
 using JustyBase.QuickOpen;
 using JustyBase.Services;
+using JustyBase.Services.Actions;
 using JustyBase.Services.Documents;
 using JustyBase.Services.Updates;
 using JustyBase.ViewModels.Documents;
@@ -27,8 +32,14 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly IApplicationUpdateService _applicationUpdateService;
     private readonly Services.Dialogs.IQuickOpenDialogService? _quickOpenDialogs;
     private readonly Services.Dialogs.IActionPaletteService? _actionPalette;
+    private readonly Services.Dialogs.IKeymapDialogService? _keymapDialogs;
     private readonly Services.Workspace.ISqlSymbolIndexService? _symbolIndex;
+    private readonly ActionRegistry? _actions;
+    private readonly KeymapService? _keymap;
+    private readonly InMemorySchemaProvider? _schemaProvider;
+    private readonly HistoryService? _historyService;
     private readonly JustyBase.Ai.Ports.IUiDispatcher? _uiDispatcher;
+    private SqlDocumentViewModel? _statusDocument;
     private int _automaticUpdateCheckStarted;
 
     [ObservableProperty]
@@ -41,6 +52,75 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string SelectedRowsCount { get; set; }
+
+    [ObservableProperty]
+    public partial string StatusDocumentName { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string StatusConnection { get; set; } = "No connection";
+
+    [ObservableProperty]
+    public partial string StatusDatabase { get; set; } = "—";
+
+    [ObservableProperty]
+    public partial string StatusEncoding { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string StatusEol { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string StatusCaret { get; set; } = "Ln 1, Col 1";
+
+    [ObservableProperty]
+    public partial string StatusLastQuery { get; set; } = string.Empty;
+
+    public KeymapService? Keymap => _keymap;
+
+    public ActionRegistry? Actions => _actions;
+
+    public string HistoryActionToolTip => ToolTipFor(WorkspaceActions.History, "Query history");
+    public string SettingsActionToolTip => ToolTipFor(WorkspaceActions.Settings, "Settings");
+    public string ImportActionToolTip => ToolTipFor(WorkspaceActions.Import, "Import data");
+    public string KeymapActionToolTip => ToolTipFor(WorkspaceActions.Keymap, "Edit keyboard shortcuts");
+
+    public string? GoToEverythingShortcut => _keymap?.GetGesture(WorkspaceActions.GoToEverything);
+    public string? QuickOpenShortcut => _keymap?.GetGesture(WorkspaceActions.QuickOpen);
+    public string? FindActionShortcut => _keymap?.GetGesture(WorkspaceActions.FindAction);
+    public string? HistoryShortcut => _keymap?.GetGesture(WorkspaceActions.History);
+    public string? SettingsShortcut => _keymap?.GetGesture(WorkspaceActions.Settings);
+    public string? ImportShortcut => _keymap?.GetGesture(WorkspaceActions.Import);
+
+    private string ToolTipFor(string actionId, string fallback)
+    {
+        string? gesture = _keymap?.GetGesture(actionId);
+        return string.IsNullOrWhiteSpace(gesture) ? fallback : $"{fallback} ({gesture})";
+    }
+
+    private void OnKeymapChanged(object? sender, EventArgs e)
+    {
+        if (_uiDispatcher is null || _uiDispatcher.CheckAccess())
+        {
+            RaiseShortcutProperties();
+        }
+        else
+        {
+            _ = _uiDispatcher.InvokeAsync(RaiseShortcutProperties);
+        }
+    }
+
+    private void RaiseShortcutProperties()
+    {
+        OnPropertyChanged(nameof(GoToEverythingShortcut));
+        OnPropertyChanged(nameof(QuickOpenShortcut));
+        OnPropertyChanged(nameof(FindActionShortcut));
+        OnPropertyChanged(nameof(HistoryShortcut));
+        OnPropertyChanged(nameof(SettingsShortcut));
+        OnPropertyChanged(nameof(ImportShortcut));
+        OnPropertyChanged(nameof(HistoryActionToolTip));
+        OnPropertyChanged(nameof(SettingsActionToolTip));
+        OnPropertyChanged(nameof(ImportActionToolTip));
+        OnPropertyChanged(nameof(KeymapActionToolTip));
+    }
 
     [RelayCommand]
     private async Task ShowAbout()
@@ -58,13 +138,72 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            await _actionPalette.ShowAsync();
+            IdeAction? chosen = await _actionPalette.ChooseAsync(CreateActionContext());
+            if (chosen is not null)
+            {
+                await RunActionAsync(chosen.Id);
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _messageForUserTools.ShowSimpleMessageBoxInstance(ex);
         }
     }
+
+    [RelayCommand]
+    private async Task RunActionAsync(string? actionId)
+    {
+        if (_actions is null || string.IsNullOrWhiteSpace(actionId))
+        {
+            return;
+        }
+
+        ActionContext context = CreateActionContext();
+        IdeAction? action = _actions.Find(actionId);
+        try
+        {
+            if (action is null)
+            {
+                return;
+            }
+
+            string? whyNot = action.GetWhyNot(context);
+            if (whyNot is not null)
+            {
+                _messageForUserTools.ShowSimpleMessageBoxInstance(
+                    $"\"{action.Title}\" cannot run right now.\n\n{whyNot}",
+                    "Action");
+                return;
+            }
+
+            await _actions.RunAsync(actionId, context);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance(ex);
+        }
+    }
+
+    [RelayCommand]
+    private async Task ShowKeymapEditorAsync()
+    {
+        if (_keymapDialogs is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _keymapDialogs.ShowAsync();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance(ex);
+        }
+    }
+
+    private ActionContext CreateActionContext()
+        => new(_dockFactory.ActiveSqlDocumentViewModel, Main: this);
 
     [RelayCommand]
     private Task CheckForUpdatesAsync()
@@ -278,6 +417,11 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void WindowClosing()
     {
+        if (_keymap is not null)
+        {
+            _keymap.Changed -= OnKeymapChanged;
+        }
+
         // A screenshot run must leave the person's session and configuration untouched.
         if (JustyBase.Services.Screenshot.ScreenshotMode.IsRequested)
         {
@@ -332,7 +476,12 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task ShowQuickOpenAsync()
+    private Task ShowQuickOpenAsync() => ShowQuickOpenCoreAsync(searchEverything: false);
+
+    [RelayCommand]
+    private Task ShowGoToEverythingAsync() => ShowQuickOpenCoreAsync(searchEverything: true);
+
+    private async Task ShowQuickOpenCoreAsync(bool searchEverything)
     {
         try
         {
@@ -380,6 +529,8 @@ public partial class MainWindowViewModel : ObservableObject
                     QuickOpenSearchService.SearchSymbols(_symbolIndex.Search(query, 50), query));
             }
 
+            QuickOpenSearchProviders providers = BuildQuickOpenProviders(searchEverything, symbolSearch);
+
             // VS Code preselects the current editor selection in Ctrl+P.
             string? initialQuery = null;
             string? selected = _dockFactory.ActiveSqlDocumentViewModel?.SqlEditor?.SelectedText;
@@ -396,11 +547,11 @@ public partial class MainWindowViewModel : ObservableObject
             QuickOpenHit? accepted;
             if (_quickOpenDialogs is not null)
             {
-                accepted = await _quickOpenDialogs.ShowAsync(candidates, initialQuery, GotoQuickOpenLine, symbolSearch);
+                accepted = await _quickOpenDialogs.ShowAsync(candidates, initialQuery, GotoQuickOpenPosition, providers);
             }
             else
             {
-                accepted = await ShowQuickOpenLegacyAsync(searchService, candidates, initialQuery, symbolSearch);
+                accepted = await ShowQuickOpenLegacyAsync(searchService, candidates, initialQuery, providers);
             }
 
             if (accepted is null)
@@ -425,6 +576,117 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private QuickOpenSearchProviders BuildQuickOpenProviders(
+        bool searchEverything,
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? symbolSearch)
+    {
+        Func<string, string?>? gestureResolver = _keymap is null ? null : _keymap.GetGesture;
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? actionSearch =
+            _actions is null
+                ? null
+                : (query, _) => Task.FromResult(
+                    QuickOpenSearchService.SearchActions(_actions.Search(query), query, gestureResolver));
+
+        Task<IReadOnlyList<QuickOpenSchemaObject>>? schemaLoad = null;
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? schemaSearch =
+            _schemaProvider is null
+                ? null
+                : async (query, cancellationToken) =>
+                {
+                    schemaLoad ??= Task.Run(BuildSchemaObjects);
+                    IReadOnlyList<QuickOpenSchemaObject> objects =
+                        await schemaLoad.WaitAsync(cancellationToken).ConfigureAwait(true);
+                    return QuickOpenSearchService.SearchSchema(objects, query);
+                };
+
+        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? historySearch =
+            _historyService is null
+                ? null
+                : (query, _) => Task.FromResult(
+                    QuickOpenSearchService.SearchHistory(_historyService.GetRecent(300), query));
+
+        return new QuickOpenSearchProviders(
+            Symbols: symbolSearch,
+            Actions: actionSearch,
+            Schema: schemaSearch,
+            History: historySearch,
+            SearchEverything: searchEverything);
+    }
+
+    private IReadOnlyList<QuickOpenSchemaObject> BuildSchemaObjects()
+    {
+        if (_schemaProvider is null)
+        {
+            return [];
+        }
+
+        var result = new List<QuickOpenSchemaObject>(512);
+        foreach (string database in _schemaProvider.GetDatabases() ?? [])
+        {
+            foreach (string schema in _schemaProvider.GetSchemas(database) ?? [])
+            {
+                foreach (var (name, kind) in _schemaProvider.GetTableNames(database, schema) ?? [])
+                {
+                    if (result.Count >= 4_000)
+                    {
+                        return result;
+                    }
+
+                    string detail = $"{database}.{schema}";
+                    string qualified = Qualify(database, schema, name);
+                    QuickOpenSchemaObjectKind objectKind = kind == TableKind.View
+                        ? QuickOpenSchemaObjectKind.View
+                        : QuickOpenSchemaObjectKind.Table;
+                    result.Add(new QuickOpenSchemaObject(
+                        name,
+                        objectKind,
+                        database,
+                        schema,
+                        TableName: null,
+                        detail,
+                        qualified));
+
+                    TableInfo? table = _schemaProvider.GetTable(database, schema, name);
+                    if (table?.Columns is not { Count: > 0 } columns)
+                    {
+                        continue;
+                    }
+
+                    foreach (ColumnInfo column in columns)
+                    {
+                        if (result.Count >= 4_000)
+                        {
+                            return result;
+                        }
+
+                        result.Add(new QuickOpenSchemaObject(
+                            column.Name,
+                            QuickOpenSchemaObjectKind.Column,
+                            database,
+                            schema,
+                            name,
+                            $"{database}.{schema}.{name}",
+                            column.Name));
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static string Qualify(string? database, string? schema, string name)
+    {
+        if (string.IsNullOrWhiteSpace(database))
+        {
+            return string.IsNullOrWhiteSpace(schema) ? name : $"{schema}.{name}";
+        }
+
+        return string.IsNullOrWhiteSpace(schema)
+            ? $"{database}..{name}"
+            : $"{database}.{schema}.{name}";
+    }
+
     private void OpenQuickOpenHitSafe(QuickOpenHit hit)
     {
         try
@@ -446,7 +708,7 @@ public partial class MainWindowViewModel : ObservableObject
         QuickOpenSearchService searchService,
         IReadOnlyList<QuickOpenCandidate> candidates,
         string? initialQuery,
-        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? symbolSearch = null)
+        QuickOpenSearchProviders? providers = null)
     {
         Window owner = _avaloniaSpecificHelpers.GetMainWindow();
         QuickOpenHit? accepted = null;
@@ -477,8 +739,12 @@ public partial class MainWindowViewModel : ObservableObject
                 }
             },
             initialQuery: initialQuery,
-            gotoLine: GotoQuickOpenLine,
-            symbolSearch: symbolSearch);
+            gotoPosition: GotoQuickOpenPosition,
+            symbolSearch: providers?.Symbols,
+            searchEverything: providers?.SearchEverything == true,
+            actionSearch: providers?.Actions,
+            schemaSearch: providers?.Schema,
+            historySearch: providers?.History);
 
         dialog = new QuickOpenWindow(vm);
         await dialog.ShowDialog(owner);
@@ -487,6 +753,19 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void OpenQuickOpenHit(QuickOpenHit hit)
     {
+        switch (hit.Kind)
+        {
+            case QuickOpenHitKind.Action:
+                RunQuickOpenAction(hit);
+                return;
+            case QuickOpenHitKind.SchemaObject:
+                InsertSchemaObject(hit);
+                return;
+            case QuickOpenHitKind.History:
+                OpenHistoryHit(hit);
+                return;
+        }
+
         SqlDocumentViewModel? document = _dockFactory.FindOpenSqlDocument(hit.DocumentId, hit.FilePath);
 
         if (document is null && !string.IsNullOrWhiteSpace(hit.FilePath))
@@ -529,7 +808,51 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private void GotoQuickOpenLine(int lineNumber1Based)
+    private void RunQuickOpenAction(QuickOpenHit hit)
+    {
+        if (_actions is null || string.IsNullOrWhiteSpace(hit.ActionId))
+        {
+            return;
+        }
+
+        _ = RunActionAsync(hit.ActionId);
+    }
+
+    private void InsertSchemaObject(QuickOpenHit hit)
+    {
+        string? insertText = hit.InsertText;
+        if (string.IsNullOrWhiteSpace(insertText))
+        {
+            return;
+        }
+
+        SqlDocumentViewModel? document = _dockFactory.ActiveSqlDocumentViewModel;
+        var editor = document?.SqlEditor;
+        if (document is not null && editor?.Document is not null)
+        {
+            _dockFactory.FocusSqlDocument(document);
+            int offset = editor.TextArea?.Caret.Offset ?? editor.Document.TextLength;
+            editor.Document.Insert(offset, insertText);
+            editor.Focus();
+            return;
+        }
+
+        _dockFactory.AddNewDocument(insertText, forcedTitle: "Schema");
+    }
+
+    private void OpenHistoryHit(QuickOpenHit hit)
+    {
+        string? sql = hit.Payload ?? hit.Snippet;
+        if (string.IsNullOrWhiteSpace(sql))
+        {
+            return;
+        }
+
+        SqlDocumentViewModel document = _dockFactory.AddNewDocument(sql, forcedTitle: "History");
+        _dockFactory.FocusSqlDocument(document);
+    }
+
+    private void GotoQuickOpenPosition(QuickOpenGotoTarget target)
     {
         var document = _dockFactory.ActiveSqlDocumentViewModel;
         var editor = document?.SqlEditor;
@@ -541,9 +864,10 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             _dockFactory.FocusSqlDocument(document);
-            int lineNumber = Math.Clamp(lineNumber1Based, 1, editor.Document.LineCount);
+            int lineNumber = Math.Clamp(target.Line, 1, editor.Document.LineCount);
             DocumentLine line = editor.Document.GetLineByNumber(lineNumber);
-            editor.Select(line.Offset, 0);
+            int columnOffset = Math.Clamp(target.Column, 1, line.Length + 1) - 1;
+            editor.Select(line.Offset + columnOffset, 0);
             editor.TextArea.Caret.BringCaretToView();
             editor.Focus();
         }
@@ -585,7 +909,12 @@ public partial class MainWindowViewModel : ObservableObject
         Services.Dialogs.IQuickOpenDialogService? quickOpenDialogs = null,
         JustyBase.Ai.Ports.IUiDispatcher? uiDispatcher = null,
         Services.Dialogs.IActionPaletteService? actionPalette = null,
-        Services.Workspace.ISqlSymbolIndexService? symbolIndex = null)
+        Services.Workspace.ISqlSymbolIndexService? symbolIndex = null,
+        Services.Dialogs.IKeymapDialogService? keymapDialogs = null,
+        ActionRegistry? actions = null,
+        KeymapService? keymap = null,
+        InMemorySchemaProvider? schemaProvider = null,
+        HistoryService? historyService = null)
     {
         _dockFactory = dockFactory;
         _avaloniaSpecificHelpers = avaloniaSpecificHelpers;
@@ -599,9 +928,27 @@ public partial class MainWindowViewModel : ObservableObject
         _uiDispatcher = uiDispatcher;
         _actionPalette = actionPalette;
         _symbolIndex = symbolIndex;
+        _keymapDialogs = keymapDialogs;
+        _actions = actions;
+        _keymap = keymap;
+        _schemaProvider = schemaProvider;
+        _historyService = historyService;
+
+        if (_keymap is not null)
+        {
+            _keymap.Changed += OnKeymapChanged;
+        }
 
         CharAtMessage = "";
         ConfigureDockFactoryBindings();
+
+        if (_historyService is not null)
+        {
+            // Force the lazy store to load once so later AddHistoryEntry calls raise HistoryChanged.
+            _ = _historyService.HistoryItemsCollection;
+            _historyService.HistoryChanged += OnHistoryChanged;
+            RefreshLastQueryStatus();
+        }
 
 #if DEBUG
         DebugFactoryEvents(_dockFactory);
@@ -614,11 +961,16 @@ public partial class MainWindowViewModel : ObservableObject
 
         SetupPipeCommunication();
         _dockFactory.CloseOldAddNewConnection();
+        AttachStatusDocument(_dockFactory.ActiveSqlDocumentViewModel);
     }
 
     private void ConfigureDockFactoryBindings()
     {
-        _dockFactory.AtCharAction = message => CharAtMessage = message;
+        _dockFactory.AtCharAction = caret =>
+        {
+            CharAtMessage = $"offset {caret.Offset:N0} column {caret.Column} line {caret.Line}  ";
+            StatusCaret = $"Ln {caret.Line}, Col {caret.Column}";
+        };
         _dockFactory.SelectedDataGridAction = selectedRows => SelectedRowsCount = selectedRows;
     }
 
@@ -630,21 +982,155 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void HandleActiveDockableChanged(object? sender, ActiveDockableChangedEventArgs args)
     {
-        if (args.Dockable is not SqlDocumentViewModel viewModel)
+        if (args.Dockable is SqlDocumentViewModel viewModel)
         {
+            if (viewModel.IsRecentlyFinished)
+            {
+                viewModel.IsRecentlyFinished = false;
+            }
+
+            _dockFactory.ActivateSqlDocument(viewModel);
+            AttachStatusDocument(viewModel);
             return;
         }
 
-        if (viewModel.IsRecentlyFinished)
+        // Switching to a non-SQL document (history, settings, import...) hides the SQL context.
+        // Focusing a tool panel keeps the SQL document active, so its status stays visible.
+        if (args.Dockable is DocumentBaseVM)
         {
-            viewModel.IsRecentlyFinished = false;
+            AttachStatusDocument(null);
+        }
+    }
+
+    private void AttachStatusDocument(SqlDocumentViewModel? document)
+    {
+        if (ReferenceEquals(_statusDocument, document))
+        {
+            RefreshStatusBar();
+            return;
         }
 
-        _dockFactory.ActivateSqlDocument(viewModel);
+        if (_statusDocument is not null)
+        {
+            _statusDocument.PropertyChanged -= OnStatusDocumentPropertyChanged;
+        }
+
+        _statusDocument = document;
+        if (document is not null)
+        {
+            document.PropertyChanged += OnStatusDocumentPropertyChanged;
+        }
+
+        RefreshStatusBar();
+    }
+
+    private void OnStatusDocumentPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(SqlDocumentViewModel.Title):
+            case nameof(SqlDocumentViewModel.FilePath):
+            case nameof(SqlDocumentViewModel.SelectedDatabase):
+            case nameof(SqlDocumentViewModel.SelectedConnectionIndex):
+            case nameof(SqlDocumentViewModel.FileFormat):
+                RefreshStatusBar();
+                break;
+        }
+    }
+
+    private void RefreshStatusBar()
+    {
+        SqlDocumentViewModel? document = _statusDocument;
+        if (document is null)
+        {
+            StatusDocumentName = string.Empty;
+            StatusConnection = "No connection";
+            StatusDatabase = "—";
+            StatusEncoding = string.Empty;
+            StatusEol = string.Empty;
+            StatusCaret = "Ln 1, Col 1";
+            return;
+        }
+
+        StatusDocumentName = document.Title?.TrimEnd('*') ?? string.Empty;
+        StatusConnection = string.IsNullOrWhiteSpace(document.SelectedConnectionName)
+            ? "No connection"
+            : document.SelectedConnectionName;
+        StatusDatabase = string.IsNullOrWhiteSpace(document.SelectedDatabase)
+            ? "—"
+            : document.SelectedDatabase;
+
+        if (document.FileFormat is { } format)
+        {
+            StatusEncoding = FormatEncoding(format);
+            StatusEol = format.LineEnding.ToString().ToUpperInvariant();
+        }
+        else
+        {
+            StatusEncoding = "UTF-8";
+            StatusEol = Environment.NewLine == "\r\n" ? "CRLF" : "LF";
+        }
+
+        if (document.GetCaretPosition() is { } caret)
+        {
+            StatusCaret = $"Ln {caret.Line}, Col {caret.Column}";
+        }
+        else
+        {
+            StatusCaret = "Ln 1, Col 1";
+        }
+    }
+
+    private void OnHistoryChanged(object? sender, EventArgs e)
+    {
+        if (_uiDispatcher is null || _uiDispatcher.CheckAccess())
+        {
+            RefreshLastQueryStatus();
+        }
+        else
+        {
+            _ = _uiDispatcher.InvokeAsync(RefreshLastQueryStatus);
+        }
+    }
+
+    private void RefreshLastQueryStatus()
+    {
+        HistoryEntry? latest = _historyService?.GetLatest();
+        if (latest is null)
+        {
+            StatusLastQuery = string.Empty;
+            return;
+        }
+
+        string duration = latest.DurationMs is long milliseconds
+            ? $"  ·  {milliseconds:N0} ms"
+            : string.Empty;
+        StatusLastQuery = $"Last query {latest.Date:HH:mm:ss}{duration}";
+    }
+
+    private static string FormatEncoding(JustyBase.Services.Files.TextFileFormat format)
+    {
+        string name = format.Encoding.CodePage switch
+        {
+            65001 => "UTF-8",
+            1200 => "UTF-16 LE",
+            1201 => "UTF-16 BE",
+            12000 => "UTF-32 LE",
+            12001 => "UTF-32 BE",
+            28591 => "Latin-1",
+            _ => format.Encoding.WebName.ToUpperInvariant(),
+        };
+
+        return format.HasBom ? $"{name} BOM" : name;
     }
 
     private void Factory_DockableClosed(object sender, DockableClosedEventArgs e)
     {
+        if (ReferenceEquals(e.Dockable, _statusDocument))
+        {
+            AttachStatusDocument(null);
+        }
+
         _dockableCleanupService.CleanupDockable(
             e.Dockable,
             documentId => _dockFactory.SqlResultsFastViewModel.ClearFromDocument(documentId, true));

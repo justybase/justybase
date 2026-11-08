@@ -29,8 +29,8 @@ public sealed class QuickOpenDialogService : IQuickOpenDialogService
     public async Task<QuickOpenHit?> ShowAsync(
         IReadOnlyList<QuickOpenCandidate> candidates,
         string? initialQuery,
-        Action<int>? gotoLine,
-        Func<string, CancellationToken, Task<IReadOnlyList<QuickOpenHit>>>? symbolSearch = null,
+        Action<QuickOpenGotoTarget>? gotoPosition,
+        QuickOpenSearchProviders? providers = null,
         CancellationToken cancellationToken = default)
     {
         QuickOpenHit? accepted = null;
@@ -67,8 +67,12 @@ public sealed class QuickOpenDialogService : IQuickOpenDialogService
                 }
             },
             initialQuery: initialQuery,
-            gotoLine: gotoLine,
-            symbolSearch: symbolSearch);
+            gotoPosition: gotoPosition,
+            symbolSearch: providers?.Symbols,
+            searchEverything: providers?.SearchEverything == true,
+            actionSearch: providers?.Actions,
+            schemaSearch: providers?.Schema,
+            historySearch: providers?.History);
 
         var owner = _windows.GetMainWindow();
         if (owner is null)

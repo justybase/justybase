@@ -167,14 +167,14 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
         {
             switch (e.Key)
             {
-                case Key.H:
+                case Key.H when e.KeyModifiers == KeyModifiers.Control:
                     if (ForcedContolhtAction is not null)
                     {
                         ForcedContolhtAction.Invoke();
                         e.Handled = true;
                     }
                     break;
-                case Key.F:
+                case Key.F when e.KeyModifiers == KeyModifiers.Control:
                     if (ForcedContolftAction is not null)
                     {
                         ForcedContolftAction.Invoke();
@@ -248,11 +248,6 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
                     }
                     break;
             }
-        }
-        else if (e.Key == Key.F2)
-        {
-            e.Handled = true;
-            RenameRequested?.Invoke();
         }
         else if (e.Key == Key.F12)
         {
@@ -661,8 +656,8 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
 
     public Func<Task> ContolShiftvAction { get; set; } = () => Task.CompletedTask;
 
-    public Action ForcedContolftAction { get; set; } = () => { };
-    public Action ForcedContolhtAction { get; set; } = () => { };
+    public Action? ForcedContolftAction { get; set; }
+    public Action? ForcedContolhtAction { get; set; }
     public Action RenameRequested { get; set; } = () => { };
     public Action GoToDefinitionRequested { get; set; } = () => { };
     public Action FindReferencesRequested { get; set; } = () => { };

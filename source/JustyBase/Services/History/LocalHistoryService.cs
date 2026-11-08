@@ -14,7 +14,8 @@ public sealed record LocalHistoryEntry(
     string Hash,
     DateTimeOffset RecordedAt,
     string Reason,
-    long Length);
+    long Length,
+    string? Label = null);
 
 /// <summary>
 /// Keeps automatic versions of the files the editor touches, so a script can be compared with or
@@ -46,11 +47,22 @@ public interface ILocalHistoryService
     /// <summary>The kept text of <paramref name="entry"/>, or null when its blob is gone.</summary>
     Task<string?> ReadTextAsync(LocalHistoryEntry entry, CancellationToken cancellationToken = default);
 
+    /// <summary>Sets or clears the person's label on a kept version.</summary>
+    Task<LocalHistoryEntry?> SetLabelAsync(
+        long entryId,
+        string? label,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Writes <paramref name="entry"/>'s text back to its file (recording the current content
     /// first, so a restore can itself be undone) and returns the text that was written.
+    /// <paramref name="currentText"/> is the editor buffer when it differs from the file on disk;
+    /// it is recorded before the file is overwritten so unsaved edits survive the restore.
     /// </summary>
-    Task<string?> RestoreAsync(LocalHistoryEntry entry, CancellationToken cancellationToken = default);
+    Task<string?> RestoreAsync(
+        LocalHistoryEntry entry,
+        string? currentText = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>The serialized index. A class (not a record) so trimming keeps a parameterless shape.</summary>
@@ -80,6 +92,7 @@ public sealed class LocalHistoryService : ILocalHistoryService, IDisposable
     public const int MaxEntriesTotal = 2_000;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly Func<DateTimeOffset> _clock;
     private LocalHistoryIndex? _index;
     private bool _disposed;
 
@@ -89,11 +102,17 @@ public sealed class LocalHistoryService : ILocalHistoryService, IDisposable
     }
 
     public LocalHistoryService(string rootPath)
+        : this(rootPath, clock: null)
+    {
+    }
+
+    public LocalHistoryService(string rootPath, Func<DateTimeOffset>? clock)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
         RootPath = Path.GetFullPath(rootPath);
         BlobsPath = Path.Combine(RootPath, "blobs");
         IndexPath = Path.Combine(RootPath, "index.json");
+        _clock = clock ?? (() => DateTimeOffset.UtcNow);
     }
 
     public string RootPath { get; }
@@ -139,7 +158,7 @@ public sealed class LocalHistoryService : ILocalHistoryService, IDisposable
                 index.NextId++,
                 path,
                 hash,
-                DateTimeOffset.UtcNow,
+                _clock(),
                 string.IsNullOrWhiteSpace(reason) ? "change" : reason,
                 bytes.LongLength);
 
@@ -196,8 +215,40 @@ public sealed class LocalHistoryService : ILocalHistoryService, IDisposable
         return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<LocalHistoryEntry?> SetLabelAsync(
+        long entryId,
+        string? label,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            LocalHistoryIndex index = await LoadIndexAsync(cancellationToken).ConfigureAwait(false);
+            int position = index.Entries.FindIndex(entry => entry.Id == entryId);
+            if (position < 0)
+            {
+                return null;
+            }
+
+            LocalHistoryEntry updated = index.Entries[position] with
+            {
+                Label = string.IsNullOrWhiteSpace(label) ? null : label.Trim(),
+            };
+            index.Entries[position] = updated;
+            await SaveIndexAsync(index, cancellationToken).ConfigureAwait(false);
+            return updated;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task<string?> RestoreAsync(
         LocalHistoryEntry entry,
+        string? currentText = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
@@ -209,6 +260,14 @@ public sealed class LocalHistoryService : ILocalHistoryService, IDisposable
         }
 
         string path = entry.Path;
+
+        // The editor buffer is the only copy of unsaved edits, so record it before touching
+        // the file. If recording fails the restore is aborted rather than silently losing them.
+        if (currentText is not null)
+        {
+            await RecordAsync(path, currentText, "before restore", cancellationToken).ConfigureAwait(false);
+        }
+
         if (File.Exists(path))
         {
             try

@@ -755,7 +755,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         }
     }
 
-    public Action<string>? AtCharAction { get; set; }
+    public Action<CaretPositionInfo>? AtCharAction { get; set; }
     public Action<string>? SelectedDataGridAction { get; set; }
 
     public void AddNewDocumentFromFile(IEnumerable<string> files)

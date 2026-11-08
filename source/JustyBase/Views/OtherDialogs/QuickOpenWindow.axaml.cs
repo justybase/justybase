@@ -125,6 +125,7 @@ public partial class QuickOpenWindow : Window
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         _closing = true;
+        Vm?.CancelSearches();
         base.OnClosing(e);
     }
 }

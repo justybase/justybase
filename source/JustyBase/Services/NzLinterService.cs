@@ -4,6 +4,7 @@ using JustyBase.NetezzaSqlParser.Authoring;
 using JustyBase.NetezzaSqlParser.Caching;
 using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.NetezzaSqlParser.Linter;
+using JustyBase.NetezzaSqlParser.Parser;
 using JustyBase.NetezzaSqlParser.Visitor;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
@@ -772,6 +773,15 @@ public sealed class NzLinterService : IDisposable
                 catch (OperationCanceledException)
                 {
                     return null;
+                }
+                catch (NzParserDepthException ex)
+                {
+                    // A stack overflow cannot be caught, so the parser turns excessive nesting into
+                    // this ordinary exception. Surface it as a normal diagnostic at the start of the
+                    // document instead of letting it escape the lint pipeline.
+                    return new LintResult(
+                        [new LintIssue("PAR102", ex.Message, LintSeverity.Error, 0, 0, 1, 1, 1, 1)],
+                        0, 0, 0, false);
                 }
             });
 

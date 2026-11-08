@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:dmc="using:Dock.Model.Controls"
              xmlns:ids="using:Dock.Settings"
+             xmlns:conv="using:JustyBase.Converters"
              xmlns:vm="using:JustyBase.ViewModels"
              mc:Ignorable="d"
              d:DesignWidth="1000" d:DesignHeight="550"
@@ -35,6 +36,31 @@
 				</Style>
 			</StackPanel.Styles>
 			<Menu>
+				<MenuItem Header="_Go">
+					<MenuItem Header="Go to Everything…"
+					          Command="{Binding RunActionCommand}"
+					          CommandParameter="workspace.goToEverything"
+					          InputGesture="{Binding GoToEverythingShortcut, Converter={x:Static conv:KeyGestureStringConverter.Instance}}"/>
+					<MenuItem Header="Quick Open File…"
+					          Command="{Binding RunActionCommand}"
+					          CommandParameter="workspace.quickOpen"
+					          InputGesture="{Binding QuickOpenShortcut, Converter={x:Static conv:KeyGestureStringConverter.Instance}}"/>
+					<MenuItem Header="Find Action…"
+					          Command="{Binding RunActionCommand}"
+					          CommandParameter="workspace.findAction"
+					          InputGesture="{Binding FindActionShortcut, Converter={x:Static conv:KeyGestureStringConverter.Instance}}"/>
+					<Separator/>
+					<MenuItem Header="Query History"
+					          Command="{Binding RunActionCommand}"
+					          CommandParameter="workspace.history"
+					          InputGesture="{Binding HistoryShortcut, Converter={x:Static conv:KeyGestureStringConverter.Instance}}"/>
+					<MenuItem Header="Settings"
+					          Command="{Binding RunActionCommand}"
+					          CommandParameter="workspace.settings"
+					          InputGesture="{Binding SettingsShortcut, Converter={x:Static conv:KeyGestureStringConverter.Instance}}"/>
+					<MenuItem Header="Edit Keyboard Shortcuts…"
+					          Command="{Binding ShowKeymapEditorCommand}"/>
+				</MenuItem>
 				<MenuItem Header="_View" SubmenuOpened="ViewMenu_SubmenuOpened">
 					<MenuItem Header="Schema"
 					          ToggleType="CheckBox"
@@ -120,10 +146,11 @@
 					          ToolTip.Tip="Show or hide the left tool column (Ctrl+B)"/>
 				</MenuItem>
 			</Menu>
-			<Button Content="_History" Command="{Binding ShowHistoryCommand}" ToolTip.Tip="open history tab"/>
-			<Button Content="_Settings" Command="{Binding ShowSettingsCommand}" ToolTip.Tip="open settings tab"/>
-			<Button Content="_Import" Command="{Binding ImportCommand}" ToolTip.Tip="open import tab"/>
-			<Button Content="About" FontWeight="Bold" Command="{Binding ShowAboutCommand}"/>
+			<Button Content="_History" Command="{Binding RunActionCommand}" CommandParameter="workspace.history" ToolTip.Tip="{Binding HistoryActionToolTip}"/>
+			<Button Content="_Settings" Command="{Binding RunActionCommand}" CommandParameter="workspace.settings" ToolTip.Tip="{Binding SettingsActionToolTip}"/>
+			<Button Content="_Import" Command="{Binding RunActionCommand}" CommandParameter="workspace.import" ToolTip.Tip="{Binding ImportActionToolTip}"/>
+			<Button Content="_Shortcuts" Command="{Binding ShowKeymapEditorCommand}" ToolTip.Tip="{Binding KeymapActionToolTip}"/>
+			<Button Content="About" FontWeight="Bold" Command="{Binding RunActionCommand}" CommandParameter="workspace.about"/>
 			<Button Content="Check for updates" Command="{Binding CheckForUpdatesCommand}" ToolTip.Tip="check GitHub Releases for a newer version"/>
 		</StackPanel>
 		
@@ -149,15 +176,29 @@
 		</Panel>
 		<DockControl x:Name="DockControl" Layout="{Binding Layout}" Margin="4" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
 					 ids:DockProperties.IsDropEnabled="True" />
-		<StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
-					Name="StatusBar" 
-					Background="{DynamicResource SystemAccentColor}" 
-					Height="25"
-					Orientation="Horizontal"
-					Margin="0"
-					Spacing="4">
-				<TextBlock Text="{Binding CharAtMessage}" Margin="4 0 0 0" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White"/>
-				<TextBlock Text="{Binding SelectedRowsCount}" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White"/>
-		</StackPanel>
+		<Grid Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3"
+			  Name="StatusBar"
+			  Background="{DynamicResource SystemAccentColor}"
+			  Height="25"
+			  Margin="0">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinitions>Auto,*,Auto</ColumnDefinitions>
+			</Grid.ColumnDefinitions>
+			<StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" Margin="8,0,0,0" VerticalAlignment="Center">
+				<TextBlock Text="{Binding StatusConnection, StringFormat='Connection: {0}'}" Foreground="White" FontSize="11"/>
+				<TextBlock Text="{Binding StatusDatabase, StringFormat='Database: {0}'}" Foreground="White" FontSize="11"/>
+				<TextBlock Text="{Binding StatusEncoding, StringFormat='Encoding: {0}'}" Foreground="White" FontSize="11"/>
+				<TextBlock Text="{Binding StatusEol, StringFormat='EOL: {0}'}" Foreground="White" FontSize="11"/>
+			</StackPanel>
+			<TextBlock Grid.Column="1" Text="{Binding StatusDocumentName}" Foreground="White" FontSize="11"
+					   HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.85"/>
+			<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12" Margin="0,0,8,0"
+						HorizontalAlignment="Right" VerticalAlignment="Center">
+				<TextBlock Text="{Binding StatusCaret}" Foreground="White" FontSize="11"
+						   ToolTip.Tip="{Binding CharAtMessage}"/>
+				<TextBlock Text="{Binding StatusLastQuery}" Foreground="White" FontSize="11"/>
+				<TextBlock Text="{Binding SelectedRowsCount}" Foreground="White" FontSize="11"/>
+			</StackPanel>
+		</Grid>
 	</Grid>
 </UserControl>

@@ -4,6 +4,9 @@ using JustyBase.ViewModels.Tools;
 
 namespace JustyBase.Services;
 
+/// <summary>The caret's position in the active editor, delivered without parsing a display string.</summary>
+public sealed record CaretPositionInfo(int Offset, int Line, int Column);
+
 public interface IActiveDocumentManager
 {
     SqlDocumentViewModel? ActiveSqlDocumentViewModel { get; set; }
@@ -30,6 +33,6 @@ public interface IActiveDocumentManager
     /// </summary>
     Task StartQuickImportAsync(string sourcePath, string? connectionName, string? database);
 
-    Action<string>? AtCharAction { get; set; }
+    Action<CaretPositionInfo>? AtCharAction { get; set; }
     Action<string>? SelectedDataGridAction { get; set; }
 }

@@ -14,6 +14,7 @@ using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommons;
 using JustyBase.Services;
+using JustyBase.Services.Actions;
 using JustyBase.Services.Files;
 using JustyBase.Services.History;
 using JustyBase.Services.Dialogs;
@@ -70,6 +71,8 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private readonly ILocalHistoryService? _localHistoryService;
     private readonly ILocalHistoryDialogService? _localHistoryDialogs;
     private readonly JustyBase.Services.Workspace.ISqlSymbolIndexService? _symbolIndex;
+    private readonly ActionRegistry? _actions;
+    private readonly KeymapService? _keymap;
 #if AI
     private readonly JustyBase.Services.Ai.IAiChatNavigator? _aiChatNavigator;
     private readonly FimEditorAttachment _fimAttachment;
@@ -80,6 +83,10 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private int _referenceNavigateIndex;
     private SqlDialect _documentDialect = SqlDialect.Netezza;
     private TextFileFormat? _fileFormat;
+
+    /// <summary>The encoding, BOM and line ending detected for the file on disk, or null for a new
+    /// unsaved document. The status bar reads this without touching the private save format.</summary>
+    public TextFileFormat? FileFormat => _fileFormat;
 
     public SqlDocumentViewModel(IFactory factory,
        IGeneralApplicationData generalApplicationData, HistoryService historyService,
@@ -103,7 +110,9 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
            ISqlDbWordListProvider? wordListProvider = null,
            ILocalHistoryService? localHistoryService = null,
            ILocalHistoryDialogService? localHistoryDialogs = null,
-           JustyBase.Services.Workspace.ISqlSymbolIndexService? symbolIndex = null
+           JustyBase.Services.Workspace.ISqlSymbolIndexService? symbolIndex = null,
+           ActionRegistry? actions = null,
+           KeymapService? keymap = null
 #if AI
            , JustyBase.Services.Ai.IAiChatNavigator? aiChatNavigator = null
 #endif
@@ -132,6 +141,12 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         _localHistoryService = localHistoryService;
         _localHistoryDialogs = localHistoryDialogs;
         _symbolIndex = symbolIndex;
+        _actions = actions;
+        _keymap = keymap;
+        if (_keymap is not null)
+        {
+            _keymap.Changed += OnKeymapChanged;
+        }
 #if AI
         _aiChatNavigator = aiChatNavigator;
         _fimAttachment = new FimEditorAttachment(fimBridge);
@@ -262,8 +277,13 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     /// <summary>True after first content hydrate (disk load / offline text / empty). Tab switch must not re-load.</summary>
     private bool _contentHydrated;
 
-    private void OnCaretPositionChanged(object? sender, EventArgs e) =>
-        ActiveDocumentManager.AtCharAction?.Invoke(GetCarretInfo());
+    private void OnCaretPositionChanged(object? sender, EventArgs e)
+    {
+        if (ActiveDocumentManager.IsActiveDockable(this) && GetCaretPosition() is { } caret)
+        {
+            ActiveDocumentManager.AtCharAction?.Invoke(caret);
+        }
+    }
 
     private void OnTextAreaGotFocusResults(object? sender, RoutedEventArgs e) =>
         ActiveDocumentManager.ResultsFromActiveTab(this);
@@ -475,6 +495,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         try
         {
             _fileFormat = SafeFileWriter.Read(path).Format;
+            OnPropertyChanged(nameof(FileFormat));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
@@ -862,6 +883,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
             await SafeFileWriter.WriteAsync(fileFullPath, textToSave, format).ConfigureAwait(true);
             _fileFormat = format;
+            OnPropertyChanged(nameof(FileFormat));
             RecordLocalHistory(fileFullPath, textToSave, "save");
             _symbolIndex?.IndexDocument(fileFullPath, textToSave);
         }
@@ -922,12 +944,82 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
         try
         {
-            await _localHistoryDialogs.ShowAsync(FilePath);
+            await _localHistoryDialogs.ShowAsync(
+                FilePath,
+                restoredText =>
+                {
+                    if (SqlEditor?.Document is not { } document)
+                    {
+                        return;
+                    }
+
+                    document.Text = restoredText;
+                    RemoveAsterixFromTitleFromDocumentVM();
+                    _symbolIndex?.IndexDocument(FilePath!, restoredText);
+                },
+                getCurrentText: () => EditorAdapter?.Text ?? SqlEditor?.Text);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _simpleLogger.LogAndShowError(ex, _messageForUserTools);
         }
+    }
+
+    [RelayCommand]
+    private async Task RunActionAsync(string? actionId)
+    {
+        if (_actions is null || string.IsNullOrWhiteSpace(actionId))
+        {
+            return;
+        }
+
+        try
+        {
+            await _actions.RunAsync(actionId, new ActionContext(this));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _simpleLogger.LogAndShowError(ex, _messageForUserTools);
+        }
+    }
+
+    public string SaveShortcutText => ToolTipFor("save", SqlDocumentActions.Save, "Ctrl+S");
+    public string SaveAsShortcutText => ToolTipFor("save as", SqlDocumentActions.SaveAs, "Ctrl+Shift+S");
+    public string RunShortcutText => ToolTipFor("run query", SqlDocumentActions.RunSql, "F5");
+    public string FormatShortcutText => ToolTipFor("format document", SqlDocumentActions.FormatSql, "Ctrl+Alt+F");
+    public string CommentShortcutText => ToolTipFor("comment selected lines", SqlDocumentActions.CommentLines, "Ctrl+Oem2");
+    public string LocalHistoryShortcutText => ToolTipFor("local history", SqlDocumentActions.LocalHistory, "Ctrl+Alt+H");
+
+    public string? SaveShortcut => _keymap?.GetGesture(SqlDocumentActions.Save);
+    public string? SaveAsShortcut => _keymap?.GetGesture(SqlDocumentActions.SaveAs);
+    public string? LocalHistoryShortcut => _keymap?.GetGesture(SqlDocumentActions.LocalHistory);
+
+    private string ToolTipFor(string label, string actionId, string fallback)
+    {
+        if (_keymap is null)
+        {
+            return $"{label} ({fallback})";
+        }
+
+        string? gesture = _keymap.GetGesture(actionId);
+        // A null gesture with a keymap present means the action was deliberately unbound.
+        return gesture is null ? label : $"{label} ({gesture})";
+    }
+
+    private void OnKeymapChanged(object? sender, EventArgs e)
+        => _ = JustyBase.Helpers.UiThreadMarshal.InvokeAsync(RaiseShortcutProperties);
+
+    private void RaiseShortcutProperties()
+    {
+        OnPropertyChanged(nameof(SaveShortcutText));
+        OnPropertyChanged(nameof(SaveAsShortcutText));
+        OnPropertyChanged(nameof(RunShortcutText));
+        OnPropertyChanged(nameof(FormatShortcutText));
+        OnPropertyChanged(nameof(CommentShortcutText));
+        OnPropertyChanged(nameof(LocalHistoryShortcutText));
+        OnPropertyChanged(nameof(SaveShortcut));
+        OnPropertyChanged(nameof(SaveAsShortcut));
+        OnPropertyChanged(nameof(LocalHistoryShortcut));
     }
 
     public string TitleFromDocumentVm => Title;
@@ -943,6 +1035,10 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     public void DoCleanup()
     {
         _periodicTimer?.Stop();
+        if (_keymap is not null)
+        {
+            _keymap.Changed -= OnKeymapChanged;
+        }
         SharedCleanup();
     }
 
@@ -993,10 +1089,15 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     [ObservableProperty]
     public partial string SqlGroup { get; set; } = "General";
 
-    private string GetCarretInfo()
+    /// <summary>The caret position for the status bar and other readers; null until the editor exists.</summary>
+    public CaretPositionInfo? GetCaretPosition()
     {
-        var c = SqlEditor.TextArea.Caret;
-        return $"offset {c.Offset:N0} column {c.Column} line {c.Line}  ";
+        if (SqlEditor?.TextArea?.Caret is not { } caret)
+        {
+            return null;
+        }
+
+        return new CaretPositionInfo(caret.Offset, caret.Line, caret.Column);
     }
 
     public List<MenuItemForCurrentOptions> CurrentOptionsList { get; init; } = [];

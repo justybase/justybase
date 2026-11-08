@@ -8,7 +8,11 @@ namespace JustyBase.Services.Dialogs;
 /// <summary>Opens the Local History dialog for one file. Keeps window creation out of the document view model.</summary>
 public interface ILocalHistoryDialogService
 {
-    Task ShowAsync(string filePath, CancellationToken cancellationToken = default);
+    Task ShowAsync(
+        string filePath,
+        Action<string>? onRestored = null,
+        Func<string?>? getCurrentText = null,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class LocalHistoryDialogService : ILocalHistoryDialogService
@@ -27,12 +31,21 @@ public sealed class LocalHistoryDialogService : ILocalHistoryDialogService
         _avaloniaSpecificHelpers = avaloniaSpecificHelpers;
     }
 
-    public async Task ShowAsync(string filePath, CancellationToken cancellationToken = default)
+    public async Task ShowAsync(
+        string filePath,
+        Action<string>? onRestored = null,
+        Func<string?>? getCurrentText = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var window = new LocalHistoryWindow(_history, _messages, filePath);
+        var window = new LocalHistoryWindow(
+            _history,
+            _messages,
+            filePath,
+            onRestored,
+            getCurrentText);
         var owner = _avaloniaSpecificHelpers.GetMainWindow();
         if (owner is null)
         {

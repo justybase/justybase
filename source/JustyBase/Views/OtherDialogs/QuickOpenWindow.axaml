@@ -3,7 +3,7 @@
         xmlns:vm="using:JustyBase.ViewModels"
         x:Class="JustyBase.Views.OtherDialogs.QuickOpenWindow"
         x:DataType="vm:QuickOpenViewModel"
-        Title="Quick Open"
+        Title="{Binding WindowTitle}"
         Width="720"
         Height="460"
         MinWidth="480"
@@ -33,7 +33,7 @@
 		<Grid RowDefinitions="Auto,*,Auto">
 			<TextBox x:Name="SearchBox"
 					 Grid.Row="0"
-					 PlaceholderText="Search SQL files…  ( :42 go to line · ? help )"
+					 PlaceholderText="{Binding SearchPlaceholder}"
 					 Text="{Binding Query}"
 					 FontSize="16"
 					 MinHeight="36"

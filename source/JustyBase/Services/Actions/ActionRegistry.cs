@@ -1,16 +1,17 @@
 namespace JustyBase.Services.Actions;
 
-/// <summary>What an action runs against: the document that was active when it was asked for, and an
-/// optional parameter a menu or a gesture supplied.</summary>
+/// <summary>What an action runs against: the document that was active when it was asked for, the
+/// main window for workspace-level commands, and an optional parameter a menu or a gesture supplied.</summary>
 public sealed record ActionContext(
     ViewModels.Documents.SqlDocumentViewModel? Document = null,
-    object? Parameter = null);
+    object? Parameter = null,
+    ViewModels.MainWindowViewModel? Main = null);
 
 /// <summary>
 /// One action declared once by the feature that owns it. The same declaration feeds the command
 /// palette, menus, shortcuts, tooltips and (later) agents; nothing else needs to know how an action
 /// is invoked. <see cref="CanRun"/> answers whether the action makes sense in a context and, when it
-/// is false, <paramref name="WhyNot"/> should say why in words a person can read.
+/// is false, <see cref="WhyNot"/> should say why in words a person can read.
 /// </summary>
 public sealed record IdeAction(
     string Id,
@@ -18,22 +19,26 @@ public sealed record IdeAction(
     string Group,
     Func<ActionContext, Task> Run,
     Func<ActionContext, bool>? CanRun = null,
-    string? Shortcut = null)
+    string? Shortcut = null,
+    Func<ActionContext, string?>? WhyNot = null)
 {
-    public bool CanExecute(ActionContext context)
-    {
-        if (CanRun is null)
-        {
-            return true;
-        }
+    public bool CanExecute(ActionContext context) => GetWhyNot(context) is null;
 
+    /// <summary>Null when the action can run; otherwise the reason a person should see.</summary>
+    public string? GetWhyNot(ActionContext context)
+    {
         try
         {
-            return CanRun(context);
+            if (CanRun is null || CanRun(context))
+            {
+                return null;
+            }
+
+            return WhyNot?.Invoke(context) ?? "Not available in this context.";
         }
         catch
         {
-            return false;
+            return "Not available in this context.";
         }
     }
 }

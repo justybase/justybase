@@ -26,6 +26,44 @@ public sealed class HistoryService(
 
     public event EventHandler? HistoryChanged;
 
+    /// <summary>The newest history row, or null when the store is empty. Safe to call while a query
+    /// finishes on a background thread.</summary>
+    public HistoryEntry? GetLatest()
+    {
+        List<HistoryEntry>? items = HistoryItemsCollection;
+        if (items is null)
+        {
+            return null;
+        }
+
+        lock (_sync)
+        {
+            return items.Count == 0 ? null : items[^1];
+        }
+    }
+
+    /// <summary>A snapshot of the newest <paramref name="count"/> rows, taken under the same lock
+    /// that guards the store so a query finishing in the background cannot mutate it mid-read.</summary>
+    public IReadOnlyList<HistoryEntry> GetRecent(int count)
+    {
+        if (count <= 0)
+        {
+            return [];
+        }
+
+        List<HistoryEntry>? items = HistoryItemsCollection;
+        if (items is null)
+        {
+            return [];
+        }
+
+        lock (_sync)
+        {
+            int start = Math.Max(0, items.Count - count);
+            return items.Skip(start).ToArray();
+        }
+    }
+
     public List<HistoryEntry>? HistoryItemsCollection
     {
         get

@@ -97,7 +97,9 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<Services.FileExplorer.IFileIconProvider, Services.FileExplorer.FileIconProvider>();
         collection.AddSingleton<Services.Dialogs.IQuickOpenDialogService, Services.Dialogs.QuickOpenDialogService>();
         collection.AddSingleton<Services.Actions.ActionRegistry>();
+        collection.AddSingleton<Services.Actions.KeymapService>();
         collection.AddSingleton<Services.Dialogs.IActionPaletteService, Services.Dialogs.ActionPaletteService>();
+        collection.AddSingleton<Services.Dialogs.IKeymapDialogService, Services.Dialogs.KeymapDialogService>();
         collection.AddSingleton<IMainWindowActivationService, MainWindowActivationService>();
         collection.AddSingleton<IDockableCleanupService, DockableCleanupService>();
         collection.AddSingleton<IDockDocumentActivationService, DockDocumentActivationService>();

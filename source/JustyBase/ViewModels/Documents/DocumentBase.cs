@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Dock.Controls.DeferredContentControl;
 using Dock.Model.Mvvm.Controls;
@@ -26,6 +27,13 @@ public partial class DocumentBaseVM : Document, IDeferredContentPresentation
     public ICommand? TabShowInExplorerCommand => SqlDocument?.ShowInExplorerCommand;
     public ICommand? TabCopyFullFilePathCommand => SqlDocument?.CopyFullFilePathCommand;
     public ICommand? TabShowLocalHistoryCommand => SqlDocument?.ShowLocalHistoryCommand;
+    public ICommand? TabRunActionCommand => SqlDocument?.RunActionCommand;
+    public string? TabSaveShortcut => SqlDocument?.SaveShortcut;
+    public string? TabSaveAsShortcut => SqlDocument?.SaveAsShortcut;
+    public string? TabLocalHistoryShortcut => SqlDocument?.LocalHistoryShortcut;
+    public string TabSaveToolTip => SqlDocument?.SaveShortcutText ?? "save";
+    public string TabSaveAsToolTip => SqlDocument?.SaveAsShortcutText ?? "save as";
+    public string TabLocalHistoryToolTip => SqlDocument?.LocalHistoryShortcutText ?? "local history";
     public bool IsImport => this is ImportViewModel;
     public bool IsEtl => this is EtlViewModel;
     private bool _skipCloseQuestion;
@@ -47,6 +55,35 @@ public partial class DocumentBaseVM : Document, IDeferredContentPresentation
         _documentCloseDecisionService = documentCloseDecisionService;
         ActiveDocumentManager = activeDocumentManager;
         DockCapabilityHelper.SyncOverridesFromFlags(this);
+        if (this is SqlDocumentViewModel sqlDocument)
+        {
+            sqlDocument.PropertyChanged += OnSqlDocumentPropertyChanged;
+        }
+    }
+
+    private void OnSqlDocumentPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(SqlDocumentViewModel.SaveShortcut):
+                OnPropertyChanged(nameof(TabSaveShortcut));
+                break;
+            case nameof(SqlDocumentViewModel.SaveAsShortcut):
+                OnPropertyChanged(nameof(TabSaveAsShortcut));
+                break;
+            case nameof(SqlDocumentViewModel.LocalHistoryShortcut):
+                OnPropertyChanged(nameof(TabLocalHistoryShortcut));
+                break;
+            case nameof(SqlDocumentViewModel.SaveShortcutText):
+                OnPropertyChanged(nameof(TabSaveToolTip));
+                break;
+            case nameof(SqlDocumentViewModel.SaveAsShortcutText):
+                OnPropertyChanged(nameof(TabSaveAsToolTip));
+                break;
+            case nameof(SqlDocumentViewModel.LocalHistoryShortcutText):
+                OnPropertyChanged(nameof(TabLocalHistoryToolTip));
+                break;
+        }
     }
 
     public override bool OnClose()

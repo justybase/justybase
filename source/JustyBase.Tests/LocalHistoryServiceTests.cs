@@ -98,6 +98,33 @@ public sealed class LocalHistoryServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RestoreRecordsTheSuppliedEditorBufferBeforeOverwriting()
+    {
+        using LocalHistoryService history = CreateService();
+        string path = FilePath();
+        await File.WriteAllTextAsync(path, "SELECT 2;");
+
+        LocalHistoryEntry entry = Assert.IsType<LocalHistoryEntry>(
+            await history.RecordAsync(path, "SELECT 1;", "save"));
+
+        await history.RestoreAsync(entry, "SELECT 2 + unsaved;");
+
+        Assert.Equal("SELECT 1;", await File.ReadAllTextAsync(path));
+        IReadOnlyList<LocalHistoryEntry> entries = await history.GetEntriesAsync(path);
+        var texts = new List<string>();
+        foreach (LocalHistoryEntry item in entries)
+        {
+            string? text = await history.ReadTextAsync(item);
+            if (text is not null)
+            {
+                texts.Add(text);
+            }
+        }
+
+        Assert.Contains("SELECT 2 + unsaved;", texts);
+    }
+
+    [Fact]
     public async Task Record_PrunesOldVersionsPerFile()
     {
         using LocalHistoryService history = CreateService();
@@ -125,5 +152,51 @@ public sealed class LocalHistoryServiceTests : IDisposable
 
         Assert.Single(await history.GetEntriesAsync(first));
         Assert.Single(await history.GetEntriesAsync(second));
+    }
+
+    [Fact]
+    public async Task SetLabel_PersistsAcrossInstances()
+    {
+        string root = Path.Combine(_folder, ".history");
+        string path = FilePath();
+        long entryId;
+
+        using (var history = new LocalHistoryService(root))
+        {
+            LocalHistoryEntry entry = Assert.IsType<LocalHistoryEntry>(
+                await history.RecordAsync(path, "SELECT 1;", "save"));
+            entryId = entry.Id;
+
+            LocalHistoryEntry? updated = await history.SetLabelAsync(entryId, "  before the migration  ");
+            Assert.NotNull(updated);
+            Assert.Equal("before the migration", updated.Label);
+        }
+
+        using var reopened = new LocalHistoryService(root);
+        LocalHistoryEntry stored = Assert.Single(await reopened.GetEntriesAsync(path));
+        Assert.Equal("before the migration", stored.Label);
+    }
+
+    [Fact]
+    public async Task SetLabel_UnknownEntry_ReturnsNull()
+    {
+        using LocalHistoryService history = CreateService();
+        Assert.Null(await history.SetLabelAsync(42, "missing"));
+    }
+
+    [Fact]
+    public async Task SetLabel_NullClearsTheLabel()
+    {
+        using LocalHistoryService history = CreateService();
+        string path = FilePath();
+        LocalHistoryEntry entry = Assert.IsType<LocalHistoryEntry>(
+            await history.RecordAsync(path, "SELECT 1;", "save"));
+
+        await history.SetLabelAsync(entry.Id, "temporary");
+        LocalHistoryEntry? cleared = await history.SetLabelAsync(entry.Id, null);
+
+        Assert.NotNull(cleared);
+        Assert.Null(cleared.Label);
+        Assert.Null((await history.GetEntriesAsync(path))[0].Label);
     }
 }

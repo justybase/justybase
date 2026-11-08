@@ -3,6 +3,7 @@
                     xmlns:core="using:Dock.Model.Core"
                     xmlns:converters="using:Dock.Avalonia.Converters"
                     xmlns:controls="using:Dock.Avalonia.Controls"
+                    xmlns:conv="using:JustyBase.Converters"
                     xmlns:vmDoc="using:JustyBase.ViewModels.Documents"
                     x:CompileBindings="True">
 
@@ -12,14 +13,32 @@
 	  {DynamicResource DocumentTabStripItemContextMenu}.
 	-->
 	<ContextMenu x:Key="DocumentTabStripItemContextMenu" x:DataType="vmDoc:DocumentBaseVM">
+		<MenuItem Header="Save"
+		          Command="{Binding TabRunActionCommand}"
+		          CommandParameter="document.save"
+		          InputGesture="{Binding TabSaveShortcut, Converter={x:Static conv:KeyGestureStringConverter.Instance}}"
+		          ToolTip.Tip="{Binding TabSaveToolTip}"
+		          IsVisible="{Binding IsSql}" />
+		<MenuItem Header="Save as…"
+		          Command="{Binding TabRunActionCommand}"
+		          CommandParameter="document.saveAs"
+		          InputGesture="{Binding TabSaveAsShortcut, Converter={x:Static conv:KeyGestureStringConverter.Instance}}"
+		          ToolTip.Tip="{Binding TabSaveAsToolTip}"
+		          IsVisible="{Binding IsSql}" />
+		<Separator IsVisible="{Binding IsSql}" />
 		<MenuItem Header="Open in explorer"
-		          Command="{Binding TabShowInExplorerCommand}"
+		          Command="{Binding TabRunActionCommand}"
+		          CommandParameter="document.showInExplorer"
 		          IsVisible="{Binding IsSql}" />
 		<MenuItem Header="Copy full filepath to clipboard"
-		          Command="{Binding TabCopyFullFilePathCommand}"
+		          Command="{Binding TabRunActionCommand}"
+		          CommandParameter="document.copyFullPath"
 		          IsVisible="{Binding IsSql}" />
 		<MenuItem Header="Local history…"
-		          Command="{Binding TabShowLocalHistoryCommand}"
+		          Command="{Binding TabRunActionCommand}"
+		          CommandParameter="document.localHistory"
+		          InputGesture="{Binding TabLocalHistoryShortcut, Converter={x:Static conv:KeyGestureStringConverter.Instance}}"
+		          ToolTip.Tip="{Binding TabLocalHistoryToolTip}"
 		          IsVisible="{Binding IsSql}" />
 		<Separator IsVisible="{Binding IsSql}" />
 

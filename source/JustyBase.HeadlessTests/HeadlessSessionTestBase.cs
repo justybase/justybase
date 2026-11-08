@@ -89,4 +89,15 @@ public abstract class HeadlessSessionTestBase : IAsyncLifetime
             return true;
         }, CancellationToken.None).ConfigureAwait(false);
     }
+
+    /// <summary>Runs an async UI operation and keeps the headless dispatcher pumping while it awaits.</summary>
+    protected async Task RunOnUiAsync(Func<Task> action)
+    {
+        Assert.NotNull(Session);
+        _ = await Session!.Dispatch(async () =>
+        {
+            await action().ConfigureAwait(true);
+            return true;
+        }, CancellationToken.None).ConfigureAwait(false);
+    }
 }

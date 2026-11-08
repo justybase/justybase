@@ -1,4 +1,6 @@
+using JustyBase.Common.Models;
 using JustyBase.QuickOpen;
+using JustyBase.Services.Actions;
 using JustyBase.Services.Workspace;
 
 namespace JustyBase.Tests;
@@ -91,5 +93,85 @@ public sealed class QuickOpenSearchServiceTests
         IReadOnlyList<QuickOpenListEntry> list = QuickOpenSearchService.BuildList([], [], hits);
 
         Assert.Contains(list, entry => entry.IsHeader && entry.HeaderText == "symbols");
+    }
+
+    [Fact]
+    public void SearchActions_CarriesTheActionIdAndShortcut()
+    {
+        IdeAction[] actions =
+        [
+            new("document.save", "Save Document", "File", _ => Task.CompletedTask, Shortcut: "Ctrl+S"),
+            new("document.rename", "Rename Symbol", "Edit", _ => Task.CompletedTask, Shortcut: "F2"),
+        ];
+
+        QuickOpenHit hit = Assert.Single(QuickOpenSearchService.SearchActions(actions, "save doc"));
+
+        Assert.Equal(QuickOpenHitKind.Action, hit.Kind);
+        Assert.Equal("document.save", hit.ActionId);
+        Assert.Contains("Ctrl+S", hit.DisplayPath);
+    }
+
+    [Fact]
+    public void SearchSchema_RanksTablesBeforeColumnsAndCarriesInsertText()
+    {
+        QuickOpenSchemaObject[] objects =
+        [
+            new("customer_id", QuickOpenSchemaObjectKind.Column, "JUST_DATA", "ADMIN", "CUSTOMER", "JUST_DATA.ADMIN.CUSTOMER", "customer_id"),
+            new("CUSTOMER", QuickOpenSchemaObjectKind.Table, "JUST_DATA", "ADMIN", null, "JUST_DATA.ADMIN", "JUST_DATA.ADMIN.CUSTOMER"),
+        ];
+
+        QuickOpenHit first = QuickOpenSearchService.SearchSchema(objects, "customer")[0];
+
+        Assert.Equal(QuickOpenHitKind.SchemaObject, first.Kind);
+        Assert.Equal("CUSTOMER", first.DisplayName);
+        Assert.Equal("JUST_DATA.ADMIN.CUSTOMER", first.InsertText);
+        Assert.Contains("table", first.DisplayPath);
+    }
+
+    [Fact]
+    public void SearchHistory_CarriesTheFullSqlForOpening()
+    {
+        HistoryEntry[] entries =
+        [
+            new()
+            {
+                Date = new DateTime(2026, 11, 8, 14, 5, 22),
+                Connection = "JustData",
+                Database = "JUST_DATA",
+                SQL = "SELECT *\nFROM CUSTOMER;",
+                Status = HistoryRunStatus.Success,
+                DurationMs = 123,
+            },
+        ];
+
+        QuickOpenHit hit = Assert.Single(QuickOpenSearchService.SearchHistory(entries, "customer"));
+
+        Assert.Equal(QuickOpenHitKind.History, hit.Kind);
+        Assert.Equal("SELECT *\nFROM CUSTOMER;", hit.Payload);
+        Assert.Contains("14:05:22", hit.DisplayPath);
+        Assert.Contains("123", hit.DisplayPath);
+    }
+
+    [Fact]
+    public void BuildList_AddsEveryGoToEverythingSection()
+    {
+        QuickOpenHit action = new(QuickOpenHitKind.Action, "Save", "File", null, null,
+            QuickOpenSource.None, 1, null, ActionId: "document.save");
+        QuickOpenHit schema = new(QuickOpenHitKind.SchemaObject, "CUSTOMER", "table", null, null,
+            QuickOpenSource.None, 1, null, InsertText: "CUSTOMER");
+        QuickOpenHit history = new(QuickOpenHitKind.History, "SELECT 1", "history", null, null,
+            QuickOpenSource.None, 1, null, Payload: "SELECT 1;");
+        QuickOpenHit file = new(QuickOpenHitKind.FileName, "a.sql", "files", null, null,
+            QuickOpenSource.Files, 1, null);
+
+        IReadOnlyList<QuickOpenListEntry> list = QuickOpenSearchService.BuildList(
+            [file], [], [], [action], [schema], [history]);
+
+        Assert.Collection(
+            list.Where(entry => entry.IsHeader),
+            entry => Assert.Equal("actions", entry.HeaderText),
+            entry => Assert.Equal("files", entry.HeaderText),
+            entry => Assert.Equal("tables and columns", entry.HeaderText),
+            entry => Assert.Equal("query history", entry.HeaderText));
     }
 }

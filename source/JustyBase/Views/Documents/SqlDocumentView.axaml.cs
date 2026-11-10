@@ -20,6 +20,7 @@ public partial class SqlDocumentView : UserControl
         SqlEditor.TextArea.RightClickMovesCaret = true;
         SqlEditor.DataContextChanged += TextEditor_DataContextChanged;
         SqlEditor.KeyDown += TextEditor_KeyDownAsync;
+        SqlEditor.AddHandler(PointerPressedEvent, Editor_PointerPressed, RoutingStrategies.Tunnel);
         SetupDnd();
     }
 
@@ -39,18 +40,7 @@ public partial class SqlDocumentView : UserControl
 
         if (e.Key == Key.F4)
         {
-            if (_quickMenuFlyout.Content is not DbObjectQuickMenu quickMenu)
-            {
-                return;
-            }
-
-            quickMenu.DataContext = new DbObjectQuickMenuViewModel()
-            {
-                ObjectTitle = this.SqlEditor.GetTappedWord(),
-                SqlDocVM = viewModel,
-                CloseAction = _quickMenuFlyout.Hide
-            };
-            _quickMenuFlyout.ShowAt(this, true);
+            ShowDbObjectQuickMenu();
         }
         else if (e.Key is Key.RightCtrl or Key.F6)
         {
@@ -63,6 +53,60 @@ public partial class SqlDocumentView : UserControl
     }
 
     private SqlDocumentViewModel? ViewModel => this.DataContext as SqlDocumentViewModel;
+
+    private void ShowDbObjectQuickMenu()
+    {
+        if (ViewModel is null || _quickMenuFlyout.Content is not DbObjectQuickMenu quickMenu)
+        {
+            return;
+        }
+
+        quickMenu.DataContext = new DbObjectQuickMenuViewModel()
+        {
+            ObjectTitle = SqlEditor.GetTappedWord(),
+            SqlDocVM = ViewModel,
+            CloseAction = _quickMenuFlyout.Hide
+        };
+        _quickMenuFlyout.ShowAt(this, true);
+    }
+
+    /// <summary>
+    /// Ctrl+click places the caret on the clicked object and opens the same quick menu as F4.
+    /// </summary>
+    private void Editor_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.KeyModifiers != KeyModifiers.Control || e.ClickCount != 1)
+        {
+            return;
+        }
+
+        var currentPoint = e.GetCurrentPoint(SqlEditor);
+        if (!currentPoint.Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        // Ignore clicks outside the text surface (scrollbars, etc.).
+        var textView = SqlEditor.TextArea.TextView;
+        var textViewPoint = e.GetPosition(textView);
+        if (!new Rect(textView.Bounds.Size).Contains(textViewPoint))
+        {
+            return;
+        }
+
+        var textPosition = SqlEditor.GetPositionFromPoint(e.GetPosition(SqlEditor));
+        if (textPosition is null)
+        {
+            return;
+        }
+
+        int offset = SqlEditor.Document.GetOffset(textPosition.Value.Line, textPosition.Value.Column);
+        SqlEditor.Select(offset, 0);
+        SqlEditor.Focus();
+
+        e.Handled = true;
+        ShowDbObjectQuickMenu();
+    }
 
     private readonly DataFormat _fileContentsDataFormat = DataFormat.CreateBytesPlatformFormat("FileContents");
     private void SetupDnd()

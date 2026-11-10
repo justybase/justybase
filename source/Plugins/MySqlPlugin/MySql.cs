@@ -53,7 +53,8 @@ public sealed class MySql : DatabaseService
     {
         // P4: implement SHOW CREATE TABLE. Until then the host hides DDL
         // actions, but a direct call must not crash the caller.
-        sb.AppendLine($"-- MySQL DDL for {tableName} is not implemented yet; create the table manually.");
+        sb.Append("-- MySQL DDL for ").Append(tableName)
+            .AppendLine(" is not implemented yet; create the table manually.");
         return ValueTask.CompletedTask;
     }
 

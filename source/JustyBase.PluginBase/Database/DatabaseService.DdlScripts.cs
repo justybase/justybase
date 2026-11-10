@@ -307,6 +307,14 @@ public abstract partial class DatabaseService
         return @$"DROP TABLE {tableCl};";
     }
 
+    /// <summary>Drops a view; separate from <see cref="GetDrop"/> so the menu
+    /// does not emit <c>DROP TABLE</c> for view nodes.</summary>
+    public virtual string GetDropView(string view, string database, string schema)
+    {
+        var viewCl = GetQuotedTwoOrTreePartName(database, schema, view);
+        return $"DROP VIEW {viewCl};";
+    }
+
     public virtual string GetDropIndex(string database, string schema, string index)
     {
         var indexCl = GetQuotedTwoOrTreePartName(null, schema, index, force: true);

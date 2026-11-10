@@ -34,6 +34,11 @@
     <ProjectReference Include="..\Plugins\NetezzaBase\NetezzaBase.csproj" />
     <ProjectReference Include="..\Plugins\ExcelPlugin\ExcelPlugin.csproj" />
     <ProjectReference Include="..\Plugins\AccessPlugin\AccessPlugin.csproj" />
+    <ProjectReference Include="..\Plugins\PostgresPlugin\PostgresPlugin.csproj" />
+    <ProjectReference Include="..\Plugins\DB2Plugin\DB2Plugin.csproj" />
+    <ProjectReference Include="..\Plugins\DuckDBPlugin\DuckDBPlugin.csproj" />
+    <ProjectReference Include="..\Plugins\OraclePlugin\OraclePlugin.csproj" />
+    <ProjectReference Include="..\Plugins\MySqlPlugin\MySqlPlugin.csproj" />
     <ProjectReference Include="..\SqlEditor.Avalonia\SqlEditor.Avalonia.csproj" />
   </ItemGroup>
 

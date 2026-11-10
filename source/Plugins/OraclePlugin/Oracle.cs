@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Globalization;
 using System.Text;
 using JustyBase.Helpers.Importers;
 using JustyBase.ImportExport.Import;
@@ -6,6 +7,7 @@ using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
+using JustyBase.PluginDatabaseBase.Models;
 using Oracle.ManagedDataAccess.Client;
 
 namespace OraclePlugin;
@@ -267,6 +269,38 @@ public sealed class Oracle : DatabaseService
                  , DB_LINK
               FROM ALL_SYNONYMS
             """;
+    }
+
+    public override async ValueTask GetCreateSynonymTextStringBuilder(
+        StringBuilder stringBuilder,
+        string database,
+        string schema,
+        string synonymName)
+    {
+        if (!_synonymTableDictCache.ContainsKey(database))
+        {
+            await CacheAllObjects([TypeInDatabaseEnum.Synonym], database);
+        }
+
+        if (_synonymTableDictCache.TryGetValue(database, out var schemas)
+            && schemas.TryGetValue(schema, out var synonyms)
+            && synonyms.TryGetValue(synonymName, out SynonymCachedInfo? info))
+        {
+            string synonym = GetQuotedTwoOrTreePartName(database, schema, synonymName);
+            string target = GetQuotedTwoOrTreePartName(
+                null, info.RefObjNamePart1, info.RefObjNamePart3, force: true);
+
+            if (!string.IsNullOrWhiteSpace(info.RefObjNamePart2)
+                && !string.Equals(info.RefObjNamePart2, "PROBLEM", StringComparison.Ordinal))
+            {
+                target += "@" + info.RefObjNamePart2;
+            }
+
+            stringBuilder.Append(CultureInfo.InvariantCulture, $"CREATE SYNONYM {synonym} FOR {target};");
+            return;
+        }
+
+        stringBuilder.Append(CultureInfo.InvariantCulture, $"PROBLEM ! {database}.{schema}.{synonymName}");
     }
 
     public override string GetAddComment(string table, string database, string schema)

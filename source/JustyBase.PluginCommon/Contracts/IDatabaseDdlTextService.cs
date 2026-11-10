@@ -34,6 +34,7 @@ public interface IDatabaseDdlTextService
     ValueTask GetCreateViewTextStringBuilder(StringBuilder stringBuilder, string database, string schema, string tableName);
     string GetDeleted(string table, string database, string schema);
     string GetDrop(string table, string database, string schema);
+    string GetDropView(string view, string database, string schema);
     string GetDropIndex(string database, string schema, string index);
     string GetDropTrigger(string database, string schema, string trigger);
     string GetDuplicates(string table, string database, string schema);

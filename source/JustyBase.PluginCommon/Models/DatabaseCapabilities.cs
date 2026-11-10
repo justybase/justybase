@@ -230,8 +230,9 @@ public static class DatabaseCapabilitiesCatalog
     /// <summary>
     /// MySQL is an experimental stub: only tables/views, query helpers and the
     /// stateless DDL helpers (drop/rename/constraints) are usable. The
-    /// create-table template, procedures and synonyms still throw in the
-    /// driver, so DDL/comment/procedure/synonym groups stay hidden until P4.
+    /// create-table template returns an explanatory comment and the procedure
+    /// and synonym catalogs are empty, so DDL/comment/procedure/synonym groups
+    /// stay hidden until P4.
     /// </summary>
     public static DatabaseCapabilities MySql { get; } = new()
     {

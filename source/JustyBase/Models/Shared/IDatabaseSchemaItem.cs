@@ -332,7 +332,9 @@ internal interface IDatabaseSchemaItem
                 ? dbService.GetDropIndex(DATABASE, SCHEMA, ITEM_NAME)
                 : optionName.StartsWith("DROP_TRIGGER", StringComparison.Ordinal)
                     ? dbService.GetDropTrigger(DATABASE, SCHEMA, ITEM_NAME)
-                    : dbService.GetDrop(ITEM_NAME, DATABASE, SCHEMA);
+                    : schemaModel.ActualTypeInDatabase == TypeInDatabaseEnum.View
+                        ? dbService.GetDropView(ITEM_NAME, DATABASE, SCHEMA)
+                        : dbService.GetDrop(ITEM_NAME, DATABASE, SCHEMA);
         }
         else if (optionName.StartsWith("EMPTY", StringComparison.Ordinal))
         {

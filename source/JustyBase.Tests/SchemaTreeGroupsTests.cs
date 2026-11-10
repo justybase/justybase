@@ -121,7 +121,7 @@ public sealed class SchemaTreeGroupsTests
         }
     }
 
-    private static IReadOnlyList<TypeInDatabaseEnum> Build(DatabaseTypeEnum databaseType)
+    private static TypeInDatabaseEnum[] Build(DatabaseTypeEnum databaseType)
         => SchemaTreeGroups.Build(DatabaseCapabilitiesCatalog.For(databaseType))
             .Select(group => group.Type)
             .ToArray();

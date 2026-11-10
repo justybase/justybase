@@ -1369,7 +1369,8 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
     /// <summary>
     /// Resolves the SQL dialect of the currently selected connection
-    /// (Db2 and SQLite documents use their dialects from JustyBase.NetezzaSql).
+    /// (native dialect for Db2, Oracle, PostgreSQL, MySQL, SQLite and Access;
+    /// PostgreSQL is used as the DuckDB approximation).
     /// </summary>
     private SqlDialect GetCurrentSqlDialect()
     {

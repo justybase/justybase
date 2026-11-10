@@ -142,7 +142,7 @@ public class SchemaContextMenuCatalogTests
     [Theory]
     [InlineData(DatabaseTypeEnum.PostgreSql, "GROOM", "Vacuum table (VACUUM)…")]
     [InlineData(DatabaseTypeEnum.PostgreSql, "STATS", "Analyze table (ANALYZE)…")]
-    [InlineData(DatabaseTypeEnum.Sqlite, "GROOM", "Analyze table (ANALYZE)…")]
+    [InlineData(DatabaseTypeEnum.Sqlite, "GROOM", "Vacuum database (VACUUM)…")]
     [InlineData(DatabaseTypeEnum.Sqlite, "STATS", "Update statistics (ANALYZE)…")]
     public void ResolveTitle_UsesEngineMaintenanceLabels(
         DatabaseTypeEnum databaseType, string parameter, string expected)
@@ -186,6 +186,12 @@ public class SchemaContextMenuCatalogTests
         Assert.Contains(SchemaContextActionKind.Explain, kinds);
         Assert.Contains(SchemaContextActionKind.Drop, kinds);
         Assert.Contains(SchemaContextActionKind.PrimaryKey, kinds);
+
+        DatabaseCapabilities capabilities = DatabaseCapabilitiesCatalog.For(DatabaseTypeEnum.Oracle);
+        Assert.True(SchemaContextMenuCatalog.IsActionEnabled("CREATE_INDEX", capabilities));
+        Assert.False(SchemaContextMenuCatalog.IsActionEnabled("DDL_INDEX", capabilities));
+        Assert.False(SchemaContextMenuCatalog.IsActionEnabled("DROP_INDEX", capabilities));
+        Assert.False(SchemaContextMenuCatalog.IsActionEnabled("DROP_TRIGGER", capabilities));
     }
 
     [Fact]

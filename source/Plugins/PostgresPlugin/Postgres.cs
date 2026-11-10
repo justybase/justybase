@@ -224,7 +224,8 @@ public sealed class Postgres : DatabaseService
 
     protected override string? GetExternalTableSql(string database)
     {
-        throw new NotImplementedException();
+        // PostgreSQL FDW/external tables are not exposed by this driver.
+        return null;
     }
 
     protected override string? GetProceduresSql(string database, string objectFilterName)
@@ -311,7 +312,8 @@ public sealed class Postgres : DatabaseService
 
     protected override string? GetSynonymSql(string database)
     {
-        throw new NotImplementedException();
+        // PostgreSQL has no synonym catalog; synonyms are not emulated.
+        return null;
     }
 
     public override async ValueTask GetCreateTableTextStringBuilder(

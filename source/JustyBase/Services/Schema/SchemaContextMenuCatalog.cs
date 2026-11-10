@@ -134,8 +134,8 @@ public static class SchemaContextMenuCatalog
         "IMPORT_DATA" => capabilities.SupportsImport,
         "EXPORT_DATA" => capabilities.SupportsExport,
         "EXPORT_DDL_DATA" => capabilities.SupportsExport && capabilities.SupportsDdl,
-        "COMMENT" => capabilities.SupportsComments && capabilities.SupportsDdl,
-        "KEY" or "UNIQUE" => capabilities.SupportsDdl,
+        "COMMENT" => capabilities.SupportsComments,
+        "KEY" or "UNIQUE" => capabilities.SupportsConstraints,
         "RENAME" => capabilities.SupportsRenameTable,
         "CREATE_FROM" => capabilities.SupportsCreateTableFrom,
         "EXPLAIN" => capabilities.SupportsExplain,
@@ -143,10 +143,13 @@ public static class SchemaContextMenuCatalog
         "FIND_USAGES" => capabilities.SupportsFindUsages,
         "IMPACT_ANALYSIS" => capabilities.SupportsFindUsages,
         "COPY_TO_CONNECTION" => capabilities.SupportsExport,
-        "DROP" => capabilities.SupportsDdl,
-        "CREATE_INDEX" or "DDL_ALL_INDEXES" or "DDL_INDEX" or "DDL_INDEX_CLIP" or "DROP_INDEX" => capabilities.SupportsIndexes,
+        "DROP" => capabilities.SupportsDropObject,
+        "CREATE_INDEX" => capabilities.SupportsIndexes,
+        "DDL_ALL_INDEXES" or "DDL_INDEX" or "DDL_INDEX_CLIP" => capabilities.SupportsIndexes && capabilities.SupportsIndexDdl,
+        "DROP_INDEX" => capabilities.SupportsIndexes && capabilities.SupportsDropObject,
         "CREATE_PARTITION" or "DDL_ALL_PARTITIONS" or "DDL_PARTITION" or "DDL_PARTITION_CLIP" => capabilities.SupportsPartitions,
-        "DDL_ALL_TRIGGERS" or "DDL_TRIGGER" or "DDL_TRIGGER_CLIP" or "DROP_TRIGGER" => capabilities.SupportsTriggers,
+        "DDL_ALL_TRIGGERS" or "DDL_TRIGGER" or "DDL_TRIGGER_CLIP" => capabilities.SupportsTriggers && capabilities.SupportsTriggerDdl,
+        "DROP_TRIGGER" => capabilities.SupportsTriggers && capabilities.SupportsDropObject,
         "CREATE_SYNONYM" => capabilities.SupportsSynonyms && capabilities.SupportsCreateTemplates,
         "DDL_SYNONYM" or "DDL_ALL_SYNONYMS" => capabilities.SupportsSynonyms,
         "CREATE_SEQUENCE" => capabilities.SupportsSequences && capabilities.SupportsCreateTemplates,
@@ -159,25 +162,23 @@ public static class SchemaContextMenuCatalog
 
     /// <summary>
     /// Engine-specific label for actions whose SQL meaning changes per database
-    /// (Db2 uses REORG/RUNSTATS where Netezza uses GROOM/GENERATE STATISTICS).
+    /// (Db2 uses REORG/RUNSTATS, PostgreSQL VACUUM/ANALYZE, SQLite ANALYZE where
+    /// Netezza uses GROOM/GENERATE STATISTICS).
     /// </summary>
     public static string ResolveTitle(string? commandParameter, string defaultTitle, DatabaseTypeEnum databaseType)
-    {
-        if (databaseType != DatabaseTypeEnum.DB2)
+        => (databaseType, commandParameter) switch
         {
-            return defaultTitle;
-        }
-
-        return commandParameter switch
-        {
-            "GROOM" => "Reorganize table (REORG)…",
-            "STATS" => "Run statistics (RUNSTATS)…",
-            "CREATE_SYNONYM" => "Create alias template",
-            "DDL_SYNONYM" => "Create alias/nickname DDL to new query window",
-            "DDL_ALL_SYNONYMS" => "Create all alias/nickname DDL to new query window",
+            (DatabaseTypeEnum.DB2, "GROOM") => "Reorganize table (REORG)…",
+            (DatabaseTypeEnum.DB2, "STATS") => "Run statistics (RUNSTATS)…",
+            (DatabaseTypeEnum.DB2, "CREATE_SYNONYM") => "Create alias template",
+            (DatabaseTypeEnum.DB2, "DDL_SYNONYM") => "Create alias/nickname DDL to new query window",
+            (DatabaseTypeEnum.DB2, "DDL_ALL_SYNONYMS") => "Create all alias/nickname DDL to new query window",
+            (DatabaseTypeEnum.PostgreSql, "GROOM") => "Vacuum table (VACUUM)…",
+            (DatabaseTypeEnum.PostgreSql, "STATS") => "Analyze table (ANALYZE)…",
+            (DatabaseTypeEnum.Sqlite, "GROOM") => "Analyze table (ANALYZE)…",
+            (DatabaseTypeEnum.Sqlite, "STATS") => "Update statistics (ANALYZE)…",
             _ => defaultTitle,
         };
-    }
 
     /// <summary>Formats shared SQL when <paramref name="kind"/> maps to a Core template.</summary>
     public static string? TryFormatSharedSql(SchemaContextActionKind kind, string qualifiedObject)

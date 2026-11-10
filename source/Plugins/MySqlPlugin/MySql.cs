@@ -51,19 +51,24 @@ public sealed class MySql : DatabaseService
 
     public override ValueTask GetCreateTableTextStringBuilder(StringBuilder sb, string database, string schema, string tableName, string? overrideTableName = null, string? middleCode = null, string? endingCode = null, List<string>? distOverride = null)
     {
-        throw new NotImplementedException();
+        // P4: implement SHOW CREATE TABLE. Until then the host hides DDL
+        // actions, but a direct call must not crash the caller.
+        sb.AppendLine($"-- MySQL DDL for {tableName} is not implemented yet; create the table manually.");
+        return ValueTask.CompletedTask;
     }
 
     protected override string DefaultDatabaseSchema => "def";
     //https://dev.mysql.com/doc/refman/8.0/en/information-schema-general-table-reference.html
     protected override string? GetExternalTableSql(string database)
     {
-        throw new NotImplementedException();
+        // MySQL has no external-table catalog equivalent in this driver.
+        return null;
     }
 
     protected override string? GetProceduresSql(string database, string objectFilterName)
     {
-        throw new NotImplementedException();
+        // The procedures catalog is not implemented yet; the host hides the group.
+        return null;
     }
 
     protected override string GetSqlOfColumns(string dbName)
@@ -114,7 +119,8 @@ public sealed class MySql : DatabaseService
 
     protected override string? GetSynonymSql(string database)
     {
-        throw new NotImplementedException();
+        // MySQL has no synonyms; the host hides the group.
+        return null;
     }
 
 }

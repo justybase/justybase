@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Core;
 using Dock.Model.Mvvm.Controls;
 using JustyBase.Common.Contracts;
+using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.Services;
 using JustyBase.ViewModels.Documents;
 
@@ -14,6 +15,7 @@ public sealed partial class SqlOutlineViewModel : Tool
 {
     private readonly AvaloniaList<SqlOutlineItem> _items = new();
     private string? _lastBuiltSql;
+    private SqlDialect _lastBuiltDialect = SqlDialect.Netezza;
 
     public SqlOutlineViewModel(IFactory factory)
     {
@@ -115,20 +117,22 @@ public sealed partial class SqlOutlineViewModel : Tool
             NavigateToItem(item, focusEditor: true);
     }
 
-    public void UpdateOutline(string sql)
+    public void UpdateOutline(string sql, SqlDialect dialect = SqlDialect.Netezza)
     {
         // Activations fire often (dialogs, tool focus); rebuilding parses the
-        // whole script, so skip when the text did not change.
-        if (string.Equals(sql, _lastBuiltSql, StringComparison.Ordinal))
+        // whole script, so skip when the text and dialect did not change.
+        if (dialect == _lastBuiltDialect
+            && string.Equals(sql, _lastBuiltSql, StringComparison.Ordinal))
             return;
 
         _lastBuiltSql = sql;
+        _lastBuiltDialect = dialect;
         _items.Clear();
         SelectedItem = null;
         SqlOutlineItem? parent = null;
         var line = 1;
         var lineOffset = 0;
-        foreach (var entry in SqlOutlineBuilder.Build(sql))
+        foreach (var entry in SqlOutlineBuilder.Build(sql, dialect))
         {
             var targetOffset = Math.Min(entry.StartOffset, sql.Length);
             while (lineOffset < targetOffset)

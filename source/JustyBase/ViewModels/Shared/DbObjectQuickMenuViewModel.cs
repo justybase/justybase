@@ -2,6 +2,7 @@
 using CommunityToolkit.Mvvm.Input;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
+using JustyBase.Services.Schema;
 using JustyBase.ViewModels.Documents;
 using System.Collections.ObjectModel;
 
@@ -26,9 +27,12 @@ public sealed class DbObjectQuickMenuViewModel : ObservableObject
             {
                 new("Jump to [F6]", 12, SqlDocVM.JumpToSelectedItem),
                 new("Select [F7]", 1, SqlDocVM.SelectSelectedItem),
-                new("Drop", 12, SqlDocVM.DropSelectedItem),
             };
 
+            if (capabilities.SupportsDropObject)
+            {
+                items.Add(new QuickMenuItem("Drop", 12, SqlDocVM.DropSelectedItem));
+            }
             if (capabilities.SupportsRenameTable)
             {
                 items.Add(new QuickMenuItem("Rename", 12, SqlDocVM.RenameSelectedItem));
@@ -36,7 +40,7 @@ public sealed class DbObjectQuickMenuViewModel : ObservableObject
             if (capabilities.SupportsGroomTable)
             {
                 items.Add(new QuickMenuItem(
-                    databaseType == DatabaseTypeEnum.DB2 ? "Reorganize (REORG)" : "Groom",
+                    SchemaContextMenuCatalog.ResolveTitle("GROOM", "Groom", databaseType),
                     6,
                     SqlDocVM.GroomSelectedItem));
             }
@@ -55,7 +59,7 @@ public sealed class DbObjectQuickMenuViewModel : ObservableObject
             if (capabilities.SupportsTableStatistics)
             {
                 items.Add(new QuickMenuItem(
-                    databaseType == DatabaseTypeEnum.DB2 ? "Run statistics (RUNSTATS)" : "Generate statistics",
+                    SchemaContextMenuCatalog.ResolveTitle("STATS", "Generate statistics", databaseType),
                     7,
                     SqlDocVM.GenerateStatsSelectedItem));
             }

@@ -1475,6 +1475,7 @@ public sealed class DB2DatabaseService : DatabaseService
 
     protected override string? GetExternalTableSql(string database)
     {
-        throw new NotImplementedException();
+        // Db2 external tables are not implemented; the host hides the group.
+        return null;
     }
 }

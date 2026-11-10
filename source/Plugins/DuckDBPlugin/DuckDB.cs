@@ -72,20 +72,9 @@ public sealed class DuckDB : DatabaseService
 
     protected override string? GetProceduresSql(string database, string objectFilterName)
     {
-        return
-        """
-        SELECT 
-            "main" AS SCHEMA_
-            , "sql"
-           ,"rootpage"
-            , UPPER("type")
-            , NULL AS LANGUAGE
-        FROM 
-            sqlite_schema
-        WHERE 
-            name NOT LIKE 'sqlite_%'
-            and "type" not in ('view','table','index')
-        """;
+        // DuckDB has no stored procedures; its functions/macros are not exposed
+        // through this driver yet. The previous SQLite query was invalid here.
+        return null;
     }
 
     protected override string? GetViewsSql(string database, string objectFilterName)
@@ -136,12 +125,17 @@ public sealed class DuckDB : DatabaseService
 
     protected override string? GetExternalTableSql(string database)
     {
-        throw new NotImplementedException();
+        // DuckDB external scans are expressed in SELECTs; there is no catalog.
+        return null;
     }
     protected override string? GetSynonymSql(string database)
     {
-        throw new NotImplementedException();
+        // DuckDB has no synonym catalog.
+        return null;
     }
+
+    public override string GetEmpty(string table, string database, string schema)
+        => $"DELETE FROM {GetQuotedTwoOrTreePartName(database, schema, table)};";
     public override async ValueTask GetCreateTableTextStringBuilder(StringBuilder sb, string database, string schema, string tableName, string? overrideTableName = null, string? middleCode = null, string? endingCode = null, List<string>? distOverride = null)
     {
         await Task.Run(() =>

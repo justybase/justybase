@@ -190,6 +190,13 @@ public sealed class Access : DatabaseService, ILoginDataAwareDatabaseService
 
     public override string GetShortSelectCode(string fullName) => $"SELECT TOP 100 * FROM {fullName};";
 
+    public override string GetEmpty(string table, string database, string schema)
+    {
+        // Access/Jet has no TRUNCATE; DELETE FROM is the supported reset.
+        string tableCl = GetQuotedTwoOrTreePartName(database, schema, table);
+        return $"DELETE FROM {tableCl};";
+    }
+
     public override string GetCreateFromCode(string fullName)
         => $"SELECT TOP 100 * INTO [ABC] FROM {fullName};";
 

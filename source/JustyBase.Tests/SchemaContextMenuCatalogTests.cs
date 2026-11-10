@@ -138,4 +138,131 @@ public class SchemaContextMenuCatalogTests
     {
         Assert.Equal("GROOM…", SchemaContextMenuCatalog.ResolveTitle("GROOM", "GROOM…", DatabaseTypeEnum.NetezzaSQL));
     }
+
+    [Theory]
+    [InlineData(DatabaseTypeEnum.PostgreSql, "GROOM", "Vacuum table (VACUUM)…")]
+    [InlineData(DatabaseTypeEnum.PostgreSql, "STATS", "Analyze table (ANALYZE)…")]
+    [InlineData(DatabaseTypeEnum.Sqlite, "GROOM", "Analyze table (ANALYZE)…")]
+    [InlineData(DatabaseTypeEnum.Sqlite, "STATS", "Update statistics (ANALYZE)…")]
+    public void ResolveTitle_UsesEngineMaintenanceLabels(
+        DatabaseTypeEnum databaseType, string parameter, string expected)
+    {
+        Assert.Equal(expected, SchemaContextMenuCatalog.ResolveTitle(parameter, "default", databaseType));
+    }
+
+    [Fact]
+    public void PostgreSql_KeepsVacuumAnalyzeAndHidesUnimplementedActions()
+    {
+        var kinds = SchemaContextMenuCatalog
+            .ForType(TypeInDatabaseEnum.Table, DatabaseCapabilitiesCatalog.For(DatabaseTypeEnum.PostgreSql))
+            .Select(e => e.Kind)
+            .ToHashSet();
+
+        Assert.Contains(SchemaContextActionKind.Groom, kinds);
+        Assert.Contains(SchemaContextActionKind.GenerateStatistics, kinds);
+        Assert.Contains(SchemaContextActionKind.Drop, kinds);
+        Assert.Contains(SchemaContextActionKind.PrimaryKey, kinds);
+        Assert.Contains(SchemaContextActionKind.Unique, kinds);
+
+        Assert.DoesNotContain(SchemaContextActionKind.DeletedRows, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.DistributionShow, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.GrantTemplate, kinds);
+    }
+
+    [Fact]
+    public void Oracle_HidesStatisticsAndDistributionButKeepsEditingHelpers()
+    {
+        var kinds = SchemaContextMenuCatalog
+            .ForType(TypeInDatabaseEnum.Table, DatabaseCapabilitiesCatalog.For(DatabaseTypeEnum.Oracle))
+            .Select(e => e.Kind)
+            .ToHashSet();
+
+        Assert.DoesNotContain(SchemaContextActionKind.Groom, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.GenerateStatistics, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.DistributionShow, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.DeletedRows, kinds);
+
+        Assert.Contains(SchemaContextActionKind.Comment, kinds);
+        Assert.Contains(SchemaContextActionKind.Explain, kinds);
+        Assert.Contains(SchemaContextActionKind.Drop, kinds);
+        Assert.Contains(SchemaContextActionKind.PrimaryKey, kinds);
+    }
+
+    [Fact]
+    public void MySql_HidesDdlTemplatesButKeepsQueryAndCleanupActions()
+    {
+        var kinds = SchemaContextMenuCatalog
+            .ForType(TypeInDatabaseEnum.Table, DatabaseCapabilitiesCatalog.For(DatabaseTypeEnum.MySql))
+            .Select(e => e.Kind)
+            .ToHashSet();
+
+        Assert.DoesNotContain(SchemaContextActionKind.DdlToTab, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.DdlToClipboard, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.Comment, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.Groom, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.GenerateStatistics, kinds);
+
+        Assert.Contains(SchemaContextActionKind.Top100, kinds);
+        Assert.Contains(SchemaContextActionKind.CountRows, kinds);
+        Assert.Contains(SchemaContextActionKind.EmptyTable, kinds);
+        Assert.Contains(SchemaContextActionKind.Rename, kinds);
+        Assert.Contains(SchemaContextActionKind.Drop, kinds);
+        Assert.Contains(SchemaContextActionKind.PrimaryKey, kinds);
+        Assert.Contains(SchemaContextActionKind.ExportData, kinds);
+    }
+
+    [Fact]
+    public void Access_HidesCommentExplainAndDuplicates()
+    {
+        var kinds = SchemaContextMenuCatalog
+            .ForType(TypeInDatabaseEnum.Table, DatabaseCapabilitiesCatalog.For(DatabaseTypeEnum.Access))
+            .Select(e => e.Kind)
+            .ToHashSet();
+
+        Assert.DoesNotContain(SchemaContextActionKind.Comment, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.Explain, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.Duplicates, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.Groom, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.GenerateStatistics, kinds);
+
+        Assert.Contains(SchemaContextActionKind.Top100, kinds);
+        Assert.Contains(SchemaContextActionKind.EmptyTable, kinds);
+        Assert.Contains(SchemaContextActionKind.CreateTableFrom, kinds);
+        Assert.Contains(SchemaContextActionKind.Drop, kinds);
+    }
+
+    [Fact]
+    public void Excel_HidesDestructiveActions()
+    {
+        var kinds = SchemaContextMenuCatalog
+            .ForType(TypeInDatabaseEnum.Table, DatabaseCapabilitiesCatalog.For(DatabaseTypeEnum.Excel))
+            .Select(e => e.Kind)
+            .ToHashSet();
+
+        Assert.DoesNotContain(SchemaContextActionKind.Drop, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.EmptyTable, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.ImportData, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.Rename, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.PrimaryKey, kinds);
+
+        Assert.Contains(SchemaContextActionKind.DdlToTab, kinds);
+        Assert.Contains(SchemaContextActionKind.Top100, kinds);
+        Assert.Contains(SchemaContextActionKind.ExportData, kinds);
+    }
+
+    [Fact]
+    public void Sqlite_HidesConstraintTemplatesItCannotAlter()
+    {
+        var kinds = SchemaContextMenuCatalog
+            .ForType(TypeInDatabaseEnum.Table, DatabaseCapabilitiesCatalog.For(DatabaseTypeEnum.Sqlite))
+            .Select(e => e.Kind)
+            .ToHashSet();
+
+        Assert.DoesNotContain(SchemaContextActionKind.PrimaryKey, kinds);
+        Assert.DoesNotContain(SchemaContextActionKind.Unique, kinds);
+
+        Assert.Contains(SchemaContextActionKind.Groom, kinds);
+        Assert.Contains(SchemaContextActionKind.GenerateStatistics, kinds);
+        Assert.Contains(SchemaContextActionKind.CreateTableFrom, kinds);
+    }
 }

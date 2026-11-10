@@ -1,22 +1,25 @@
 using JustyBase.NetezzaSqlParser.Ast;
+using JustyBase.NetezzaSqlParser.Dialects;
 using JustyBase.NetezzaSqlParser.Lexer;
-using JustyBase.NetezzaSqlParser.Parser;
 
 namespace JustyBase.Services;
 
 public sealed record SqlOutlineEntry(string Title, string Kind, int StartOffset, int Depth);
 
-/// <summary>Builds a structural outline from parsed Netezza SQL (statements, CTEs).</summary>
+/// <summary>
+/// Builds a structural outline from parsed SQL (statements, CTEs) using the
+/// lexer and parser of the document's dialect.
+/// </summary>
 public static class SqlOutlineBuilder
 {
-    public static IReadOnlyList<SqlOutlineEntry> Build(string sql)
+    public static IReadOnlyList<SqlOutlineEntry> Build(string sql, SqlDialect dialect = SqlDialect.Netezza)
     {
         if (string.IsNullOrWhiteSpace(sql))
             return [];
 
         try
         {
-            var tokens = NzLexer.Tokenize(sql).ToArray();
+            var tokens = DialectRuntime.Tokenize(sql, dialect).ToArray();
             if (tokens.Length == 0)
                 return [];
 
@@ -33,7 +36,7 @@ public static class SqlOutlineBuilder
                     break;
 
                 var remaining = tokens.Skip(index).ToArray();
-                var parser = new NzSqlParser(remaining);
+                var parser = DialectRuntime.CreateParser(remaining, dialect);
                 var statement = parser.Parse();
                 if (statement is null || parser.Position <= 0)
                     break;

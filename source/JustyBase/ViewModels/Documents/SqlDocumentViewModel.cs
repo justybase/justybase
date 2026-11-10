@@ -384,7 +384,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             BuildFimSchemaHintProvider(documentUri));
 #endif
         _completionEngine?.SetDocumentUri(documentUri);
-        _linterService?.AttachToEditor(value, documentUri, _documentDialect, SelectedDatabase);
+        _linterService?.AttachToEditor(value, documentUri, _documentDialect, SelectedDatabase, CurrentDatabaseType);
         if (contentWasSet)
         {
             // One intentional pass after attach — text was set before handlers were wired.
@@ -1396,7 +1396,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             return;
 
         SqlEditor.SetSqlDialect(dialect);
-        _linterService?.AttachToEditor(SqlEditor, $"sql-doc-{Id}", dialect, SelectedDatabase);
+        _linterService?.AttachToEditor(SqlEditor, $"sql-doc-{Id}", dialect, SelectedDatabase, CurrentDatabaseType);
     }
 
     [ObservableProperty]

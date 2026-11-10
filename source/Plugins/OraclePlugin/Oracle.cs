@@ -251,11 +251,40 @@ public sealed class Oracle : DatabaseService
 
     protected override string? GetExternalTableSql(string database)
     {
-        throw new NotImplementedException();
+        // Oracle external tables are not exposed by this driver.
+        return null;
     }
 
     protected override string? GetSynonymSql(string database)
     {
-        throw new NotImplementedException();
+        // Cache contract: schema, name, referenced object, ref part 1, ref part 2.
+        return
+            """
+            SELECT OWNER
+                 , SYNONYM_NAME
+                 , TABLE_NAME
+                 , TABLE_OWNER
+                 , DB_LINK
+              FROM ALL_SYNONYMS
+            """;
     }
+
+    public override string GetAddComment(string table, string database, string schema)
+    {
+        string tableCl = GetQuotedTwoOrTreePartName(database, schema, table);
+        return $"COMMENT ON TABLE {tableCl} IS '<comment>';";
+    }
+
+    public override string GetExplainCode(string database, string schema, string table)
+    {
+        string tableCl = GetQuotedTwoOrTreePartName(database, schema, table);
+        return
+            $"""
+            EXPLAIN PLAN FOR SELECT * FROM {tableCl};
+            SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+            """;
+    }
+
+    public override string GetCreateSequencePatternText()
+        => "CREATE SEQUENCE CUSTOMER_112 START WITH 1 INCREMENT BY 1 NOCACHE;";
 }

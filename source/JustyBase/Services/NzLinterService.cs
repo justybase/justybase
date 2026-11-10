@@ -35,9 +35,8 @@ public sealed class NzLinterService : IDisposable
     private CancellationTokenSource? _schemaSyncCts;
     private readonly object _lock = new();
     private volatile SqlDialect _documentDialect = SqlDialect.Netezza;
+    private volatile DatabaseTypeEnum _documentDatabaseType = DatabaseTypeEnum.NotSupportedDatabase;
     private SqlDialect _engineDialect = SqlDialect.Netezza;
-    private static readonly string[] Db2LintRuleIds =
-        ["DB2L001", "DB2L002", "DB2L003", "DB2L004", "DB2L005", "DB2L006", "DB2L007", "DB2L008"];
     private readonly object _schemaLock = new();
     private bool _disposed;
     private volatile bool _schemaSynced;
@@ -147,7 +146,8 @@ public sealed class NzLinterService : IDisposable
         SqlCodeEditor editor,
         string? documentUri = null,
         SqlDialect dialect = SqlDialect.Netezza,
-        string? activeDatabase = null)
+        string? activeDatabase = null,
+        DatabaseTypeEnum? databaseType = null)
     {
         string? normalizedActiveDatabase = NormalizeDatabase(activeDatabase);
 
@@ -165,8 +165,10 @@ public sealed class NzLinterService : IDisposable
         SqlCodeEditor? oldEditor;
         lock (_lock)
         {
+            DatabaseTypeEnum effectiveDatabaseType = databaseType ?? DatabaseTypeEnum.NotSupportedDatabase;
             bool dialectChanged = _documentDialect != dialect;
             if (!dialectChanged
+                && _documentDatabaseType == effectiveDatabaseType
                 && _attachedEditor == editor
                 && string.Equals(_documentUri, documentUri ?? _documentUri, StringComparison.Ordinal)
                 && string.Equals(_activeDatabase, normalizedActiveDatabase, StringComparison.OrdinalIgnoreCase))
@@ -177,6 +179,7 @@ public sealed class NzLinterService : IDisposable
             oldEditor = _attachedEditor;
             _attachedEditor = editor;
             _documentDialect = dialect;
+            _documentDatabaseType = effectiveDatabaseType;
             _activeDatabase = normalizedActiveDatabase;
             // Stable per-document URI avoids LRU eviction/dispose of in-use parse sessions
             // when the same document gets a new editor control instance.
@@ -245,7 +248,7 @@ public sealed class NzLinterService : IDisposable
                 editor.TextArea.Caret.BringCaretToView();
             };
             _outlineVm.GetCurrentSql = () => editor.Document?.Text ?? string.Empty;
-            _outlineVm.UpdateOutline(editor.Document?.Text ?? string.Empty);
+            _outlineVm.UpdateOutline(editor.Document?.Text ?? string.Empty, _documentDialect);
         }
     }
 
@@ -285,87 +288,15 @@ public sealed class NzLinterService : IDisposable
         options ??= Program.ServiceProvider?.GetService<IGeneralApplicationData>()?.Config;
         if (options is null) return;
 
-        // Db2 documents are analyzed with the Db2-only rule registry (DB2L001–DB2L008).
-        // The shared NZ severity options map onto the closest Db2 equivalents.
-        bool isDb2 = _documentDialect == SqlDialect.Db2;
-        if (isDb2)
-        {
-            ApplyDb2LintSeveritySettings(options);
-            return;
-        }
-
-        if (!options.SqlLinterEnabled)
-        {
-            Registry.SetSeverity("NZ001", RuleSeverityConfig.Off);
-            Registry.SetSeverity("NZ002", RuleSeverityConfig.Off);
-            Registry.SetSeverity("SQL043", RuleSeverityConfig.Off);
-            Registry.SetSeverity("NZ003", RuleSeverityConfig.Off);
-            Registry.SetSeverity("SQL044", RuleSeverityConfig.Off);
-            Registry.SetSeverity("NZ004", RuleSeverityConfig.Off);
-            Registry.SetSeverity("NZ005", RuleSeverityConfig.Off);
-            Registry.SetSeverity("NZ008", RuleSeverityConfig.Off);
-            Registry.SetSeverity("NZ011", RuleSeverityConfig.Off);
-            Registry.SetSeverity("SQL045", RuleSeverityConfig.Off);
-            Registry.SetSeverity("NZ012", RuleSeverityConfig.Off);
-            Registry.SetSeverity("SQL046", RuleSeverityConfig.Off);
-            Registry.SetSeverity("NZ013", RuleSeverityConfig.Off);
-            Registry.SetSeverity("NZ015", RuleSeverityConfig.Off);
-            Registry.SetSeverity("NZ025", RuleSeverityConfig.Off);
-            Registry.SetSeverity("NZ102", RuleSeverityConfig.Off);
-            return;
-        }
-
-        SetRuleSeverity("NZ001", options.LintSeverityNz001);
-        SetRuleSeverity("NZ002", options.LintSeverityNz002);
-        SetRuleSeverity("SQL043", options.LintSeverityNz002);
-        SetRuleSeverity("NZ003", options.LintSeverityNz003);
-        SetRuleSeverity("SQL044", options.LintSeverityNz003);
-        SetRuleSeverity("NZ004", options.LintSeverityNz004);
-        SetRuleSeverity("NZ005", options.LintSeverityNz005);
-        SetRuleSeverity("NZ008", options.LintSeverityNz008);
-        SetRuleSeverity("NZ011", options.LintSeverityNz011);
-        SetRuleSeverity("SQL045", options.LintSeverityNz011);
-        SetRuleSeverity("NZ012", options.LintSeverityNz012);
-        SetRuleSeverity("SQL046", options.LintSeverityNz012);
-        SetRuleSeverity("NZ013", options.LintSeverityNz013);
-        SetRuleSeverity("NZ015", options.LintSeverityNz015);
-        SetRuleSeverity("NZ025", options.LintSeverityNz025);
-        SetRuleSeverity("NZ102", options.LintSeverityNz102);
+        // Every dialect has its own registry (NZ / DB2L / ORA / MSS / ACC /
+        // SQLITE); the profile maps the shared options onto the active one.
+        LintSeverityProfiles.Apply(Registry, _documentDialect, options);
     }
 
-    private void SetRuleSeverity(string ruleId, string severity)
-    {
-        var config = severity?.Trim().ToUpperInvariant() switch
-        {
-            "OFF" => RuleSeverityConfig.Off,
-            "ERROR" => RuleSeverityConfig.Error,
-            "INFORMATION" or "INFO" => RuleSeverityConfig.Information,
-            "HINT" => RuleSeverityConfig.Hint,
-            _ => RuleSeverityConfig.Warning
-        };
-        Registry.SetSeverity(ruleId, config);
-    }
-
-    /// <summary>
-    /// Applies the shared linter options to the Db2-only rule registry (DB2L001–DB2L008).
-    /// The global switch turns every Db2 rule off; otherwise the closest NZ severity
-    /// options are mapped (DB2L001/DB2L002/DB2L003 mirror NZ001/NZ002/NZ003) and the
-    /// remaining rules keep their defaults.
-    /// </summary>
-    private void ApplyDb2LintSeveritySettings(JustyBase.Common.AppOptions options)
-    {
-        if (!options.SqlLinterEnabled)
-        {
-            foreach (string ruleId in Db2LintRuleIds)
-                Registry.SetSeverity(ruleId, RuleSeverityConfig.Off);
-            return;
-        }
-
-        SetRuleSeverity("DB2L001", options.LintSeverityNz001); // SELECT *
-        SetRuleSeverity("DB2L002", options.LintSeverityNz002); // DELETE without WHERE
-        SetRuleSeverity("DB2L003", options.LintSeverityNz003); // UPDATE without WHERE
-        // DB2L004–DB2L008 stay at their defaults.
-    }
+    private string ResolveDiagnosticSource()
+        => _documentDatabaseType == DatabaseTypeEnum.NotSupportedDatabase
+            ? DialectRuntime.DiagnosticSource(_documentDialect)
+            : SqlDialectResolver.DiagnosticSource(_documentDatabaseType);
 
     /// <summary>
     /// Sync schema from all connections on a background thread — never blocks lint.
@@ -746,7 +677,8 @@ public sealed class NzLinterService : IDisposable
                     DocumentUri: lintDocumentUri,
                     ActiveDatabase: capturedActiveDatabase,
                     MetadataEpoch: CombineMetadataEpoch(epoch, schemaEpoch),
-                    CancellationToken: capturedToken
+                    CancellationToken: capturedToken,
+                    Dialect: _documentDialect
                 );
 
                 try
@@ -791,7 +723,7 @@ public sealed class NzLinterService : IDisposable
 
             // Dispatch results to UI thread
             var issues = result.Value.Issues.ToList();
-            issues.AddRange(SqlRiskAnalysisService.Analyze(capturedSql, DialectRuntime.DiagnosticSource(_documentDialect)));
+            issues.AddRange(SqlRiskAnalysisService.Analyze(capturedSql, ResolveDiagnosticSource()));
             var metricsSnapshot = _lintEngine.Metrics;
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -818,7 +750,7 @@ public sealed class NzLinterService : IDisposable
                     });
                 _diagnosticsVm.UpdateMetrics(metricsSnapshot);
                 UpdateMarkers(capturedEditor, issues);
-                _outlineVm?.UpdateOutline(capturedEditor.Document.Text);
+                _outlineVm?.UpdateOutline(capturedEditor.Document.Text, _documentDialect);
             });
         }
         catch (OperationCanceledException)

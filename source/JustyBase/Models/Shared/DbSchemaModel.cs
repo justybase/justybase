@@ -3,6 +3,7 @@ using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services.Database;
+using JustyBase.Services.Schema;
 using System.Collections.ObjectModel;
 
 
@@ -77,64 +78,15 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                 break;
             case TypeInDatabaseEnum.Schema:
                 var currSchema = Name;
-                var itemsCollection = new List<(string name, string info, TypeInDatabaseEnum typeInDatabase)>
-                {
-                    ("Tables","tables", TypeInDatabaseEnum.baseTables),//0
-                    ("External tables","external tables", TypeInDatabaseEnum.baseExternals),//1
-                    ("Views","views", TypeInDatabaseEnum.baseViews),//2
-                    ("Procedures","procedures", TypeInDatabaseEnum.baseProcedures),//3
-                    ("Sequences","sequences", TypeInDatabaseEnum.baseSequence),//4
-                    ("Functions","functions", TypeInDatabaseEnum.baseFunctions),//5
-                    ("Synonyms","synonyms", TypeInDatabaseEnum.baseSynonyms),//6
-                    ("Aggregate","aggregate",TypeInDatabaseEnum.baseAggregates),//7
-                    ("Fluid Query Data Sources","fluids",TypeInDatabaseEnum.baseFluides),//8
-                    ("Others","others", TypeInDatabaseEnum.otherNoneGroup)//9
-                };
                 DatabaseCapabilities capabilities = DatabaseCapabilitiesCatalog.For(databaseTypeEnum);
-                if (!capabilities.SupportsFluids)
-                {
-                    itemsCollection.RemoveAll(i => i.typeInDatabase == TypeInDatabaseEnum.baseFluides);
-                }
-                if (!capabilities.SupportsExternalTables)
-                {
-                    itemsCollection.RemoveAll(i => i.typeInDatabase == TypeInDatabaseEnum.baseExternals);
-                }
-                if (!capabilities.SupportsSynonyms)
-                {
-                    itemsCollection.RemoveAll(i => i.typeInDatabase == TypeInDatabaseEnum.baseSynonyms);
-                }
-                if (!capabilities.SupportsAggregates)
-                {
-                    itemsCollection.RemoveAll(i => i.typeInDatabase == TypeInDatabaseEnum.baseAggregates);
-                }
-                if (!capabilities.SupportsProcedures)
-                {
-                    itemsCollection.RemoveAll(i => i.typeInDatabase == TypeInDatabaseEnum.baseProcedures);
-                }
-                if (capabilities.SupportsIndexes)
-                {
-                    if (capabilities.SupportsPartitions)
-                    {
-                        itemsCollection.Insert(7, ("Indexes", "indexes", TypeInDatabaseEnum.baseIndexes));
-                        itemsCollection.Insert(8, ("Partitions", "partitions", TypeInDatabaseEnum.basePartitions));
-                    }
-                    else
-                    {
-                        itemsCollection.Add(("Indexes", "indexes", TypeInDatabaseEnum.baseIndexes));
-                        if (capabilities.SupportsTriggers)
-                        {
-                            itemsCollection.Add(("Triggers", "triggers", TypeInDatabaseEnum.baseTriggers));
-                        }
-                    }
-                }
 
-                foreach (var item in itemsCollection)
+                foreach (SchemaTreeGroup item in SchemaTreeGroups.Build(capabilities))
                 {
-                    newNodeCollection.Add(new DbSchemaModel(item.typeInDatabase, this.DatabaseTypeEnumValue, _generalApplicationData)
+                    newNodeCollection.Add(new DbSchemaModel(item.Type, this.DatabaseTypeEnumValue, _generalApplicationData)
                     {
                         Parent = this,
-                        Name = item.name,
-                        Info = item.info,
+                        Name = item.Title,
+                        Info = item.Info,
                         ConnectionName = ConnectionName,
                         Database = Database,
                         CurrentSchema = currSchema

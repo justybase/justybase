@@ -82,6 +82,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private List<SymbolOccurrence> _lastReferenceOccurrences = [];
     private int _referenceNavigateIndex;
     private SqlDialect _documentDialect = SqlDialect.Netezza;
+    private DatabaseTypeEnum _documentDatabaseType = DatabaseTypeEnum.NotSupportedDatabase;
     private TextFileFormat? _fileFormat;
 
     /// <summary>The encoding, BOM and line ending detected for the file on disk, or null for a new
@@ -366,6 +367,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         value.GoToDefinitionRequested = () => NavigateSqlSymbol(definitionOnly: true);
         value.FindReferencesRequested = () => NavigateSqlSymbol(definitionOnly: false);
         _documentDialect = GetCurrentSqlDialect();
+        _documentDatabaseType = CurrentDatabaseType;
         var documentUri = $"sql-doc-{Id}";
         value.Initialize(this, _generalApplicationData, _completionEngine, _parserSchema, _parsingCoordinator, documentUri,
             ensureTableColumns: (database, schema, table) => _linterService?.EnsureTableColumns(database, schema, table),
@@ -1389,15 +1391,23 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     private void UpdateDocumentDialect()
     {
         SqlDialect dialect = GetCurrentSqlDialect();
-        if (_documentDialect == dialect)
+        DatabaseTypeEnum databaseType = CurrentDatabaseType;
+        // PostgreSQL and DuckDB share the PostgreSQL dialect, so the engine type
+        // must be tracked independently to refresh the diagnostic source label.
+        if (_documentDialect == dialect && _documentDatabaseType == databaseType)
             return;
 
+        bool dialectChanged = _documentDialect != dialect;
         _documentDialect = dialect;
+        _documentDatabaseType = databaseType;
         if (SqlEditor is null)
             return;
 
-        SqlEditor.SetSqlDialect(dialect);
-        _linterService?.AttachToEditor(SqlEditor, $"sql-doc-{Id}", dialect, SelectedDatabase, CurrentDatabaseType);
+        if (dialectChanged)
+        {
+            SqlEditor.SetSqlDialect(dialect);
+        }
+        _linterService?.AttachToEditor(SqlEditor, $"sql-doc-{Id}", dialect, SelectedDatabase, databaseType);
     }
 
     [ObservableProperty]

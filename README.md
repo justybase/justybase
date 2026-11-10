@@ -110,7 +110,7 @@ Dark theme screenshots are shown below for a consistent presentation.
 
 ## Requirements
 
-- **.NET 10.0 SDK**
+- **.NET 11.0 SDK**
 - **Windows x64**, **Linux x64**, **macOS ARM64**
 - NuGet access to restore **ProDataGrid 12.0.5**
 
@@ -187,7 +187,7 @@ Manual Windows AOT publish:
 
 ```bash
 cd source/JustyBase
-dotnet publish -r win-x64 -c Release -f net10.0 \
+dotnet publish -r win-x64 -c Release -f net11.0 \
   -p:PublishAot=true -p:PublishTrimmed=true -p:PublishReadyToRun=false \
   --self-contained true
 ```
@@ -196,7 +196,7 @@ Manual Linux/macOS ReadyToRun publish:
 
 ```bash
 cd source/JustyBase
-dotnet publish -r win-x64 -c Release -f net10.0 \
+dotnet publish -r win-x64 -c Release -f net11.0 \
   -p:PublishAot=false -p:PublishReadyToRun=true -p:PublishTrimmed=false \
   --self-contained true
 ```

@@ -73,7 +73,7 @@ $enableExcelPlugin = if ($Slim) { 'false' } else { 'true' }
 $enableAi = if ($Slim) { 'false' } else { 'true' }
 $enableLottie = if ($Slim) { 'false' } else { 'true' }
 
-dotnet publish $project -r win-x64 -c Release -f net10.0 `
+dotnet publish $project -r win-x64 -c Release -f net11.0 `
     "-p:EnableDb2Plugin=$enableDb2Plugin" `
     "-p:EnableAccessPlugin=$enableAccessPlugin" `
     "-p:EnablePostgresPlugin=$enablePostgresPlugin" `

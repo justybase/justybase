@@ -725,10 +725,10 @@ internal static class FlaUILiveHarness
 
         string[] candidates =
         [
-            Path.Combine(repoRoot, "source", "JustyBase", "bin", "Debug", "net10.0", "JustyBase.exe"),
-            Path.Combine(repoRoot, "source", "JustyBase", "bin", "Release", "net10.0", "JustyBase.exe"),
-            Path.Combine(repoRoot, "source", "JustyBase", "bin", "Debug", "net10.0", "win-x64", "JustyBase.exe"),
-            Path.Combine(repoRoot, "source", "JustyBase", "bin", "Release", "net10.0", "win-x64", "JustyBase.exe"),
+            Path.Combine(repoRoot, "source", "JustyBase", "bin", "Debug", "net11.0", "JustyBase.exe"),
+            Path.Combine(repoRoot, "source", "JustyBase", "bin", "Release", "net11.0", "JustyBase.exe"),
+            Path.Combine(repoRoot, "source", "JustyBase", "bin", "Debug", "net11.0", "win-x64", "JustyBase.exe"),
+            Path.Combine(repoRoot, "source", "JustyBase", "bin", "Release", "net11.0", "win-x64", "JustyBase.exe"),
         ];
 
         return candidates.FirstOrDefault(File.Exists) ?? candidates[0];

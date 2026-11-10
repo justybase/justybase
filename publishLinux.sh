@@ -39,7 +39,7 @@ ZIP_PATH="$ROOT/$OUTPUT_ROOT/JustyBase-${VERSION}-linux-x64-$VARIANT.zip"
 
 rm -rf "$PUBLISH_DIR"
 mkdir -p "$PUBLISH_DIR" "$(dirname "$ZIP_PATH")"
-dotnet publish "$PROJECT" -r linux-x64 -c Release -f net10.0 \
+dotnet publish "$PROJECT" -r linux-x64 -c Release -f net11.0 \
   "${PLUGIN_FLAGS[@]}" -p:PublishAot=false \
   -p:CopilotSkipCliDownload=true \
   -p:PublishReadyToRun=true -p:PublishTrimmed=false --self-contained true \

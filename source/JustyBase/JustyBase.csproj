@@ -23,7 +23,7 @@
 		<DefineConstants Condition="'$(EnableLottie)' == 'true'">$(DefineConstants);LOTTIE</DefineConstants>
 		<OutputType>WinExe</OutputType>
 		<PlatformTarget>AnyCPU</PlatformTarget>
-		<TargetFramework>net10.0</TargetFramework>
+		<TargetFramework>net11.0</TargetFramework>
 		<BuiltInComInteropSupport>false</BuiltInComInteropSupport>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>

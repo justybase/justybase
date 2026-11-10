@@ -31,7 +31,7 @@ dotnet build JustyBase.NoAi.slnx -c Release -p:EnableAi=false
 dotnet build .\source\JustyBase\JustyBase.csproj -c Release -p:EnableAi=false
 
 # Publish (example, Windows x64)
-dotnet publish .\source\JustyBase\JustyBase.csproj -r win-x64 -c Release -f net10.0 `
+dotnet publish .\source\JustyBase\JustyBase.csproj -r win-x64 -c Release -f net11.0 `
   -p:EnableAi=false -p:PublishAot=true -p:PublishTrimmed=true --self-contained true
 ```
 
@@ -56,7 +56,7 @@ The filter excludes `JustyBase.Ai`, `JustyBase.Ai.Embedded`,
 After a no-AI build, confirm the output does not contain AI assemblies:
 
 ```powershell
-Get-ChildItem .\source\JustyBase\bin\Release\net10.0 |
+Get-ChildItem .\source\JustyBase\bin\Release\net11.0 |
   Where-Object Name -Match 'JustyBase\.Ai(\.dll|\.Embedded)|Copilot|Microsoft\.Extensions\.AI|OpenAI'
 ```
 

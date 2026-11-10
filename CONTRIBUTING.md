@@ -18,7 +18,7 @@ Be respectful and inclusive. We welcome contributions from everyone.
 
 ### Prerequisites
 
-- .NET 10.0 SDK
+- .NET 11.0 SDK
 - IDE: Visual Studio 2022, Rider, or VS Code with C# extension
 - Git
 

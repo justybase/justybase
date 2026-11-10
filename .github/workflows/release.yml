@@ -78,7 +78,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
       - name: Restore
         run: dotnet restore .\source\JustyBase\JustyBase.csproj --force-evaluate
       - name: Install Velopack CLI
@@ -162,7 +162,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
       - name: Install packaging dependencies
         run: sudo apt-get update && sudo apt-get install -y zip
       - name: Restore
@@ -213,7 +213,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
       - name: Restore
         run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate
       - name: Build macOS self-contained package
@@ -314,7 +314,7 @@ jobs:
       - name: Setup .NET for Velopack upload
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '11.0.x'
       - name: Install Velopack CLI
         shell: bash
         run: |

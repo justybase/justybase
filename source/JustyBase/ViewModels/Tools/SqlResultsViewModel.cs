@@ -287,6 +287,11 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
     public partial bool GridEnabled { get; set; } = true;
     [ObservableProperty]
     public partial string ErrorMessage { get; set; } = "";
+
+    /// <summary>True when the current result represents a failed statement rather than a data grid.</summary>
+    public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+    partial void OnErrorMessageChanged(string value) => OnPropertyChanged(nameof(HasError));
     [ObservableProperty]
     public partial bool GridVisible { get; set; } = false;
     [ObservableProperty]
@@ -577,5 +582,14 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
     private async Task Copy1(string text)
     {
         await Clipboard?.SetTextAsync(text);
+    }
+
+    [RelayCommand]
+    private async Task CopyErrorMessage()
+    {
+        if (HasError)
+        {
+            await Clipboard.SetTextAsync(ErrorMessage);
+        }
     }
 }

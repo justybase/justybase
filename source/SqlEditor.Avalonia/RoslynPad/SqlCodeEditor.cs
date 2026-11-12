@@ -1,5 +1,6 @@
 using JustyBase.Helpers;
 using JustyBase.Core.Database;
+using Avalonia.Input.Platform;
 using JustyBase.Editor.CompletionProviders;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommons;
@@ -37,6 +38,8 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
             }
         }, RoutingStrategies.Bubble, true);
 
+        AddHandler(KeyDownEvent, OnPreviewPasteKeyDown, RoutingStrategies.Tunnel);
+
         SetupCommandBindings();
     }
     private void SetupCommandBindings()
@@ -71,6 +74,125 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
         }));
 
         handler.Attach();
+    }
+
+    /// <summary>
+    /// Invoked with clipboard text before a paste inserts it. Return <see langword="true"/>
+    /// when the host took over (for example, opened the import wizard); returning
+    /// <see langword="false"/> lets the editor insert the text normally.
+    /// </summary>
+    public Func<string, Task<bool>>? PasteRequestHandler { get; set; }
+
+    /// <summary>
+    /// Reads the clipboard and pastes it. Hosts can inspect spreadsheet-style text through
+    /// <see cref="PasteRequestHandler"/> before it lands in the SQL script.
+    /// </summary>
+    public async Task PasteAsync()
+    {
+        if (TextArea?.Document is null || IsReadOnly)
+        {
+            return;
+        }
+
+        if (!TextArea.ReadOnlySectionProvider.CanInsert(TextArea.Caret.Offset))
+        {
+            return;
+        }
+
+        string? text;
+        try
+        {
+            IClipboard? clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            text = clipboard is null ? null : await clipboard.TryGetTextAsync();
+        }
+        catch (Exception)
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        Func<string, Task<bool>>? handler = PasteRequestHandler;
+        if (handler is not null)
+        {
+            bool handled;
+            try
+            {
+                handled = await handler(text);
+            }
+            catch (Exception)
+            {
+                handled = false;
+            }
+
+            if (handled)
+            {
+                return;
+            }
+        }
+
+        InsertPastedText(text);
+    }
+
+    private async void OnPreviewPasteKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (PasteRequestHandler is null || e.Key != Key.V)
+        {
+            return;
+        }
+
+        if (e.KeyModifiers != ModifierKeys.Control && e.KeyModifiers != ModifierKeys.Meta)
+        {
+            return;
+        }
+
+        if (TextArea?.IsFocused != true || IsReadOnly)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        await PasteAsync();
+    }
+
+    private void InsertPastedText(string text)
+    {
+        TextDocument? document = TextArea?.Document;
+        if (document is null || TextArea is null)
+        {
+            return;
+        }
+
+        int caretOffset = TextArea.Caret.Offset;
+        if (!TextArea.ReadOnlySectionProvider.CanInsert(caretOffset))
+        {
+            return;
+        }
+
+        document.BeginUpdate();
+        try
+        {
+            string newLine = TextUtilities.GetNewLineFromDocument(document, TextArea.Caret.Line);
+            text = TextUtilities.NormalizeNewLines(text, newLine);
+            if (TextArea.Options.ConvertTabsToSpaces)
+            {
+                text = text.Replace("\t", new string(' ', TextArea.Options.IndentationSize), StringComparison.Ordinal);
+            }
+
+            if (text.Length > 0)
+            {
+                TextArea.Selection.ReplaceSelectionWithText(text);
+            }
+
+            TextArea.Caret.BringCaretToView();
+        }
+        finally
+        {
+            document.EndUpdate();
+        }
     }
 
     protected override async void OnKeyDown(KeyEventArgs e)

@@ -698,6 +698,20 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         MainDocumentDock.ActiveDockable = importViewModel;
         await importViewModel.StartQuickImportAsync(sourcePath, connectionName, database);
     }
+
+    public Task OpenImportDocumentFromPastedTextAsync(string text, string? connectionName, string? database)
+    {
+        return UiThreadMarshal.InvokeAsync(() => RunPastedTextImportAsync(text, connectionName, database)).Unwrap();
+    }
+
+    private async Task RunPastedTextImportAsync(string text, string? connectionName, string? database)
+    {
+        ImportViewModel importViewModel = _dockDocumentActivationService.EnsureDocument(
+            MainDocumentDock.VisibleDockables,
+            _viewModelFactory.CreateImportViewModel);
+        MainDocumentDock.ActiveDockable = importViewModel;
+        await importViewModel.OpenPastedTextAsync(text, connectionName, database);
+    }
     public void AddEtlDocument()
     {
         EtlViewModel etlViewModel = _dockDocumentActivationService.EnsureDocument(

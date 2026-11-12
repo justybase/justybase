@@ -211,7 +211,8 @@
 			<RowDefinition Height="Auto"/> <!-- Summary row -->
 		</Grid.RowDefinitions>
 		<ProgressBar Grid.Row="0" Grid.Column="0" IsIndeterminate="{Binding DataLoadingInProgress}" IsVisible="{Binding DataLoadingInProgress}"/>
-		<WrapPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" >
+		<WrapPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal"
+				   IsVisible="{Binding !HasError}">
 			<TextBox Name="searchBox"
 				PlaceholderText="Search"
 				Width="150"
@@ -340,6 +341,7 @@
 		<!-- Grouping Panel - Drop Zone for column headers -->
 		<Border Grid.Row="2" Grid.Column="0" 
 				Name="GroupingPanelBorder"
+				IsVisible="{Binding !HasError}"
 				Background="{DynamicResource SystemChromeLowColor}"
 				Padding="4 2" MinHeight="28"
 				DragDrop.AllowDrop="True">
@@ -427,15 +429,7 @@
 						   TextAlignment="Center"/>
 			</StackPanel>
 		</Border>
-		<TextBox Grid.Row="3" Grid.Column="0"
-			 IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-			 Text="{Binding ErrorMessage}"
-			 TextWrapping="Wrap"
-			 Height="{Binding $parent.Height}"
-			 MinWidth="300"
-			 AcceptsReturn="True"
-			 FontFamily="{StaticResource JetBrainsMono}"/>
- 		<DataGrid
+		<DataGrid
  				Grid.Row="3" Grid.Column="0"
  				Name="ResultDataGrid"
 				AutoGenerateColumns="False"
@@ -512,6 +506,86 @@
 				</ContextMenu>
 			</DataGrid.ContextMenu>
 		</DataGrid>
+		<!-- Error state -->
+		<Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3"
+				Name="ErrorPanel"
+				IsVisible="{Binding HasError}"
+				Margin="8"
+				CornerRadius="8"
+				BorderThickness="1"
+				BorderBrush="{DynamicResource SystemControlErrorTextForegroundBrush}"
+				Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
+			<Grid>
+				<Border CornerRadius="7"
+						Background="{DynamicResource SystemControlErrorTextForegroundBrush}"
+						Opacity="0.06" />
+				<Grid Margin="20 18" RowDefinitions="Auto,*,Auto">
+					<!-- Header -->
+					<Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+						<Grid Width="44" Height="44">
+							<Border CornerRadius="12"
+									Background="{DynamicResource SystemControlErrorTextForegroundBrush}"
+									Opacity="0.14" />
+							<PathIcon Width="24" Height="24"
+									  HorizontalAlignment="Center" VerticalAlignment="Center"
+									  Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}"
+									  Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm0 18.5c-4.69 0-8.5-3.81-8.5-8.5S7.31 3.5 12 3.5s8.5 3.81 8.5 8.5-3.81 8.5-8.5 8.5ZM12 6.5a.9.9 0 0 1 .9.9v5.2a.9.9 0 0 1-1.8 0V7.4a.9.9 0 0 1 .9-.9Zm0 9.1a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 0 0 0-2.2Z" />
+						</Grid>
+						<StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+							<StackPanel Orientation="Horizontal" Spacing="9">
+								<TextBlock Text="Query failed"
+										   FontSize="17" FontWeight="SemiBold"
+										   VerticalAlignment="Center"
+										   Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+								<Border CornerRadius="9" Padding="8 1"
+										VerticalAlignment="Center"
+										BorderThickness="1"
+										BorderBrush="{DynamicResource SystemControlErrorTextForegroundBrush}">
+									<TextBlock Text="ERROR" FontSize="10" FontWeight="Bold"
+											   Foreground="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+								</Border>
+							</StackPanel>
+							<TextBlock Text="The database returned an error while running this statement."
+									   FontSize="11.5" Opacity="0.7" TextWrapping="Wrap" />
+						</StackPanel>
+					</Grid>
+
+					<!-- Error details -->
+					<Border Grid.Row="1" Margin="0 14 0 0" MinHeight="80"
+							Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
+							BorderBrush="{DynamicResource ThemeBorderLowBrush}"
+							BorderThickness="1" CornerRadius="8" Padding="12 10">
+						<Grid RowDefinitions="Auto,*">
+							<Grid ColumnDefinitions="*,Auto" Margin="0 0 0 8">
+								<TextBlock Text="ERROR DETAILS" FontSize="10" FontWeight="Bold"
+										   Opacity="0.5" VerticalAlignment="Center" />
+								<Button Grid.Column="1" MinHeight="26" Padding="8 3"
+										Command="{Binding CopyErrorMessageCommand}"
+										ToolTip.Tip="Copy the full error message">
+									<StackPanel Orientation="Horizontal" Spacing="5">
+										<PathIcon Data="{StaticResource CopyDataIconPath}"
+												  Width="13" Height="13" />
+										<TextBlock Text="Copy" FontSize="11.5" VerticalAlignment="Center" />
+									</StackPanel>
+								</Button>
+							</Grid>
+							<ScrollViewer Grid.Row="1"
+										  HorizontalScrollBarVisibility="Disabled"
+										  VerticalScrollBarVisibility="Auto">
+								<SelectableTextBlock Text="{Binding ErrorMessage}"
+													 FontFamily="{StaticResource JetBrainsMono}"
+													 FontSize="12.5" LineHeight="19"
+													 TextWrapping="Wrap" />
+							</ScrollViewer>
+						</Grid>
+					</Border>
+
+					<TextBlock Grid.Row="2" Margin="0 10 0 0"
+							   Text="Fix the statement and run it again."
+							   FontSize="11.5" Opacity="0.55" />
+				</Grid>
+			</Grid>
+		</Border>
 		<!-- Summary Row Panel -->
 		<Border Grid.Row="4" Grid.Column="0" Name="SummaryRowBorder"
 				Background="{DynamicResource SystemChromeLowColor}"
@@ -525,8 +599,9 @@
 				<StackPanel Name="SummaryRowPanel" Orientation="Horizontal"/>
 			</ScrollViewer>
 		</Border>
-		<GridSplitter Grid.Column="1" Grid.RowSpan="5" Background="{DynamicResource SystemAccentColorBrush}" MinWidth="2" Width="2" ResizeDirection="Columns"/>
-		<DockPanel Grid.Column="2" Grid.RowSpan="5">
+		<GridSplitter Grid.Column="1" Grid.RowSpan="5" Background="{DynamicResource SystemAccentColorBrush}" MinWidth="2" Width="2" ResizeDirection="Columns"
+					  IsVisible="{Binding !HasError}"/>
+		<DockPanel Grid.Column="2" Grid.RowSpan="5" IsVisible="{Binding !HasError}">
 			<Button DockPanel.Dock="Left" Padding="0" Margin="0" Width="10" Height="400"
 					Background="Transparent" Command="{Binding ExpandCollapseRowViewCommand}">
 				<Panel>

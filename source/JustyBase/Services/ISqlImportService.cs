@@ -21,4 +21,9 @@ public interface ISqlImportService
         string path,
         string connectionName,
         Action<object, bool> insertTextAction);
+
+    Task ImportPastedTextAsync(
+        string text,
+        string connectionName,
+        string? selectedDatabase);
 }

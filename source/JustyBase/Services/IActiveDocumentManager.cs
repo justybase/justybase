@@ -33,6 +33,12 @@ public interface IActiveDocumentManager
     /// </summary>
     Task StartQuickImportAsync(string sourcePath, string? connectionName, string? database);
 
+    /// <summary>
+    /// Opens the Import document seeded with tab-separated clipboard text without starting
+    /// the import; the user reviews the detected columns and destination first.
+    /// </summary>
+    Task OpenImportDocumentFromPastedTextAsync(string text, string? connectionName, string? database);
+
     Action<CaretPositionInfo>? AtCharAction { get; set; }
     Action<string>? SelectedDataGridAction { get; set; }
 }

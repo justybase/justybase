@@ -62,7 +62,7 @@ public static class AdHocCompressionHelper
                 {
                     if (mode == "zst")
                     {
-                        compressedStream = new ZstdSharp.CompressionStream(newFileStream);
+                        compressedStream = new ZstandardStream(newFileStream, CompressionLevel.Optimal);
                     }
                     else if (mode == "br")
                     {
@@ -117,7 +117,7 @@ public static class AdHocCompressionHelper
                 {
                     if (mode == "zst")
                     {
-                        compressedStream = new ZstdSharp.CompressionStream(newFileStream);
+                        compressedStream = new ZstandardStream(newFileStream, CompressionLevel.Optimal);
                     }
                     else if (mode == "br")
                     {
@@ -160,7 +160,7 @@ public static class AdHocCompressionHelper
                 switch (compression)
                 {
                     case CompressionEnum.Zstd:
-                        compressedStream = new ZstdSharp.DecompressionStream(new BufferedStream(fs));
+                        compressedStream = new ZstandardStream(new BufferedStream(fs), CompressionMode.Decompress);
                         break;
                     case CompressionEnum.Brotli:
                         compressedStream = new BrotliStream(new BufferedStream(fs), CompressionMode.Decompress);
@@ -227,7 +227,7 @@ public static class AdHocCompressionHelper
                 switch (compression)
                 {
                     case CompressionEnum.Zstd:
-                        compressedStream = new ZstdSharp.DecompressionStream(new BufferedStream(fs));
+                        compressedStream = new ZstandardStream(new BufferedStream(fs), CompressionMode.Decompress);
                         break;
                     case CompressionEnum.Brotli:
                         compressedStream = new BrotliStream(new BufferedStream(fs), CompressionMode.Decompress);

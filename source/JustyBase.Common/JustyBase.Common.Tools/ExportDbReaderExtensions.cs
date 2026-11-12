@@ -156,7 +156,7 @@ public static class ExportDbReaderExtensions
                     {
                         finalFilePath = filePathToExportX + ".zst";
                         var fileStream = File.Open(finalFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                        var helperStream = new ZstdSharp.CompressionStream(fileStream);
+                        var helperStream = new ZstandardStream(fileStream, CompressionLevel.Optimal);
                         streamWriter = new StreamWriter(helperStream);
 
                         additionalAction = () =>

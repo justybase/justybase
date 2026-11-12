@@ -210,49 +210,11 @@ public sealed class KeymapWindow : Window
 
     private Task<bool> ShowConfirmationAsync(string message, string title)
     {
-        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var dialog = new Window
+        var dialog = new ConfirmationWindow(message, title, confirmText: "Reset all", cancelText: "Cancel")
         {
-            Title = title,
-            Width = 420,
-            Height = 150,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(16),
-                Spacing = 12,
-                Children =
-                {
-                    new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
-                },
-            },
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
-
-        var buttons = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Spacing = 8,
-        };
-        var yes = new Button { Content = "Reset all" };
-        var no = new Button { Content = "Cancel" };
-        yes.Click += (_, _) =>
-        {
-            completion.TrySetResult(true);
-            dialog.Close();
-        };
-        no.Click += (_, _) =>
-        {
-            completion.TrySetResult(false);
-            dialog.Close();
-        };
-        dialog.Closed += (_, _) => completion.TrySetResult(false);
-        buttons.Children.Add(yes);
-        buttons.Children.Add(no);
-        ((StackPanel)dialog.Content!).Children.Add(buttons);
-
-        _ = dialog.ShowDialog(this);
-        return completion.Task;
+        return dialog.ShowDialog<bool>(this);
     }
 
     private void SetStatus(string message, bool isError)

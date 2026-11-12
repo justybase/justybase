@@ -28,6 +28,7 @@ public sealed partial class ImportViewModel
     private ImportFromExcelFile? _currentImportFromExcelFile;
     private bool _importActive;
     private string[]? _existingTargetColumnNames;
+    private string? _pastedTextFilePath;
 
     private int _sheetDetectionGeneration;
     private int _validationGeneration;
@@ -346,6 +347,12 @@ public sealed partial class ImportViewModel
 
     private async Task OpenMethod(string filePath)
     {
+        if (_pastedTextFilePath is not null
+            && !string.Equals(_pastedTextFilePath, filePath, StringComparison.OrdinalIgnoreCase))
+        {
+            DeletePastedTextFile();
+        }
+
         ImportFilepath = filePath;
         IsSourceEmpty = false;
         InvalidateExistingTargetColumns();
@@ -951,6 +958,43 @@ public sealed partial class ImportViewModel
 
     #region Quick import (clipboard / dropped files)
 
+    /// <summary>
+    /// Opens the wizard with a tab-separated clipboard block as the source. The rows are
+    /// converted to a temporary CSV file so the normal detection/validation pipeline applies.
+    /// </summary>
+    public async Task OpenPastedTextAsync(string text, string? connectionName, string? database)
+    {
+        string csv = TabularPasteDetector.ToCsv(text);
+        string path = Path.Combine(Path.GetTempPath(), $"justybase-paste-{Guid.NewGuid():N}.csv");
+        await File.WriteAllTextAsync(path, csv, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        DeletePastedTextFile();
+        _pastedTextFilePath = path;
+
+        ApplyImportContext(connectionName, database, null, null);
+        Title = "Import: pasted data";
+        await OpenMethod(path);
+    }
+
+    private void DeletePastedTextFile()
+    {
+        string? path = _pastedTextFilePath;
+        _pastedTextFilePath = null;
+        if (path is null)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best-effort cleanup; the staged clipboard file can be removed later by the OS.
+        }
+    }
+
     /// <summary>Opens the wizard for a quick import and runs it immediately.</summary>
     public async Task StartQuickImportAsync(string sourcePath, string? connectionName, string? database)
     {
@@ -1208,6 +1252,7 @@ public sealed partial class ImportViewModel
                 curentImportFromFile?.DoFileDispose();
                 _currentImportFromExcelFile = null;
                 _importFromExcelFilesClasses.Remove(importFilePath);
+                DeletePastedTextFile();
                 ContinueEnabled = false;
                 ImportUsingOptionsContext.Current = null;
                 ImportTargetContext.TargetColumnNames = null;

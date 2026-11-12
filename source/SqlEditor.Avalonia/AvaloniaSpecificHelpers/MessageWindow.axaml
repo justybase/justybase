@@ -2,30 +2,66 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="340"
-		Width="600" Height="360"
-		MinWidth="440" MinHeight="260"
+        mc:Ignorable="d" d:DesignWidth="620" d:DesignHeight="300"
+        Width="620" SizeToContent="Height" MaxHeight="720"
+        MinWidth="480"
         x:Class="JustyBase.Views.MessageWindow"
-        Title="Message"
-		WindowStartupLocation="CenterOwner"
+        Title="Information"
+        WindowStartupLocation="CenterOwner"
         WindowDecorations="Full"
-		UseLayoutRounding="True" 
-		ShowInTaskbar="False">
-	<Grid RowDefinitions="Auto,*,Auto" Margin="20" RowSpacing="14">
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-            <Border Width="36" Height="36" CornerRadius="8" Background="{DynamicResource SystemAccentColorLight3Brush}">
-                <TextBlock Text="ℹ" FontSize="19" Foreground="{DynamicResource SystemAccentColorBrush}"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        CanResize="False"
+        UseLayoutRounding="True"
+        ShowInTaskbar="False">
+    <Window.Styles>
+        <Style Selector="Button.dialogAction">
+            <Setter Property="MinWidth" Value="96" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Padding" Value="16 6" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="TextBlock.dialogHint">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Opacity" Value="0.55" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,Auto" Margin="22" RowSpacing="16">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+            <Border Width="44" Height="44" CornerRadius="12"
+                    Background="{DynamicResource SystemAccentColorLight3Brush}"
+                    BorderBrush="{DynamicResource SystemAccentColorBrush}"
+                    BorderThickness="1">
+                <PathIcon Width="24" Height="24"
+                          Foreground="{DynamicResource SystemAccentColorBrush}"
+                          Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm0 18.5c-4.69 0-8.5-3.81-8.5-8.5S7.31 3.5 12 3.5s8.5 3.81 8.5 8.5-3.81 8.5-8.5 8.5Zm0-11.75a.95.95 0 1 0 0-1.9.95.95 0 0 0 0 1.9Zm0 2.5c-.41 0-.75.34-.75.75v5c0 .41.34.75.75.75s.75-.34.75-.75v-5c0-.41-.34-.75-.75-.75Z" />
             </Border>
-            <TextBlock Name="titleLabel" Grid.Column="1" FontSize="18" FontWeight="SemiBold"
-                       VerticalAlignment="Center" TextWrapping="Wrap">Information</TextBlock>
+            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                <TextBlock Name="titleLabel" FontSize="19" FontWeight="SemiBold"
+                           TextWrapping="Wrap">Information</TextBlock>
+            </StackPanel>
         </Grid>
-        <Border Grid.Row="1" BorderBrush="{DynamicResource DockThemeBorderLowBrush}"
-                BorderThickness="1" CornerRadius="6" Padding="10">
-            <TextBox Name="contentTextBlock" AcceptsReturn="True" IsReadOnly="True"
-                     TextWrapping="Wrap" BorderThickness="0" Background="Transparent" FontSize="13">Message Content</TextBox>
+
+        <!-- Message -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderBrush="{DynamicResource ThemeBorderLowBrush}"
+                BorderThickness="1" CornerRadius="10" Padding="14 12">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto"
+                          MaxHeight="420">
+                <SelectableTextBlock Name="contentTextBlock"
+                                     FontSize="13" LineHeight="20"
+                                     TextWrapping="Wrap">Message Content</SelectableTextBlock>
+            </ScrollViewer>
         </Border>
-        <Button Name="tbOk" Grid.Row="2" HorizontalAlignment="Right" MinWidth="90"
-                Classes="accent" IsDefault="True" IsCancel="True" Padding="14,6">OK</Button>
-		</Grid>
+
+        <!-- Actions -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <TextBlock Grid.Column="0" Classes="dialogHint" Text="Esc to close" />
+            <Button Name="tbOk" Grid.Column="1" Classes="accent dialogAction"
+                    IsDefault="True" IsCancel="True" Content="OK" />
+        </Grid>
+    </Grid>
 </Window>

@@ -34,6 +34,10 @@ public interface ISqlDocumentInteractionServices : IDisposable
         string path,
         string connectionName,
         Action<object, bool> insertTextAction);
+    Task ImportPastedTextAsync(
+        string text,
+        string connectionName,
+        string? selectedDatabase);
     Task<string> GetClipboardTextAsync();
     string BuildPasteAsIn(string pasteType, string clipboardText);
     string BuildSelectUnionFromClipboard(string clipboardText);
@@ -185,6 +189,17 @@ public sealed class SqlDocumentInteractionServices : ISqlDocumentInteractionServ
             path,
             connectionName,
             insertTextAction);
+    }
+
+    public Task ImportPastedTextAsync(
+        string text,
+        string connectionName,
+        string? selectedDatabase)
+    {
+        return _sqlImportService.ImportPastedTextAsync(
+            text,
+            connectionName,
+            selectedDatabase);
     }
 
     public Task<string> GetClipboardTextAsync()

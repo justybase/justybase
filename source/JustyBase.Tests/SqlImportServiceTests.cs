@@ -88,6 +88,16 @@ public sealed class SqlImportServiceTests
     }
 
     [Fact]
+    public async Task ImportPastedTextAsync_DelegatesToWizardWithContext()
+    {
+        await _sut.ImportPastedTextAsync("A\tB\n1\t2\n3\t4", "conn", "DB1");
+
+        _activeDocumentManager.Verify(
+            m => m.OpenImportDocumentFromPastedTextAsync("A\tB\n1\t2\n3\t4", "conn", "DB1"),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task ImportFromClipboardAsync_UnsupportedFormats_IsNoOp()
     {
         var clipboardService = new Mock<IClipboardService>();

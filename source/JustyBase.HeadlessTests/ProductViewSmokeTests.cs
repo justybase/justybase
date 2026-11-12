@@ -147,4 +147,59 @@ public sealed class ProductViewSmokeTests : HeadlessSessionTestBase
 
         Assert.Same(view, window.Content);
     });
+
+    [Fact]
+    public Task ConfirmationWindow_CanBeCreatedAndShown() => RunOnUi(() =>
+    {
+        var window = new ConfirmationWindow(
+            "• DROP permanently removes a database object or session.",
+            "SQL risk confirmation");
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.NotNull(window.CaptureRenderedFrame());
+        window.Close();
+    });
+
+    [Fact]
+    public Task MessageWindow_CanBeCreatedAndShown() => RunOnUi(() =>
+    {
+        var window = new MessageWindow(
+            "Import finished successfully.\n1,204 rows were written.",
+            "Import completed");
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.NotNull(window.CaptureRenderedFrame());
+        window.Close();
+    });
+
+    [Fact]
+    public Task PastedDataPromptWindow_CanBeCreatedAndShown() => RunOnUi(() =>
+    {
+        var window = new PastedDataPromptWindow(
+            "We detected 12 rows and 4 columns in the clipboard.");
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.NotNull(window.CaptureRenderedFrame());
+        window.Close();
+    });
+
+    [Fact]
+    public Task SqlResultsView_ErrorState_ShowsStyledErrorPanel() => RunOnUi(() =>
+    {
+        var view = SqlResultsFindFlowHeadlessTests.CreateView(out var vm);
+        vm.ErrorMessage = "ERROR: relation does not exist JUST_DATA.ADMIN.IMPORTED_261112_1854WSCQKYTKOL";
+
+        var window = new Window { Width = 900, Height = 420, Content = view };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        var panel = view.FindControl<Border>("ErrorPanel");
+        Assert.NotNull(panel);
+        Assert.True(panel.IsVisible);
+        Assert.NotNull(window.CaptureRenderedFrame());
+        window.Close();
+    });
 }

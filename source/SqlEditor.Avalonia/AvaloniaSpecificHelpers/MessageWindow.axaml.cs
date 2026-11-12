@@ -19,6 +19,7 @@ namespace JustyBase.Views
         public MessageWindow(string content = "Message Content", string title = "Information")
         {
             InitializeComponent();
+            Title = title;
             this.titleLabel.Text = title;
             this.contentTextBlock.Text = content;
             tbOk.Click += TbOk_Click;

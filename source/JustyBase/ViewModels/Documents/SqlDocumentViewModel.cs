@@ -193,17 +193,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             }
         });
         CopyWithFormatsCommand = new AsyncRelayCommand(CopyWithFormats);
-        PasteCommand = new RelayCommand(() =>
-        {
-            if (EditorAdapter is not null)
-            {
-                EditorAdapter.Paste();
-            }
-            else
-            {
-                SqlEditor?.Paste();
-            }
-        });
+        PasteCommand = new AsyncRelayCommand(PasteFromClipboardAsync);
         UndoCommand = new RelayCommand(() =>
         {
             if (EditorAdapter is not null)
@@ -228,7 +218,6 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         });
         ContinueOnError = false;
         IsRunEnabled = true;
-        PeriodicIntervalText = "00:00:10";
         VmSharedPreparation();
         InsertTextAction = InsertTextRequest;
 
@@ -309,6 +298,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         editor.KeyDown -= MarkTabEdited;
         editor.GotFocus -= OnSqlEditorGotFocus;
         editor.ContolShiftvAction = null!;
+        editor.PasteRequestHandler = null;
         editor.GoToLineAsyncAction = null!;
         editor.RenameRequested = null;
         editor.GoToDefinitionRequested = null;
@@ -362,6 +352,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         value.TextArea.GotFocus += OnSqlEditorGotFocus;
         value.GotFocus += OnSqlEditorGotFocus;
         value.ContolShiftvAction = ImportFromClipboardAsync;
+        value.PasteRequestHandler = HandlePasteRequestAsync;
         value.GoToLineAsyncAction = GoToLineAsyncAction;
         value.RenameRequested = () => _ = ExecuteRenameAsync();
         value.GoToDefinitionRequested = () => NavigateSqlSymbol(definitionOnly: true);
@@ -693,7 +684,6 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     {
         var clipboard = _uiServices.GetClipboard();
         if (clipboard is null)
-        if (clipboard is null)
         {
             return;
         }
@@ -705,6 +695,50 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             SelectedDatabase,
             AddLogMessage,
             InsertTextRequest);
+    }
+
+    private async Task PasteFromClipboardAsync()
+    {
+        if (SqlEditor is not null)
+        {
+            await SqlEditor.PasteAsync();
+            return;
+        }
+
+        EditorAdapter?.Paste();
+    }
+
+    /// <summary>
+    /// Offered tabular clipboard data before the editor inserts it. Returning false lets the
+    /// editor perform the normal text paste; true means the import flow (or cancel) handled it.
+    /// </summary>
+    private async Task<bool> HandlePasteRequestAsync(string text)
+    {
+        TabularPasteInfo? info = TabularPasteDetector.Detect(text);
+        if (info is null)
+        {
+            return false;
+        }
+
+        TabularPasteChoice choice = await _uiServices.ShowTabularPastePromptAsync(
+            $"The clipboard contains {TabularPasteDetector.Describe(info.Value)}. " +
+            "Import it into a new table instead of pasting it as SQL?");
+
+        switch (choice)
+        {
+            case TabularPasteChoice.ImportData:
+                await _interactionServices.ImportPastedTextAsync(
+                    text,
+                    SelectedConnectionName,
+                    SelectedDatabase);
+                return true;
+
+            case TabularPasteChoice.PasteAsText:
+                return false;
+
+            default:
+                return true;
+        }
     }
 
     /// <summary>Runs after Dock has made this document the active tab.</summary>
@@ -724,55 +758,6 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         await _executionServices.ExecutionStateService.AbortAllAsync();
         HowManyRunning = 0;
         ReturnPhase();
-    }
-
-
-
-    [ObservableProperty]
-    public partial bool RunEvery { get; set; }
-
-    [ObservableProperty]
-    public partial string PeriodicIntervalText { get; set; }
-
-    private DispatcherTimer _periodicTimer;
-
-    [RelayCommand]
-    private void RunSqlInTimer(string? option)
-    {
-        EnsurePeriodicTimerCreated();
-        if (RunEvery)
-        {
-            _periodicTimer.Interval = TimeSpan.FromSeconds(3);
-            _periodicTimer.Start();
-        }
-        else
-        {
-            _periodicTimer.Stop();
-        }
-    }
-
-    private void EnsurePeriodicTimerCreated()
-    {
-        if (_periodicTimer is not null)
-        {
-            return;
-        }
-        _periodicTimer = new DispatcherTimer();
-        _periodicTimer.Tick += (_, _) =>
-        {
-            RunSqlCommand.Execute("Grid");
-            _periodicTimer.Stop();
-            if (TimeSpan.TryParse(PeriodicIntervalText, out TimeSpan ts))
-            {
-                _periodicTimer.Interval = ts;
-                _periodicTimer.Start();
-            }
-            else
-            {
-                RunEvery = false;
-                PeriodicIntervalText = "00:00:10";
-            }
-        };
     }
 
     private async Task<string?> GetPathFromUser(string? ft, string? pattern, string? defaultExtension)
@@ -1036,7 +1021,6 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
     public void DoCleanup()
     {
-        _periodicTimer?.Stop();
         if (_keymap is not null)
         {
             _keymap.Changed -= OnKeymapChanged;

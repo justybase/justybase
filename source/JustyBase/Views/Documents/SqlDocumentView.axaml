@@ -136,12 +136,6 @@
 					<Label IsVisible="{Binding #AdvancedInfo.IsChecked}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="5 0">can be aborted</Label>
 					<TextBlock IsVisible="{Binding #AdvancedInfo.IsChecked}" Text="{Binding TasksToAbort}" HorizontalAlignment="Center" Margin="5 0" VerticalAlignment="Center" Foreground="{DynamicResource SystemAccentColor}"/>
 					<TextBlock IsVisible="{Binding #AdvancedInfo.IsChecked}" Text="{Binding FilePath}"/>
-				<ToggleSwitch IsChecked="{Binding RunEvery}" OnContent="execute periodically on" OffContent="execute periodically off"
-							 IsVisible="{Binding #AdvancedInfo.IsChecked}"
-							 Command="{Binding RunSqlInTimerCommand}"
-							 ToolTip.Tip="please use only if you know what you are doing"/>
-				<TextBox Text="{Binding PeriodicIntervalText}" IsVisible="{Binding #AdvancedInfo.IsChecked}"
-						 IsEnabled="{Binding RunEvery}" ToolTip.Tip="please use only if you know what you are doing"/>
 			</WrapPanel>
 		</Border>
 		<ce:SqlCodeEditor Grid.Row="1" Name="SqlEditor" ShowLineNumbers="True"

@@ -1,0 +1,74 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="580" d:DesignHeight="280"
+        Width="580" SizeToContent="Height" MaxHeight="720"
+        MinWidth="480"
+        x:Class="JustyBase.Views.OtherDialogs.PastedDataPromptWindow"
+        Title="Import pasted data?"
+        WindowDecorations="Full"
+        CanResize="False"
+        UseLayoutRounding="True"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+    <Window.Styles>
+        <Style Selector="Button.dialogAction">
+            <Setter Property="MinWidth" Value="96" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Padding" Value="16 6" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="TextBlock.dialogHint">
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Opacity" Value="0.55" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,Auto" Margin="22" RowSpacing="16">
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="14">
+            <Border Width="44" Height="44" CornerRadius="12"
+                    Background="{DynamicResource SystemAccentColorLight3Brush}"
+                    BorderBrush="{DynamicResource SystemAccentColorBrush}"
+                    BorderThickness="1">
+                <PathIcon Width="24" Height="24"
+                          Foreground="{DynamicResource SystemAccentColorBrush}"
+                          Data="M12 2.75C12.41 2.75 12.75 3.09 12.75 3.5V13.19L16.22 9.72C16.51 9.43 16.98 9.43 17.27 9.72C17.56 10.01 17.56 10.48 17.27 10.77L12.53 15.51C12.24 15.8 11.76 15.8 11.47 15.51L6.73 10.77C6.44 10.48 6.44 10.01 6.73 9.72C7.02 9.43 7.49 9.43 7.78 9.72L11.25 13.19V3.5C11.25 3.09 11.59 2.75 12 2.75ZM4.75 15C5.16 15 5.5 15.34 5.5 15.75V19.25C5.5 19.66 5.84 20 6.25 20H17.75C18.16 20 18.5 19.66 18.5 19.25V15.75C18.5 15.34 18.84 15 19.25 15C19.66 15 20 15.34 20 15.75V19.25C20 20.49 18.99 21.5 17.75 21.5H6.25C5.01 21.5 4 20.49 4 19.25V15.75C4 15.34 4.34 15 4.75 15Z" />
+            </Border>
+            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                <TextBlock FontSize="19" FontWeight="SemiBold"
+                           TextWrapping="Wrap">Import pasted data?</TextBlock>
+                <TextBlock Classes="dialogHint" Text="Choose how to handle the pasted block." />
+            </StackPanel>
+        </Grid>
+
+        <!-- Message -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderBrush="{DynamicResource ThemeBorderLowBrush}"
+                BorderThickness="1" CornerRadius="10" Padding="14 12">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto"
+                          MaxHeight="380">
+                <SelectableTextBlock Name="messageText" FontSize="13" LineHeight="20"
+                                     TextWrapping="Wrap" />
+            </ScrollViewer>
+        </Border>
+
+        <!-- Actions -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <TextBlock Grid.Column="0" Classes="dialogHint"
+                       Text="Enter imports · Esc cancels" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button Name="btnCancel" Classes="dialogAction" IsCancel="True"
+                        Content="Cancel" />
+                <Button Name="btnPasteAsText" Classes="dialogAction"
+                        Content="Paste as text" />
+                <Button Name="btnImport" Classes="accent dialogAction" IsDefault="True"
+                        Content="Import data" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

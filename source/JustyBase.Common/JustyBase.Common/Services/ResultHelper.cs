@@ -166,7 +166,7 @@ public sealed class ResultHelper
                         CompressionEnum.None => fileStream,
                         CompressionEnum.Brotli => new BrotliStream(fileStream, CompressionLevel.Optimal),
                         CompressionEnum.Gzip => new GZipStream(fileStream, CompressionLevel.Optimal),
-                        CompressionEnum.Zstd => new ZstdSharp.CompressionStream(fileStream),
+                        CompressionEnum.Zstd => new ZstandardStream(fileStream, CompressionLevel.Optimal),
                         _ => throw new NotImplementedException(),
                     };
                     using var streamWriter = new StreamWriter(helperStream, _csvEncoding);

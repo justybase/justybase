@@ -154,4 +154,22 @@ public sealed class SqlImportService : ISqlImportService
             _simpleLogger.LogAndShowError(ex, _messageForUserTools, ex.Message);
         }
     }
+
+    public async Task ImportPastedTextAsync(
+        string text,
+        string connectionName,
+        string? selectedDatabase)
+    {
+        try
+        {
+            await _activeDocumentManager.OpenImportDocumentFromPastedTextAsync(
+                text,
+                connectionName,
+                selectedDatabase);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _simpleLogger.LogAndShowError(ex, _messageForUserTools, ex.Message);
+        }
+    }
 }

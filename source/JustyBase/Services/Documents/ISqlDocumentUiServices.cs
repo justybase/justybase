@@ -6,6 +6,7 @@ using JustyBase.PluginCommon.Contracts;
 using JustyBase.Services.History;
 using JustyBase.Themes;
 using JustyBase.ViewModels.Documents;
+using JustyBase.Views.OtherDialogs;
 
 namespace JustyBase.Services.Documents;
 
@@ -17,6 +18,7 @@ public interface ISqlDocumentUiServices
     void FocusEditorOnSelectedTab(SqlCodeEditor? editor);
     void ResetFontInView(SqlCodeEditor? editor, string documentFontName);
     Task CopySelectionWithFormatsAsync(SqlCodeEditor? editor);
+    Task<TabularPasteChoice> ShowTabularPastePromptAsync(string message);
     Task<string?> PickOpenSqlFilePathAsync();
     Task<string?> PickSaveSqlFilePathAsync();
     Task<string?> PickSavePathAsync(string? fileTypeLabel, string? pattern, string? defaultExtension);
@@ -157,6 +159,29 @@ public sealed class SqlDocumentUiServices : ISqlDocumentUiServices
         {
             _simpleLogger.LogAndShowError(ex, _messageForUserTools);
         }
+    }
+
+    public Task<TabularPasteChoice> ShowTabularPastePromptAsync(string message)
+    {
+        var tcs = new TaskCompletionSource<TabularPasteChoice>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _messageForUserTools.DispatcherActionInstance(async () =>
+        {
+            try
+            {
+                var dialog = new PastedDataPromptWindow(message)
+                {
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner
+                };
+                TabularPasteChoice result = await dialog.ShowDialog<TabularPasteChoice>(_avaloniaSpecificHelpers.GetMainWindow());
+                tcs.TrySetResult(result);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _simpleLogger.TrackError(ex, isCrash: false);
+                tcs.TrySetResult(TabularPasteChoice.Cancel);
+            }
+        });
+        return tcs.Task;
     }
 
     public async Task<string?> PickOpenSqlFilePathAsync()

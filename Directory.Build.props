@@ -24,6 +24,17 @@
     -->
     <EnableAi Condition="'$(EnableAi)' == ''">true</EnableAi>
 
+    <!--
+      .NET 11 runtime-native async (Runtime Async V2). The runtime handles async
+      suspension/resumption instead of compiler-generated state machines, giving
+      lower overhead and cleaner live stack traces. Supported by JIT, ReadyToRun
+      and NativeAOT. Opt out per project with <EnableRuntimeAsync>false</EnableRuntimeAsync>.
+      https://learn.microsoft.com/dotnet/core/whats-new/dotnet-11/runtime#runtime-async
+    -->
+    <EnableRuntimeAsync Condition="'$(EnableRuntimeAsync)' == ''">true</EnableRuntimeAsync>
+    <!-- A leading separator is harmless to the compiler when Features is still empty. -->
+    <Features Condition="'$(EnableRuntimeAsync)' == 'true'">$(Features);runtime-async=on</Features>
+
     <!-- These sibling checkouts are required for local builds and CI. -->
     <JustyBaseLibrariesRoot Condition="'$(JustyBaseLibrariesRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</JustyBaseLibrariesRoot>
     <JustyBaseLocalNetezzaProject>$(JustyBaseLibrariesRoot)JustyBase.NetezzaSql\JustyBase.Netezza\JustyBase.Netezza.csproj</JustyBaseLocalNetezzaProject>

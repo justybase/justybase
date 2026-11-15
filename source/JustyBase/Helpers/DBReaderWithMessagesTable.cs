@@ -37,34 +37,9 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
         }
     }
 
-    // The mapping is resolved through the switch (not a cached Type[]) so
-    // the trimmer can statically verify the DAM contract: every arm returns
-    // a statically known typeof(...). The annotation below propagates the
-    // contract to the GetFieldType override (IL2073).
-    [return: DynamicallyAccessedMembers(
-        DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
-    private static Type TypeFromTypeCode(TypeCode typeCode) => typeCode switch
-    {
-        TypeCode.Boolean => typeof(bool),
-        TypeCode.Byte => typeof(byte),
-        TypeCode.Char => typeof(char),
-        TypeCode.DateTime => typeof(DateTime),
-        TypeCode.DBNull => typeof(DBNull),
-        TypeCode.Decimal => typeof(decimal),
-        TypeCode.Double => typeof(double),
-        TypeCode.Int16 => typeof(short),
-        TypeCode.Int32 => typeof(int),
-        TypeCode.Int64 => typeof(long),
-        TypeCode.SByte => typeof(sbyte),
-        TypeCode.Single => typeof(float),
-        TypeCode.String => typeof(string),
-        TypeCode.UInt16 => typeof(ushort),
-        TypeCode.UInt32 => typeof(uint),
-        TypeCode.UInt64 => typeof(ulong),
-        // TypeCode.Empty/Object (and anything unknown) carry heterogeneous
-        // values; object keeps GetFieldType truthful without reflection.
-        _ => typeof(object),
-    };
+    // The mapping is resolved through the shared helper so the trimmer can
+    // statically verify the DAM contract: every arm returns a statically
+    // known typeof(...).
 
     private int currentRowNum = -1;
     private object[] currentRow;
@@ -137,7 +112,7 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
         DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
     public override Type GetFieldType(int ordinal)
     {
-        return TypeFromTypeCode(_typeCodes[ordinal]);
+        return ResultFieldTypeMapper.FromTypeCode(_typeCodes[ordinal]);
     }
 
     public override float GetFloat(int ordinal)

@@ -1,5 +1,8 @@
+using System.Data;
+using JustyBase.Helpers;
 using JustyBase.Models;
 using JustyBase.Services.DataGrid;
+using JustyBase.Services.Results;
 
 namespace JustyBase.Tests;
 
@@ -23,6 +26,33 @@ public sealed class DataGridClipboardServiceTests
 
         Assert.Contains("C1\tC2", text);
         Assert.Contains("ab cd\tline1 line2", text);
+    }
+
+    [Fact]
+    public async Task BuildAllRowsTextAsync_WithReader_ReadsEverySpilledPage()
+    {
+        using var manager = new SpillStoreManager();
+        using ResultSpillStore store = manager.CreateStore(new ResultSpillSchema(
+        [
+            new ResultSpillColumn("N", TypeCode.Int32, SpillColumnKind.Integral),
+            new ResultSpillColumn("V", TypeCode.String, SpillColumnKind.Text)
+        ]));
+        store.PageSize = 2;
+        store.BeginWriteBatch();
+        for (int i = 0; i < 5; i++)
+        {
+            store.WriteRow([i, $"v{i}"]);
+        }
+
+        store.EndWriteBatch();
+
+        using var reader = new SpillResultReader(store, sortKeys: null);
+        string text = await new DataGridClipboardService().BuildAllRowsTextAsync(["N", "V"], reader);
+
+        Assert.Contains("N\tV", text);
+        Assert.Contains("0\tv0", text);
+        Assert.Contains("4\tv4", text);
+        Assert.Equal(6, text.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
     }
 
     [Fact]

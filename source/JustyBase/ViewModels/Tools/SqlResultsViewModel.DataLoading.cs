@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
+using JustyBase.Helpers;
 using JustyBase.Models;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.Services.Results;
@@ -20,6 +21,9 @@ partial class SqlResultsViewModel
     private IReadOnlyList<SpillSortKey> _spillSort = [];
     private SpillFilter? _spillFilter;
     private bool _applyingSpillFilter;
+    private readonly AsyncMutex _spillOperationGate = new();
+    private int _spillOperationVersion;
+    private string? _appliedSpillFilterSignature;
 
     public void LoadData((IDatabaseService dbService, DbDataReader rdr, string errorMessage) res)
     {
@@ -304,7 +308,7 @@ partial class SqlResultsViewModel
                 {
                     _spillSort = [];
                     _spillFilter = null;
-                    ApplySpillPage(0);
+                    ApplySpillPageRows(_spillStore!.ReadPage(0, SpillPageSize, _spillSort), 0);
                     RowsLoadingMessage = spillNotice is null
                         ? BuildSpillStatusMessage()
                         : $"{BuildSpillStatusMessage()} · {spillNotice}";
@@ -390,16 +394,50 @@ partial class SqlResultsViewModel
         }
     }
 
-    private void ApplySpillPage(int pageIndex)
+    private async Task ApplySpillPageAsync(int pageIndex)
     {
-        if (_spillStore is null)
+        ResultSpillStore? store = _spillStore;
+        if (store is null)
         {
             return;
         }
 
-        pageIndex = Math.Clamp(pageIndex, 0, Math.Max(0, SpillPageCount - 1));
+        int pageSize = SpillPageSize;
+        IReadOnlyList<SpillSortKey> sort = _spillSort;
+
+        try
+        {
+            using (await _spillOperationGate.LockAsync())
+            {
+                int version = Interlocked.Increment(ref _spillOperationVersion);
+                if (!ReferenceEquals(store, _spillStore))
+                {
+                    return;
+                }
+
+                int total = store.FilteredRowCount;
+                int pageCount = pageSize <= 0 || total == 0 ? 0 : (total + pageSize - 1) / pageSize;
+                int clamped = Math.Clamp(pageIndex, 0, Math.Max(0, pageCount - 1));
+
+                IReadOnlyList<object?[]> page = await Task.Run(() => store.ReadPage(clamped, pageSize, sort));
+                if (version != Volatile.Read(ref _spillOperationVersion) || !ReferenceEquals(store, _spillStore))
+                {
+                    return;
+                }
+
+                ApplySpillPageRows(page, clamped);
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _simpleLogger.TrackError(ex, isCrash: false);
+            RowsLoadingMessage = $"Paging failed: {ex.Message}";
+        }
+    }
+
+    private void ApplySpillPageRows(IReadOnlyList<object?[]> page, int pageIndex)
+    {
         SpillPageIndex = pageIndex;
-        var page = _spillStore.ReadPage(pageIndex, SpillPageSize, _spillSort);
         var rows = page.Select(fields => new TableRow { Fields = fields! }).ToList();
 
         lock (_lock)
@@ -416,106 +454,134 @@ partial class SqlResultsViewModel
     /// existing grouping code can run. Refused when the filtered result would
     /// exceed the shared budget or the grouping row limit.
     /// </summary>
-    private bool TryMaterializeSpillForGrouping()
+    private async Task<bool> TryMaterializeSpillForGroupingAsync()
     {
-        if (_spillStore is null)
+        ResultSpillStore? store = _spillStore;
+        if (store is null)
         {
             return true;
         }
 
-        int expected = _spillStore.FilteredRowCount;
+        int expected = store.FilteredRowCount;
         if (expected >= MAX_GROUPABLE_ROWS)
         {
             _messageForUserTools.ShowSimpleMessageBoxInstance("Too many items to group");
             return false;
         }
 
-        long estimate = _spillStore.EstimatedBytes;
+        long estimate = store.EstimatedBytes;
         if (estimate > _resultStore.Budget.AvailableBytes)
         {
-            _messageForUserTools.ShowSimpleMessageBoxInstance(
-                $"Grouping needs about {estimate / (1024.0 * 1024.0):N0} MiB but only " +
-                $"{_resultStore.Budget.AvailableBytes / (1024.0 * 1024.0):N0} MiB is available. " +
-                "Close another result tab or narrow the query.");
+            ShowGroupingBudgetMessage(estimate);
             return false;
         }
 
-        ResultSpillStore store = _spillStore;
         if (!_resultStore.Budget.TryReserve(estimate))
         {
-            _messageForUserTools.ShowSimpleMessageBoxInstance(
-                $"Grouping needs about {estimate / (1024.0 * 1024.0):N0} MiB but only " +
-                $"{_resultStore.Budget.AvailableBytes / (1024.0 * 1024.0):N0} MiB is available. " +
-                "Close another result tab or narrow the query.");
+            ShowGroupingBudgetMessage(estimate);
             return false;
         }
 
         _budgetReservedBytes += estimate;
-        List<object?[]> raw;
-        try
-        {
-            raw = [.. store.ReadAll(_spillSort)];
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            _budgetReservedBytes -= estimate;
-            _resultStore.Budget.Release(estimate);
-            _simpleLogger.TrackError(ex, isCrash: false);
-            _messageForUserTools.ShowSimpleMessageBoxInstance($"Could not load spilled rows for grouping: {ex.Message}");
-            return false;
-        }
 
-        long actual = raw.Sum(fields => ResultRowSizer.Estimate(fields));
-        if (actual > estimate)
+        using (await _spillOperationGate.LockAsync())
         {
-            long extra = actual - estimate;
-            if (_resultStore.Budget.TryReserve(extra))
+            Interlocked.Increment(ref _spillOperationVersion);
+            IReadOnlyList<SpillSortKey> sort = _spillSort;
+            if (!ReferenceEquals(store, _spillStore))
             {
-                _budgetReservedBytes += extra;
+                ReleaseGroupingReservation(estimate);
+                return false;
             }
-        }
-        else if (actual < estimate)
-        {
-            long unused = estimate - actual;
-            _budgetReservedBytes -= unused;
-            _resultStore.Budget.Release(unused);
-        }
 
-        _spillStore = null;
-        store.Dispose();
-        _spillSort = [];
-        _spillFilter = null;
-        IsSpillMode = false;
-        SpillTotalRows = 0;
-        SpillFilteredRows = 0;
-        SpillPageIndex = 0;
+            List<object?[]> raw;
+            try
+            {
+                raw = await Task.Run(() => store.ReadAll(sort).ToList());
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                ReleaseGroupingReservation(estimate);
+                _simpleLogger.TrackError(ex, isCrash: false);
+                _messageForUserTools.ShowSimpleMessageBoxInstance($"Could not load spilled rows for grouping: {ex.Message}");
+                return false;
+            }
 
-        var rows = new List<TableRow>(raw.Count);
-        foreach (object?[] fields in raw)
-        {
-            rows.Add(new TableRow { Fields = fields });
+            if (!ReferenceEquals(store, _spillStore))
+            {
+                ReleaseGroupingReservation(estimate);
+                return false;
+            }
+
+            long actual = raw.Sum(fields => ResultRowSizer.Estimate(fields));
+            if (actual > estimate)
+            {
+                long extra = actual - estimate;
+                if (_resultStore.Budget.TryReserve(extra))
+                {
+                    _budgetReservedBytes += extra;
+                }
+            }
+            else if (actual < estimate)
+            {
+                long unused = estimate - actual;
+                _budgetReservedBytes -= unused;
+                _resultStore.Budget.Release(unused);
+            }
+
+            _spillStore = null;
+            store.Dispose();
+            _spillSort = [];
+            _spillFilter = null;
+            _appliedSpillFilterSignature = null;
+            IsSpillMode = false;
+            SpillTotalRows = 0;
+            SpillFilteredRows = 0;
+            SpillPageIndex = 0;
+
+            var rows = new List<TableRow>(raw.Count);
+            foreach (object?[] fields in raw)
+            {
+                rows.Add(new TableRow { Fields = fields });
+            }
+
+            lock (_lock)
+            {
+                CurrentResultsTable.Rows = rows;
+                CurrentResultsTable.FilteredRows.ReplaceAll(rows);
+                CurrentResultsTable.RebuildRowIndexMap();
+            }
+
+            GridCollectionView = new Avalonia.Collections.DataGridCollectionView(CurrentResultsTable.FilteredRows);
+            RowsLoadingMessage = $"{rows.Count:N0} rows materialized for grouping";
+            NotifySpillCommands();
+            return true;
         }
+    }
 
-        lock (_lock)
-        {
-            CurrentResultsTable.Rows = rows;
-            CurrentResultsTable.FilteredRows.ReplaceAll(rows);
-            CurrentResultsTable.RebuildRowIndexMap();
-        }
+    private void ShowGroupingBudgetMessage(long estimate)
+    {
+        _messageForUserTools.ShowSimpleMessageBoxInstance(
+            $"Grouping needs about {estimate / (1024.0 * 1024.0):N0} MiB but only " +
+            $"{_resultStore.Budget.AvailableBytes / (1024.0 * 1024.0):N0} MiB is available. " +
+            "Close another result tab or narrow the query.");
+    }
 
-        GridCollectionView = new Avalonia.Collections.DataGridCollectionView(CurrentResultsTable.FilteredRows);
-        RowsLoadingMessage = $"{rows.Count:N0} rows materialized for grouping";
-        NotifySpillCommands();
-        return true;
+    private void ReleaseGroupingReservation(long estimate)
+    {
+        _budgetReservedBytes -= estimate;
+        _resultStore.Budget.Release(estimate);
     }
 
     private void DisposeSpill()
     {
+        Interlocked.Increment(ref _spillOperationVersion);
         ReleaseBudget();
         _spillStore?.Dispose();
         _spillStore = null;
         _spillSort = [];
         _spillFilter = null;
+        _appliedSpillFilterSignature = null;
         IsSpillMode = false;
         SpillTotalRows = 0;
         SpillFilteredRows = 0;

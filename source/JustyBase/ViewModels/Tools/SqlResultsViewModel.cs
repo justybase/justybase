@@ -350,29 +350,45 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
             : (SpillFilteredRows + SpillPageSize - 1) / SpillPageSize;
 
     [RelayCommand(CanExecute = nameof(CanGoSpillPrev))]
-    private void SpillPrevPage()
+    private async Task SpillPrevPageAsync()
     {
-        if (!IsSpillMode || SpillPageIndex <= 0)
+        if (!IsSpillMode || SearchInProgress || SpillPageIndex <= 0)
         {
             return;
         }
 
-        ApplySpillPage(SpillPageIndex - 1);
-        RowsLoadingMessage = BuildSpillStatusMessage();
-        NotifySpillCommands();
+        SearchInProgress = true;
+        try
+        {
+            await ApplySpillPageAsync(SpillPageIndex - 1);
+            RowsLoadingMessage = BuildSpillStatusMessage();
+        }
+        finally
+        {
+            SearchInProgress = false;
+            NotifySpillCommands();
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanGoSpillNext))]
-    private void SpillNextPage()
+    private async Task SpillNextPageAsync()
     {
-        if (!IsSpillMode || SpillPageIndex >= SpillPageCount - 1)
+        if (!IsSpillMode || SearchInProgress || SpillPageIndex >= SpillPageCount - 1)
         {
             return;
         }
 
-        ApplySpillPage(SpillPageIndex + 1);
-        RowsLoadingMessage = BuildSpillStatusMessage();
-        NotifySpillCommands();
+        SearchInProgress = true;
+        try
+        {
+            await ApplySpillPageAsync(SpillPageIndex + 1);
+            RowsLoadingMessage = BuildSpillStatusMessage();
+        }
+        finally
+        {
+            SearchInProgress = false;
+            NotifySpillCommands();
+        }
     }
 
     private bool CanGoSpillPrev() => IsSpillMode && SpillPageIndex > 0;

@@ -18,6 +18,36 @@ namespace JustyBase.ViewModels.Tools;
 /// </summary>
 public sealed partial class SqlResultsViewModel
 {
+    /// <summary>
+    /// Returns a reader over the full result: the spill store when the result is
+    /// spilled, otherwise the in-memory table. Export writers consume this so a
+    /// large result is never truncated to the visible page.
+    /// </summary>
+    private DbDataReader CreateResultReader()
+    {
+        if (IsSpillMode && _spillStore is not null)
+        {
+            return new SpillResultReader(_spillStore, _spillSort, _spillFilter);
+        }
+
+        return new DBReaderWithMessagesTable(CurrentResultsTable, null);
+    }
+
+    /// <summary>
+    /// Builds the "copy all rows" clipboard text from the full result, streaming
+    /// spilled pages instead of copying only the bound page.
+    /// </summary>
+    public async Task<string> BuildAllRowsClipboardTextAsync(IReadOnlyList<string> columnHeaders)
+    {
+        if (IsSpillMode && _spillStore is not null)
+        {
+            using var reader = new SpillResultReader(_spillStore, _spillSort, _spillFilter);
+            return await _dataGridClipboardService.BuildAllRowsTextAsync(columnHeaders, reader);
+        }
+
+        return await _dataGridClipboardService.BuildAllRowsTextAsync(CurrentResultsTable, columnHeaders);
+    }
+
     [RelayCommand]
     private async Task ExportAllResults()
     {
@@ -37,30 +67,34 @@ public sealed partial class SqlResultsViewModel
         {
             return;
         }
-        foreach (var item in results)
+        try
         {
-            listOfResults.Add((new DBReaderWithMessagesTable(item.CurrentResultsTable, null), item.SQL));
+            foreach (var item in results)
+            {
+                listOfResults.Add((item.CreateResultReader(), item.SQL));
+            }
+
+            if (listOfResults.Count > 0)
+            {
+                await _resultHelperService.CreateXlsbOrXlsxFile(filePathToExport, listOfResults);
+            }
+        }
+        finally
+        {
+            foreach (var (reader, _) in listOfResults)
+                reader.Dispose();
         }
 
         if (listOfResults.Count > 0)
         {
             try
             {
-                await _resultHelperService.CreateXlsbOrXlsxFile(filePathToExport, listOfResults);
-            }
-            finally
-            {
-                foreach (var (reader, _) in listOfResults)
-                    reader.Dispose();
-            }
-            try
-            {
                 await _avaloniaSpecificHelpers.CopyFileToClipboard(filePathToExport);
             }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or OperationCanceledException)
-                {
-                    _simpleLogger.LogAndShowError(ex, _messageForUserTools);
-                }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or OperationCanceledException)
+            {
+                _simpleLogger.LogAndShowError(ex, _messageForUserTools);
+            }
         }
     }
 
@@ -71,12 +105,13 @@ public sealed partial class SqlResultsViewModel
         ResultGridToolbarAction action = _actionRoutingService.Resolve(whatAction);
         if (_actionRoutingService.RequiresTableReader(action))
         {
-            using var rdr = new DBReaderWithMessagesTable(CurrentResultsTable, null);
             if (CurrentResultsTable.TypeCodes is null)
             {
                 ShowFlyoutCommand?.Execute("ERROR");
                 return;
             }
+
+            using var rdr = CreateResultReader();
 
             string randomName = StringExtension.RandomSuffix();
 
@@ -170,9 +205,21 @@ public sealed partial class SqlResultsViewModel
             }
             else if (action == ResultGridToolbarAction.CopyAsHtml)
             {
+                byte[] html;
+                if (IsSpillMode && _spillStore is not null)
+                {
+                    using var reader = new SpillResultReader(_spillStore, _spillSort, _spillFilter);
+                    IReadOnlyList<string> headers = CurrentResultsTable.Headers;
+                    html = await Task.Run(() => CopyHtmlOrTextClipboard.GetHtmlBytesOfReader(reader, headers));
+                }
+                else
+                {
+                    html = CopyHtmlOrTextClipboard.GetHtmlBytesOfTable(CurrentResultsTable);
+                }
+
                 using var dataTransfer = new DataTransfer();
                 DataFormat<byte[]> _customBinaryDataFormat = DataFormat.CreateBytesPlatformFormat("HTML Format");
-                dataTransfer.Add(DataTransferItem.Create(_customBinaryDataFormat, CopyHtmlOrTextClipboard.GetHtmlBytesOfTable(CurrentResultsTable)));
+                dataTransfer.Add(DataTransferItem.Create(_customBinaryDataFormat, html));
                 await _avaloniaSpecificHelpers.GetClipboard().SetDataAsync(dataTransfer);
             }
             else if (action == ResultGridToolbarAction.CopySelectedCellsCurrentColumn)

@@ -64,9 +64,12 @@ sequenceDiagram
 Decoded rows are held under a shared `ResultMemoryBudget` (4 GiB by default) and
 per-result row cap. When a result exceeds `ResultSpillThreshold` (250,000 rows by
 default) or the budget cannot serve the next row, loading switches to a typed
-SQLite spill file and the grid pages from disk. Sorting and search run in SQL
-against the spill; grouping materializes the filtered result only when it fits
-the budget and stays below one million rows.
+SQLite spill file and the grid pages from disk. Sorting, search and column
+filters run in SQL against the spill on a worker thread; grouping materializes the
+filtered result only when it fits the budget and stays below one million rows.
+
+Export and "copy all rows" stream every filtered row from the spill through a
+`SpillResultReader`, so they are never limited to the visible page.
 
 The application-wide spill quota (2 GiB) is enforced per write; a full quota
 keeps already-written rows and reports the limit instead of discarding results.

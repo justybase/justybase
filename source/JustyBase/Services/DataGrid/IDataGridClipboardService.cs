@@ -1,11 +1,19 @@
 using JustyBase.Models;
 using System.Collections;
+using System.Data.Common;
 
 namespace JustyBase.Services.DataGrid;
 
 public interface IDataGridClipboardService
 {
     Task<string> BuildAllRowsTextAsync(TableOfSqlResults table, IReadOnlyList<string> columnHeaders);
+
+    /// <summary>
+    /// Builds the same tab-delimited text by streaming every row from
+    /// <paramref name="reader"/>. Used for spilled results, where the table only
+    /// holds the currently visible page.
+    /// </summary>
+    Task<string> BuildAllRowsTextAsync(IReadOnlyList<string> columnHeaders, DbDataReader reader);
 
     string BuildMultiRowText(IReadOnlyList<string> columnHeaders, IList selectedItems);
 

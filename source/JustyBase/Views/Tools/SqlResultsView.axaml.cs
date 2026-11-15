@@ -602,9 +602,14 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
     {
         try
         {
+            if (DataContext is not SqlResultsViewModel vm)
+            {
+                return;
+            }
+
             var columnHeaders = ResultDataGrid.Columns.Select(c => c.Header?.ToString() ?? "").ToList();
-            string text = await _clipboardService.BuildAllRowsTextAsync(CurrentResultsTable, columnHeaders);
-            if (!string.IsNullOrEmpty(text) && DataContext is SqlResultsViewModel vm)
+            string text = await vm.BuildAllRowsClipboardTextAsync(columnHeaders);
+            if (!string.IsNullOrEmpty(text))
             {
                 await vm.Clipboard?.SetTextAsync(text);
             }
@@ -652,7 +657,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
     private void TriggerSearchTimer()
     {
-        if (DataContext is SqlResultsViewModel vm && !vm.SearchInProgress)
+        if (DataContext is SqlResultsViewModel vm)
         {
             _searchService.ScheduleSearch(() => vm.ApplyFilterSearch(_searchService));
         }

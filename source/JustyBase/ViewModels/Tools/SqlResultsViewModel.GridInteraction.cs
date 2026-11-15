@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Globalization;
+using System.Text;
 using Avalonia.Collections;
 using Avalonia.Controls.DataGridFiltering;
 using JustyBase.Converters;
@@ -35,7 +36,36 @@ public sealed partial class SqlResultsViewModel
         // Grouping walks every item, so a paged spill cannot be grouped in
         // place. Materialize the filtered result when the shared budget allows
         // it; otherwise refuse instead of silently grouping one page.
-        if (IsSpillMode && !TryMaterializeSpillForGrouping())
+        if (IsSpillMode)
+        {
+            _ = ToggleGroupByColumnSpillAsync(columnName, groupingService);
+            return;
+        }
+
+        ApplyToggleGroupByColumn(columnName, groupingService);
+    }
+
+    private async Task ToggleGroupByColumnSpillAsync(string columnName, IResultGridGroupingService groupingService)
+    {
+        try
+        {
+            if (!await TryMaterializeSpillForGroupingAsync())
+            {
+                return;
+            }
+
+            ApplyToggleGroupByColumn(columnName, groupingService);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _simpleLogger.TrackError(ex, isCrash: false);
+            _messageForUserTools.ShowSimpleMessageBoxInstance($"Could not group spilled result: {ex.Message}");
+        }
+    }
+
+    private void ApplyToggleGroupByColumn(string columnName, IResultGridGroupingService groupingService)
+    {
+        if (GridCollectionView is null || CurrentResultsTable is null)
         {
             return;
         }
@@ -145,18 +175,18 @@ public sealed partial class SqlResultsViewModel
     /// </summary>
     public void ApplyFilterSearch(IResultGridSearchService searchService)
     {
-        if (SearchInProgress || CurrentResultsTable is null || CurrentResultsTable.Headers.Count <= 0)
+        if (CurrentResultsTable is null || CurrentResultsTable.Headers.Count <= 0)
         {
             return;
         }
 
         if (IsSpillMode)
         {
-            ApplySpillFilter();
+            _ = ApplySpillFilterAsync();
             return;
         }
 
-        if (CurrentResultsTable.Rows is null || CurrentResultsTable.Rows.Count <= 0)
+        if (SearchInProgress || CurrentResultsTable.Rows is null || CurrentResultsTable.Rows.Count <= 0)
         {
             return;
         }
@@ -201,57 +231,123 @@ public sealed partial class SqlResultsViewModel
             return;
         }
 
-        _applyingSpillFilter = true;
-        try
-        {
-            ApplySpillFilter();
-        }
-        finally
-        {
-            _applyingSpillFilter = false;
-        }
+        _ = ApplySpillFilterAsync();
     }
 
     /// <summary>
     /// Runs the grid search and the column filters against the spilled result in
-    /// SQLite, then loads the first matching page. This keeps filtering a
-    /// multi-million-row result from touching only the page that happens to be
-    /// visible.
+    /// SQLite, then loads the first matching page. The COUNT(*) and page query run
+    /// off the UI thread; spill operations are serialized so each user action
+    /// applies in order, and disposing the store invalidates pending pages.
     /// </summary>
-    private void ApplySpillFilter()
+    private async Task ApplySpillFilterAsync()
     {
-        if (_spillStore is null)
+        ResultSpillStore? store = _spillStore;
+        if (store is null)
         {
             return;
         }
 
-        SearchInProgress = true;
+        SpillFilter filter = BuildSpillFilter();
+        string signature = BuildSpillFilterSignature(filter);
+        if (string.Equals(signature, _appliedSpillFilterSignature, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        IReadOnlyList<SpillSortKey> sort = _spillSort;
+        int pageSize = SpillPageSize;
         bool clearLargeSelection = SelectedItems?.Count > 5_000;
+
+        SearchInProgress = true;
         try
         {
-            ViewBridge?.SuspendGridBinding();
-
-            _spillFilter = BuildSpillFilter();
-            SpillFilteredRows = _spillStore.SetFilter(_spillFilter);
-            ApplySpillPage(0);
-
-            if (clearLargeSelection && SelectedItems is not null && SelectedItems.Count > 0)
+            using (await _spillOperationGate.LockAsync())
             {
-                SelectedItems.Clear();
-            }
+                int version = Interlocked.Increment(ref _spillOperationVersion);
+                if (!ReferenceEquals(store, _spillStore))
+                {
+                    return;
+                }
 
-            GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows);
-            RowsLoadingMessage = BuildSpillStatusMessage();
-            ViewBridge?.RecalculateSummaryValues();
-            RefreshFind();
-            ViewBridge?.InvalidateSummaryLayout();
+                (int filtered, IReadOnlyList<object?[]> page) = await Task.Run(() =>
+                {
+                    int count = store.SetFilter(filter);
+                    return (count, store.ReadPage(0, pageSize, sort));
+                });
+
+                if (version != Volatile.Read(ref _spillOperationVersion) || !ReferenceEquals(store, _spillStore))
+                {
+                    return;
+                }
+
+                _applyingSpillFilter = true;
+                ViewBridge?.SuspendGridBinding();
+                try
+                {
+                    _spillFilter = filter;
+                    _appliedSpillFilterSignature = signature;
+                    SpillFilteredRows = filtered;
+                    ApplySpillPageRows(page, 0);
+
+                    if (clearLargeSelection && SelectedItems is not null && SelectedItems.Count > 0)
+                    {
+                        SelectedItems.Clear();
+                    }
+
+                    GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows);
+                    RowsLoadingMessage = BuildSpillStatusMessage();
+                    ViewBridge?.RecalculateSummaryValues();
+                    RefreshFind();
+                    ViewBridge?.InvalidateSummaryLayout();
+                }
+                finally
+                {
+                    ViewBridge?.ResumeGridBinding(clearSelection: clearLargeSelection);
+                    _applyingSpillFilter = false;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _simpleLogger.TrackError(ex, isCrash: false);
+            RowsLoadingMessage = $"Filter failed: {ex.Message}";
         }
         finally
         {
-            ViewBridge?.ResumeGridBinding(clearSelection: clearLargeSelection);
             SearchInProgress = false;
             NotifySpillCommands();
         }
+    }
+
+    private static string BuildSpillFilterSignature(SpillFilter filter)
+    {
+        var signature = new StringBuilder();
+        signature.Append(filter.ContainsSearch ? '1' : '0')
+            .Append('|')
+            .Append(filter.SearchText ?? string.Empty);
+
+        foreach (SpillColumnFilter column in filter.ColumnFilters)
+        {
+            signature.Append('|')
+                .Append(column.ColumnIndex)
+                .Append(',')
+                .Append((int)column.Operator)
+                .Append(',')
+                .Append(column.IncludeNull ? '1' : '0')
+                .Append(',')
+                .Append(column.Value?.ToString() ?? "\u0000");
+
+            if (column.Values is not null)
+            {
+                foreach (object? value in column.Values)
+                {
+                    signature.Append(',').Append(value?.ToString() ?? "\u0000");
+                }
+            }
+        }
+
+        return signature.ToString();
     }
 
     private SpillFilter BuildSpillFilter()
@@ -381,19 +477,9 @@ public sealed partial class SqlResultsViewModel
 
         if (IsSpillMode && _spillStore is not null)
         {
-            _spillSort = [new SpillSortKey(comparer.Index, direction == ListSortDirection.Descending)];
-            ViewBridge?.SuspendGridBinding();
-            try
-            {
-                ApplySpillPage(0);
-                GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows);
-                RowsLoadingMessage = BuildSpillStatusMessage();
-            }
-            finally
-            {
-                ViewBridge?.ResumeGridBinding();
-            }
-
+            _ = ApplySpillSortAsync(
+                comparer.Index,
+                direction == ListSortDirection.Descending);
             return;
         }
 
@@ -414,6 +500,59 @@ public sealed partial class SqlResultsViewModel
         finally
         {
             ViewBridge?.ResumeGridBinding();
+        }
+    }
+
+    private async Task ApplySpillSortAsync(int columnIndex, bool descending)
+    {
+        ResultSpillStore? store = _spillStore;
+        if (store is null)
+        {
+            return;
+        }
+
+        IReadOnlyList<SpillSortKey> sort = [new SpillSortKey(columnIndex, descending)];
+        _spillSort = sort;
+
+        int pageSize = SpillPageSize;
+
+        try
+        {
+            using (await _spillOperationGate.LockAsync())
+            {
+                int version = Interlocked.Increment(ref _spillOperationVersion);
+                if (!ReferenceEquals(store, _spillStore))
+                {
+                    return;
+                }
+
+                IReadOnlyList<object?[]> page = await Task.Run(() => store.ReadPage(0, pageSize, sort));
+                if (version != Volatile.Read(ref _spillOperationVersion) || !ReferenceEquals(store, _spillStore))
+                {
+                    return;
+                }
+
+                ViewBridge?.SuspendGridBinding();
+                try
+                {
+                    ApplySpillPageRows(page, 0);
+                    GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows);
+                    RowsLoadingMessage = BuildSpillStatusMessage();
+                }
+                finally
+                {
+                    ViewBridge?.ResumeGridBinding();
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _simpleLogger.TrackError(ex, isCrash: false);
+            RowsLoadingMessage = $"Sort failed: {ex.Message}";
+        }
+        finally
+        {
+            NotifySpillCommands();
         }
     }
 

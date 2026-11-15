@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Data.Common;
 using System.Text;
 using JustyBase.Models;
 using JustyBase.PluginCommons;
@@ -25,35 +26,42 @@ public sealed class DataGridClipboardService : IDataGridClipboardService
         await Task.Run(() =>
         {
             var sb = new StringBuilder();
-
-            for (int i = 0; i < columnHeaders.Count; i++)
-            {
-                sb.Append(columnHeaders[i]);
-                if (i < columnHeaders.Count - 1)
-                {
-                    sb.Append('\t');
-                }
-            }
-            sb.AppendLine();
+            AppendHeader(sb, columnHeaders);
 
             foreach (var row in rows)
             {
-                for (int i = 0; i < row.Fields.Length; i++)
+                AppendFields(sb, row.Fields);
+            }
+
+            result = sb.ToString();
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc />
+    public async Task<string> BuildAllRowsTextAsync(IReadOnlyList<string> columnHeaders, DbDataReader reader)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+
+        string result = string.Empty;
+
+        await Task.Run(() =>
+        {
+            var sb = new StringBuilder();
+            AppendHeader(sb, columnHeaders);
+
+            while (reader.Read())
+            {
+                for (int i = 0; i < reader.FieldCount; i++)
                 {
-                    var val = row.Fields[i];
-                    if (val is null || val == DBNull.Value)
-                    {
-                        sb.Append("");
-                    }
-                    else
-                    {
-                        sb.Append(val.ToString()?.Replace("\t", " ").Replace("\n", " ").Replace("\r", ""));
-                    }
-                    if (i < row.Fields.Length - 1)
+                    AppendValue(sb, reader.IsDBNull(i) ? null : reader.GetValue(i));
+                    if (i < reader.FieldCount - 1)
                     {
                         sb.Append('\t');
                     }
                 }
+
                 sb.AppendLine();
             }
 
@@ -61,6 +69,44 @@ public sealed class DataGridClipboardService : IDataGridClipboardService
         });
 
         return result;
+    }
+
+    private static void AppendHeader(StringBuilder sb, IReadOnlyList<string> columnHeaders)
+    {
+        for (int i = 0; i < columnHeaders.Count; i++)
+        {
+            sb.Append(columnHeaders[i]);
+            if (i < columnHeaders.Count - 1)
+            {
+                sb.Append('\t');
+            }
+        }
+
+        sb.AppendLine();
+    }
+
+    private static void AppendFields(StringBuilder sb, object?[] fields)
+    {
+        for (int i = 0; i < fields.Length; i++)
+        {
+            AppendValue(sb, fields[i]);
+            if (i < fields.Length - 1)
+            {
+                sb.Append('\t');
+            }
+        }
+
+        sb.AppendLine();
+    }
+
+    private static void AppendValue(StringBuilder sb, object? value)
+    {
+        if (value is null or DBNull)
+        {
+            return;
+        }
+
+        sb.Append(value.ToString()?.Replace("\t", " ").Replace("\n", " ").Replace("\r", ""));
     }
 
     /// <summary>

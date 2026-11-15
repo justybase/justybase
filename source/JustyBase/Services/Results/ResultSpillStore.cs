@@ -104,6 +104,8 @@ public sealed class ResultSpillStore : IDisposable
 
     public int PageSize { get; set; } = 500;
 
+    internal ResultSpillSchema Schema => _schema;
+
     [SuppressMessage(
         "Security",
         "CA2100:Review SQL queries for security vulnerabilities",
@@ -274,6 +276,54 @@ public sealed class ResultSpillStore : IDisposable
 
     public IReadOnlyList<object?[]> ReadPage(int pageIndex, int pageSize)
         => ReadPage(pageIndex, pageSize, sortKeys: null);
+
+    /// <summary>
+    /// Reads a page with an explicit filter snapshot instead of the store's
+    /// current filter. Export and clipboard readers use this so a user changing
+    /// the grid filter mid-export cannot mix two result sets in one file.
+    /// </summary>
+    [SuppressMessage(
+        "Security",
+        "CA2100:Review SQL queries for security vulnerabilities",
+        Justification = "SQL text is composed only from generated column identifiers (c0..cN); all values are bound parameters.")]
+    internal IReadOnlyList<object?[]> ReadPageWithFilter(
+        int pageIndex,
+        int pageSize,
+        IReadOnlyList<SpillSortKey>? sortKeys,
+        SpillFilter? filter)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (pageSize <= 0)
+        {
+            return [];
+        }
+
+        pageIndex = Math.Max(0, pageIndex);
+
+        lock (_gate)
+        {
+            (string whereSql, List<(string Name, object? Value)> parameters) =
+                filter is null || filter.IsEmpty
+                    ? (string.Empty, [])
+                    : BuildWhere(filter);
+
+            using SqliteCommand command = _connection.CreateCommand();
+            command.CommandText =
+                $"SELECT {_selectList} FROM rows{whereSql} ORDER BY {BuildOrderBy(sortKeys)} LIMIT $limit OFFSET $offset;";
+            AddFilterParameters(command, parameters);
+            command.Parameters.AddWithValue("$limit", pageSize);
+            command.Parameters.AddWithValue("$offset", (long)pageIndex * pageSize);
+
+            var rows = new List<object?[]>(pageSize);
+            using SqliteDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                rows.Add(ReadRow(reader));
+            }
+
+            return rows;
+        }
+    }
 
     [SuppressMessage(
         "Security",

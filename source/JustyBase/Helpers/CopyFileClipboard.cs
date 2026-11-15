@@ -1,4 +1,5 @@
 ﻿using JustyBase.Models;
+using System.Data.Common;
 using System.Globalization;
 using System.Text;
 
@@ -85,5 +86,40 @@ internal sealed class CopyHtmlOrTextClipboard
     {
         string _htmlCode = TableToHtml(table);
         return GetHtmlBytes(_htmlCode);
+    }
+
+    /// <summary>
+    /// Builds the HTML clipboard payload by streaming a reader, so "copy as HTML"
+    /// covers every filtered row of a spilled result instead of one page.
+    /// </summary>
+    public static byte[] GetHtmlBytesOfReader(DbDataReader reader, IReadOnlyList<string> headers)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+        ArgumentNullException.ThrowIfNull(headers);
+
+        StringBuilder sb = new();
+        sb.Append("<table style=\"border: 2px solid black; background-color: rgb(220, 220, 220)\">");
+        sb.Append("<tr>");
+        for (int j = 0; j < headers.Count; j++)
+        {
+            sb.Append(CultureInfo.InvariantCulture, $"<th>{GetEscapedText(headers[j])}</th>");
+        }
+        sb.Append("</tr>");
+
+        while (reader.Read())
+        {
+            sb.Append("<tr>");
+            for (int j = 0; j < headers.Count; j++)
+            {
+                string text = reader.IsDBNull(j)
+                    ? string.Empty
+                    : reader.GetValue(j)?.ToString() ?? string.Empty;
+                sb.Append(CultureInfo.InvariantCulture, $"<td>{GetEscapedText(text)}</td>");
+            }
+            sb.Append("</tr>");
+        }
+
+        sb.Append("</table>");
+        return GetHtmlBytes(sb.ToString());
     }
 }

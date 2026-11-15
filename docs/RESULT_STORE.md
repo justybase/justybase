@@ -55,12 +55,27 @@ dispose, the file and its `-wal` / `-shm` sidecars are removed.
   `Between`. Only custom predicates stay limited to the visible page.
 - Filter values are always SQL parameters. SQL text is built only from generated
   column identifiers.
+- Filtering, sorting and paging run the SQLite query on a worker thread and then
+  apply the page on the UI thread. An `AsyncMutex` serializes spill operations so
+  filter/sort/page actions apply in order, and a version counter drops work whose
+  store was disposed or replaced.
+
+## Export and clipboard
+
+The grid keeps only one page in memory while a result is spilled. Export and
+"copy all rows" therefore do **not** use the bound table; they create a
+`SpillResultReader` over the store, which streams every filtered row in the active
+sort order as a `DbDataReader`. That reader feeds the existing CSV, TSV, JSON,
+XML, Parquet, SQL INSERT and Excel writers, plus the tab-delimited clipboard and
+"copy as HTML" paths. Selections and single-cell copies still operate on the
+visible page, as expected.
 
 ## Grouping spilled results
 
 Grouping walks every item, so it cannot run on one visible page. When the user
-groups a spilled result, `TryMaterializeSpillForGrouping` loads the filtered rows
-into memory and disposes the spill immediately, but only when:
+groups a spilled result, `TryMaterializeSpillForGroupingAsync` loads the filtered
+rows into memory on a worker thread and disposes the spill immediately, but only
+when:
 
 - the filtered row count is below 1,000,000, and
 - the shared memory budget can hold the rows.
@@ -89,5 +104,7 @@ Otherwise the user gets an explanatory message and the grid stays paged.
 - `source/JustyBase/Services/Results/SpillStoreManager.cs` — quota, cleanup, page cache.
 - `source/JustyBase/Services/Results/ResultSpillSchema.cs` — typed schema and filters.
 - `source/JustyBase/Services/Results/ResultSpillStore.cs` — SQLite read/write store.
+- `source/JustyBase/Helpers/SpillResultReader.cs` — streaming `DbDataReader` for export/clipboard.
+- `source/JustyBase/Helpers/AsyncMutex.cs` — serializes async spill operations.
 - `source/JustyBase/ViewModels/Tools/SqlResultsViewModel.DataLoading.cs` — load, reserve, spill activation.
 - `source/JustyBase/ViewModels/Tools/SqlResultsViewModel.GridInteraction.cs` — spill sort, filter and grouping.

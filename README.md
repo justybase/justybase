@@ -59,7 +59,7 @@ It is especially useful for:
 - **Git integration** with status, staging, history, diff, and commit workflow support
 - **AI Copilot** for SQL help using Codex/ChatGPT, any OpenAI-compatible endpoint, or an embedded local GGUF model
 - **Data grid** with grouping, filtering, and export to Excel, CSV, and Parquet
-- **Large result handling** with a shared memory budget and typed SQLite spill, so results beyond 250,000 rows stay pageable and sortable ([docs/RESULT_STORE.md](docs/RESULT_STORE.md))
+- **Large result handling** with a shared memory budget and typed SQLite spill, so results beyond 250,000 rows stay pageable, sortable and fully exportable ([docs/RESULT_STORE.md](docs/RESULT_STORE.md))
 - **Multi-connection management** for multiple database sessions
 - **Netezza-first database support** for IBM Netezza Performance Server
 - **Excel File SQL** for `.xlsx` and `.xlsb` workbooks, with each worksheet exposed as a SQL table and exports to separate `.xlsx`/`.xlsb` result tabs

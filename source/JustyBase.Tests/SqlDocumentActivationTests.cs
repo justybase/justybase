@@ -56,7 +56,7 @@ public sealed class SqlDocumentActivationTests
             CreateAppData().Object,
             messageForUserTools.Object);
 
-        var resultViewModel = new SqlResultsViewModel(
+        using var resultViewModel = new SqlResultsViewModel(
             Mock.Of<IFactory>(),
             Mock.Of<IAvaloniaSpecificHelpers>(),
             Mock.Of<IClipboardService>(),

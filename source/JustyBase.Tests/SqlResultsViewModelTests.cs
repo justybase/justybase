@@ -15,7 +15,7 @@ public sealed class SqlResultsViewModelTests
     [Fact]
     public void Constructor_SetsExpectedDefaults()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
 
         Assert.Equal("10", vm.DpWidth);
         Assert.False(vm.VisibleExpand);
@@ -36,7 +36,7 @@ public sealed class SqlResultsViewModelTests
     public void SetColumnSummary_TogglesShowSummaryRowAndStoresType()
     {
         var bridge = new Mock<ISqlResultsViewBridge>();
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         vm.ViewBridge = bridge.Object;
 
         vm.SetColumnSummary(2, ColumnSummaryType.Sum);
@@ -55,7 +55,7 @@ public sealed class SqlResultsViewModelTests
     [Fact]
     public void DoCleanup_ClearsCurrentResultsTable()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         vm.CurrentResultsTable.Headers.Add("A");
         vm.CurrentResultsTable.FilteredRows.Add(new TableRow { Fields = [1] });
         Assert.NotEmpty(vm.CurrentResultsTable.FilteredRows);
@@ -69,7 +69,7 @@ public sealed class SqlResultsViewModelTests
     [Fact]
     public void DpWidth_AboveThreshold_SetsVisibleExpand()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
 
         vm.DpWidth = "200";
         Assert.True(vm.VisibleExpand);
@@ -81,7 +81,7 @@ public sealed class SqlResultsViewModelTests
     [Fact]
     public void ExpandCollapseRowViewCommand_TogglesWidthAndVisibleExpand()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         Assert.False(vm.VisibleExpand);
         Assert.Equal("10", vm.DpWidth);
 
@@ -100,7 +100,7 @@ public sealed class SqlResultsViewModelTests
     [Fact]
     public void CloseFind_WhenVisible_ClearsFindState()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         vm.IsFindVisible = true;
         vm.FindText = "abc";
 
@@ -115,7 +115,7 @@ public sealed class SqlResultsViewModelTests
     [Fact]
     public void FindNext_WhenFindHidden_ShowsFindBar()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         Assert.False(vm.IsFindVisible);
 
         vm.FindNextCommand.Execute(null);
@@ -126,7 +126,7 @@ public sealed class SqlResultsViewModelTests
     [Fact]
     public void RefreshFind_WhenHidden_DoesNotSearch()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         vm.RefreshFind();
 
         Assert.Empty(vm.FindModel.Results);

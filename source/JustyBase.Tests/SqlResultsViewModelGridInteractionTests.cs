@@ -27,7 +27,7 @@ public sealed class SqlResultsViewModelGridInteractionTests
     [Fact]
     public void SetSingleCellSelectionSummary_ClearsCellsAndSetsText()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         vm.SelectedColumnCells = [42];
         vm.StatsText = "stale";
 
@@ -40,7 +40,7 @@ public sealed class SqlResultsViewModelGridInteractionTests
     [Fact]
     public void UpdateSelectionStats_WithNullTable_SetsZeroState()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         vm.CurrentResultsTable = null!;
         var statsService = new Mock<IResultGridStatsService>();
 
@@ -56,7 +56,7 @@ public sealed class SqlResultsViewModelGridInteractionTests
     [Fact]
     public void UpdateSelectionStats_WithTable_DelegatesToStatsService()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         var statsService = new Mock<IResultGridStatsService>();
         var expected = new CellStatsResult
         {
@@ -85,7 +85,7 @@ public sealed class SqlResultsViewModelGridInteractionTests
     [Fact]
     public void ApplyFilterSearch_WithEmptyTable_DoesNotTouchBridge()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         var bridge = new Mock<ISqlResultsViewBridge>();
         vm.ViewBridge = bridge.Object;
         var searchService = new Mock<IResultGridSearchService>();
@@ -102,7 +102,7 @@ public sealed class SqlResultsViewModelGridInteractionTests
     [Fact]
     public void ApplyFilterSearch_WithRows_SearchesAndRebuildsView()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         SeedTable(vm.CurrentResultsTable, ["A"]);
         var bridge = new Mock<ISqlResultsViewBridge>();
         vm.ViewBridge = bridge.Object;
@@ -129,7 +129,7 @@ public sealed class SqlResultsViewModelGridInteractionTests
     [Fact]
     public void ApplyColumnSort_SortsFilteredRowsAndRebuildsView()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         SeedTable(vm.CurrentResultsTable, ["N"], TypeCode.Int32);
         vm.CurrentResultsTable.FilteredRows[0].Fields[0] = 3;
         vm.CurrentResultsTable.FilteredRows[1].Fields[0] = 1;
@@ -151,7 +151,7 @@ public sealed class SqlResultsViewModelGridInteractionTests
     [Fact]
     public void ApplyColumnSort_WithDescending_ReversesOrder()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         SeedTable(vm.CurrentResultsTable, ["N"], TypeCode.Int32);
         vm.CurrentResultsTable.FilteredRows[0].Fields[0] = 3;
         vm.CurrentResultsTable.FilteredRows[1].Fields[0] = 1;
@@ -172,7 +172,7 @@ public sealed class SqlResultsViewModelGridInteractionTests
     [Fact]
     public void ToggleGroupByColumn_AddsThenRemovesGroupedColumn()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         SeedTable(vm.CurrentResultsTable, ["Id", "City"]);
         vm.GridCollectionView = new Avalonia.Collections.DataGridCollectionView(vm.CurrentResultsTable.FilteredRows);
         var groupingService = new ResultGridGroupingService();
@@ -191,7 +191,7 @@ public sealed class SqlResultsViewModelGridInteractionTests
     [Fact]
     public void ToggleGroupByColumn_WithUnknownColumn_DoesNothing()
     {
-        var vm = CreateViewModel();
+        using var vm = CreateViewModel();
         SeedTable(vm.CurrentResultsTable, ["Id", "City"]);
         var groupingService = new ResultGridGroupingService();
 

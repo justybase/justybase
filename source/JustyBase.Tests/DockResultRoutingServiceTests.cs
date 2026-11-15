@@ -25,7 +25,7 @@ public sealed class DockResultRoutingServiceTests
         var messageForUserTools = CreateMessageForUserTools();
         SqlDocumentViewModel document = CreateSqlDocumentViewModel("doc-1", "Query 1");
         SqlResultsFastViewModel resultsHost = CreateSqlResultsFastViewModel(messageForUserTools.Object);
-        SqlResultsViewModel resultViewModel = CreateSqlResultsViewModel(messageForUserTools.Object);
+        using SqlResultsViewModel resultViewModel = CreateSqlResultsViewModel(messageForUserTools.Object);
 
         var viewModelFactory = new Mock<IDockViewModelFactory>();
         viewModelFactory.Setup(x => x.CreateSqlResultsViewModel()).Returns(resultViewModel);
@@ -64,7 +64,7 @@ public sealed class DockResultRoutingServiceTests
         var messageForUserTools = CreateMessageForUserTools();
         SqlDocumentViewModel document = CreateSqlDocumentViewModel("doc-empty", "Empty query");
         SqlResultsFastViewModel resultsHost = CreateSqlResultsFastViewModel(messageForUserTools.Object);
-        SqlResultsViewModel resultViewModel = CreateSqlResultsViewModel(messageForUserTools.Object);
+        using SqlResultsViewModel resultViewModel = CreateSqlResultsViewModel(messageForUserTools.Object);
 
         var viewModelFactory = new Mock<IDockViewModelFactory>();
         viewModelFactory.Setup(x => x.CreateSqlResultsViewModel()).Returns(resultViewModel);
@@ -111,7 +111,7 @@ public sealed class DockResultRoutingServiceTests
         var messageForUserTools = CreateMessageForUserTools();
         SqlDocumentViewModel document = CreateSqlDocumentViewModel("doc-2", "Query 2");
         SqlResultsFastViewModel resultsHost = CreateSqlResultsFastViewModel(messageForUserTools.Object);
-        SqlResultsViewModel resultViewModel = CreateSqlResultsViewModel(messageForUserTools.Object);
+        using SqlResultsViewModel resultViewModel = CreateSqlResultsViewModel(messageForUserTools.Object);
 
         var viewModelFactory = new Mock<IDockViewModelFactory>();
         viewModelFactory.Setup(x => x.CreateSqlResultsViewModel()).Returns(resultViewModel);

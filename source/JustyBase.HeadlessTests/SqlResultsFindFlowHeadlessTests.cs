@@ -76,6 +76,7 @@ public sealed class SqlResultsFindFlowHeadlessTests : HeadlessSessionTestBase
     public Task FullView_FindText_DebounceTimerFires() => RunWithAsyncUi(async () =>
     {
         var view = CreateView(out var vm);
+        using var vmLease = vm;
         var window = new Window { Width = 700, Height = 500, Content = view };
         window.Show();
         Dispatcher.UIThread.RunJobs();
@@ -98,6 +99,7 @@ public sealed class SqlResultsFindFlowHeadlessTests : HeadlessSessionTestBase
     public Task FullView_FindText_WithGrouping_FindsResults() => RunWithAsyncUi(async () =>
     {
         var view = CreateView(out var vm);
+        using var vmLease = vm;
         var window = new Window { Width = 700, Height = 500, Content = view };
         window.Show();
         Dispatcher.UIThread.RunJobs();
@@ -117,6 +119,7 @@ public sealed class SqlResultsFindFlowHeadlessTests : HeadlessSessionTestBase
     public Task FullView_FindText_AfterDetachReattach_FindsResults() => RunWithAsyncUi(async () =>
     {
         var view = CreateView(out var vm);
+        using var vmLease = vm;
         var window = new Window { Width = 700, Height = 500, Content = view };
         window.Show();
         Dispatcher.UIThread.RunJobs();

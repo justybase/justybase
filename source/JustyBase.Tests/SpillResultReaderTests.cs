@@ -64,6 +64,63 @@ public sealed class SpillResultReaderTests
     }
 
     [Fact]
+    public void Read_WhenCancelled_ThrowsOperationCanceledException()
+    {
+        using var manager = new SpillStoreManager();
+        using ResultSpillStore store = CreateStore(manager);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        using var reader = new SpillResultReader(
+            store,
+            sortKeys: null,
+            filter: null,
+            progress: null,
+            cancellationToken: cts.Token);
+
+        Assert.Throws<OperationCanceledException>(() => reader.Read());
+    }
+
+    [Fact]
+    public void Read_ReportsProgressEveryTenThousandRows()
+    {
+        using var manager = new SpillStoreManager();
+        using ResultSpillStore store = manager.CreateStore(new ResultSpillSchema(
+            [new ResultSpillColumn("id", TypeCode.Int32, SpillColumnKind.Integral)]));
+        store.PageSize = 5_000;
+        store.BeginWriteBatch();
+        for (int i = 0; i < 25_000; i++)
+        {
+            store.WriteRow([i]);
+        }
+
+        store.EndWriteBatch();
+
+        var progress = new RecordingProgress();
+        using var reader = new SpillResultReader(
+            store,
+            sortKeys: null,
+            filter: null,
+            progress: progress);
+
+        int rows = 0;
+        while (reader.Read())
+        {
+            rows++;
+        }
+
+        Assert.Equal(25_000, rows);
+        Assert.Equal([10_000, 20_000], progress.Values);
+    }
+
+    private sealed class RecordingProgress : IProgress<int>
+    {
+        public List<int> Values { get; } = [];
+
+        public void Report(int value) => Values.Add(value);
+    }
+
+    [Fact]
     public void Read_WithNoMatchingRows_ReturnsFalse()
     {
         using var manager = new SpillStoreManager();

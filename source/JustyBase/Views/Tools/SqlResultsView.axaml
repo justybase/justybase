@@ -290,6 +290,8 @@
 			        IsVisible="{Binding IsSpillMode}" ToolTip.Tip="Previous spill page" />
 			<Button Margin="2 0 0 0" Content="▶" Command="{Binding SpillNextPageCommand}"
 			        IsVisible="{Binding IsSpillMode}" ToolTip.Tip="Next spill page" />
+			<Button Margin="6 0 0 0" Content="Cancel export" Command="{Binding CancelExportCommand}"
+			        IsVisible="{Binding IsExportInProgress}" ToolTip.Tip="Cancel the running export" />
 				<AutoCompleteBox Name="columnAutoComplet" Margin="10 0 0 0" PlaceholderText="go to column.."
 							 Height="30"
 							 ToolTip.Tip="enter a space to see all columns">

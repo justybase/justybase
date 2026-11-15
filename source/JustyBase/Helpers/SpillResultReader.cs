@@ -18,10 +18,13 @@ internal sealed class SpillResultReader : DbDataReader
 {
     private const int MinPageSize = 1_000;
     private const int MaxPageSize = 100_000;
+    private const int ProgressInterval = 10_000;
 
     private readonly ResultSpillStore _store;
     private readonly IReadOnlyList<SpillSortKey> _sortKeys;
     private readonly SpillFilter? _filter;
+    private readonly IProgress<int>? _progress;
+    private readonly CancellationToken _cancellationToken;
     private readonly string[] _headers;
     private readonly TypeCode[] _typeCodes;
     private readonly int _fieldCount;
@@ -30,17 +33,25 @@ internal sealed class SpillResultReader : DbDataReader
     private IReadOnlyList<object?[]> _page = [];
     private int _pageIndex;
     private int _rowIndex;
+    private int _rowsRead;
     private object?[]? _currentRow;
     private bool? _hasRows;
     private bool _closed;
 
-    public SpillResultReader(ResultSpillStore store, IReadOnlyList<SpillSortKey>? sortKeys, SpillFilter? filter = null)
+    public SpillResultReader(
+        ResultSpillStore store,
+        IReadOnlyList<SpillSortKey>? sortKeys,
+        SpillFilter? filter = null,
+        IProgress<int>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(store);
 
         _store = store;
         _sortKeys = sortKeys ?? [];
         _filter = filter;
+        _progress = progress;
+        _cancellationToken = cancellationToken;
         _fieldCount = store.Schema.Columns.Count;
         _pageSize = Math.Clamp(store.PageSize, MinPageSize, MaxPageSize);
         _headers = new string[_fieldCount];
@@ -70,6 +81,7 @@ internal sealed class SpillResultReader : DbDataReader
 
     public override bool Read()
     {
+        _cancellationToken.ThrowIfCancellationRequested();
         if (_closed)
         {
             return false;
@@ -82,6 +94,12 @@ internal sealed class SpillResultReader : DbDataReader
         }
 
         _currentRow = _page[_rowIndex++];
+        _rowsRead++;
+        if (_progress is not null && _rowsRead % ProgressInterval == 0)
+        {
+            _progress.Report(_rowsRead);
+        }
+
         return true;
     }
 

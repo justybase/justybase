@@ -38,7 +38,7 @@ public sealed class SqlResultsSpillHeadlessTests : HeadlessSessionTestBase
             memoryBudgetBytes: 256L * 1024 * 1024,
             spillQuotaBytes: 256L * 1024 * 1024);
 
-        var vm = new SqlResultsViewModel(
+        using var vm = new SqlResultsViewModel(
             Mock.Of<IFactory>(),
             Mock.Of<IAvaloniaSpecificHelpers>(),
             Mock.Of<IClipboardService>(),

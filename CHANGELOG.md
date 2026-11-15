@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Result store rework: a shared 4 GiB memory budget, spill after 250,000 rows (or when the budget is full), typed SQLite columns with exact decimals, SQL-driven paging/sorting/filtering, grouping only after a budget-checked materialization, a 2 GiB disk quota that keeps already-written rows, a 64 MiB LRU page cache, and startup cleanup of orphaned spill files ([docs/RESULT_STORE.md](docs/RESULT_STORE.md))
 - Spill-aware export and clipboard: a streaming `SpillResultReader` feeds CSV/TSV/JSON/XML/Parquet/SQL/Excel and "copy all rows"/HTML, so large results are no longer truncated to the visible page
 - Spill filtering, sorting, paging and grouping now run their SQLite work off the UI thread with serialized, versioned operations that discard stale pages
+- Progress reporting and a **Cancel export** action for long-running result exports; cancelling removes the partial file and restores the result status
 
 ### Fixed
 

@@ -70,6 +70,11 @@ XML, Parquet, SQL INSERT and Excel writers, plus the tab-delimited clipboard and
 "copy as HTML" paths. Selections and single-cell copies still operate on the
 visible page, as expected.
 
+While an export streams, the status bar reports `Exporting… N rows` and a
+**Cancel export** button is shown. Cancelling stops the reader at the next
+row/page, removes the partially written file (when it was created by this
+export), and restores the normal result status.
+
 ## Grouping spilled results
 
 Grouping walks every item, so it cannot run on one visible page. When the user

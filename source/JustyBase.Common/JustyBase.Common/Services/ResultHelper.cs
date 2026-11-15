@@ -51,8 +51,9 @@ public sealed class ResultHelper
             };
         }
     }
-    public void CreateCsvFile(TextWriter stringWriter, DbDataReader rdr, bool headers)
+    public void CreateCsvFile(TextWriter stringWriter, DbDataReader rdr, bool headers, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         using var csvWriter = CsvDataWriter.Create(stringWriter, new CsvDataWriterOptions()
         {
             NewLine = _csvRowSeparator,
@@ -63,7 +64,7 @@ public sealed class ResultHelper
     }
     private string SheetName => _generalApplicationData?.Config?.DefaultXlsxSheetName ?? "Sheet";
     public string DefaultExcelExtension => _generalApplicationData?.Config?.UseXlsb == false ? ".xlsx" : ".xlsb";
-    public async Task CreateExcelFileAsync(string filePathToExport, DbDataReader rdr, string SQL)
+    public async Task CreateExcelFileAsync(string filePathToExport, DbDataReader rdr, string SQL, CancellationToken cancellationToken = default)
     {
         bool IsXlsb = filePathToExport.EndsWith(".xlsb", StringComparison.OrdinalIgnoreCase);
         bool IsXlsx = filePathToExport.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase);
@@ -85,12 +86,16 @@ public sealed class ResultHelper
             return;
         }
 
+        DateTime exportStarted = DateTime.UtcNow;
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (IsXlsb || IsXlsx)
             {
                 await Task.Run(() =>
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     ExcelWriter excelFile;
                     excelFile = IsXlsb ? new XlsbWriter(filePathToExport) { SuppressYear1000Dates = true } : new XlsxWriter(filePathToExport) { SuppressYear1000Dates = true };
 
@@ -99,6 +104,7 @@ public sealed class ResultHelper
                     {
                         excelFile.AddSheet($"{SheetName}1");
                         excelFile.WriteSheet(rdr, doAutofilter: true);
+                        cancellationToken.ThrowIfCancellationRequested();
                         excelFile.AddSheet($"SQL", hidden: true);
                         excelFile.WriteSheet(SQL.GetSqLParts());
                     }
@@ -106,40 +112,50 @@ public sealed class ResultHelper
                     {
                         excelFile.Dispose();
                     }
-                });
+                }, cancellationToken);
             }
             else if (IsCsvZip)
             {
                 await Task.Run(() =>
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     using var helperStream = new FileStream(filePathToExport, FileMode.Create, FileAccess.Write, FileShare.None);
                     using var archive = new ZipArchive(helperStream, ZipArchiveMode.Create, true);
                     var entry = archive.CreateEntry(Path.GetFileName(filePathToExport[..^4]));
                     Stream openedEntry = entry.Open();
                     using var streamWriter = new StreamWriter(openedEntry,_csvEncoding);
-                    CreateCsvFile(streamWriter, rdr, true);
-                });
+                    CreateCsvFile(streamWriter, rdr, true, cancellationToken);
+                }, cancellationToken);
             }
             else if (IsParquet)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 ParquetExportWriter parquetWritter = new ParquetExportWriter(rdr);
                 using var fileStream = File.Open(filePathToExport, FileMode.Create, FileAccess.Write, FileShare.None);
                 await parquetWritter.CreateFile(fileStream).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
             }
             else if (IsJson)
             {
-                await ResultExportWriters.WriteJsonAsync(rdr, filePathToExport, _csvEncoding);
+                cancellationToken.ThrowIfCancellationRequested();
+                await ResultExportWriters.WriteJsonAsync(rdr, filePathToExport, _csvEncoding, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
             }
             else if (IsXml)
             {
-                await ResultExportWriters.WriteXmlAsync(rdr, filePathToExport, _csvEncoding);
+                cancellationToken.ThrowIfCancellationRequested();
+                await ResultExportWriters.WriteXmlAsync(rdr, filePathToExport, _csvEncoding, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
             }
             else if (IsTsv)
             {
-                await ResultExportWriters.WriteTsvAsync(rdr, filePathToExport, _csvEncoding);
+                cancellationToken.ThrowIfCancellationRequested();
+                await ResultExportWriters.WriteTsvAsync(rdr, filePathToExport, _csvEncoding, cancellationToken: cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
             }
             else if (IsSqlScript)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string tableName = new(
                     Path.GetFileNameWithoutExtension(filePathToExport)
                         .Select(character => char.IsLetterOrDigit(character) || character == '_' ? character : '_')
@@ -154,12 +170,15 @@ public sealed class ResultHelper
                     filePathToExport,
                     tableName,
                     DatabaseTypeEnum.NotSupportedDatabase,
-                    encoding: _csvEncoding);
+                    encoding: _csvEncoding,
+                    cancellationToken: cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
             }
             else
             {
                 await Task.Run(() =>
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     using var fileStream = File.Open(filePathToExport, FileMode.Create, FileAccess.Write, FileShare.None);
                     Stream helperStream = csvCompression switch
                     {
@@ -170,19 +189,25 @@ public sealed class ResultHelper
                         _ => throw new NotImplementedException(),
                     };
                     using var streamWriter = new StreamWriter(helperStream, _csvEncoding);
-                    CreateCsvFile(streamWriter, rdr, true);
-                });
+                    CreateCsvFile(streamWriter, rdr, true, cancellationToken);
+                }, cancellationToken);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            DeletePartialExport(filePathToExport, exportStarted);
+            _messageForUserTools.ShowSimpleMessageBoxInstance("Export cancelled.");
         }
         catch (Exception ex)
         {
+            DeletePartialExport(filePathToExport, exportStarted);
             _simpleLogger.TrackError(ex, isCrash: false);
             _messageForUserTools.ShowSimpleMessageBoxInstance("File name is not valid ? " + "\n" + ex.Message);
             return;
         }
     }
 
-    public async Task CreateXlsbOrXlsxFile(string filePathToExport, List<(DbDataReader, string)> listOfResults)
+    public async Task CreateXlsbOrXlsxFile(string filePathToExport, List<(DbDataReader, string)> listOfResults, CancellationToken cancellationToken = default)
     {
         bool IsXlsb = filePathToExport.EndsWith(".xlsb", StringComparison.OrdinalIgnoreCase);
         bool IsXlsx = filePathToExport.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase);
@@ -197,10 +222,14 @@ public sealed class ResultHelper
             return;
         }
 
+        DateTime exportStarted = DateTime.UtcNow;
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             await Task.Run(() =>
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 ExcelWriter excelFile;
                 excelFile = IsXlsb ? new XlsbWriter(filePathToExport) { SuppressYear1000Dates = true } : new XlsxWriter(filePathToExport) { SuppressYear1000Dates = true };
 
@@ -210,6 +239,7 @@ public sealed class ResultHelper
                     int i1 = 1;
                     foreach (var (rdr, SQL) in listOfResults)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         excelFile.AddSheet($"{SheetName}_{i1}");
                         excelFile.WriteSheet(rdr, doAutofilter: true);
                         excelFile.AddSheet($"SQL_{i1}", hidden: true);
@@ -221,13 +251,35 @@ public sealed class ResultHelper
                 {
                     excelFile.Dispose();
                 }
-            });
+            }, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            DeletePartialExport(filePathToExport, exportStarted);
+            _messageForUserTools.ShowSimpleMessageBoxInstance("Export cancelled.");
         }
         catch (Exception ex)
         {
+            DeletePartialExport(filePathToExport, exportStarted);
             _simpleLogger.TrackError(ex, isCrash: false);
             _messageForUserTools.ShowSimpleMessageBoxInstance("File name is not valid ? " + "\n" + ex.Message);
             return;
+        }
+    }
+
+    private static void DeletePartialExport(string filePath, DateTime exportStarted)
+    {
+        try
+        {
+            if (File.Exists(filePath)
+                && File.GetLastWriteTimeUtc(filePath) >= exportStarted)
+            {
+                File.Delete(filePath);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Best effort: the next export overwrites the file.
         }
     }
 }

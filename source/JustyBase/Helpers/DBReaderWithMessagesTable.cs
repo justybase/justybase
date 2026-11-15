@@ -9,18 +9,26 @@ namespace JustyBase.Helpers;
 internal sealed class DBReaderWithMessagesTable : DbDataReader
 {
     private readonly Action<int>? _action;
+    private readonly IProgress<int>? _progress;
+    private readonly CancellationToken _cancellationToken;
     private readonly BulkObservableCollection<TableRow> _rows;
     private readonly List<string> _headers;
     private readonly int _fieldCount;
     private readonly int _rowsCnt;
     private readonly string[] _typeNames;
     private readonly TypeCode[] _typeCodes;
-    public DBReaderWithMessagesTable(TableOfSqlResults table, Action<int>? action = null)
+    public DBReaderWithMessagesTable(
+        TableOfSqlResults table,
+        Action<int>? action = null,
+        IProgress<int>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         _rows = table.FilteredRows;
         _headers = table.Headers;
 
         _action = action;
+        _progress = progress;
+        _cancellationToken = cancellationToken;
         _fieldCount = _headers.Count;
         _rowsCnt = _rows.Count;
         if (_rows.Count > 0)
@@ -180,10 +188,13 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
     private int _readedRowNumber;
     public override bool Read()
     {
+        _cancellationToken.ThrowIfCancellationRequested();
         if (++_readedRowNumber % 10_000 == 0)
         {
             _action?.Invoke(_readedRowNumber);
+            _progress?.Report(_readedRowNumber);
         }
+
         ++currentRowNum;
         bool res = currentRowNum < _rowsCnt;
         if (res)

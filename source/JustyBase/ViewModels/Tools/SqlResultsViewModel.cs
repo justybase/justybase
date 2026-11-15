@@ -23,7 +23,7 @@ using JustyBase.ViewModels.Documents;
 
 namespace JustyBase.ViewModels.Tools;
 
-public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
+public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel, IDisposable
 {
     /// <summary>
     /// Bridge to view-only operations that should not be implemented inside ViewModel.
@@ -326,6 +326,21 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
                 //GC.WaitForPendingFinalizers();
             }
         }
+    }
+
+    public void Dispose()
+    {
+        _exportCts?.Cancel();
+        _exportCts?.Dispose();
+        _exportCts = null;
+        _exportProgress = null;
+
+        _findDebounceCts?.Cancel();
+        _findDebounceCts?.Dispose();
+        _findDebounceCts = null;
+
+        DisposeSpill();
+        GC.SuppressFinalize(this);
     }
 
     [ObservableProperty]

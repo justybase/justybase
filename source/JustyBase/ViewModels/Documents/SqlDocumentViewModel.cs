@@ -310,6 +310,16 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
     partial void OnSqlEditorChanged(SqlCodeEditor value)
     {
+        if (value is null)
+        {
+            DetachSqlEditorHandlers(_wiredSqlEditor);
+            _wiredSqlEditor = null;
+            EditorAdapter = null;
+            ResetFontStyle = null;
+            return;
+        }
+
+        SqlCodeEditor editor = value;
         // Dock tab reorder is Remove+Insert on VisibleDockables, which recreates SqlDocumentView
         // even with CacheDocumentTabContent. Preserve live text from the previous editor instance.
         var previous = _wiredSqlEditor;
@@ -317,7 +327,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         int? caretToPreserve = null;
         int? selectionStartToPreserve = null;
         int? selectionLengthToPreserve = null;
-        if (previous is not null && !ReferenceEquals(previous, value))
+        if (previous is not null && !ReferenceEquals(previous, editor))
         {
             textToPreserve = previous.Text;
             caretToPreserve = previous.CaretOffset;
@@ -326,9 +336,9 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         }
 
         DetachSqlEditorHandlers(previous);
-        _wiredSqlEditor = value;
+        _wiredSqlEditor = editor;
         // F2: keep the UI-free adapter in sync for testable logic paths.
-        EditorAdapter = value is null ? null : new JustyBase.Editor.SqlCodeEditorAdapter(value);
+        EditorAdapter = new JustyBase.Editor.SqlCodeEditorAdapter(editor);
 
         // Populate text before Initialize / AttachToEditor so Document.Text assignment does not
         // fire SemanticLineColorizer.WarmCache or NzLinterService.OnTextChanged as a side effect
@@ -336,31 +346,35 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         var contentWasSet = false;
         if (!_contentHydrated)
         {
-            HydrateEditorContent(value);
+            HydrateEditorContent(editor);
             _contentHydrated = true;
             contentWasSet = true;
         }
         else if (textToPreserve is not null)
         {
-            TransferEditorContent(value, textToPreserve, caretToPreserve, selectionStartToPreserve, selectionLengthToPreserve);
+            TransferEditorContent(editor, textToPreserve, caretToPreserve, selectionStartToPreserve, selectionLengthToPreserve);
             contentWasSet = true;
         }
 
-        value.TextArea.Caret.PositionChanged += OnCaretPositionChanged;
-        value.KeyDown += MarkTabEdited;
-        value.TextArea.GotFocus += OnTextAreaGotFocusResults;
-        value.TextArea.GotFocus += OnSqlEditorGotFocus;
-        value.GotFocus += OnSqlEditorGotFocus;
-        value.ContolShiftvAction = ImportFromClipboardAsync;
-        value.PasteRequestHandler = HandlePasteRequestAsync;
-        value.GoToLineAsyncAction = GoToLineAsyncAction;
-        value.RenameRequested = () => _ = ExecuteRenameAsync();
-        value.GoToDefinitionRequested = () => NavigateSqlSymbol(definitionOnly: true);
-        value.FindReferencesRequested = () => NavigateSqlSymbol(definitionOnly: false);
+        var textArea = editor.TextArea;
+        if (textArea is not null)
+        {
+            textArea.Caret.PositionChanged += OnCaretPositionChanged;
+            textArea.GotFocus += OnTextAreaGotFocusResults;
+            textArea.GotFocus += OnSqlEditorGotFocus;
+        }
+        editor.KeyDown += MarkTabEdited;
+        editor.GotFocus += OnSqlEditorGotFocus;
+        editor.ContolShiftvAction = ImportFromClipboardAsync;
+        editor.PasteRequestHandler = HandlePasteRequestAsync;
+        editor.GoToLineAsyncAction = GoToLineAsyncAction;
+        editor.RenameRequested = () => _ = ExecuteRenameAsync();
+        editor.GoToDefinitionRequested = () => NavigateSqlSymbol(definitionOnly: true);
+        editor.FindReferencesRequested = () => NavigateSqlSymbol(definitionOnly: false);
         _documentDialect = GetCurrentSqlDialect();
         _documentDatabaseType = CurrentDatabaseType;
         var documentUri = $"sql-doc-{Id}";
-        value.Initialize(this, _generalApplicationData, _completionEngine, _parserSchema, _parsingCoordinator, documentUri,
+        editor.Initialize(this, _generalApplicationData, _completionEngine, _parserSchema, _parsingCoordinator, documentUri,
             ensureTableColumns: (database, schema, table) => _linterService?.EnsureTableColumns(database, schema, table),
             dialect: _documentDialect,
             wordListProvider: _wordListProvider,
@@ -368,7 +382,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             databaseNameProvider: () => SelectedDatabase);
 #if AI
         _fimAttachment.Attach(
-            value,
+            editor,
             () => _generalApplicationData.Config.EnableFimServer,
             () => InlineCompletionController.SnapDebounceMs(
                 _generalApplicationData.Config.FimDebounceMs > 0
@@ -377,25 +391,25 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
             BuildFimSchemaHintProvider(documentUri));
 #endif
         _completionEngine?.SetDocumentUri(documentUri);
-        _linterService?.AttachToEditor(value, documentUri, _documentDialect, SelectedDatabase, CurrentDatabaseType);
+        _linterService?.AttachToEditor(editor, documentUri, _documentDialect, SelectedDatabase, CurrentDatabaseType);
         if (contentWasSet)
         {
             // One intentional pass after attach — text was set before handlers were wired.
-            if (!string.IsNullOrEmpty(value.Document.Text))
+            if (!string.IsNullOrEmpty(editor.Document.Text))
             {
-                SemanticLineColorizer.ScheduleUpdate(value.Document, documentUri, value.TextArea.TextView, _documentDialect);
+                SemanticLineColorizer.ScheduleUpdate(editor.Document, documentUri, editor.TextArea.TextView, _documentDialect);
             }
 
-            _linterService?.ForceReanalyze(value);
+            _linterService?.ForceReanalyze(editor);
         }
 
         _ = _linterService?.SyncSchemaFromAllConnectionsAsync();
 
-        ApplyEditorChrome(value);
-        ProcessPendingSnippetInsertions(value);
+        ApplyEditorChrome(editor);
+        ProcessPendingSnippetInsertions(editor);
 
         ResetFontStyle = () => _messageForUserTools.DispatcherActionInstance(
-            () => _uiServices.ResetFontInView(SqlEditor, _generalApplicationData.Config.DocumentFontName));
+            () => _uiServices.ResetFontInView(editor, _generalApplicationData.Config.DocumentFontName));
         ResetFontStyle.Invoke();
     }
 
@@ -774,8 +788,11 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
     private async Task ExpandTo(string[] toExpandPath)
     {
-        DbSchemaViewModel? dbChemaViewModel = Factory.Find(a => a is DbSchemaViewModel).FirstOrDefault() as DbSchemaViewModel;
-        await dbChemaViewModel?.ExpandToNodeFull(toExpandPath);
+        DbSchemaViewModel? dbChemaViewModel = Factory?.Find(a => a is DbSchemaViewModel).FirstOrDefault() as DbSchemaViewModel;
+        if (dbChemaViewModel is not null)
+        {
+            await dbChemaViewModel.ExpandToNodeFull(toExpandPath);
+        }
     }
 
     public bool HasFileOnDisk => !string.IsNullOrWhiteSpace(FilePath) && File.Exists(FilePath);
@@ -1070,7 +1087,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     [ObservableProperty]
     public partial int FontSize { get; set; } = ISomeEditorOptions.DEFAULT_DOCUMENT_FONT_SIZE;
 
-    public Action ResetFontStyle { get; set; }
+    public Action? ResetFontStyle { get; set; }
 
     [ObservableProperty]
     public partial string SqlGroup { get; set; } = "General";
@@ -1088,8 +1105,8 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
 
     public List<MenuItemForCurrentOptions> CurrentOptionsList { get; init; } = [];
 
-    public ICommand CommentLinesCommand { get; set; }
-    public ICommand RenameCommand { get; set; }
+    public ICommand? CommentLinesCommand { get; set; }
+    public ICommand? RenameCommand { get; set; }
 
     private void VmSharedPreparation()
     {
@@ -1125,7 +1142,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
         CurrentOptionsList.Add(new MenuItemForCurrentOptions()
         {
             OptionHeader = optionHeader,
-            OptionCommand = new AsyncRelayCommand<string>(o => GetFunctionForClickedItem(o))
+            OptionCommand = new AsyncRelayCommand<string>(o => GetFunctionForClickedItem(o ?? string.Empty))
         });
     }
 
@@ -1441,7 +1458,7 @@ public sealed partial class SqlDocumentViewModel : DocumentBaseVM, ISqlAutocompl
     }
 
 
-    private IDatabaseService _databaseService;
+    private IDatabaseService? _databaseService;
     public IAsyncEnumerable<CompletionDataSql> GetWordsList(string input, Dictionary<string, List<string>> aliasDbTable,
         Dictionary<string, List<string>> subqueriesHints,
         Dictionary<string, List<string>> withs,

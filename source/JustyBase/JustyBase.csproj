@@ -27,8 +27,7 @@
 		<BuiltInComInteropSupport>false</BuiltInComInteropSupport>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
-		<!-- Migrate the UI application to flow analysis in batches; annotations keep this build usable meanwhile. -->
-		<Nullable>annotations</Nullable>
+		<Nullable>enable</Nullable>
 		<WarningsAsErrors>$(WarningsAsErrors);CA2200</WarningsAsErrors>
 		<!-- Views are constructed through DI with parameterized constructors; Avalonia's runtime-loader check is not applicable. -->
 		<NoWarn>$(NoWarn);AVLN3001</NoWarn>
@@ -107,7 +106,7 @@
 		<PackageReference Include="Dock.Avalonia" Version="12.1.5" />
 		<PackageReference Include="K4os.Compression.LZ4.Streams" Version="1.3.8" />
 		<!-- LiveMarkdown is only used by the AI chat UI; No-AI/Slim builds skip it. -->
-		<PackageReference Include="LiveMarkdown.Avalonia" Version="2.6.1" Condition="'$(EnableAi)' == 'true'" />
+		<PackageReference Include="LiveMarkdown.Avalonia" Version="2.7.0" Condition="'$(EnableAi)' == 'true'" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" />
 		<PackageReference Include="Microsoft.Data.Sqlite" Version="11.0.0" />
 		<!-- Override Microsoft.Data.Sqlite's vulnerable SQLite native dependency. -->

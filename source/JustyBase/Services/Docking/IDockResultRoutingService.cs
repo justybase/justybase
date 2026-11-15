@@ -52,9 +52,9 @@ public sealed class DockResultRoutingService(IDockViewModelFactory viewModelFact
         resultViewModel.CanFloat = false;
         resultViewModel.CanClose = true;
         DockCapabilityHelper.SyncOverridesFromFlags(resultViewModel);
-        resultViewModel.SQL = sql;
+        resultViewModel.SQL = sql ?? string.Empty;
 
-        resultViewModel.LoadData(result);
+        resultViewModel.LoadData((result.dbService!, result.rdr!, result.errorMessage));
         resultsHost.Add(resultViewModel, document, isDocumentActive);
 
         resultViewModel.GridEnabled = false;

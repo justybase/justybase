@@ -68,26 +68,26 @@ public sealed class ChatDatabaseAccess : IChatDatabaseAccess
             .ToList();
     }
 
-    public Task<string?> GetCreateTableTextAsync(string database, string schema, string table)
-        => _service.GetCreateTableText(database, schema, table).AsTask();
+    public async Task<string?> GetCreateTableTextAsync(string database, string schema, string table)
+        => await _service.GetCreateTableText(database, schema, table).ConfigureAwait(false);
 
-    public Task<string?> GetCreateViewTextAsync(string database, string schema, string view)
-        => _service.GetCreateViewText(database, schema, view).AsTask();
+    public async Task<string?> GetCreateViewTextAsync(string database, string schema, string view)
+        => await _service.GetCreateViewText(database, schema, view).ConfigureAwait(false);
 
-    public Task<string?> GetCreateProcedureTextAsync(string database, string schema, string procedure)
-        => _service.GetCreateProcedureText(database, schema, procedure, forceFreshCode: true).AsTask();
+    public async Task<string?> GetCreateProcedureTextAsync(string database, string schema, string procedure)
+        => await _service.GetCreateProcedureText(database, schema, procedure, forceFreshCode: true).ConfigureAwait(false);
 
-    public Task<string?> GetCreateExternalTextAsync(string database, string schema, string externalTable)
-        => _service.GetCreateExternalText(database, schema, externalTable).AsTask();
+    public async Task<string?> GetCreateExternalTextAsync(string database, string schema, string externalTable)
+        => await _service.GetCreateExternalText(database, schema, externalTable).ConfigureAwait(false);
 
-    public Task<string?> GetCreateSynonymTextAsync(string database, string schema, string synonym)
-        => _service.GetCreateSynonymText(database, schema, synonym).AsTask();
+    public async Task<string?> GetCreateSynonymTextAsync(string database, string schema, string synonym)
+        => await _service.GetCreateSynonymText(database, schema, synonym).ConfigureAwait(false);
 
-    public Task<string?> GetCreateIndexTextAsync(string database, string schema, string index)
-        => _service.GetCreateIndexText(database, schema, index).AsTask();
+    public async Task<string?> GetCreateIndexTextAsync(string database, string schema, string index)
+        => await _service.GetCreateIndexText(database, schema, index).ConfigureAwait(false);
 
-    public Task<string?> GetCreatePartitionTextAsync(string database, string schema, string partition)
-        => _service.GetCreatePartitionText(database, schema, partition).AsTask();
+    public async Task<string?> GetCreatePartitionTextAsync(string database, string schema, string partition)
+        => await _service.GetCreatePartitionText(database, schema, partition).ConfigureAwait(false);
 
     public string GetCheckDistributeText(string database, string schema, string table)
         => _service.GetCheckDistributeText(database, schema, table);

@@ -14,10 +14,10 @@ public partial class LogMessage : ObservableObject
     public partial LogMessageType MessageType { get; set; }
 
     [ObservableProperty]
-    public partial string Title { get; set; }
-    public string Source { get; set; }
+    public partial string Title { get; set; } = string.Empty;
+    public string Source { get; set; } = string.Empty;
     [ObservableProperty]
-    public partial string Message { get; set; }
+    public partial string Message { get; set; } = string.Empty;
     public ObservableCollection<StringPair> InnerMessages { get; set; } = [];
 
     public DataGridCollectionView InnerMessagesCollectionView { get; set; }

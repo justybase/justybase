@@ -65,7 +65,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel, IDi
         }
     }
 
-    public string RelatedSqlDocumentId { get; set; }
+    public string RelatedSqlDocumentId { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial TableOfSqlResults CurrentResultsTable { get; set; }
@@ -188,7 +188,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel, IDi
 
     public DataGridCollectionView GridCollectionView { get; set; }
 
-    public string SQL { get; set; }
+    public string SQL { get; set; } = string.Empty;
 
 
     private bool _doCollapseInNextCollapseAction = true;
@@ -207,8 +207,8 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel, IDi
         _doCollapseInNextCollapseAction = !_doCollapseInNextCollapseAction;
     }
 
-    public ICommand ShowFlyoutCommand { get; set; } // !!! Mode=OneWayToSource
-    public ICommand ChangeColumVisiblityCommand { get; set; } // !!! Mode=OneWayToSource
+    public ICommand? ShowFlyoutCommand { get; set; } // !!! Mode=OneWayToSource
+    public ICommand? ChangeColumVisiblityCommand { get; set; } // !!! Mode=OneWayToSource
 
 
     [ObservableProperty]
@@ -268,8 +268,8 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel, IDi
                 rd.FieldsValues = new List<string>(cntLimited);
                 for (int i1 = 0; i1 < cntLimited; i1++)
                 {
-                    object item = selectedRows[i1];
-                    rd.FieldsValues.Add((item as TableRow)?.Fields[i]?.ToString());
+                    object? item = selectedRows[i1];
+                    rd.FieldsValues.Add((item as TableRow)?.Fields[i]?.ToString() ?? string.Empty);
                 }
             }
             RowDetailCollection.Add(rd);
@@ -309,7 +309,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel, IDi
         TriggerSearchTimerCommand?.Execute(null);
     }
 
-    public ICommand TriggerSearchTimerCommand { get; set; } // 
+    public ICommand? TriggerSearchTimerCommand { get; set; } // 
 
     public void DoCleanup()
     {
@@ -430,7 +430,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel, IDi
         set
         {
             SetProperty(ref field, value);
-            TriggerSearchTimerCommand.Execute(null);
+            TriggerSearchTimerCommand?.Execute(null);
         }
     } = true;
 
@@ -629,7 +629,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel, IDi
     [RelayCommand]
     private async Task Copy1(string text)
     {
-        await Clipboard?.SetTextAsync(text);
+        await Clipboard.SetTextAsync(text);
     }
 
     [RelayCommand]

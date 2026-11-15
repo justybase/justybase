@@ -8,80 +8,79 @@ namespace JustyBase.Converters;
 
 public sealed class DatabaseIconConverter : IValueConverter
 {
-    private readonly Bitmap _tableIcon16;
-    private readonly Bitmap _columnOneIcon16;
-    private readonly Bitmap _externalGroupIcon16;
-    private readonly Bitmap _viewIcon16;
-    private readonly Bitmap _procIcon16;
-    private readonly Bitmap _synonymIcon16;
-    private readonly Bitmap _schemaIcon16;
-    private readonly Bitmap _databaseIcon16;
-    private readonly Bitmap _defaultIcon;
-    private readonly Bitmap _netezzaIcon16;
-    private readonly Bitmap _oracleIcon16;
-    private readonly Bitmap _db2Icon16;
-    private readonly Bitmap _sqliteIcon16;
-    private readonly Bitmap _duckDbIcon;
-    private readonly Bitmap _mySqlIcon;
-    private readonly Bitmap _msSqlIcon16;
-    private readonly Bitmap _postgreIcon16;
-    private readonly Bitmap _tableGroupIcon16;
-    private readonly Bitmap _viewGroupIcon16;
-    private readonly Bitmap _functuionsGroupIcon16;
-    private readonly Bitmap _synonymGroupIcon16;
-    private readonly Bitmap _procGroupIcon16;
-    private readonly Bitmap _seqGroupIcon16;
-    private readonly Bitmap _aggGroupIcon16;
-    private readonly Bitmap _columnsIcon16;
-    private readonly Bitmap _indexIcon16;
-    private readonly Bitmap _indexGroupIcon16;
-    private readonly Bitmap _partitionIcon16;
-    private readonly Bitmap _partitionGroupIcon16;
-    private readonly Bitmap _fluidGroupIcon16;
-    private readonly Bitmap _distributedIcon16;
-    private readonly Bitmap _refIcon16;
+    private readonly Bitmap? _tableIcon16;
+    private readonly Bitmap? _columnOneIcon16;
+    private readonly Bitmap? _externalGroupIcon16;
+    private readonly Bitmap? _viewIcon16;
+    private readonly Bitmap? _procIcon16;
+    private readonly Bitmap? _synonymIcon16;
+    private readonly Bitmap? _schemaIcon16;
+    private readonly Bitmap? _databaseIcon16;
+    private readonly Bitmap? _defaultIcon;
+    private readonly Bitmap? _netezzaIcon16;
+    private readonly Bitmap? _oracleIcon16;
+    private readonly Bitmap? _db2Icon16;
+    private readonly Bitmap? _sqliteIcon16;
+    private readonly Bitmap? _duckDbIcon;
+    private readonly Bitmap? _mySqlIcon;
+    private readonly Bitmap? _msSqlIcon16;
+    private readonly Bitmap? _postgreIcon16;
+    private readonly Bitmap? _tableGroupIcon16;
+    private readonly Bitmap? _viewGroupIcon16;
+    private readonly Bitmap? _functuionsGroupIcon16;
+    private readonly Bitmap? _synonymGroupIcon16;
+    private readonly Bitmap? _procGroupIcon16;
+    private readonly Bitmap? _seqGroupIcon16;
+    private readonly Bitmap? _aggGroupIcon16;
+    private readonly Bitmap? _columnsIcon16;
+    private readonly Bitmap? _indexIcon16;
+    private readonly Bitmap? _indexGroupIcon16;
+    private readonly Bitmap? _partitionIcon16;
+    private readonly Bitmap? _partitionGroupIcon16;
+    private readonly Bitmap? _fluidGroupIcon16;
+    private readonly Bitmap? _distributedIcon16;
+    private readonly Bitmap? _refIcon16;
 
     public DatabaseIconConverter()
     {
-        if (_databaseIcon16 is null)
+        if (App.Current is { } app)
         {
-            _databaseIcon16 = App.Current.Resources["GeneralDbBitmap"] as Bitmap;
-            _netezzaIcon16 = App.Current.Resources["NetezzaDbBitmap"] as Bitmap ?? _databaseIcon16;
-            _oracleIcon16 = App.Current.Resources["OracleDbBitmap"] as Bitmap ?? _databaseIcon16;
-            _db2Icon16 = App.Current.Resources["Db2DbBitmap"] as Bitmap ?? _databaseIcon16;
-            _sqliteIcon16 = App.Current.Resources["SqliteDbBitmap"] as Bitmap ?? _databaseIcon16;
-            _duckDbIcon = App.Current.Resources["DuckDbBitmap"] as Bitmap ?? _databaseIcon16;
-            _mySqlIcon = App.Current.Resources["MySqlDbBitmap"] as Bitmap ?? _databaseIcon16;
-            _msSqlIcon16 = App.Current.Resources["MsSqlDbBitmap"] as Bitmap ?? _databaseIcon16;
-            _postgreIcon16 = App.Current.Resources["PostgreSqlDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _databaseIcon16 = app.Resources["GeneralDbBitmap"] as Bitmap;
+            _netezzaIcon16 = app.Resources["NetezzaDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _oracleIcon16 = app.Resources["OracleDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _db2Icon16 = app.Resources["Db2DbBitmap"] as Bitmap ?? _databaseIcon16;
+            _sqliteIcon16 = app.Resources["SqliteDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _duckDbIcon = app.Resources["DuckDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _mySqlIcon = app.Resources["MySqlDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _msSqlIcon16 = app.Resources["MsSqlDbBitmap"] as Bitmap ?? _databaseIcon16;
+            _postgreIcon16 = app.Resources["PostgreSqlDbBitmap"] as Bitmap ?? _databaseIcon16;
 
-            _tableIcon16 = App.Current.Resources["TableBitmap"] as Bitmap;
-            _viewIcon16 = App.Current.Resources["ViewBitmap"] as Bitmap;
-            _tableGroupIcon16 = App.Current.Resources["TableGroupBitmap"] as Bitmap;
-            _viewGroupIcon16 = App.Current.Resources["ViewGroupBitmap"] as Bitmap;
-            _externalGroupIcon16 = App.Current.Resources["ExternalGroupBitmap"] as Bitmap;
-            _functuionsGroupIcon16 = App.Current.Resources["FunctionsGroupBitmap"] as Bitmap;
-            _synonymGroupIcon16 = App.Current.Resources["SynonymGroupBitmap"] as Bitmap;
-            _synonymIcon16 = App.Current.Resources["SynonymBitmap"] as Bitmap;
-            _procGroupIcon16 = App.Current.Resources["ProceduresGroupBitmap"] as Bitmap;
-            _procIcon16 = App.Current.Resources["ProcedureBitmap"] as Bitmap;
-            _seqGroupIcon16 = App.Current.Resources["SequencesGroupBitmap"] as Bitmap;
-            _aggGroupIcon16 = App.Current.Resources["AggregatesGroupBitmap"] as Bitmap;
-            _columnsIcon16 = App.Current.Resources["ColumnsBitmap"] as Bitmap;
-            _columnOneIcon16 = App.Current.Resources["ColumnBitmap"] as Bitmap;
-            _indexIcon16 = App.Current.Resources["IndexBitmap"] as Bitmap;
-            _indexGroupIcon16 = App.Current.Resources["IndexGroupBitmap"] as Bitmap;
-            _partitionIcon16 = App.Current.Resources["PartitionBitmap"] as Bitmap;
-            _partitionGroupIcon16 = App.Current.Resources["PartitionGroupBitmap"] as Bitmap;
-            _schemaIcon16 = App.Current.Resources["SchemaBitmap"] as Bitmap;
-            _fluidGroupIcon16 = App.Current.Resources["FluidGroupBitmap"] as Bitmap;
-            _distributedIcon16 = App.Current.Resources["DistributedOnBitmap"] as Bitmap;
-            _refIcon16 = App.Current.Resources["ReferencesBitmap"] as Bitmap;
-            _defaultIcon = App.Current.Resources["FolderIconBitmap"] as Bitmap;
+            _tableIcon16 = app.Resources["TableBitmap"] as Bitmap;
+            _viewIcon16 = app.Resources["ViewBitmap"] as Bitmap;
+            _tableGroupIcon16 = app.Resources["TableGroupBitmap"] as Bitmap;
+            _viewGroupIcon16 = app.Resources["ViewGroupBitmap"] as Bitmap;
+            _externalGroupIcon16 = app.Resources["ExternalGroupBitmap"] as Bitmap;
+            _functuionsGroupIcon16 = app.Resources["FunctionsGroupBitmap"] as Bitmap;
+            _synonymGroupIcon16 = app.Resources["SynonymGroupBitmap"] as Bitmap;
+            _synonymIcon16 = app.Resources["SynonymBitmap"] as Bitmap;
+            _procGroupIcon16 = app.Resources["ProceduresGroupBitmap"] as Bitmap;
+            _procIcon16 = app.Resources["ProcedureBitmap"] as Bitmap;
+            _seqGroupIcon16 = app.Resources["SequencesGroupBitmap"] as Bitmap;
+            _aggGroupIcon16 = app.Resources["AggregatesGroupBitmap"] as Bitmap;
+            _columnsIcon16 = app.Resources["ColumnsBitmap"] as Bitmap;
+            _columnOneIcon16 = app.Resources["ColumnBitmap"] as Bitmap;
+            _indexIcon16 = app.Resources["IndexBitmap"] as Bitmap;
+            _indexGroupIcon16 = app.Resources["IndexGroupBitmap"] as Bitmap;
+            _partitionIcon16 = app.Resources["PartitionBitmap"] as Bitmap;
+            _partitionGroupIcon16 = app.Resources["PartitionGroupBitmap"] as Bitmap;
+            _schemaIcon16 = app.Resources["SchemaBitmap"] as Bitmap;
+            _fluidGroupIcon16 = app.Resources["FluidGroupBitmap"] as Bitmap;
+            _distributedIcon16 = app.Resources["DistributedOnBitmap"] as Bitmap;
+            _refIcon16 = app.Resources["ReferencesBitmap"] as Bitmap;
+            _defaultIcon = app.Resources["FolderIconBitmap"] as Bitmap;
 
 
             // FIX THIS !!
-            GlyphExtensions.TableBitmap = _tableIcon16;
             GlyphExtensions.TableBitmap = _tableIcon16;
             GlyphExtensions.ColumnBitmap = _columnOneIcon16;
             GlyphExtensions.ViewBitmap = _viewIcon16;
@@ -94,7 +93,7 @@ public sealed class DatabaseIconConverter : IValueConverter
         }
     }
 
-    private Bitmap GetBitmapFromEnum(DatabaseTypeEnum databaseTypeEnum)
+    private Bitmap? GetBitmapFromEnum(DatabaseTypeEnum databaseTypeEnum)
     {
         return databaseTypeEnum switch
         {
@@ -155,7 +154,7 @@ public sealed class DatabaseIconConverter : IValueConverter
         };
     }
 
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         switch (value)
         {
@@ -199,7 +198,7 @@ public sealed class DatabaseIconConverter : IValueConverter
         return _defaultIcon;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotImplementedException();
     }

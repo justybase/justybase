@@ -26,7 +26,7 @@ public sealed class CustomDocumentDock : DocumentDock
 
         string title = $"Document{index}";
 
-        while (VisibleDockables.Select(x => x.Title.Trim('*')).Contains(title))
+        while (VisibleDockables?.Select(x => x.Title.Trim('*')).Contains(title) == true)
         {
             index++;
             title = $"Document{index}";

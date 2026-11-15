@@ -1,3 +1,9 @@
+# JustyBase 1.4.4
+
+- Finished the nullable migration of the desktop app: full flow analysis (`Nullable=enable`) with every nullable warning fixed by real null guards instead of suppressions.
+- Fixed column filters losing their property path, the SQLite database icon in the schema tree, and the configured font not being re-applied when a tab's editor is recreated.
+- Updated `GitHub.Copilot.SDK`, `LiveMarkdown.Avalonia` and the DB2 compatibility driver.
+
 # JustyBase 1.4.3
 
 - Fixed large Netezza result sets being split into one result tab per 500-row block; all blocks now fill a single grid.

@@ -13,10 +13,10 @@ public class SqlCodeFormatterService : ISqlCodeFormatterService
     private readonly AutocompleteService _autocompleteService;
     private readonly IGeneralApplicationData _generalApplicationData;
     private readonly Documents.IDatabaseServiceResolver? _resolver;
-    private IDatabaseService _databaseService;
+    private IDatabaseService? _databaseService;
 
-    public string SelectedConnectionName { get; set; }
-    public string SelectedDatabase { get; set; }
+    public string SelectedConnectionName { get; set; } = string.Empty;
+    public string SelectedDatabase { get; set; } = string.Empty;
 
     public SqlCodeFormatterService(AutocompleteService autocompleteService, IGeneralApplicationData generalApplicationData, Documents.IDatabaseServiceResolver? resolver = null)
     {
@@ -83,8 +83,13 @@ public class SqlCodeFormatterService : ISqlCodeFormatterService
             yield return new CompletionDataSql("", "", false, Glyph.None, null);
         }
 
+        if (_databaseService is not { } databaseService)
+        {
+            yield break;
+        }
+
         var wordsList = _autocompleteService.GetWordsList(input, aliasDbTable, subqueriesHints, withs, tempTables,
-            _databaseService, SelectedDatabase);
+            databaseService, SelectedDatabase);
             
         foreach (var item in wordsList)
         {

@@ -213,15 +213,15 @@ public static partial class SqlDocumentViewModelHelper
     {
         if (_connectionsList is null || force)
         {
-            _connectionsList ??= [];
-            _connectionsList.Clear();
+            ObservableCollection<ConnectionItem> connections = _connectionsList ??= [];
+            connections.Clear();
             foreach (var (item, value) in generalApplicationData.LoginDataDic)
             {
                 DatabaseTypeEnum type = DatabaseServiceHelpers.StringToDatabaseTypeEnum(value.Driver);
 
                 var conItem = new ConnectionItem(item, type)
                 {
-                    DefaultDatabase = value.Database,
+                    DefaultDatabase = value.Database ?? string.Empty,
                     DatabaseList = []
                 };
                 if (!string.IsNullOrWhiteSpace(value.Database))
@@ -229,7 +229,7 @@ public static partial class SqlDocumentViewModelHelper
                     conItem.DefaultDatabase = value.Database;
                     conItem.DatabaseList.Add(value.Database);
                 }
-                _connectionsList.Add(conItem);
+                connections.Add(conItem);
             }
         }
         try
@@ -246,14 +246,15 @@ public static partial class SqlDocumentViewModelHelper
         }
     }
 
-    private static ObservableCollection<ConnectionItem> _connectionsList;
-    public static ObservableCollection<ConnectionItem> ConnectionsList => _connectionsList;
+    private static ObservableCollection<ConnectionItem>? _connectionsList;
+    public static ObservableCollection<ConnectionItem> ConnectionsList => _connectionsList ??= [];
 
     public static int GetConnectionIndex(ReadOnlySpan<char> word)
     {
-        for (int i = 0; i < _connectionsList.Count; i++)
+        ObservableCollection<ConnectionItem> connections = ConnectionsList;
+        for (int i = 0; i < connections.Count; i++)
         {
-            ConnectionItem item = _connectionsList[i];
+            ConnectionItem item = connections[i];
             if (item.Name.AsSpan().Contains(word, StringComparison.OrdinalIgnoreCase))
             {
                 return i;

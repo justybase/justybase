@@ -172,7 +172,7 @@ public sealed class SqlDocumentUiServices : ISqlDocumentUiServices
                 {
                     WindowStartupLocation = WindowStartupLocation.CenterOwner
                 };
-                TabularPasteChoice result = await dialog.ShowDialog<TabularPasteChoice>(_avaloniaSpecificHelpers.GetMainWindow());
+                TabularPasteChoice result = await dialog.ShowDialogOrShow<TabularPasteChoice>(_avaloniaSpecificHelpers.GetMainWindow());
                 tcs.TrySetResult(result);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

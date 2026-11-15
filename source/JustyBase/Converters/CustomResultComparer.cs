@@ -1,4 +1,4 @@
-﻿using JustyBase.Models;
+using JustyBase.Models;
 using System.Collections;
 
 namespace JustyBase.Helpers;
@@ -60,9 +60,9 @@ internal sealed class CustomResultComparer : IComparer
 
     public int CompareGeneric<T>(TableRow x, TableRow y) where T : IComparable<T>
     {
-        T val1 = (T)x.Fields[_index];
-        T val2 = (T)y.Fields[_index];
-        return val1.CompareTo(val2);
+        T? val1 = (T?)x.Fields[_index];
+        T? val2 = (T?)y.Fields[_index];
+        return Comparer<T?>.Default.Compare(val1, val2);
     }
 
     public int CompareDef(TableRow x, TableRow y)

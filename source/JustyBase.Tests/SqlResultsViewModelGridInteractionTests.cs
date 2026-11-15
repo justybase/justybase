@@ -143,7 +143,7 @@ public sealed class SqlResultsViewModelGridInteractionTests
         Assert.Single(vm.CurrentResultsTable.ColumnsToSort);
         Assert.Equal(0, vm.CurrentResultsTable.ColumnsToSort[0].ColNumber);
         Assert.Equal(ListSortDirection.Ascending, vm.CurrentResultsTable.ColumnsToSort[0].SortDirection);
-        Assert.Equal([1, 2, 3], vm.CurrentResultsTable.FilteredRows.Select(r => (int)r.Fields[0]));
+        Assert.Equal([1, 2, 3], vm.CurrentResultsTable.FilteredRows.Select(r => (int)r.Fields[0]!));
         bridge.Verify(x => x.SuspendGridBinding(), Times.Once);
         bridge.Verify(x => x.ResumeGridBinding(), Times.Once);
     }
@@ -162,7 +162,7 @@ public sealed class SqlResultsViewModelGridInteractionTests
 
         vm.ApplyColumnSort(comparer, ListSortDirection.Descending);
 
-        Assert.Equal([3, 2, 1], vm.CurrentResultsTable.FilteredRows.Select(r => (int)r.Fields[0]));
+        Assert.Equal([3, 2, 1], vm.CurrentResultsTable.FilteredRows.Select(r => (int)r.Fields[0]!));
     }
 
     // ------------------------------------------------------------------

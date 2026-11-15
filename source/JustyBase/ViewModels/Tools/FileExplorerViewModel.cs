@@ -1,4 +1,4 @@
-﻿using Avalonia.Collections;
+using Avalonia.Collections;
 using Avalonia.Controls.DataGridHierarchical;
 using Avalonia.Data;
 using Avalonia.Data.Core;
@@ -28,6 +28,10 @@ public partial class FileExplorerViewModel : Tool
     private readonly IGeneralApplicationData _generalApplicationData;
     private readonly IMessageForUserTools _messageForUserTools;
     private readonly LogToolViewModel _logToolViewModel;
+
+    private IActiveDocumentManager ActiveDocumentManager => Factory as IActiveDocumentManager
+        ?? throw new InvalidOperationException("The dock factory does not support document operations.");
+
     public FileExplorerViewModel(IFactory factory, ISearchInFiles searchInFiles, IAvaloniaSpecificHelpers avaloniaSpecificHelpers, IGeneralApplicationData generalApplicationData, IMessageForUserTools messageForUserTools,
         LogToolViewModel logToolViewModel, Services.FileExplorer.IFileIconProvider? iconProvider = null)
     {
@@ -598,7 +602,13 @@ public partial class FileExplorerViewModel : Tool
 
     private async Task OpenDirectoryDialog()
     {
-        var direcoryList = await _avaloniaSpecificHelpers.GetStorageProvider().OpenFolderPickerAsync(new FolderPickerOpenOptions() { AllowMultiple = false });
+        IStorageProvider? storageProvider = _avaloniaSpecificHelpers.GetStorageProvider();
+        if (storageProvider is null)
+        {
+            return;
+        }
+
+        var direcoryList = await storageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions() { AllowMultiple = false });
         if (direcoryList is null || direcoryList.Count < 1)
         {
             return;
@@ -645,12 +655,12 @@ public partial class FileExplorerViewModel : Tool
             var atr = File.GetAttributes(path);
             if (!atr.HasFlag(FileAttributes.Directory) && File.Exists(path))
             {
-                ((IActiveDocumentManager)Factory).AddNewDocumentFromFile([path]);
+                ActiveDocumentManager.AddNewDocumentFromFile([path]);
             }
         }
         else if (ext == ".csv" || ext == ".txt")
         {
-            ((IActiveDocumentManager)Factory).AddNewDocumentFromTxtPreview(path);
+            ActiveDocumentManager.AddNewDocumentFromTxtPreview(path);
         }
 
         else if (!supportedExtension)
@@ -863,7 +873,7 @@ public partial class FileExplorerViewModel : Tool
                                 continue;
                             }
 
-                            string[] subDirs = null;
+                            string[] subDirs;
                             try
                             {
                                 subDirs = System.IO.Directory.GetDirectories(currentDir);
@@ -877,7 +887,6 @@ public partial class FileExplorerViewModel : Tool
                                     tmp.Add(subDirs[i]);
                                 }
                                 subDirs = tmp.ToArray();
-                                tmp = null;
                             }
                             catch (UnauthorizedAccessException /*exc*/)
                             {
@@ -920,8 +929,7 @@ public partial class FileExplorerViewModel : Tool
                                 }
                             }
 
-                            foreach (string dirPath in subDirs)
-                            {
+                            foreach (string dirPath in subDirs)                            {
                                 if (!seenDirs.Add(dirPath))
                                 {
                                     continue;
@@ -981,14 +989,14 @@ public partial class FileExplorerViewModel : Tool
 
     private bool FilterView(object arg)
     {
-        if (arg is not SearchItem)
+        if (arg is not JustyBase.ViewModels.Tools.SearchItem item)
         {
             return false;
         }
-        var item = arg as JustyBase.ViewModels.Tools.SearchItem;
+
         if (!SearchInFiles)
         {
-            if (SearchText is null || item.ShortName.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(SearchText) || item.ShortName.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
             {
                 item.IsFounded = true;
             }
@@ -1092,10 +1100,10 @@ public partial class FileExplorerViewModel : Tool
 
 public sealed class SearchItem
 {
-    public string Type { get; set; }
-    public string Name { get; set; }
-    public string ShortName { get; set; }
-    public string LocalPath { get; set; }
+    public string Type { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string ShortName { get; set; } = string.Empty;
+    public string LocalPath { get; set; } = string.Empty;
     public long Length { get; set; }
     public DateTime? LastWriteTime { get; set; }
     public bool IsFounded { get; set; }

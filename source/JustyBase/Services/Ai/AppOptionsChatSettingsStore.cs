@@ -32,7 +32,7 @@ public sealed class AppOptionsChatSettingsStore : IChatSettingsStore
         {
             EnableAiChat = config.EnableAiChat,
             ChatSessions = config.ChatSessions,
-            AiChatBackendId = config.AiChatBackendId,
+            AiChatBackendId = config.AiChatBackendId ?? string.Empty,
             AiChatOpenAiCompatibleEndpoint = config.AiChatOpenAiCompatibleEndpoint,
             AiChatOpenAiCompatibleApiKey = config.AiChatOpenAiCompatibleApiKey,
             AiChatDefaultModel = config.AiChatDefaultModel,

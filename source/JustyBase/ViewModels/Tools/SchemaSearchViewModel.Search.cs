@@ -12,8 +12,8 @@ namespace JustyBase.ViewModels.Tools;
 
 public sealed partial class SchemaSearchViewModel
 {
-    private IDatabaseService _service;
-    public IDatabaseService Service => _service;
+    private IDatabaseService? _service;
+    public IDatabaseService? Service => _service;
     private readonly IGeneralApplicationData _generalApplicationData;
 
     public bool RefreshStartup
@@ -45,7 +45,7 @@ public sealed partial class SchemaSearchViewModel
 
             var conItem = new ConnectionItem(item, type)
             {
-                DefaultDatabase = value.Database,
+                DefaultDatabase = value.Database ?? string.Empty,
                 DatabaseList = []
             };
             if (!string.IsNullOrWhiteSpace(value.Database))
@@ -57,7 +57,7 @@ public sealed partial class SchemaSearchViewModel
         }
         return _connectionList;
     }
-    private ObservableCollection<ConnectionItem> _connectionList;
+    private ObservableCollection<ConnectionItem>? _connectionList;
     public ObservableCollection<ConnectionItem> ConnectionList => _connectionList ??= GetConnections();
 
     public string ConnectionName
@@ -81,15 +81,15 @@ public sealed partial class SchemaSearchViewModel
         }
     }
 
-    public ConnectionItem ActualConnectionItem
+    public ConnectionItem? ActualConnectionItem
     {
         get;
         set
         {
             SetProperty(ref field, value);
-            if (ConnectionName != ActualConnectionItem.Name)
+            if (value is not null && ConnectionName != value.Name)
             {
-                ConnectionName = ActualConnectionItem.Name;
+                ConnectionName = value.Name;
             }
         }
     }
@@ -120,9 +120,14 @@ public sealed partial class SchemaSearchViewModel
 
     private async Task SearchLoop(IEnumerable<string> databases)
     {
+        if (_service is not { } service)
+        {
+            return;
+        }
+
         foreach (var database in databases)
         {
-            var schemas = _service.GetSchemas(database, "");
+            var schemas = service.GetSchemas(database, "");
             foreach (var schema in schemas)
             {
                 var obejctType = new TypeInDatabaseEnum[]
@@ -142,12 +147,12 @@ public sealed partial class SchemaSearchViewModel
                 for (int i = 0; i < obejctType.Length; i++)
                 {
                     var tpe = obejctType[i];
-                    var objects = _service.GetDbObjects(database, schema, "", tpe);
+                    var objects = service.GetDbObjects(database, schema, "", tpe);
                     foreach (DatabaseObject item in objects)
                     {
                         if (tpe == TypeInDatabaseEnum.Procedure)
                         {
-                            var ll = await _service.GetProceduresSignaturesFromName(database, schema, item.Name);
+                            var ll = await service.GetProceduresSignaturesFromName(database, schema, item.Name);
                             foreach (var item2 in ll)
                             {
                                 SchemaSearchItemCollections.Add(new SchemaSearchItem()
@@ -156,7 +161,7 @@ public sealed partial class SchemaSearchViewModel
                                     Type = tpe.ToStringEx(),
                                     Name = string.IsNullOrEmpty(item2.ProcedureSignature) ? item.Name : item2.ProcedureSignature,
                                     Db = database,
-                                    Desc = item.Desc,
+                                    Desc = item.Desc ?? string.Empty,
                                     Schema = schema,
                                     Owner = item.Owner,
                                     CreationDateTime = item.CreateDateTime
@@ -171,7 +176,7 @@ public sealed partial class SchemaSearchViewModel
                                 Type = tpe.ToStringEx(),
                                 Name = item.Name,
                                 Db = database,
-                                Desc = item.Desc,
+                                Desc = item.Desc ?? string.Empty,
                                 Schema = schema,
                                 Owner = item.Owner,
                                 CreationDateTime = item.CreateDateTime
@@ -180,7 +185,7 @@ public sealed partial class SchemaSearchViewModel
                     }
                 }
 
-                var columnItems = _service.GetColumnsFromAllTablesAndSchemas(database, schema);
+                var columnItems = service.GetColumnsFromAllTablesAndSchemas(database, schema);
                 foreach (var (column, databaseObject) in columnItems)
                 {
                     SchemaSearchItemCollections.Add(new SchemaSearchItem()
@@ -189,7 +194,7 @@ public sealed partial class SchemaSearchViewModel
                         Type = "Column",
                         Name = column.Name,
                         Db = database,
-                        Desc = column.Desc,
+                        Desc = column.Desc ?? string.Empty,
                         Schema = schema,
                         Owner = databaseObject.Owner,
                         ParentType = databaseObject.TypeInDatabase.ToStringEx(),
@@ -249,7 +254,7 @@ public sealed partial class SchemaSearchViewModel
 
     private static readonly Regex NeverMatchRegex = new("(?!)", RegexOptions.None);
 
-    public Regex RxWholeWorld { get; private set; }
+    public Regex RxWholeWorld { get; private set; } = NeverMatchRegex;
 
     partial void AfterOptionsChange();
 

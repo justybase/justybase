@@ -111,7 +111,7 @@ public partial class SqlDocumentView : UserControl
     private readonly DataFormat _fileContentsDataFormat = DataFormat.CreateBytesPlatformFormat("FileContents");
     private void SetupDnd()
     {
-        void DragOver(object sender, DragEventArgs e)
+        void DragOver(object? sender, DragEventArgs e)
         {
             //files = special care
             if (e.DataTransfer.Contains(DataFormat.File) || e.DataTransfer.Contains(_fileContentsDataFormat))
@@ -123,7 +123,7 @@ public partial class SqlDocumentView : UserControl
             return;
         }
 
-        async void Drop(object sender, DragEventArgs e)
+        async void Drop(object? sender, DragEventArgs e)
         {
             var viewModel = ViewModel;
             if (viewModel is null)
@@ -181,7 +181,7 @@ public partial class SqlDocumentView : UserControl
     private bool _initialized;
     private SqlDocumentViewModel? _boundViewModel;
 
-    private void TextEditor_DataContextChanged(object sender, EventArgs e)
+    private void TextEditor_DataContextChanged(object? sender, EventArgs e)
     {
         var viewModel = ViewModel;
         if (viewModel is null)

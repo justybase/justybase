@@ -1,6 +1,7 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Dock.Model.Controls;
+using Dock.Model.Core;
 using Dock.Model.Core.Events;
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Models;
@@ -710,7 +711,7 @@ public partial class MainWindowViewModel : ObservableObject
         string? initialQuery,
         QuickOpenSearchProviders? providers = null)
     {
-        Window owner = _avaloniaSpecificHelpers.GetMainWindow();
+        Window? owner = _avaloniaSpecificHelpers.GetMainWindow();
         QuickOpenHit? accepted = null;
         bool completed = false;
         QuickOpenWindow? dialog = null;
@@ -747,6 +748,12 @@ public partial class MainWindowViewModel : ObservableObject
             historySearch: providers?.History);
 
         dialog = new QuickOpenWindow(vm);
+        if (owner is null)
+        {
+            dialog.Show();
+            return accepted;
+        }
+
         await dialog.ShowDialog(owner);
         return accepted;
     }
@@ -1124,16 +1131,20 @@ public partial class MainWindowViewModel : ObservableObject
         return format.HasBom ? $"{name} BOM" : name;
     }
 
-    private void Factory_DockableClosed(object sender, DockableClosedEventArgs e)
+    private void Factory_DockableClosed(object? sender, DockableClosedEventArgs e)
     {
         if (ReferenceEquals(e.Dockable, _statusDocument))
         {
             AttachStatusDocument(null);
         }
 
-        _dockableCleanupService.CleanupDockable(
-            e.Dockable,
-            documentId => _dockFactory.SqlResultsFastViewModel.ClearFromDocument(documentId, true));
+        IDockable? closedDockable = e.Dockable;
+        if (closedDockable is not null)
+        {
+            _dockableCleanupService.CleanupDockable(
+                closedDockable,
+                documentId => _dockFactory.SqlResultsFastViewModel.ClearFromDocument(documentId, true));
+        }
     }
 
     private void InitializeLayout()

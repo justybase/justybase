@@ -1,4 +1,4 @@
-﻿using JustyBase.Common.Contracts;
+using JustyBase.Common.Contracts;
 using JustyBase.PluginCommon.Contracts;
 using System.Diagnostics;
 using System.Text.Json.Serialization;
@@ -30,7 +30,7 @@ public sealed class OfflineTabData
             return false;
         }
 
-        string fileName = HotDocumentViewModel.FilePath;
+        string? fileName = HotDocumentViewModel.FilePath;
         HotDocumentViewModel.RemoveAsterixFromTitleFromDocumentVM();
         Title = HotDocumentViewModel.TitleFromDocumentVm;
         ConnectionIndex = HotDocumentViewModel.SelectedConnectionIndex;

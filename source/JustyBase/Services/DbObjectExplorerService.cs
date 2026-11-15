@@ -43,11 +43,13 @@ public class DbObjectExplorerService : IDbObjectExplorerService
     public string GetCreateFromCode(IDatabaseService databaseService, string tappedWord)
         => databaseService.GetCreateFromCode(tappedWord);
 
+    // Null database/schema means "unqualified name": the DDL templates only need the table
+    // part for the context-menu snippets (matching the existing plugin/test contract).
     public string GetGroomCode(IDatabaseService databaseService, string tappedWord)
-        => databaseService.GetGroom(null, null, tappedWord);
+        => databaseService.GetGroom(null!, null!, tappedWord);
 
     public string GetGenerateStatsCode(IDatabaseService databaseService, string tappedWord)
-        => databaseService.GetGenerateStats(null, null, tappedWord);
+        => databaseService.GetGenerateStats(null!, null!, tappedWord);
 
     public string GetSelectCode(IDatabaseService databaseService, string tappedWord)
         => databaseService.GetShortSelectCode(tappedWord);

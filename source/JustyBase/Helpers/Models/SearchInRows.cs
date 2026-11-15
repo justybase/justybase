@@ -1,4 +1,4 @@
-﻿using JustyBase.Converters;
+using JustyBase.Converters;
 
 namespace JustyBase.Models;
 
@@ -119,7 +119,7 @@ public sealed class SearchInRows
 
             foreach (var (columnIndex, itemValue) in _additionalValues)
             {
-                object actualValue = fields[columnIndex];
+                object? actualValue = fields[columnIndex];
 
                 var res = itemValue.GetComparisionResultGeneral(_currentResultsTable.TypeCodes[columnIndex], actualValue);
                 if (!res)
@@ -133,12 +133,12 @@ public sealed class SearchInRows
                 }
 
                 // filterCheck == true
-                if (itemValue.NotList?.Count > 0 && (itemValue.NotList.Contains(actualValue)))
+                if (itemValue.NotList?.Count > 0 && (actualValue is null || itemValue.NotList.Contains(actualValue)))
                 {
                     columnFilterResult = false;
                     break;
                 }
-                if (itemValue.InList?.Count > 0 && !itemValue.InList.Contains(actualValue))
+                if (itemValue.InList?.Count > 0 && actualValue is not null && !itemValue.InList.Contains(actualValue))
                 {
                     columnFilterResult = false;
                     break;
@@ -229,7 +229,7 @@ public sealed class SearchInRows
                             }
                             else
                             {
-                                string txt = actualVal.ToString();
+                                string txt = actualVal.ToString() ?? string.Empty;
                                 if (_containsGeneralSearch && txt.Contains(_searchText, StringComparison.OrdinalIgnoreCase))
                                 {
                                     founded = true;

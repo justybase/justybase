@@ -48,7 +48,14 @@ public partial class DbSchemaView : UserControl
         vmX.CloseWindowAction = () => wn.Close();
         wn.KeyDown += Wn_KeyDown;
 
-        await wn.ShowDialog(_avaloniaSpecificHelpers.GetMainWindow());
+        if (_avaloniaSpecificHelpers.GetMainWindow() is { } owner)
+        {
+            await wn.ShowDialog(owner);
+        }
+        else
+        {
+            wn.Show();
+        }
     }
 
     public async Task AddNewConnectionWindow()
@@ -76,7 +83,14 @@ public partial class DbSchemaView : UserControl
         vmX.CloseWindowAction = () => wn.Close();
         wn.KeyDown += Wn_KeyDown;
 
-        await wn.ShowDialog(_avaloniaSpecificHelpers.GetMainWindow());
+        if (_avaloniaSpecificHelpers.GetMainWindow() is { } owner)
+        {
+            await wn.ShowDialog(owner);
+        }
+        else
+        {
+            wn.Show();
+        }
     }
     private async void BtAddNewConnection_Click(object? sender, RoutedEventArgs e)
     {
@@ -91,7 +105,7 @@ public partial class DbSchemaView : UserControl
         }
     }
 
-    private DbSchemaViewModel ViewModel => this.DataContext as DbSchemaViewModel;
+    private DbSchemaViewModel? ViewModel => this.DataContext as DbSchemaViewModel;
     private void DbSchemaView_Initialized(object? sender, System.EventArgs e)
     {
         if (ViewModel is null)
@@ -159,6 +173,6 @@ public partial class DbSchemaView : UserControl
     
     private void SchemaContextMenu_ContextMenuOpening(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        this.ViewModel.PrepareContextMenu(null);
+        this.ViewModel?.PrepareContextMenu(null);
     }
 }

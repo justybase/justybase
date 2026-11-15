@@ -56,7 +56,7 @@ public sealed class SqlImportService : ISqlImportService
 
             if (service is INetezza && service.Connection is not null && selectedDatabase != service.Connection.Database)
             {
-                service.ChangeDatabaseSpecial(service.Connection, selectedDatabase);
+                service.ChangeDatabaseSpecial(service.Connection, selectedDatabase ?? service.Connection.Database);
             }
 
             if (formats.Contains("XML Spreadsheet"))
@@ -64,7 +64,7 @@ public sealed class SqlImportService : ISqlImportService
                 addLogMessage("import in progress", LogMessageType.ok, DateTime.Now, "");
                 string res = "";
                 addLogMessage("gathering data from clipboard", LogMessageType.ok, DateTime.Now, "");
-                object xmlData = await clipboardService.GetDataAsync("XML Spreadsheet");
+                object? xmlData = await clipboardService.GetDataAsync("XML Spreadsheet");
                 if (xmlData is byte[] xmlBytes)
                 {
                     res = await service.PerformImportFromXmlAsync(new XmlImportJob(), xmlBytes,

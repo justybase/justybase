@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginCommon.Models;
@@ -11,12 +11,12 @@ namespace JustyBase.ViewModels;
 public sealed class DbObjectQuickMenuViewModel : ObservableObject
 {
     public string ObjectTitle { get; set; } = "some title..";
-    public ObservableCollection<QuickMenuItem> OptionsList { get; set; }
-    public Action CloseAction { get; init; }
+    public ObservableCollection<QuickMenuItem> OptionsList { get; set; } = [];
+    public Action? CloseAction { get; init; }
 
     public SqlDocumentViewModel SqlDocVM
     {
-        get;
+        get => field ?? throw new InvalidOperationException("The quick menu is not bound to a document yet.");
         set
         {
             field = value;

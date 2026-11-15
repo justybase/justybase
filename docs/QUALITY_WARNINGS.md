@@ -26,9 +26,8 @@ least one directory level, so `folder/**/*.cs` silently skips files that sit dir
 `folder/`. That is why the test-project `CA1707` suppressions did not apply before the
 glob fix, even though the rules were documented here.
 
-The desktop application currently uses `Nullable=annotations` while its
-nullability flow analysis is migrated in batches; shared libraries use full
-nullable analysis.
+The desktop application has completed its migration to full nullable flow
+analysis (`Nullable=enable`); shared libraries use full nullable analysis too.
 
 The report excludes warnings emitted by the external `ProDataGrid` package. It
 also reports MSBuild/infrastructure warnings separately from local code

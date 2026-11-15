@@ -45,6 +45,6 @@ public sealed class DataCopyDialogService : IDataCopyDialogService
         {
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
-        await window.ShowDialog(_avaloniaSpecificHelpers.GetMainWindow());
+        await window.ShowDialogOrShow(_avaloniaSpecificHelpers.GetMainWindow());
     }
 }

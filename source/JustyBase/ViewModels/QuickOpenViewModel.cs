@@ -185,15 +185,15 @@ public sealed partial class QuickOpenViewModel : ObservableObject
             CancelHistorySearch();
         }
 
-        ApplyFilter(value);
+        ApplyFilter(value ?? string.Empty);
         if (_searchEverything)
         {
             _ = ScheduleEverythingAsync(trimmed);
         }
         else
         {
-            _ = ScheduleContentSearchAsync(value);
-            _ = ScheduleSymbolSearchAsync(value);
+            _ = ScheduleContentSearchAsync(value ?? string.Empty);
+            _ = ScheduleSymbolSearchAsync(value ?? string.Empty);
         }
     }
 

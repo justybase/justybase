@@ -23,6 +23,6 @@ public sealed class GridWidthConverter : IValueConverter
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        return value.ToString();
+        return value?.ToString() ?? string.Empty;
     }
 }

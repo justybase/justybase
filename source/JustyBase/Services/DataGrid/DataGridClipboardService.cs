@@ -153,7 +153,7 @@ public sealed class DataGridClipboardService : IDataGridClipboardService
         }
         else
         {
-            return StringExtension.ConvertAsSqlCompatybile(obj);
+            return StringExtension.ConvertAsSqlCompatybile(obj ?? DBNull.Value);
         }
     }
 
@@ -259,13 +259,13 @@ public sealed class DataGridClipboardService : IDataGridClipboardService
     /// <inheritdoc />
     public string BuildRowValuesText(TableRow row)
     {
-        object[] fields = row.Fields;
+        object?[] fields = row.Fields;
 
         var sb = new StringBuilder();
         sb.Append("VALUES (");
         for (int i = 0; i < fields.Length; i++)
         {
-            sb.Append(StringExtension.ConvertAsSqlCompatybile(fields[i]));
+            sb.Append(StringExtension.ConvertAsSqlCompatybile(fields[i] ?? DBNull.Value));
             if (i < fields.Length - 1)
             {
                 sb.Append(',');

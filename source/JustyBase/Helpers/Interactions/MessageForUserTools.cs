@@ -42,7 +42,7 @@ public sealed partial class MessageForUserTools : IMessageForUserTools
         {
             try
             {
-                new MessageWindow(messageForUser, title) { WindowStartupLocation = WindowStartupLocation.CenterOwner }.ShowDialog(window ?? _avaloniaSpecificHelpers.GetMainWindow());
+                new MessageWindow(messageForUser, title) { WindowStartupLocation = WindowStartupLocation.CenterOwner }.ShowDialogOrShow(window ?? _avaloniaSpecificHelpers.GetMainWindow());
             }
             catch (Exception ex)
             {
@@ -59,11 +59,11 @@ public sealed partial class MessageForUserTools : IMessageForUserTools
             try
             {
                 Debug.WriteLine($"[ShowConfirmationDialogAsync] Creating dialog with message length: {message?.Length ?? 0}, title: {title}");
-                var dialog = new ConfirmationWindow(message, title)
+                var dialog = new ConfirmationWindow(message ?? string.Empty, title)
                 {
                     WindowStartupLocation = WindowStartupLocation.CenterOwner
                 };
-                var result = await dialog.ShowDialog<bool>(_avaloniaSpecificHelpers.GetMainWindow());
+                var result = await dialog.ShowDialogOrShow<bool>(_avaloniaSpecificHelpers.GetMainWindow());
                 Debug.WriteLine($"[ShowConfirmationDialogAsync] Dialog result: {result}");
                 tcs.TrySetResult(result);
             }
@@ -85,7 +85,7 @@ public sealed partial class MessageForUserTools : IMessageForUserTools
             {
                 ShowInTaskbar = showInTaskbar
             };
-            await dialog.ShowDialog(_avaloniaSpecificHelpers.GetMainWindow());
+            await dialog.ShowDialogOrShow(_avaloniaSpecificHelpers.GetMainWindow());
             tcs.TrySetResult(dialog.ReturnedName);
         });
         return tcs.Task;
@@ -99,7 +99,7 @@ public sealed partial class MessageForUserTools : IMessageForUserTools
             try
             {
                 var aboutVm = _serviceProvider.GetRequiredService<AboutViewModel>();
-                await new About(aboutVm).ShowDialog(_avaloniaSpecificHelpers.GetMainWindow());
+                await new About(aboutVm).ShowDialogOrShow(_avaloniaSpecificHelpers.GetMainWindow());
             }
             finally
             {
@@ -125,7 +125,7 @@ public sealed partial class MessageForUserTools : IMessageForUserTools
                 diffVm.SetTexts(currentText, newText);
 
                 var diffWindow = new FileDiffWindow { DataContext = diffVm };
-                await diffWindow.ShowDialog(_avaloniaSpecificHelpers.GetMainWindow());
+                await diffWindow.ShowDialogOrShow(_avaloniaSpecificHelpers.GetMainWindow());
             }
             finally
             {
@@ -145,7 +145,7 @@ public sealed partial class MessageForUserTools : IMessageForUserTools
                 var diffVm = new GitDiffViewModel();
                 diffVm.SetContents(title, oldText, newText);
                 var diffWindow = new GitDiffWindow { DataContext = diffVm };
-                await diffWindow.ShowDialog(_avaloniaSpecificHelpers.GetMainWindow());
+                await diffWindow.ShowDialogOrShow(_avaloniaSpecificHelpers.GetMainWindow());
             }
             finally
             {
@@ -165,14 +165,18 @@ public sealed partial class MessageForUserTools : IMessageForUserTools
         var res = true;
         DispatcherActionInstance(() =>
         {
-            var mv = _avaloniaSpecificHelpers.GetMainWindow();
+            if (_avaloniaSpecificHelpers.GetMainWindow() is not { } mv)
+            {
+                return;
+            }
+
             if (mv.WindowState != WindowState.Minimized)
             {
                 res = false;
             }
             else
             {
-                hWnd = TopLevel.GetTopLevel(mv).TryGetPlatformHandle().Handle;
+                hWnd = TopLevel.GetTopLevel(mv)?.TryGetPlatformHandle()?.Handle ?? 0;
             }
 
             if (!res)

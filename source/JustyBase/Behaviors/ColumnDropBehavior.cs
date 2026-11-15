@@ -72,7 +72,7 @@ public sealed class ColumnDropBehavior : Behavior<Grid>
 
     private void OnDrop(object? sender, DragEventArgs e)
     {
-        if (DataGrid == null || DataFormat == null || string.IsNullOrEmpty(ColumnName))
+        if (DataGrid == null || DataFormat == null || string.IsNullOrEmpty(ColumnName) || AssociatedObject is not { } grid)
             return;
 
         if (e.DataTransfer.TryGetValue(DataFormat) is string sourceColName)
@@ -85,8 +85,8 @@ public sealed class ColumnDropBehavior : Behavior<Grid>
                 int sourceIndex = sourceCol.DisplayIndex;
                 int targetIndex = targetCol.DisplayIndex;
 
-                var pos = e.GetPosition(AssociatedObject);
-                bool insertAfter = pos.X > (AssociatedObject.Bounds.Width / 2.0);
+                var pos = e.GetPosition(grid);
+                bool insertAfter = pos.X > (grid.Bounds.Width / 2.0);
 
                 int newDisplayIndex = insertAfter ? targetIndex + 1 : targetIndex;
                 if (sourceIndex < newDisplayIndex)

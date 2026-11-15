@@ -259,7 +259,14 @@ public partial class SettingsView : UserControl
     private async void BtEditSnippets_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         var sn = new SnippetWindow();
-        await sn.ShowDialog(_avaloniaSpecificHelpers.GetMainWindow());
+        if (_avaloniaSpecificHelpers.GetMainWindow() is { } owner)
+        {
+            await sn.ShowDialog(owner);
+        }
+        else
+        {
+            sn.Show();
+        }
     }
 
     private void TreeView_SelectionChanged(object? sender, SelectionChangedEventArgs e)

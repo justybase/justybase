@@ -35,7 +35,7 @@ public partial class VariablesViewModel : Tool, IDisposable
         Factory = factory;
         foreach (var item in FixedVariables)
         {
-            VariableList.Add(new VariableModel { VariableName = item.Key, ComputeVariableValueFunc = item.Value, VariableComputedValue = null });
+            VariableList.Add(new VariableModel { VariableName = item.Key, ComputeVariableValueFunc = item.Value, VariableComputedValue = string.Empty });
         }
         RefreshAllVariables();
         Task.Run(VariableRefresh).ContinueWith(static x => _ = x.Exception, TaskContinuationOptions.OnlyOnFaulted);

@@ -20,6 +20,7 @@ using JustyBase.Services.Updates;
 using JustyBase.PluginCommon.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace JustyBase.ViewModels.Documents;
@@ -173,6 +174,10 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
 
     partial void InitializeTheme();
 
+    [MemberNotNull(nameof(DecimalDelimInCsv),nameof(DefaultXlsxSheetName),nameof(DocumentFontName),nameof(EncondingName),nameof(ExcelFormat),nameof(LintSeverityNz001),nameof(LintSeverityNz002),nameof(LintSeverityNz003),nameof(LintSeverityNz004),nameof(LintSeverityNz005),nameof(LintSeverityNz008),nameof(LintSeverityNz011),nameof(LintSeverityNz012),nameof(LintSeverityNz013),nameof(LintSeverityNz015),nameof(LintSeverityNz025),nameof(LintSeverityNz102),nameof(SepInExportedCsv),nameof(SepRowsInExportedCsv))]
+#if AI
+    [MemberNotNull(nameof(AiChatBackendId),nameof(AiChatDefaultModel),nameof(AiChatOpenAiCompatibleApiKey),nameof(AiChatOpenAiCompatibleEndpoint),nameof(AiChatSystemPromptOverride))]
+#endif
     private void ReloadSettings()
     {
         FullSettingsJsonString = JsonSerializer.Serialize(_generalApplicationData.Config, MyJsonContextAppOptions.Default.AppOptions);
@@ -296,6 +301,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
             MigrateLegacyAiChatPreset();
             EnableAiChat = _generalApplicationData.Config.EnableAiChat;
             SelectedAiChatBackend = AiChatBackendChoiceItem.FromId(_generalApplicationData.Config.AiChatBackendId);
+            AiChatBackendId = _generalApplicationData.Config.AiChatBackendId ?? string.Empty;
             AiChatDefaultModel = string.IsNullOrWhiteSpace(_generalApplicationData.Config.AiChatDefaultModel)
                 || _generalApplicationData.Config.AiChatDefaultModel.Equals("Auto", StringComparison.OrdinalIgnoreCase)
                 || _generalApplicationData.Config.AiChatDefaultModel.Equals("gpt-5-mini", StringComparison.OrdinalIgnoreCase)
@@ -326,6 +332,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         }
 #endif
 
+        LintSeverityNz001 = _generalApplicationData.Config.LintSeverityNz001;
         LintSeverityNz002 = _generalApplicationData.Config.LintSeverityNz002;
         LintSeverityNz003 = _generalApplicationData.Config.LintSeverityNz003;
         LintSeverityNz004 = _generalApplicationData.Config.LintSeverityNz004;
@@ -463,7 +470,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         {
             _generalApplicationData.Config = JsonSerializer.Deserialize(
                 FullSettingsJsonString,
-                MyJsonContextAppOptions.Default.AppOptions);
+                MyJsonContextAppOptions.Default.AppOptions) ?? new JustyBase.Common.AppOptions();
             ErrorInfo = "Success";
         }
         catch (Exception ex)

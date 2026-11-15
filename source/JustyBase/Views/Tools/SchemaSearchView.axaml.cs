@@ -23,7 +23,10 @@ public partial class SchemaSearchView : UserControl, ISchemaSearchViewBridge
     {
         if (SchemaSearchDataGrid.SelectedItem is SchemaSearchItem searchItem)
         {
-            await this.ViewModel?.DoubleTappedAction(searchItem);
+            if (this.ViewModel is { } viewModel)
+            {
+                await viewModel.DoubleTappedAction(searchItem);
+            }
         }
     }
 

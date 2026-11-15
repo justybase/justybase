@@ -2,7 +2,7 @@
 
 public sealed class TableRow
 {
-    public object[] Fields { get; init; }
+    public object?[] Fields { get; init; }
     public TableRow()
     {
         Fields = [];

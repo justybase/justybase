@@ -1,4 +1,4 @@
-﻿using JustyBase.Models;
+using JustyBase.Models;
 using System.Collections;
 using System.Data;
 using System.Data.Common;
@@ -50,14 +50,14 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
     // known typeof(...).
 
     private int currentRowNum = -1;
-    private object[] currentRow;
+private object?[] currentRow = [];
 
     public override DataTable? GetSchemaTable()
     {
         return null;
     }
 
-    public override object this[int ordinal] => _rows[currentRowNum].Fields[ordinal];
+    public override object this[int ordinal] => _rows[currentRowNum].Fields[ordinal] ?? DBNull.Value;
 
     public override object this[string name] => throw new NotImplementedException();
 
@@ -73,25 +73,25 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
 
     public override bool GetBoolean(int ordinal)
     {
-        return (bool)currentRow[ordinal];
+        return (bool)(currentRow[ordinal] ?? DBNull.Value);
     }
 
     public override byte GetByte(int ordinal)
     {
-        return (byte)currentRow[ordinal];
+        return (byte)(currentRow[ordinal] ?? DBNull.Value);
     }
 
-    public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
+    public override long GetBytes(int ordinal, long dataOffset, byte[]? buffer, int bufferOffset, int length)
     {
         throw new NotImplementedException();
     }
 
     public override char GetChar(int ordinal)
     {
-        return (char)currentRow[ordinal];
+        return (char)(currentRow[ordinal] ?? DBNull.Value);
     }
 
-    public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length)
+    public override long GetChars(int ordinal, long dataOffset, char[]? buffer, int bufferOffset, int length)
     {
         throw new NotImplementedException();
     }
@@ -103,17 +103,17 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
 
     public override DateTime GetDateTime(int ordinal)
     {
-        return (DateTime)currentRow[ordinal];
+        return (DateTime)(currentRow[ordinal] ?? DBNull.Value);
     }
 
     public override decimal GetDecimal(int ordinal)
     {
-        return (Decimal)currentRow[ordinal];
+        return (Decimal)(currentRow[ordinal] ?? DBNull.Value);
     }
 
     public override double GetDouble(int ordinal)
     {
-        return (Double)currentRow[ordinal];
+        return (Double)(currentRow[ordinal] ?? DBNull.Value);
     }
 
     [return: DynamicallyAccessedMembers(
@@ -125,27 +125,27 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
 
     public override float GetFloat(int ordinal)
     {
-        return (float)currentRow[ordinal];
+        return (float)(currentRow[ordinal] ?? DBNull.Value);
     }
 
     public override Guid GetGuid(int ordinal)
     {
-        return (Guid)currentRow[ordinal];
+        return (Guid)(currentRow[ordinal] ?? DBNull.Value);
     }
 
     public override short GetInt16(int ordinal)
     {
-        return (short)currentRow[ordinal];
+        return (short)(currentRow[ordinal] ?? DBNull.Value);
     }
 
     public override int GetInt32(int ordinal)
     {
-        return (int)currentRow[ordinal];
+        return (int)(currentRow[ordinal] ?? DBNull.Value);
     }
 
     public override long GetInt64(int ordinal)
     {
-        return (long)currentRow[ordinal];
+        return (long)(currentRow[ordinal] ?? DBNull.Value);
     }
 
     public override string GetName(int ordinal)
@@ -160,12 +160,12 @@ internal sealed class DBReaderWithMessagesTable : DbDataReader
 
     public override string GetString(int ordinal)
     {
-        return (string)currentRow[ordinal];
+        return currentRow[ordinal] as string ?? string.Empty;
     }
 
     public override object GetValue(int ordinal)
     {
-        return currentRow[ordinal];
+        return currentRow[ordinal] ?? DBNull.Value;
     }
 
     public override int GetValues(object[] values)

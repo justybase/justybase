@@ -13,7 +13,10 @@ public partial class SqlParameterWindow : Window
 
     private void SqlParameterWindow_DataContextChanged(object? sender, EventArgs e)
     {
-        (this.DataContext as SqlParameterViewModel).CloseAction = () => this.Close();
+        if (this.DataContext is SqlParameterViewModel viewModel)
+        {
+            viewModel.CloseAction = () => this.Close();
+        }
     }
 
     private void SqlParameterWindow_Activated(object? sender, EventArgs e)
@@ -26,8 +29,10 @@ public partial class SqlParameterWindow : Window
 
     private void TextBox_Initialized(object? sender, System.EventArgs e)
     {
-        TextBox tb = (TextBox)sender;
-        tb.Focus();
-        tb.SelectAll();
+        if (sender is TextBox textBox)
+        {
+            textBox.Focus();
+            textBox.SelectAll();
+        }
     }
 }

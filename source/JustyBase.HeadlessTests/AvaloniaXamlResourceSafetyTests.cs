@@ -46,6 +46,7 @@ public sealed class AvaloniaXamlResourceSafetyTests : HeadlessSessionTestBase
 
         EnsureThemeManager(themeNum: 0);
         var manager = FluentThemeManager.StaticFluentThemeManager;
+        Assert.NotNull(manager);
         manager.Initialize(app);
 
         AssertBrush(app.Resources["DockApplicationAccentBrushLow"]);

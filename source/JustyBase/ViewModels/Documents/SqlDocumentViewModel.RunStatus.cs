@@ -53,7 +53,7 @@ public sealed partial class SqlDocumentViewModel
     {
         var sqlEditor = SqlEditor;
         var startValidation = _executionServices.RunPreparationService.ValidateRunStart(sqlEditor is not null, SelectedConnectionIndex);
-        if (!startValidation.CanRun)
+        if (!startValidation.CanRun || sqlEditor is null)
         {
             if (!string.IsNullOrWhiteSpace(startValidation.MessageForUser))
             {
@@ -88,7 +88,7 @@ public sealed partial class SqlDocumentViewModel
             filePathToExport = chosenExportPath;
         }
 
-        string selectedQuery = sqlEditor!.SelectQueryPhase(sqlEditor.Dialect, out int currentSqlPosiotionInEditor);
+        string selectedQuery = sqlEditor.SelectQueryPhase(sqlEditor.Dialect, out int currentSqlPosiotionInEditor);
         var queryPreparation = _executionServices.RunPreparationService.PrepareQuery(
             selectedQuery,
             currentSqlPosiotionInEditor,

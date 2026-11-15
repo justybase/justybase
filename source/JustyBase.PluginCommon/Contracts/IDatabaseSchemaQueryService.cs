@@ -25,7 +25,7 @@ public interface IDatabaseSchemaQueryService
     /// carries no definition or the cache has not been loaded.
     /// </summary>
     string? GetItemSource(TypeInDatabaseEnum typeInDatabase, string database, string schema, string itemNameOrSignature, int procedureId);
-    bool IsItemSourceContains(TypeInDatabaseEnum typeInDatabase, string database, string schema, string itemNameOrSignature, int procedureId, StringComparison comp, string searchWord, Regex rx);
+    bool IsItemSourceContains(TypeInDatabaseEnum typeInDatabase, string database, string schema, string itemNameOrSignature, int procedureId, StringComparison comp, string searchWord, Regex? rx);
     bool IsTypeInDatabaseSupported(TypeInDatabaseEnum tpe);
     void CacheMainDictionary();
     void ClearCachedData();

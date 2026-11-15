@@ -60,6 +60,7 @@ public sealed class CascadingDistinctValueFilterContext : IFilterDistinctValuesC
         _valueComparer = valueComparer ?? EqualityComparer<object>.Default;
         _displayFormatter = displayFormatter ?? FormatDisplayValue;
         _columnTypeCode = columnTypeCode;
+        _propertyPath = propertyPath;
         Label = label ?? string.Empty;
         Options = [];
         ClearAllCommand = new ActionCommand(ClearAll);

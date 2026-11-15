@@ -157,6 +157,15 @@ partial class SqlResultsViewModel
 
     public void LoadRest(IDatabaseService? dbService, DbDataReader reader, int queryNum, ref int abortUbound, DbCommand command)
     {
+        if (dbService is null)
+        {
+            // Routing only calls LoadRest when the result carried a service; keep the grid
+            // usable instead of failing silently if that invariant is ever broken.
+            GridEnabled = true;
+            DataLoadingInProgress = false;
+            return;
+        }
+
         List<TableRow> rowsTemp = [];
         int i1 = CurrentResultsTable.Rows.Count;
         int spillThreshold = Math.Clamp(
@@ -279,7 +288,7 @@ partial class SqlResultsViewModel
                     _simpleLogger.TrackError(ex, isCrash: false);
                     try
                     {
-                        spill.Dispose();
+                        spill?.Dispose();
                     }
                     catch (Exception cleanupEx) when (cleanupEx is not OutOfMemoryException)
                     {

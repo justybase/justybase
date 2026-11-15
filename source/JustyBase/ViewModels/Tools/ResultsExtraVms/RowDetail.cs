@@ -2,7 +2,7 @@
 
 public sealed class RowDetail
 {
-    public string Name { get; set; }
+    public string Name { get; set; } = string.Empty;
 
     public bool IsColumnVisible
     {
@@ -13,8 +13,7 @@ public sealed class RowDetail
             ChangeColVisiblity?.Invoke();
         }
     } = true;
-    public List<string> FieldsValues { get; set; }
-    public string TypeName { get; set; }
-    public Action ChangeColVisiblity { get; set; }
+    public List<string> FieldsValues { get; set; } = [];
+    public string TypeName { get; set; } = string.Empty;
+    public Action? ChangeColVisiblity { get; set; }
 }
-

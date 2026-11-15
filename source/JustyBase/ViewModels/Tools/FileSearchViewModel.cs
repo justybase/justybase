@@ -255,12 +255,18 @@ public sealed partial class FileSearchViewModel : Tool, IDisposable
     [RelayCommand]
     private async Task BrowseForFolderAsync()
     {
-        var folders = await _avaloniaHelpers.GetStorageProvider().OpenFolderPickerAsync(
+        if (_avaloniaHelpers.GetStorageProvider() is not { } storageProvider)
+        {
+            return;
+        }
+
+        var folders = await storageProvider.OpenFolderPickerAsync(
             new FolderPickerOpenOptions { AllowMultiple = false, Title = "Choose a folder to search" });
         if (folders is null || folders.Count == 0)
         {
             return;
         }
+
         var selected = folders[0].Path.LocalPath;
         var roots = GetRoots().ToList();
         if (!roots.Contains(selected, StringComparer.OrdinalIgnoreCase))
@@ -282,9 +288,12 @@ public sealed partial class FileSearchViewModel : Tool, IDisposable
         OpenHit(all[_currentHitIndex]);
     }
 
+    private IActiveDocumentManager Documents => Factory as IActiveDocumentManager
+        ?? throw new InvalidOperationException("The dock factory does not support document operations.");
+
     public void OpenHit(ContentSearchHitRow row)
     {
-        var documents = (IActiveDocumentManager)Factory;
+        var documents = Documents;
         var file = row.Group.File;
         if (!File.Exists(file.Path))
         {
@@ -320,7 +329,7 @@ public sealed partial class FileSearchViewModel : Tool, IDisposable
 
     public async Task ReplaceAsync(ContentSearchHitRow? hit = null, ContentSearchFileGroup? group = null)
     {
-        var documents = (IActiveDocumentManager)Factory;
+        var documents = Documents;
         if (!IsReplaceExpanded)
         {
             Status = "Expand Replace to preview replacements";
@@ -381,7 +390,9 @@ public sealed partial class FileSearchViewModel : Tool, IDisposable
         }
 
         var previewWindow = new ReplacePreviewWindow(changes, skipped);
-        var approved = await previewWindow.ShowDialog<bool>(_avaloniaHelpers.GetMainWindow());
+        bool approved = _avaloniaHelpers.GetMainWindow() is { } owner
+            ? await previewWindow.ShowDialog<bool>(owner)
+            : false;
         if (!approved)
         {
             return;

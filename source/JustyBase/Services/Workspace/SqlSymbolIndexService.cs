@@ -210,7 +210,8 @@ public sealed class SqlSymbolIndexService : ISqlSymbolIndexService
             }
 
             string path = info.FullName;
-            if (_documents.TryGetValue(path, out FileEntry existing)
+            if (_documents.TryGetValue(path, out FileEntry? existing)
+                && existing is not null
                 && existing.LastWriteUtc == info.LastWriteTimeUtc
                 && existing.Length == info.Length)
             {

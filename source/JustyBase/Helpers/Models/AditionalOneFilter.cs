@@ -10,8 +10,8 @@ public sealed class AditionalOneFilter
     public long? filterEnteredPhaseAsLong { get; }
     public double? FilterEnteredPhaseAsDouble { get; }
     public decimal? FilterEnteredPhaseAsDecimal { get; }
-    public HashSet<object> NotList { get; set; }
-    public HashSet<object> InList { get; set; }
+    public HashSet<object> NotList { get; set; } = [];
+    public HashSet<object> InList { get; set; } = [];
     public AditionalOneFilter(string likePhase)
     {
         FilterEnteredTextPhase = likePhase;
@@ -39,7 +39,7 @@ public sealed class AditionalOneFilter
     public FilterTypeEnum FilterType { get; set; } = FilterTypeEnum.contains;
 
 
-    public bool GetComparisionResultGeneral(TypeCode typeCode, object columnValue)
+    public bool GetComparisionResultGeneral(TypeCode typeCode, object? columnValue)
     {
         if (columnValue is null)
         {
@@ -72,26 +72,36 @@ public sealed class AditionalOneFilter
 
         if (typeCode == TypeCode.Int16)
         {
-            return FilterEnteredPhaseAsInt16 is not null && GetNumberComparisionResult<Int16>((Int16)columnValue, (Int16)FilterEnteredPhaseAsInt16);
+            return FilterEnteredPhaseAsInt16 is Int16 enteredInt16
+                && columnValue is Int16 actualInt16
+                && GetNumberComparisionResult(actualInt16, enteredInt16);
         }
         if (typeCode == TypeCode.Int32)
         {
-            return FilterEnteredPhaseAsInt is not null && GetNumberComparisionResult<int>((int)columnValue, (int)FilterEnteredPhaseAsInt);
+            return FilterEnteredPhaseAsInt is int enteredInt
+                && columnValue is int actualInt
+                && GetNumberComparisionResult(actualInt, enteredInt);
         }
         if (typeCode == TypeCode.Int64)
         {
-            return filterEnteredPhaseAsLong is not null && GetNumberComparisionResult<long>((long)columnValue, (long)filterEnteredPhaseAsLong);
+            return filterEnteredPhaseAsLong is long enteredLong
+                && columnValue is long actualLong
+                && GetNumberComparisionResult(actualLong, enteredLong);
         }
         if (typeCode == TypeCode.Double)
         {
-            return FilterEnteredPhaseAsDouble is not null && GetNumberComparisionResult<double>((double)columnValue, (double)FilterEnteredPhaseAsDouble);
+            return FilterEnteredPhaseAsDouble is double enteredDouble
+                && columnValue is double actualDouble
+                && GetNumberComparisionResult(actualDouble, enteredDouble);
         }
         if (typeCode == TypeCode.Decimal)
         {
-            return FilterEnteredPhaseAsDecimal is not null && GetNumberComparisionResult<decimal>((decimal)columnValue, (decimal)FilterEnteredPhaseAsDecimal);
+            return FilterEnteredPhaseAsDecimal is decimal enteredDecimal
+                && columnValue is decimal actualDecimal
+                && GetNumberComparisionResult(actualDecimal, enteredDecimal);
         }
 
-        return CompareInFilterText(columnValue.ToString());
+        return CompareInFilterText(columnValue?.ToString() ?? string.Empty);
     }
 
 

@@ -11,7 +11,7 @@ namespace JustyBase.Models.Tools;
 
 public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaItem
 {
-    public string Name { get; set; }
+    public string Name { get; set; } = string.Empty;
 
     
 
@@ -21,11 +21,11 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
     public DatabaseTypeEnum DatabaseTypeEnumValue { get; set; }
     public DbSchemaModel? Parent { get; set; }
     public required string ConnectionName { get; set; }
-    public string Database { get; set; }
-    public string CurrentSchema { get; set; }
-    public string Owner { get; set; }
-    public string Comment { get; set; }
-    public string ParentObjectName { get; set; }
+    public string Database { get; set; } = string.Empty;
+    public string CurrentSchema { get; set; } = string.Empty;
+    public string Owner { get; set; } = string.Empty;
+    public string Comment { get; set; } = string.Empty;
+    public string ParentObjectName { get; set; } = string.Empty;
     public string ToolTipText => $"Comment: {Comment ?? "no desc"}";
     public ObservableCollection<DbSchemaModel> LoadChildren(ObservableCollection<DbSchemaModel>? newNodeCollection = null)
     {
@@ -180,7 +180,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                         Info = $"{item.Owner}'s tablespace",
                         ConnectionName = ConnectionName,
                         Database = Database,
-                        Comment = item.Desc
+                        Comment = item.Desc ?? string.Empty
                     });
                 }
                 break;
@@ -219,18 +219,18 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
             case TypeInDatabaseEnum.columnInThisTable:
             case TypeInDatabaseEnum.columnInThisView:
             case TypeInDatabaseEnum.columnInThisExternal:
-                string name = Parent?.Name;
+                string name = Parent?.Name ?? string.Empty;
                 if (ActualTypeInDatabase == TypeInDatabaseEnum.columnInThisTable)
                 {
-                    name = Parent?.Parent?.Name;
+                    name = Parent?.Parent?.Name ?? string.Empty;
                 }
-                var columnDetailsService = ResolveService(Parent?.ConnectionName);
+                var columnDetailsService = ResolveService(Parent?.ConnectionName ?? string.Empty);
                 if (columnDetailsService is null)
                 {
                     break;
                 }
-                IEnumerable<DatabaseColumn> columnsX = columnDetailsService.GetColumns(Parent?.Database, Parent?.CurrentSchema, name, "");
-                DatabaseColumn colTemp = null;
+                IEnumerable<DatabaseColumn> columnsX = columnDetailsService.GetColumns(Parent?.Database ?? string.Empty, Parent?.CurrentSchema ?? string.Empty, name, "");
+                DatabaseColumn? colTemp = null;
                 foreach (var item in columnsX)
                 {
                     if (item.Name == Name)
@@ -357,7 +357,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
             };
             if (includeDesc)
             {
-                node.Comment = item.Desc;
+                node.Comment = item.Desc ?? string.Empty;
             }
             collection.Add(node);
         }
@@ -415,7 +415,7 @@ public sealed partial class DbSchemaModel : ObservableObject, IDatabaseSchemaIte
                 ConnectionName = ConnectionName,
                 Database = Database,
                 CurrentSchema = CurrentSchema,
-                Comment = item.Desc
+                Comment = item.Desc ?? string.Empty
             };
 
             if (setOwner)

@@ -1,5 +1,6 @@
 using JustyBase.Common.Contracts;
 using JustyBase.PluginCommon.Contracts;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -197,7 +198,7 @@ internal sealed class MacKeychainStore : ICredentialSecretStore
 
     private bool TryEnsureSymbols() => TryEnsureSymbols(out _);
 
-    private static bool TryEnsureSymbols(out NativeSymbols? symbols)
+    private static bool TryEnsureSymbols([NotNullWhen(true)] out NativeSymbols? symbols)
     {
         if (_probed)
         {

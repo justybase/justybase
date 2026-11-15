@@ -19,7 +19,9 @@ public sealed partial class AddNewConnectionViewModel : Tool
     private void RefreshConnections()
     {
         OnPropertyChanged(nameof(ConnectionList));
-        DbSchemaViewModel? dbChemaViewModel = Factory.Find(a => a is DbSchemaViewModel).FirstOrDefault() as DbSchemaViewModel;
+        DbSchemaViewModel? dbChemaViewModel = Factory is null
+            ? null
+            : Factory.Find(a => a is DbSchemaViewModel).FirstOrDefault() as DbSchemaViewModel;
         dbChemaViewModel?.ResedConnectionList();
     }
 

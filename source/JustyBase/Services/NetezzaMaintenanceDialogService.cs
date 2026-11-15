@@ -26,7 +26,7 @@ public sealed class NetezzaMaintenanceDialogService : INetezzaMaintenanceDialogS
             {
                 var vm = new NetezzaMaintenanceDialogViewModel(kind, qualifiedTable);
                 var dialog = new NetezzaMaintenanceDialog(vm);
-                var confirmed = await dialog.ShowDialog<bool>(_avaloniaSpecificHelpers.GetMainWindow());
+                var confirmed = await dialog.ShowDialogOrShow<bool>(_avaloniaSpecificHelpers.GetMainWindow());
                 tcs.TrySetResult(confirmed ? vm.ResultSql : null);
             }
             catch (Exception)

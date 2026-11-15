@@ -15,7 +15,7 @@ public sealed class LogTypeConverter : IValueConverter
         { "⌛", LogMessageType.inProgress},
     };
 
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is LogMessageType logMessageType)
         {
@@ -28,15 +28,16 @@ public sealed class LogTypeConverter : IValueConverter
         return "";
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
+        string text = value?.ToString() ?? string.Empty;
         if (targetType == typeof(LogMessageType))
         {
-            return NiceMessagesRev[value.ToString()];
+            return NiceMessagesRev.TryGetValue(text, out var logMessageType) ? logMessageType : LogMessageType.ok;
         }
         else
         {
-            if (DateTime.TryParse(value.ToString(), out var dt))
+            if (DateTime.TryParse(text, out var dt))
             {
                 return dt;
             }

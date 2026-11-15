@@ -76,7 +76,8 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
         RefreshDbCmd = new AsyncRelayCommand(RefreshDb);
         GridEnabled = true;
 
-        ConnectionName = _generalApplicationData.Config.ConnectionNameInSchemaSearch;
+        ConnectionName = _generalApplicationData.Config.ConnectionNameInSchemaSearch ?? string.Empty;
+        SearchText = string.Empty;
         CaseSensitive = _generalApplicationData.Config.CaseSensitive;
         SearchInSource = _generalApplicationData.Config.SearchInSource;
         WholeWord = _generalApplicationData.Config.WholeWords;
@@ -102,7 +103,7 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
 
         try
         {
-            DbSchemaViewModel? dbChemaViewModel = Factory.Find(a => a is DbSchemaViewModel).FirstOrDefault() as DbSchemaViewModel;
+            DbSchemaViewModel? dbChemaViewModel = Factory?.Find(a => a is DbSchemaViewModel).FirstOrDefault() as DbSchemaViewModel;
             if (dbChemaViewModel is not null)
             {
                 await dbChemaViewModel.ExpandToNodeFull(toExpandPath, revealCancellation.Token);
@@ -156,16 +157,16 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
                 _service = _resolver is not null
                     ? await Task.Run(() => _resolver.GetDatabaseService(_generalApplicationData, ConnectionName))
                     : await Task.Run(() => DatabaseServiceHelpers.GetDatabaseService(_generalApplicationData, ConnectionName));
-                if (_service is not null)
+                if (_service is { } service)
                 {
                     var newAllItems = await Task.Run(async () =>
                     {
                         var localTempItems = new List<SchemaSearchItem>();
-                        var databases = _service.GetDatabases("");
+                        var databases = service.GetDatabases("");
 
                         foreach (var database in databases)
                         {
-                            var schemas = _service.GetSchemas(database, "");
+                            var schemas = service.GetSchemas(database, "");
                             foreach (var schema in schemas)
                             {
                                 var obejctType = new TypeInDatabaseEnum[]
@@ -185,12 +186,12 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
                                 for (int i = 0; i < obejctType.Length; i++)
                                 {
                                     var tpe = obejctType[i];
-                                    var objects = _service.GetDbObjects(database, schema, "", tpe);
+                                    var objects = service.GetDbObjects(database, schema, "", tpe);
                                     foreach (DatabaseObject item in objects)
                                     {
                                         if (tpe == TypeInDatabaseEnum.Procedure)
                                         {
-                                            var ll = await _service.GetProceduresSignaturesFromName(database, schema, item.Name);
+                                            var ll = await service.GetProceduresSignaturesFromName(database, schema, item.Name);
                                             foreach (var item2 in ll)
                                             {
                                                 localTempItems.Add(new SchemaSearchItem()
@@ -199,7 +200,7 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
                                                     Type = tpe.ToStringEx(),
                                                     Name = string.IsNullOrEmpty(item2.ProcedureSignature) ? item.Name : item2.ProcedureSignature,
                                                     Db = database,
-                                                    Desc = item.Desc,
+                                                    Desc = item.Desc ?? string.Empty,
                                                     Schema = schema,
                                                     Owner = item.Owner,
                                                     CreationDateTime = item.CreateDateTime
@@ -214,7 +215,7 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
                                                 Type = tpe.ToStringEx(),
                                                 Name = item.Name,
                                                 Db = database,
-                                                Desc = item.Desc,
+                                                Desc = item.Desc ?? string.Empty,
                                                 Schema = schema,
                                                 Owner = item.Owner,
                                                 CreationDateTime = item.CreateDateTime
@@ -223,7 +224,7 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
                                     }
                                 }
 
-                                var columnItems = _service.GetColumnsFromAllTablesAndSchemas(database, schema);
+                                var columnItems = service.GetColumnsFromAllTablesAndSchemas(database, schema);
                                 foreach (var (column, databaseObject) in columnItems)
                                 {
                                     localTempItems.Add(new SchemaSearchItem()
@@ -232,7 +233,7 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
                                         Type = "Column",
                                         Name = column.Name,
                                         Db = database,
-                                        Desc = column.Desc,
+                                        Desc = column.Desc ?? string.Empty,
                                         Schema = schema,
                                         Owner = databaseObject.Owner,
                                         ParentType = databaseObject.TypeInDatabase.ToStringEx(),
@@ -308,14 +309,14 @@ public sealed partial class SchemaSearchViewModel : Tool, IDisposable
         }
     }
 
-    private Avalonia.Threading.DispatcherTimer searchTimer;
+    private Avalonia.Threading.DispatcherTimer? searchTimer;
     private const int GROUP_LIMIT = 20;
     public const int GIANT_GROUP_LIMIT = 100;
 
     public ISchemaSearchViewBridge? ViewBridge { get; set; }
     private void Timer_Tick(object? sender, EventArgs e)
     {
-        searchTimer.Stop();
+        searchTimer?.Stop();
         //GridEnabled = false;
         RefreshRegex();
         AfterOptionsChange();

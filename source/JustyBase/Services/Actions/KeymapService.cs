@@ -187,7 +187,7 @@ public sealed class KeymapService
     public async Task ResetAsync(string actionId, CancellationToken cancellationToken = default)
     {
         EnsureLoaded();
-        if (!_overrides.TryGetValue(actionId, out string previous))
+        if (!_overrides.TryGetValue(actionId, out string? previous) || previous is null)
         {
             return;
         }

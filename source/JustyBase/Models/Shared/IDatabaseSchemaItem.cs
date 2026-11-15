@@ -43,7 +43,7 @@ internal interface IDatabaseSchemaItem
         string DATABASE = schemaModel.Database;
         string SCHEMA = schemaModel.CurrentSchema;
         string ITEM_NAME = schemaModel.Name;
-        IDatabaseService dbService = await Task.Run(() =>
+        IDatabaseService? dbService = await Task.Run(() =>
             resolver is not null
                 ? resolver.GetDatabaseService(generalApplicationData, CONNECTION_NAME)
                 : DatabaseServiceHelpers.GetDatabaseService(generalApplicationData, CONNECTION_NAME));
@@ -74,7 +74,7 @@ internal interface IDatabaseSchemaItem
         }
         else if (optionName.StartsWith("RECREATE_ALL_TABLES", StringComparison.Ordinal))
         {
-            HashSet<string> words = null;
+            HashSet<string>? words = null;
             try
             {
                 if (SqlCodeEditorHelpers.LastFocusedEditor is not null && SqlCodeEditorHelpers.LastFocusedEditor.Text.StartsWith("RECREATE_HACK", StringComparison.Ordinal))

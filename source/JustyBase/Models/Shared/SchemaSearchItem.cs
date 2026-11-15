@@ -5,13 +5,13 @@ public record class SchemaSearchItem
     public required string Type { get; init; }
     public required string Name { get; init; }
     public required string Db { get; init; }
-    public string Desc { get; init; }
-    public string Schema { get; init; }
-    public string Owner { get; init; }
+    public string Desc { get; init; } = string.Empty;
+    public string Schema { get; init; } = string.Empty;
+    public string Owner { get; init; } = string.Empty;
     public DateTime? CreationDateTime { get; init; }
-    public string MoreInfo { get; init; }
-    public string ParentType { get; init; }
-    public string ParentName { get; init; }
+    public string MoreInfo { get; init; } = string.Empty;
+    public string ParentType { get; init; } = string.Empty;
+    public string ParentName { get; init; } = string.Empty;
     public bool FilterNotOk { get; set; }
 
     /// <summary>Best matching definition line when source search is active.</summary>

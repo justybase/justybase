@@ -55,7 +55,7 @@ public static class ResultGridColumnFactory
 
         col.SortMemberPath = fieldsPath;
         col.ColumnKey = $"col{index}";
-        var valueAccessor = new DataGridColumnValueAccessor<TableRow, object>(row => row == null || index < 0 || index >= row.Fields.Length ? null : row.Fields[index]);
+        var valueAccessor = new DataGridColumnValueAccessor<TableRow, object?>(row => row == null || index < 0 || index >= row.Fields.Length ? null : row.Fields[index]);
         DataGridColumnFilter.SetValueAccessor(col, valueAccessor);
         col.ShowFilterButton = true;
         col.FilterFlyout = new CascadingDistinctValueFilterFlyout

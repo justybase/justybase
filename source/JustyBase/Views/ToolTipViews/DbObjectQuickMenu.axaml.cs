@@ -10,6 +10,9 @@ public partial class DbObjectQuickMenu : UserControl
     }
     public void ClickHandler(object sender, RoutedEventArgs args)
     {
-        (this.DataContext as DbObjectQuickMenuViewModel)?.CloseAction();
+        if (this.DataContext is DbObjectQuickMenuViewModel menu)
+        {
+            menu.CloseAction?.Invoke();
+        }
     }
 }

@@ -51,7 +51,7 @@ Packages: 112. Licenses are taken from each package's nuspec metadata.
 | [Dock.Settings](https://www.nuget.org/packages/Dock.Settings/12.1.5) | 12.1.5 | MIT | https://github.com/wieslawsoltes/Dock |
 | [DuckDB.NET.Bindings.Full](https://www.nuget.org/packages/DuckDB.NET.Bindings.Full/1.5.6.1) | 1.5.6.1 | MIT | https://github.com/Giorgi/DuckDB.NET |
 | [DuckDB.NET.Data.Full](https://www.nuget.org/packages/DuckDB.NET.Data.Full/1.5.6.1) | 1.5.6.1 | MIT | https://github.com/Giorgi/DuckDB.NET |
-| [GitHub.Copilot.SDK](https://www.nuget.org/packages/GitHub.Copilot.SDK/1.0.31) | 1.0.31 | MIT | https://github.com/github/copilot-sdk |
+| [GitHub.Copilot.SDK](https://www.nuget.org/packages/GitHub.Copilot.SDK/1.0.34) | 1.0.34 | MIT | https://github.com/github/copilot-sdk |
 | [Google.Protobuf](https://www.nuget.org/packages/Google.Protobuf/3.35.0) | 3.35.0 | BSD-3-Clause | https://github.com/protocolbuffers/protobuf |
 | [HarfBuzzSharp](https://www.nuget.org/packages/HarfBuzzSharp/8.3.1.3) | 8.3.1.3 | MIT | https://go.microsoft.com/fwlink/?linkid=868515 |
 | [HarfBuzzSharp.NativeAssets.Linux](https://www.nuget.org/packages/HarfBuzzSharp.NativeAssets.Linux/8.3.1.3) | 8.3.1.3 | MIT | https://go.microsoft.com/fwlink/?linkid=868515 |
@@ -61,7 +61,7 @@ Packages: 112. Licenses are taken from each package's nuspec metadata.
 | [K4os.Compression.LZ4](https://www.nuget.org/packages/K4os.Compression.LZ4/1.3.8) | 1.3.8 | https://github.com/MiloszKrajewski/K4os.Compression.LZ4/blob/master/LICENSE?raw=true | https://github.com/MiloszKrajewski/K4os.Compression.LZ4 |
 | [K4os.Compression.LZ4.Streams](https://www.nuget.org/packages/K4os.Compression.LZ4.Streams/1.3.8) | 1.3.8 | https://github.com/MiloszKrajewski/K4os.Compression.LZ4/blob/master/LICENSE?raw=true | https://github.com/MiloszKrajewski/K4os.Compression.LZ4 |
 | [K4os.Hash.xxHash](https://www.nuget.org/packages/K4os.Hash.xxHash/1.0.8) | 1.0.8 | https://raw.githubusercontent.com/MiloszKrajewski/K4os.Hash.xxHash/master/LICENSE | https://github.com/MiloszKrajewski/K4os.Hash.xxHash |
-| [LiveMarkdown.Avalonia](https://www.nuget.org/packages/LiveMarkdown.Avalonia/2.6.1) | 2.6.1 | Apache-2.0 | https://github.com/DearVa/LiveMarkdown.Avalonia |
+| [LiveMarkdown.Avalonia](https://www.nuget.org/packages/LiveMarkdown.Avalonia/2.7.0) | 2.7.0 | Apache-2.0 | https://github.com/DearVa/LiveMarkdown.Avalonia |
 | [Markdig](https://www.nuget.org/packages/Markdig/1.1.2) | 1.1.2 | BSD-2-Clause | https://xoofx.github.io/markdig |
 | [MicroCom.Runtime](https://www.nuget.org/packages/MicroCom.Runtime/0.11.6) | 0.11.6 | MIT | https://github.com/kekekeks/MicroCom |
 | [Microsoft.Data.Sqlite](https://www.nuget.org/packages/Microsoft.Data.Sqlite/11.0.0) | 11.0.0 | MIT | https://docs.microsoft.com/dotnet/standard/data/sqlite/ |

@@ -86,7 +86,7 @@ public class SqlVariableProcessor : ISqlVariableProcessor
                 DataContext = parametrViewModel
             };
             
-            await paramWindow.ShowDialog(_avaloniaSpecificHelpers.GetMainWindow());
+            await paramWindow.ShowDialogOrShow(_avaloniaSpecificHelpers.GetMainWindow());
             
             if (parametrViewModel.IsCancel)
             {
@@ -108,7 +108,7 @@ public class SqlVariableProcessor : ISqlVariableProcessor
     {
         string variableValue = m.Groups["sessionValue"].Value;
         string val = ReplaceSessionVariables(variableValue);
-        object val2 = val;
+        object? val2 = val;
 
         cancellationToken.ThrowIfCancellationRequested();
         if (!val.StartsWith("SQL_", StringComparison.OrdinalIgnoreCase))

@@ -1,4 +1,4 @@
-﻿namespace JustyBase.Models.Tools;
+namespace JustyBase.Models.Tools;
 
 public sealed class TableRowStats
 {
@@ -37,7 +37,7 @@ public sealed class TableRowStats
                         maxOfColumn = declimalVal;
                     }
                 }
-                strings.Add(val.ToString());
+                strings.Add(val.ToString() ?? string.Empty);
             }
         }
         NotNullCnt = notNullCnt;
@@ -60,7 +60,7 @@ public sealed class TableRowStats
             MaxOfColumn = maxOfColumn;
         }
     }
-    public static IEnumerable<object> CurrentColumnCells(IEnumerable<TableRow> rows, int columnIndex)
+    public static IEnumerable<object?> CurrentColumnCells(IEnumerable<TableRow> rows, int columnIndex)
     {
         foreach (TableRow tableRow in rows)
         {

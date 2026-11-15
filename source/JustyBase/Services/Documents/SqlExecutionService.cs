@@ -201,7 +201,9 @@ public class SqlExecutionService : ISqlExecutionService
 
                 con.Close();
                 selectedConnectionName = connectionToSwitch;
-                actualDatabaseService = await Task.Run(() => _databaseServiceResolver.GetDatabaseService(_generalApplicationData, selectedConnectionName, delayCache: true));
+                IDatabaseService switchedService = await Task.Run(() => _databaseServiceResolver.GetDatabaseService(_generalApplicationData, selectedConnectionName, delayCache: true))
+                    ?? throw new InvalidOperationException($"Connection '{selectedConnectionName}' is not configured.");
+                actualDatabaseService = switchedService;
                 con = bridge.GetConToGo(localDoPooling, keepConnectionOpenLocal, actualDatabaseService);
                 if (con.State != ConnectionState.Open)
                 {
@@ -523,7 +525,8 @@ public class SqlExecutionService : ISqlExecutionService
                 }
 
                 if (actualDatabaseService.DatabaseType == DatabaseTypeEnum.NetezzaSQL
-                && con is not null && exx1.Message.StartsWith("A timeout has occured. If you were establishing a connection", StringComparison.Ordinal))
+                && exx1.Message is not null
+                && exx1.Message.StartsWith("A timeout has occured. If you were establishing a connection", StringComparison.Ordinal))
                 {
                     _messageForUserTools.ShowSimpleMessageBoxInstance("Due to NPS driver limitation connection have to be reopened", "Error");
                     con.Close();

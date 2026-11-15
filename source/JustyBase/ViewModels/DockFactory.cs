@@ -50,8 +50,29 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
                 return _mainDocumentDockTmp;
             }
 
+            if (_rootDock is null)
+            {
+                return null;
+            }
+
             _mainDocumentDockTmp = FindDockable(_rootDock, a => a is DocumentDock) as IDocumentDock;
             return _mainDocumentDockTmp;
+        }
+    }
+
+    /// <summary>Throws when a document operation runs before the layout exists.</summary>
+    private IDocumentDock RequiredMainDocumentDock => MainDocumentDock
+        ?? throw new InvalidOperationException("The dock layout has not been created yet.");
+
+    private IDock RequiredRootDock => _rootDock
+        ?? throw new InvalidOperationException("The dock layout has not been created yet.");
+
+    private IList<IDockable> MainVisibleDockables
+    {
+        get
+        {
+            IList<IDockable>? visible = RequiredMainDocumentDock.VisibleDockables;
+            return visible ?? throw new InvalidOperationException("The document dock has no dockable list.");
         }
     }
 
@@ -107,11 +128,11 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
     {
         try
         {
-            var addNewOldTool = this.FindDockable(_rootDock, x => x.Id == "newConnectionTab");
+            var addNewOldTool = this.FindDockable(RequiredRootDock, x => x.Id == "newConnectionTab");
             if (addNewOldTool is not null)
             {
                 addNewOldTool.CanClose = true;
-                (addNewOldTool.Owner as ToolDock)?.VisibleDockables.Remove(addNewOldTool);
+                (addNewOldTool.Owner as ToolDock)?.VisibleDockables?.Remove(addNewOldTool);
             }
         }
         catch (Exception ex)
@@ -120,8 +141,9 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         }
     }
 
-    private SqlResultsFastViewModel _sqlResultsFastViewModel;
-    public SqlResultsFastViewModel SqlResultsFastViewModel => _sqlResultsFastViewModel;
+    private SqlResultsFastViewModel? _sqlResultsFastViewModel;
+    public SqlResultsFastViewModel SqlResultsFastViewModel => _sqlResultsFastViewModel
+        ?? throw new InvalidOperationException("Results storage is not initialized yet.");
 
     public IRootDock CreateFreshLayout()
     {
@@ -130,7 +152,11 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         {
             if (offlineTabData.HotDocumentViewModel is not null)
             {
-                var doc = offlineTabData.HotDocumentViewModelAsT<SqlDocumentViewModel>();
+                if (offlineTabData.HotDocumentViewModelAsT<SqlDocumentViewModel>() is not { } doc)
+                {
+                    continue;
+                }
+
                 doc.SelectedConnectionIndex = offlineTabData.ConnectionIndex;
                 documentsList.Add(doc);
                 ActiveSqlDocumentViewModel = doc;
@@ -246,13 +272,13 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
 #if AI
         if (toolId == "AiChat")
         {
-            return FindDockable(_rootDock, x => x.Id == "AiChat") is not null
+            return FindDockable(RequiredRootDock, x => x.Id == "AiChat") is not null
                 && _rootDock?.ActiveDockable is MainViewModel { ActiveDockable: ProportionalDock layoutDock }
                 && layoutDock.VisibleDockables?.Any(DockSidePanelService.IsAiChatDock) == true;
         }
 #endif
 
-        return FindDockable(_rootDock, x => x.Id == toolId) is not null;
+        return FindDockable(RequiredRootDock, x => x.Id == toolId) is not null;
     }
 
     public void ToggleToolPanel(string toolId)
@@ -310,7 +336,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         }
 #endif
 
-        var tool = FindDockable(_rootDock, x => x.Id == toolId);
+        var tool = FindDockable(RequiredRootDock, x => x.Id == toolId);
         if (tool is null)
         {
             return;
@@ -338,7 +364,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         }
 #endif
 
-        var tool = FindDockable(_rootDock, x => x.Id == toolId);
+        var tool = FindDockable(RequiredRootDock, x => x.Id == toolId);
         if (tool?.Owner is not IDock owner || owner.VisibleDockables is null)
         {
             return;
@@ -363,7 +389,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
             return;
         }
 
-        var aiChat = FindDockable(_rootDock, x => x.Id == "AiChat");
+        var aiChat = FindDockable(RequiredRootDock, x => x.Id == "AiChat");
         if (aiChat?.Owner is IDock owner)
         {
             _hiddenToolPanels["AiChat"] = new HiddenToolPanel(aiChat, owner, 0);
@@ -385,7 +411,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
     private sealed record HiddenToolPanel(IDockable Tool, IDock Owner, int Index);
     public override void InitLayout(IDockable layout)
     {
-        ContextLocator = new Dictionary<string, Func<object>>
+        ContextLocator = new Dictionary<string, Func<object?>>
         {
             ["DbSchema"] = () => new object(),
             ["Variables"] = () => new object(),
@@ -408,7 +434,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
             ["Documents"] = () => MainDocumentDock,
         };
 
-        HostWindowLocator = new Dictionary<string, Func<IHostWindow>>
+        HostWindowLocator = new Dictionary<string, Func<IHostWindow?>>
         {
             [nameof(IDockWindow)] = () => new HostWindow()
         };
@@ -416,14 +442,14 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         base.InitLayout(layout);
         if (_generalApplicationData.TryGetDocumentById(_generalApplicationData.SelectedTabIdFromStart, out var savedTabData) && savedTabData.HotDocumentViewModel is IDockable dockable)
         {
-            MainDocumentDock.ActiveDockable = dockable;
+            RequiredMainDocumentDock.ActiveDockable = dockable;
         }
 
     }
 
     public void ClosePrevResults(string id)
     {
-        _sqlResultsFastViewModel.ClearFromDocument(id, false);
+        SqlResultsFastViewModel.ClearFromDocument(id, false);
     }
 
     public void AddNewResult((IDatabaseService? dbService, DbDataReader? rdr, string errorMessage) res, string id, int queryNum, ref int abortUbound, string? sql, DbCommand? command, string? title)
@@ -443,7 +469,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
             sql,
             command,
             title,
-            _sqlResultsFastViewModel,
+            SqlResultsFastViewModel,
             IsActiveDockable(document));
     }
 
@@ -492,7 +518,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
     public List<SqlResultsViewModel> GetDocumentResults(SqlDocumentViewModel viewModel)
     {
         List<SqlResultsViewModel> results = [];
-        var collection = _sqlResultsFastViewModel.GetDocumentResults(viewModel);
+        var collection = SqlResultsFastViewModel.GetDocumentResults(viewModel);
         foreach (var result in collection)
         {
             results.Add(result);
@@ -504,12 +530,18 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
     {
         if (string.IsNullOrWhiteSpace(selectedTabId))
         {
-            selectedTabId = MainDocumentDock.ActiveDockable?.Id;
+            selectedTabId = MainDocumentDock?.ActiveDockable?.Id;
         }
 
-        if (string.IsNullOrWhiteSpace(selectedTabId) && MainDocumentDock.VisibleDockables is not null)
+        IList<IDockable>? visibleDockables = MainDocumentDock?.VisibleDockables;
+        if (visibleDockables is null)
         {
-            selectedTabId = MainDocumentDock.VisibleDockables
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectedTabId))
+        {
+            selectedTabId = visibleDockables
                 .Select(d => d.Id)
                 .FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
         }
@@ -520,35 +552,35 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
             new DockSessionSaveRequest(
                 SelectedTabId: selectedTabId,
                 OfflineDocumentContainer: offlineDocumentContainer,
-                VisibleDockables: MainDocumentDock.VisibleDockables,
+                VisibleDockables: visibleDockables,
                 SaveEncodedText: content => _encryptionHelper.SaveTextFileEncoded(IGeneralApplicationData.StartupPath, content)));
     }
 
     public void MakeAllResultsHidden()
     {
-        _sqlResultsFastViewModel.HideAllResult();
+        SqlResultsFastViewModel.HideAllResult();
     }
 
     public T? GetViewModelOfType<T>() where T : class, IDockable
     {
-        return _dockDocumentActivationService.GetDocumentOfType<T>(MainDocumentDock.VisibleDockables);
+        return _dockDocumentActivationService.GetDocumentOfType<T>(MainVisibleDockables);
     }
 
     public void AddHistoryDocument()
     {
         HistoryViewModel historyViewModel = _dockDocumentActivationService.EnsureDocument(
-            MainDocumentDock.VisibleDockables,
+            MainVisibleDockables,
             _viewModelFactory.CreateHistoryViewModel,
             recreateExisting: true);
-        MainDocumentDock.ActiveDockable = historyViewModel;
+        RequiredMainDocumentDock.ActiveDockable = historyViewModel;
     }
 
     public void AddSettingsDocument()
     {
         SettingsViewModel settingsViewModel = _dockDocumentActivationService.EnsureDocument(
-            MainDocumentDock.VisibleDockables,
+            MainVisibleDockables,
             _viewModelFactory.CreateSettingsViewModel);
-        MainDocumentDock.ActiveDockable = settingsViewModel;
+        RequiredMainDocumentDock.ActiveDockable = settingsViewModel;
     }
     public void AddImportDocument()
         => OpenImportDocument();
@@ -563,7 +595,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
 
         _hiddenToolPanels.Remove("AiChat");
 
-        var aiChat = FindDockable(_rootDock, x => x.Id == "AiChat") as AiChatViewModel;
+        var aiChat = FindDockable(RequiredRootDock, x => x.Id == "AiChat") as AiChatViewModel;
         if (aiChat is null || !IsAiChatOnRightEdge(aiChat))
         {
             aiChat = EnsureAiChatDockedOnRight(aiChat);
@@ -654,9 +686,9 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
     public void OpenImportDocument(string? connectionName = null, string? database = null, string? schema = null, string? table = null)
     {
         ImportViewModel importViewModel = _dockDocumentActivationService.EnsureDocument(
-            MainDocumentDock.VisibleDockables,
+            MainVisibleDockables,
             _viewModelFactory.CreateImportViewModel);
-        MainDocumentDock.ActiveDockable = importViewModel;
+        RequiredMainDocumentDock.ActiveDockable = importViewModel;
 
         if (!string.IsNullOrWhiteSpace(connectionName)
             || !string.IsNullOrWhiteSpace(database)
@@ -693,9 +725,9 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
     private async Task RunQuickImportAsync(string sourcePath, string? connectionName, string? database)
     {
         ImportViewModel importViewModel = _dockDocumentActivationService.EnsureDocument(
-            MainDocumentDock.VisibleDockables,
+            MainVisibleDockables,
             _viewModelFactory.CreateImportViewModel);
-        MainDocumentDock.ActiveDockable = importViewModel;
+        RequiredMainDocumentDock.ActiveDockable = importViewModel;
         await importViewModel.StartQuickImportAsync(sourcePath, connectionName, database);
     }
 
@@ -707,17 +739,17 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
     private async Task RunPastedTextImportAsync(string text, string? connectionName, string? database)
     {
         ImportViewModel importViewModel = _dockDocumentActivationService.EnsureDocument(
-            MainDocumentDock.VisibleDockables,
+            MainVisibleDockables,
             _viewModelFactory.CreateImportViewModel);
-        MainDocumentDock.ActiveDockable = importViewModel;
+        RequiredMainDocumentDock.ActiveDockable = importViewModel;
         await importViewModel.OpenPastedTextAsync(text, connectionName, database);
     }
     public void AddEtlDocument()
     {
         EtlViewModel etlViewModel = _dockDocumentActivationService.EnsureDocument(
-            MainDocumentDock.VisibleDockables,
+            MainVisibleDockables,
             _viewModelFactory.CreateEtlViewModel);
-        MainDocumentDock.ActiveDockable = etlViewModel;
+        RequiredMainDocumentDock.ActiveDockable = etlViewModel;
     }
 
     public void ShowGitDiff(string title, string oldText, string newText)
@@ -725,10 +757,10 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         void Apply()
         {
             GitDiffDocumentViewModel diffVm = _dockDocumentActivationService.EnsureDocument(
-                MainDocumentDock.VisibleDockables,
+                MainVisibleDockables,
                 _viewModelFactory.CreateGitDiffDocumentViewModel);
             diffVm.SetContents(title, oldText, newText);
-            MainDocumentDock.ActiveDockable = diffVm;
+            RequiredMainDocumentDock.ActiveDockable = diffVm;
         }
 
         if (Dispatcher.UIThread.CheckAccess())
@@ -780,10 +812,10 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
         }
 
         // Place new tabs directly after the tab that triggered open (active document).
-        int insertIndex = MainDocumentDock.VisibleDockables.Count;
-        if (MainDocumentDock.ActiveDockable is not null)
+        int insertIndex = MainVisibleDockables.Count;
+        if (RequiredMainDocumentDock.ActiveDockable is not null)
         {
-            int activeIndex = MainDocumentDock.VisibleDockables.IndexOf(MainDocumentDock.ActiveDockable);
+            int activeIndex = MainVisibleDockables.IndexOf(RequiredMainDocumentDock.ActiveDockable);
             if (activeIndex >= 0)
             {
                 insertIndex = activeIndex + 1;
@@ -792,7 +824,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
 
         SqlDocumentViewModel? openedDocument = _dockFileOpenService.PrepareDocuments(
             files,
-            MainDocumentDock.VisibleDockables,
+            MainVisibleDockables,
             out IReadOnlyList<SqlDocumentViewModel> documentsToDock);
 
         // InsertDockable runs InitDockable (sets Owner/Factory). Without that, SetActiveDockable is a no-op.
@@ -853,7 +885,7 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
             return;
         }
 
-        MainDocumentDock.ActiveDockable = document;
+        RequiredMainDocumentDock.ActiveDockable = document;
         SetActiveDockable(document);
         SetFocusedDockable(MainDocumentDock, document);
         ActiveSqlDocumentViewModel = document;
@@ -873,28 +905,30 @@ public sealed class DockFactory(IGeneralApplicationData generalApplicationData, 
 
     public SqlDocumentViewModel AddNewDocument(string? initText = null, bool txtPreview = false, string? forcedTitle = null)
     {
-        string title = forcedTitle ?? "Document" + (MainDocumentDock.VisibleDockables.Count + 1);
+        string title = forcedTitle ?? "Document" + (MainVisibleDockables.Count + 1);
         SqlDocumentViewModel newDockable = _dockSqlDocumentFactory.CreateDocument(
             title,
             initText,
             txtPreview,
             fontSize: _generalApplicationData.Config.DefaultFontSizeForDocuments);
-        MainDocumentDock.VisibleDockables.Add(newDockable);
-        MainDocumentDock.ActiveDockable = newDockable;
+        MainVisibleDockables.Add(newDockable);
+        RequiredMainDocumentDock.ActiveDockable = newDockable;
         ActiveSqlDocumentViewModel = newDockable;
         return newDockable;
     }
 
     public void NextActiveDocument(object data)
     {
-        int cnt = MainDocumentDock.VisibleDockables.Count;
-        int activeIndex = MainDocumentDock.VisibleDockables.IndexOf(MainDocumentDock.ActiveDockable);
+        IList<IDockable> visible = MainVisibleDockables;
+        int cnt = visible.Count;
+        IDockable? activeDockable = RequiredMainDocumentDock.ActiveDockable;
+        int activeIndex = activeDockable is null ? -1 : visible.IndexOf(activeDockable);
         int sign = 1;
         if (data.ToString() == "-")
         {
             sign = -1;
         }
 
-        MainDocumentDock.ActiveDockable = MainDocumentDock.VisibleDockables[(cnt + activeIndex + sign) % cnt];
+        RequiredMainDocumentDock.ActiveDockable = visible[(cnt + activeIndex + sign) % cnt];
     }
 }

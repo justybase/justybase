@@ -113,6 +113,6 @@ public partial class DocumentBaseVM : Document, IDeferredContentPresentation
         }
 
         _skipCloseQuestion = true;
-        Factory.CloseDockable(this);
+        Factory?.CloseDockable(this);
     }
 }

@@ -56,7 +56,7 @@ public sealed partial class ImportViewModel
             && ReferenceEquals(importFile, _currentImportFromExcelFile)
             && string.Equals(SelectedTab?.TabName, sheetName, StringComparison.Ordinal);
 
-    partial void OnSelectedTabChanged(TabItem value)
+    partial void OnSelectedTabChanged(TabItem? value)
     {
         // A different source sheet means a different column set — the existing-table
         // compatibility report no longer applies.
@@ -393,9 +393,10 @@ public sealed partial class ImportViewModel
 
         ClearTypeSelection();
         ExcelTabsNames.Clear();
-        for (int i = 0; i < curentImportFromFile.SheetNamesToImport.Count; i++)
+        var sheetsToImport = curentImportFromFile.SheetNamesToImport ?? [];
+        for (int i = 0; i < sheetsToImport.Count; i++)
         {
-            string item = curentImportFromFile.SheetNamesToImport[i];
+            string item = sheetsToImport[i];
             ExcelTabsNames.Add(new TabItem() { TabName = item, TabOk = (i == 0), TabOkChanged = OnTabOkChanged });
         }
         SelectedTab = ExcelTabsNames.Count > 0 ? ExcelTabsNames[0] : null;
@@ -412,7 +413,7 @@ public sealed partial class ImportViewModel
 
         if (!item.TabOk && ReferenceEquals(item, SelectedTab))
         {
-            SelectedTab = ExcelTabsNames.FirstOrDefault(t => t.TabOk);
+            SelectedTab = ExcelTabsNames.FirstOrDefault(t => t.TabOk) ?? (ExcelTabsNames.Count > 0 ? ExcelTabsNames[0] : null);
             return;
         }
 
@@ -1071,7 +1072,7 @@ public sealed partial class ImportViewModel
             }
 
             ApplySelectedSheetsToImport(curentImportFromFile);
-            if (curentImportFromFile.SheetNamesToImport.Count == 0)
+            if (curentImportFromFile.SheetNamesToImport is not { Count: > 0 })
             {
                 ValidationSummary = "Select at least one sheet to import.";
                 ValidationErrorCount = 1;
@@ -1136,9 +1137,10 @@ public sealed partial class ImportViewModel
             }
 
             IDatabaseService service = await Task.Run(() =>
-                _databaseServiceResolver.GetDatabaseService(_generalApplicationData, SelectedConnectionTyped.Name));
+                _databaseServiceResolver.GetDatabaseService(_generalApplicationData, SelectedConnectionTyped.Name))
+                ?? throw new InvalidOperationException($"Connection '{SelectedConnectionTyped.Name}' is not configured.");
 
-            string tableNameMask = SelectedTableText?.Trim();
+            string? tableNameMask = SelectedTableText?.Trim();
             if (!string.IsNullOrEmpty(tableNameMask))
             {
                 if ((tableNameMask.StartsWith("\"") && tableNameMask.EndsWith("\""))
@@ -1154,7 +1156,7 @@ public sealed partial class ImportViewModel
                 }
             }
 
-            List<string> sheets = curentImportFromFile.SheetNamesToImport.ToList();
+            List<string> sheets = curentImportFromFile.SheetNamesToImport?.ToList() ?? [];
             var usingOptions = BuildUsingOptions();
             ImportUsingOptionsContext.Current = usingOptions;
             ImportTargetContext.TargetColumnNames = DestinationMode == ImportDestinationMode.Existing
@@ -1162,7 +1164,7 @@ public sealed partial class ImportViewModel
                 : null;
 
             // For Netezza the import helper builds the fully-qualified name itself.
-            string schemaForImport = service.DatabaseType == DatabaseTypeEnum.NetezzaSQL ? null : SelectedSchema;
+            string? schemaForImport = service.DatabaseType == DatabaseTypeEnum.NetezzaSQL ? null : SelectedSchema;
 
             ResetProgress();
             AddProgressLine($"Import started: {sheets.Count:N0} sheet(s) -> {SelectedDatabase}.{SelectedSchema}.{tableNameMask}");
@@ -1175,11 +1177,11 @@ public sealed partial class ImportViewModel
                 StartEnabled = false;
                 if (option == "Fast")
                 {
-                    await curentImportFromFile.ImportFromFileAllSteps(service.DatabaseType, service, schemaForImport, tableNameMask);
+                    await curentImportFromFile.ImportFromFileAllSteps(service.DatabaseType, service, schemaForImport, tableNameMask ?? string.Empty);
                 }
                 else if (option == "WithSteps")
                 {
-                    var importTaskWithSteps = curentImportFromFile.ImportFromFileStepByStep(service.DatabaseType, service, schemaForImport, tableNameMask);
+                    var importTaskWithSteps = curentImportFromFile.ImportFromFileStepByStep(service.DatabaseType, service, schemaForImport ?? string.Empty, tableNameMask ?? string.Empty);
                     await foreach (var item in importTaskWithSteps)
                     {
                         ContinueEnabled = true;
@@ -1193,7 +1195,10 @@ public sealed partial class ImportViewModel
                         {
                             await Task.Delay(50);
                         }
-                        await func?.Invoke();
+                        if (func is not null)
+                        {
+                            await func.Invoke();
+                        }
                         SelIndexOpt = 0;
                     }
                 }
@@ -1220,7 +1225,7 @@ public sealed partial class ImportViewModel
                 var resultHeaders = SelectedTab is not null
                     ? curentImportFromFile.GetTypeChooser(SelectedTab.TabName)?.NormalizedColumnHeaderNames
                     : null;
-                SetCompleted(tableNameMask, resultHeaders);
+                SetCompleted(tableNameMask ?? string.Empty, resultHeaders);
                 AddProgressLine($"FINISHED ** {tableNameMask} **");
                 ActiveDocumentManager.InsertTextToActiveDocument($"SELECT * FROM {tableNameMask};\n", true);
             }

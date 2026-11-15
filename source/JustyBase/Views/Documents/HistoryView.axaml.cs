@@ -56,7 +56,10 @@ public partial class HistoryView : UserControl
                     }
                 }
             }
-            await (ViewModel?.Clipboard)?.SetTextAsync(sb.ToString());
+            if (ViewModel?.Clipboard is { } clipboard)
+            {
+                await clipboard.SetTextAsync(sb.ToString());
+            }
             e.Handled = true;
         }
     }

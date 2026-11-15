@@ -9,6 +9,7 @@ using JustyBase.PluginDatabaseBase;
 using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.Services;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 
 namespace JustyBase;
@@ -53,6 +54,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
     /// corrupt file is preserved, so a later <see cref="SaveCredentials"/> cannot
     /// silently destroy user data.
     /// </summary>
+    [MemberNotNull(nameof(_loginTmp))]
     private void GenerateLoginDicLocked()
     {
         var result = new Dictionary<string, LoginDataModel>(StringComparer.OrdinalIgnoreCase);
@@ -240,10 +242,10 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
     }
 
     public AppOptions Config { get; set; }
-    public string SelectedTabIdFromStart { get; set; }
+    public string SelectedTabIdFromStart { get; set; } = string.Empty;
 
     private Dictionary<string, string>? _fastReplace;
-    public Dictionary<string, string> FastReplaceDictionary => _fastReplace ??= Config.AllSnippets.Where(x => x.Value.snippetType == SnippetModel.FAST_STRING).Select(x => new KeyValuePair<string, string>(x.Key, x.Value.Text)).ToDictionary();
+    public Dictionary<string, string> FastReplaceDictionary => _fastReplace ??= Config.AllSnippets.Where(x => x.Value.snippetType == SnippetModel.FAST_STRING).Select(x => new KeyValuePair<string, string>(x.Key, x.Value.Text ?? string.Empty)).ToDictionary();
 
     private List<string>? _typoList;
     public List<string> TypoPatternList => _typoList ??= Config.AllSnippets.Where(x => x.Value.snippetType == SnippetModel.TYPO_STRING).Select(x => x.Key).ToList();
@@ -265,12 +267,16 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         _fastReplace = null;
     }
 
-    public string? GetCurrentCopyVersion()
+    public string GetCurrentCopyVersion()
     {
         //Assembly assembly = Assembly.GetExecutingAssembly();
         //return FileVersionInfo.GetVersionInfo(assembly.Location).ProductVersion;
-        var filename = Environment.ProcessPath;
-        return FileVersionInfo.GetVersionInfo(filename).ProductVersion;
+        if (Environment.ProcessPath is not string filename)
+        {
+            return string.Empty;
+        }
+
+        return FileVersionInfo.GetVersionInfo(filename).ProductVersion ?? string.Empty;
     }
 
     /// <summary>
@@ -341,7 +347,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
                 // The source-generated deserializer drops unknown legacy keys, so the raw text is
                 // captured first and LegacyConfigMigration maps EmbeddedFim*/ollama/lmstudio values.
                 var rawConfig = _encryptionHelper.GetEncodedContentOfTextFile(IGeneralApplicationData.ConfigEvoFile);
-                Config = JsonSerializer.Deserialize(rawConfig, context.AppOptions);
+                Config = JsonSerializer.Deserialize(rawConfig, context.AppOptions) ?? new AppOptions();
                 if (Config is not null)
                 {
                     LegacyConfigMigration.Migrate(Config, rawConfig);
@@ -361,7 +367,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
             try
             {
                 OfflineDocumentContainer offlineDocumentContainer = JsonSerializer.Deserialize(_encryptionHelper.GetEncodedContentOfTextFile(IGeneralApplicationData.StartupPath), MyJsonContextOfflineDocumentContainer.Default.OfflineDocumentContainer) ?? new OfflineDocumentContainer();
-                SelectedTabIdFromStart = offlineDocumentContainer.SelectedTabId;
+                SelectedTabIdFromStart = offlineDocumentContainer.SelectedTabId ?? string.Empty;
                 _dictionaryOfDocuments = offlineDocumentContainer.SqlOfflineDocumentDictionary;
             }
             catch (Exception ex)
@@ -409,7 +415,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
 #endif
     }
 
-    public string AddNewDocument(string title, string initText = null)
+    public string AddNewDocument(string title, string? initText = null)
     {
         string id = IGeneralApplicationData.NewDocumentId;
         _dictionaryOfDocuments[id] = new OfflineTabData()
@@ -425,7 +431,7 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
     {
         foreach (var (_, val) in _dictionaryOfDocuments)
         {
-            if (val.HotDocumentViewModel.FilePath == path)
+            if (val.HotDocumentViewModel?.FilePath == path)
             {
                 openedVm = val.HotDocumentViewModel;
                 return true;
@@ -524,14 +530,14 @@ public sealed partial class GeneralApplicationData : IGeneralApplicationData
         }
     }
 
-    public bool TryGetDocumentById(string id, out OfflineTabData? savedTabData)
+    public bool TryGetDocumentById(string? id, out OfflineTabData savedTabData)
     {
         if (id is null)
         {
-            savedTabData = null;
+            savedTabData = null!;
             return false;
         }
-        return _dictionaryOfDocuments.TryGetValue(id, out savedTabData);
+        return _dictionaryOfDocuments.TryGetValue(id, out savedTabData!);
     }
 
     public int GetDocumentIndexById(string id)

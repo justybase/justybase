@@ -303,7 +303,7 @@ public abstract partial class DatabaseService
         return null;
     }
 
-    public bool IsItemSourceContains(TypeInDatabaseEnum typeInDatabase, string database, string schema, string itemNameOrSignature, int procedureId, StringComparison comp, string searchWord, Regex rx)
+    public bool IsItemSourceContains(TypeInDatabaseEnum typeInDatabase, string database, string schema, string itemNameOrSignature, int procedureId, StringComparison comp, string searchWord, Regex? rx)
     {
         string? res = GetItemSource(typeInDatabase, database, schema, itemNameOrSignature, procedureId);
         if (string.IsNullOrEmpty(res))

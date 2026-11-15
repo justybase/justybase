@@ -101,17 +101,17 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
         }
 
         columnAutoComplet.GotFocus += (_, _) => EnsureColumnAutocompleteDropDown();
-        columnAutoComplet.ItemFilter = new AutoCompleteFilterPredicate<object>((x, y) => FilterColumnAutocomplete(x, y));
+        columnAutoComplet.ItemFilter = new AutoCompleteFilterPredicate<object?>((search, item) => FilterColumnAutocomplete(search, item));
     }
 
-    private static bool FilterColumnAutocomplete(string typedValue, object item)
+    private static bool FilterColumnAutocomplete(string? typedValue, object? item)
     {
         if (string.IsNullOrWhiteSpace(typedValue))
         {
             return true;
         }
 
-        return item.ToString().Contains(typedValue.Trim(), StringComparison.OrdinalIgnoreCase);
+        return item?.ToString()?.Contains(typedValue.Trim(), StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private void EnsureColumnAutocompleteDropDown()
@@ -289,7 +289,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
 
         ShowFlyoutCommand = new RelayCommand<string>((x) =>
         {
-            if (_flyoutOnControls.TryGetValue(x, out var flyout))
+            if (x is not null && _flyoutOnControls.TryGetValue(x, out var flyout))
             {
                 ShowCopiedFlyout(flyout.Item1, flyout.Item2);
             }
@@ -380,10 +380,15 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
         }, DispatcherPriority.Background);
     }
 
-    private Dictionary<string, (Control, string)> _flyoutOnControls;
+    private Dictionary<string, (Control, string)> _flyoutOnControls = [];
 
-    private void DataGridDoubleClicked(object data, bool rawMode)
+    private void DataGridDoubleClicked(object? data, bool rawMode)
     {
+        if (data is null)
+        {
+            return;
+        }
+
         GridDoubleClickCommand?.Execute(new GridDoubleClickArg(data, rawMode));
     }
 
@@ -413,7 +418,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
     }
     private int _prevSelectedCount = -1;
 
-    private Flyout _copiedNoticeFlyout;
+    private Flyout? _copiedNoticeFlyout;
 
     private void ShowCopiedFlyout(Control host, string message = "Copied!", bool fail = false)
     {
@@ -431,8 +436,10 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
         }
         else
         {
-            var tb = _copiedNoticeFlyout.Content as TextBlock;
-            tb.Text = message;
+            if (_copiedNoticeFlyout.Content is TextBlock textBlock)
+            {
+                textBlock.Text = message;
+            }
         }
 
         if (fail)
@@ -611,7 +618,10 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
             string text = await vm.BuildAllRowsClipboardTextAsync(columnHeaders);
             if (!string.IsNullOrEmpty(text))
             {
-                await vm.Clipboard?.SetTextAsync(text);
+                if (vm.Clipboard is { } clipboard)
+                {
+                    await clipboard.SetTextAsync(text);
+                }
             }
         }
         catch
@@ -721,9 +731,13 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
         group.ItemCountFormat = ResultGridRowHeaderRules.GroupItemCountFormat;
     }
 
-    private void DataGrid_DoubleTapped(object sender, RoutedEventArgs e)
+    private void DataGrid_DoubleTapped(object? sender, RoutedEventArgs e)
     {
-        DataGrid dg = (sender as DataGrid);
+        if (sender is not DataGrid dg)
+        {
+            return;
+        }
+
         var sourceDataContext = (e.Source as Control)?.DataContext;
         bool headerClicked = e.Source is not Control control || control.DataContext is not TableRow;
 
@@ -804,7 +818,7 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
         if (ResultDataGrid is not null)
         {
             _selectedRowsBeforeBindingSuspension = ResultDataGrid.SelectedItems.Cast<object>().ToArray();
-            ResultDataGrid.ItemsSource = null;
+            ResultDataGrid.ItemsSource = null!; // clears the grid; the grid accepts null at runtime
         }
     }
 

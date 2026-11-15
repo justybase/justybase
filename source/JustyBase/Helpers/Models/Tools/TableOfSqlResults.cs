@@ -1,12 +1,12 @@
-﻿using System.Collections;
+using System.Collections;
 using System.ComponentModel;
 
 namespace JustyBase.Models;
 public sealed class TableOfSqlResults
 {
-    public List<string> Headers { get; set; }
-    public List<string> DataTypeNames { get; set; }
-    public List<TypeCode> TypeCodes { get; set; }
+    public List<string> Headers { get; set; } = [];
+    public List<string> DataTypeNames { get; set; } = [];
+    public List<TypeCode> TypeCodes { get; set; } = [];
 
     public byte[] NumericScales { get; set; } = Array.Empty<byte>();
 
@@ -19,8 +19,8 @@ public sealed class TableOfSqlResults
         return 6;
     }
 
-    public List<TableRow> Rows { get; set; }
-    public BulkObservableCollection<TableRow> FilteredRows { get; set; }
+    public List<TableRow> Rows { get; set; } = [];
+    public BulkObservableCollection<TableRow> FilteredRows { get; set; } = new();
     
     // Dictionary for fast row index lookup - O(1) instead of O(n)
     private Dictionary<TableRow, int> _rowIndexMap = new Dictionary<TableRow, int>();
@@ -29,7 +29,7 @@ public sealed class TableOfSqlResults
     {
         public int ColNumber { get; set; }
         public ListSortDirection SortDirection { get; set; }
-        public IComparer Comparer { get; set; }
+        public IComparer Comparer { get; set; } = System.Collections.Comparer.Default;
     }
     public List<SortInfo> ColumnsToSort { get; set; } = [];
     public void SortFilteredRows()
@@ -81,14 +81,14 @@ public sealed class TableOfSqlResults
 
     public const int FILTER_ITEMS_LIMIT = 20_000;
     public const string FIELDS_WORD = "Fields";
-    public object[] GetAcualPopularValues(int columnIndex)
+    public object?[] GetAcualPopularValues(int columnIndex)
     {
-        HashSet<object> values = [];
+        HashSet<object?> values = [];
         int cnt = FilteredRows.Count;
 
         for (int i = 0; i < cnt; i++)
         {
-            object colVal = FilteredRows[i].Fields[columnIndex];
+            object? colVal = FilteredRows[i].Fields[columnIndex];
             values.Add(colVal);
             if (i >= 20_000 && values.Count >= FILTER_ITEMS_LIMIT)
             {

@@ -1,4 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using JustyBase.Common.Contracts;
 using JustyBase.Common.Models;
@@ -66,7 +66,12 @@ public sealed partial class ImportViewModel : DocumentBaseVM
 
     private async Task<IReadOnlyList<IStorageFile>> ChoseFile()
     {
-        return await _avaloniaSpecificHelpers.GetStorageProvider().OpenFilePickerAsync(
+        if (_avaloniaSpecificHelpers.GetStorageProvider() is not { } storageProvider)
+        {
+            return [];
+        }
+
+        return await storageProvider.OpenFilePickerAsync(
             new FilePickerOpenOptions()
             {
                 AllowMultiple = false,
@@ -94,7 +99,7 @@ public sealed partial class ImportViewModel : DocumentBaseVM
     public ObservableCollection<TabItem> ExcelTabsNames { get; set; } = [];
 
     [ObservableProperty]
-    public partial TabItem SelectedTab { get; set; }
+    public partial TabItem? SelectedTab { get; set; }
 
     [ObservableProperty]
     public partial bool AllColumnsAsText { get; set; }
@@ -146,9 +151,9 @@ public sealed partial class ImportViewModel : DocumentBaseVM
 
     #region Destination
 
-    public ObservableCollection<string> DatabaseItems { get; set; }
+    public ObservableCollection<string> DatabaseItems { get; set; } = [];
 
-    public object SelectedConnection
+    public object? SelectedConnection
     {
         get;
         set
@@ -195,9 +200,9 @@ public sealed partial class ImportViewModel : DocumentBaseVM
             var database = SelectedDatabase;
             _ = LoadSchemasForSelectedDatabaseAsync(generation, connectionName, database);
         }
-    }
+    } = string.Empty;
 
-    public ObservableCollection<string> SchemaItems { get; set; }
+    public ObservableCollection<string> SchemaItems { get; set; } = [];
 
     public string SelectedSchema
     {
@@ -221,12 +226,12 @@ public sealed partial class ImportViewModel : DocumentBaseVM
             var schema = SelectedSchema;
             _ = LoadTablesForSelectedSchemaAsync(generation, connectionName, database, schema);
         }
-    }
+    } = string.Empty;
 
-    public ObservableCollection<string> TableItems { get; set; }
+    public ObservableCollection<string> TableItems { get; set; } = [];
 
     [ObservableProperty]
-    public partial string SelectedTableText { get; set; }
+    public partial string SelectedTableText { get; set; } = string.Empty;
 
     private readonly string _createNewTxt = "[CREATE NEW TABLE]";
 

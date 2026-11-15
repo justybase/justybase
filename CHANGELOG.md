@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-11-15
+
+### Changed
+
+- Nullable migration finished: `source/JustyBase` now compiles with full `Nullable=enable` (flow analysis), and every nullable warning was resolved with real null guards instead of suppressions. Shared dialog helpers (`ShowDialogOrShow`) keep modal behaviour when a main window exists and degrade to non-modal windows in designer/headless paths.
+- `IHotDocumentVm.FilePath`/`ResetFontStyle`, `TableRow.Fields` and `IDatabaseSchemaQueryService.IsItemSourceContains` now express their real nullability (`string?`/`object?[]`/`Regex?`).
+- Bumped `GitHub.Copilot.SDK` to 1.0.34, `LiveMarkdown.Avalonia` to 2.7.0 and `JustyBase.Db2.IBMCompat` to 0.1.0-alpha.5 (`THIRD_PARTY_NOTICES.md` regenerated).
+
+### Fixed
+
+- Comment lines / rename commands, font reset, results export, schema search, file explorer pickers and the AI chat schema tools no longer hit null-reference paths when the editor, window or database service is not ready.
+- Restored `CascadingDistinctValueFilterContext.PropertyPath`, which a refactor had dropped from the constructor while the field stayed `readonly`-unassigned, so column filters silently lost their property path.
+- Restored the SQLite database icon in the schema tree (`DatabaseIconConverter` lost `_sqliteIcon16` and assigned the table bitmap twice).
+- Reattached `ResetFontStyle` when a document's editor is recreated, so a reused tab applies the configured font again.
+
 ## [1.4.3] - 2026-11-15
 
 ### Fixed

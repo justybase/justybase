@@ -21,9 +21,12 @@ public class FluentThemeManager : IThemeManager
     {
         ColorPaletteResources paletteLight;
         ColorPaletteResources paletteDark;
-        if (File.Exists(IGeneralApplicationData.ColorsPath))
+        PaletteDTO? paletteDTO = File.Exists(IGeneralApplicationData.ColorsPath)
+            ? JsonSerializer.Deserialize(File.ReadAllText(IGeneralApplicationData.ColorsPath), MyJsonContextPaletteDTO.Default.PaletteDTO)
+            : null;
+
+        if (paletteDTO is not null)
         {
-            PaletteDTO paletteDTO = JsonSerializer.Deserialize(File.ReadAllText(IGeneralApplicationData.ColorsPath), MyJsonContextPaletteDTO.Default.PaletteDTO);
             paletteLight = paletteDTO.GetColorPaletteResources();
             paletteDark = paletteDTO.GetColorPaletteResources();
         }
@@ -56,24 +59,25 @@ public class FluentThemeManager : IThemeManager
         };
     }
 
-    public static FluentThemeManager StaticFluentThemeManager { get; set; }
+    public static FluentThemeManager? StaticFluentThemeManager { get; set; }
     public FluentThemeManager(IGeneralApplicationData generalApplicationData)
     {
         StaticFluentThemeManager = this;
         _generalApplicationDataCached = generalApplicationData;
     }
 
-    private static IGeneralApplicationData _generalApplicationDataCached;
-    private static IGeneralApplicationData GetgeneralAppData => _generalApplicationDataCached;
+    private static IGeneralApplicationData? _generalApplicationDataCached;
+    private static IGeneralApplicationData GetgeneralAppData => _generalApplicationDataCached
+        ?? throw new InvalidOperationException("FluentThemeManager is not initialized yet.");
 
     private static FluentTheme FluentPlain;
 
     //https://www.color-meanings.com/shades-of-pink-color-names-html-hex-rgb-codes/
-    private static FluentTheme FluentValentine;
+    private static FluentTheme? FluentValentine;
 
     public static ColorPaletteResources GetCurrentPalette()
     {
-        var variant = Application.Current.RequestedThemeVariant;
+        var variant = Application.Current?.RequestedThemeVariant ?? ThemeVariant.Light;
         return FluentPlain.Palettes[variant];
     }
 
@@ -83,7 +87,7 @@ public class FluentThemeManager : IThemeManager
         {
             if (JustyBase.SplashWindow.IsValentine())
             {
-                FluentValentine ??= new()
+                return FluentValentine ??= new()
                 {
                     Palettes =
                     {
@@ -103,7 +107,6 @@ public class FluentThemeManager : IThemeManager
                         },
                     }
                 };
-                return FluentValentine;
             }
             return FluentPlain;
         }
@@ -112,7 +115,7 @@ public class FluentThemeManager : IThemeManager
     // Null-safe: the cached app data exists only after an instance was constructed.
     // Static theme queries (e.g. grid cell styling, headless tests) must not throw
     // before that — default to light, consistent with AppOptions.ThemeNum == 0.
-    public static bool IsLight => GetgeneralAppData?.Config?.ThemeNum is not int themeNum || themeNum == 0;
+    public static bool IsLight => _generalApplicationDataCached?.Config?.ThemeNum is not int themeNum || themeNum == 0;
     public static bool IsDark => !IsLight;
 
 
@@ -125,23 +128,23 @@ public class FluentThemeManager : IThemeManager
 
         if (GetgeneralAppData.Config.ThemeNum == 0)
         {
-            application.Resources["DockApplicationAccentBrushLow"] = ToBrush(Application.Current.FindResource("SystemAccentColorLight1"));
-            application.Resources["DockApplicationAccentBrushMed"] = ToBrush(Application.Current.FindResource("SystemAccentColorLight2"));
-            application.Resources["DockApplicationAccentBrushHigh"] = ToBrush(Application.Current.FindResource("SystemAccentColorLight3"));
-            application.Resources["DockApplicationAccentBrushIndicator"] = ToBrush(Application.Current.FindResource("SystemAccentColorLight1"));
+            application.Resources["DockApplicationAccentBrushLow"] = ToBrush(application.FindResource("SystemAccentColorLight1"));
+            application.Resources["DockApplicationAccentBrushMed"] = ToBrush(application.FindResource("SystemAccentColorLight2"));
+            application.Resources["DockApplicationAccentBrushHigh"] = ToBrush(application.FindResource("SystemAccentColorLight3"));
+            application.Resources["DockApplicationAccentBrushIndicator"] = ToBrush(application.FindResource("SystemAccentColorLight1"));
         }
         else
         {
-            application.Resources["DockApplicationAccentBrushLow"] = ToBrush(Application.Current.FindResource("SystemAccentColorDark1"));
-            application.Resources["DockApplicationAccentBrushMed"] = ToBrush(Application.Current.FindResource("SystemAccentColorDark2"));
-            application.Resources["DockApplicationAccentBrushHigh"] = ToBrush(Application.Current.FindResource("SystemAccentColorDark3"));
-            application.Resources["DockApplicationAccentBrushIndicator"] = ToBrush(Application.Current.FindResource("SystemAccentColorDark1"));
+            application.Resources["DockApplicationAccentBrushLow"] = ToBrush(application.FindResource("SystemAccentColorDark1"));
+            application.Resources["DockApplicationAccentBrushMed"] = ToBrush(application.FindResource("SystemAccentColorDark2"));
+            application.Resources["DockApplicationAccentBrushHigh"] = ToBrush(application.FindResource("SystemAccentColorDark3"));
+            application.Resources["DockApplicationAccentBrushIndicator"] = ToBrush(application.FindResource("SystemAccentColorDark1"));
         }
     }
     public static void ApplyFontSizes()
     {
-        Application.Current.Resources["ControlContentThemeFontSize"] = GetgeneralAppData.Config.ControlContentThemeFontSize;
-        Application.Current.Resources["CompletitionFontSize"] = GetgeneralAppData.Config.CompletitionFontSize;
+        Application.Current?.Resources["ControlContentThemeFontSize"] = GetgeneralAppData.Config.ControlContentThemeFontSize;
+        Application.Current?.Resources["CompletitionFontSize"] = GetgeneralAppData.Config.CompletitionFontSize;
     }
 
     public static void MakeFontsBigger()
@@ -175,6 +178,11 @@ public class FluentThemeManager : IThemeManager
 
         if (index == -1)
         {
+            if (pal is null)
+            {
+                return;
+            }
+
             index = GetgeneralAppData.Config.ThemeNum;
 
             var paletteLight = new ColorPaletteResources()

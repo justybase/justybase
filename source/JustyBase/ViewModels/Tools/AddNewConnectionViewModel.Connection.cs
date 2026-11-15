@@ -169,14 +169,16 @@ public sealed partial class AddNewConnectionViewModel
                     SqliteSampleObjects.Where(item => item.IsSelected).Select(item => item.Definition.Id));
             }
 
+            string databaseForSave = Database ?? string.Empty;
+            string serverForSave = Server ?? string.Empty;
             string driverName = SelectedDriver!.Id;
             bool saved = _generalApplicationData.AddToOrEditLoginData(
                 connectionName,
-                Database,
+                databaseForSave,
                 driverName,
                 Pass,
                 UserName,
-                Server,
+                serverForSave,
                 Port);
             if (!saved)
             {
@@ -391,7 +393,7 @@ public sealed partial class AddNewConnectionViewModel
             SetProperty(ref field, value);
             ValidateForm();
         }
-    }
+    } = string.Empty;
 
     public IReadOnlyList<ConnectionDriverOption> DriversList => _driversList;
     public IReadOnlyList<SqliteSamplePack> SqliteSamplePacks => SqliteSampleCatalog.Packs;

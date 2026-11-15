@@ -13,6 +13,10 @@ public partial class SqlResultsFastViewModel : Tool
 {
     private readonly IGeneralApplicationData _generalApplicationData;
     private readonly IMessageForUserTools _messageForUserTools;
+
+    private IActiveDocumentManager ActiveDocumentManager => Factory as IActiveDocumentManager
+        ?? throw new InvalidOperationException("The dock factory does not support document operations.");
+
     public SqlResultsFastViewModel(IFactory factory, IGeneralApplicationData generalApplicationData, IMessageForUserTools messageForUserTools)
     {
         this.Factory = factory;
@@ -127,7 +131,7 @@ public partial class SqlResultsFastViewModel : Tool
     }
 
 
-    private SqlDocumentViewModel _prevResultsDocumentId;
+    private SqlDocumentViewModel? _prevResultsDocumentId;
 
     public void ShowDocumentResult(SqlDocumentViewModel sqlDocumentViewModel)
     {
@@ -204,7 +208,7 @@ public partial class SqlResultsFastViewModel : Tool
                         var tmpRes = tmpObj.ReferencedSqlResult;
                         var tmpSql = tmpObj.ParentDocument;
                         _lastVisibleResultForSql[tmpRes.RelatedSqlDocumentId] = tmpRes.Id;
-                        if (((IActiveDocumentManager)Factory).IsActiveDockable(tmpSql) && !tmpRes.IsResultVisible)
+                        if (ActiveDocumentManager.IsActiveDockable(tmpSql) && !tmpRes.IsResultVisible)
                         {
                             tmpRes.IsResultVisible = true;
                         }
@@ -229,9 +233,9 @@ public partial class SqlResultsFastTile : ObservableObject
         _removeOneResult = removeOneResult;
     }
 
-    public string ResTitle { get; set; }
-    public SqlResultsViewModel ReferencedSqlResult { get; set; }
-    public SqlDocumentViewModel ParentDocument { get; set; }
+    public string ResTitle { get; set; } = string.Empty;
+    public SqlResultsViewModel ReferencedSqlResult { get; set; } = null!;
+    public SqlDocumentViewModel ParentDocument { get; set; } = null!;
 
     [ObservableProperty]
     public partial bool IsTitleVisible { get; set; } = true;

@@ -32,8 +32,8 @@ public sealed class SnippetEditorService : ISnippetEditorService
         _generalApplicationData.ClearTempSippetsObjects();
         foreach (var item in models)
         {
-            _generalApplicationData.Config.AllSnippets[item.SnippetName] =
-                (item.SnippetType, item.SnippetDesc, item.SnippetText, item.SnippetName);
+            _generalApplicationData.Config.AllSnippets[item.SnippetName ?? string.Empty] =
+                (item.SnippetType ?? SnippetModel.STANDARD_STRING, item.SnippetDesc, item.SnippetText, item.SnippetName);
         }
     }
 

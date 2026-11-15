@@ -780,8 +780,8 @@ public sealed partial class SqlCodeEditor : CodeTextEditor
 
     public Action? ForcedContolftAction { get; set; }
     public Action? ForcedContolhtAction { get; set; }
-    public Action RenameRequested { get; set; } = () => { };
-    public Action GoToDefinitionRequested { get; set; } = () => { };
-    public Action FindReferencesRequested { get; set; } = () => { };
+    public Action? RenameRequested { get; set; }
+    public Action? GoToDefinitionRequested { get; set; }
+    public Action? FindReferencesRequested { get; set; }
 
 }

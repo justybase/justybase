@@ -1,4 +1,4 @@
-﻿using JustyBase.Models;
+using JustyBase.Models;
 using System.Data.Common;
 using System.Globalization;
 using System.Text;
@@ -17,7 +17,7 @@ internal sealed class CopyHtmlOrTextClipboard
         ("'", "&apos;")
     ];
 
-    private static string GetEscapedText(string txt)
+    private static string GetEscapedText(string? txt)
     {
         if (txt is null)
         {

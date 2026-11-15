@@ -123,7 +123,11 @@ public sealed partial class SqlResultsViewModel
     [RelayCommand]
     private async Task ExportAllResults()
     {
-        string randomName = await _messageForUserTools.ShowAskForFileNameDialogAsync();
+        string? randomName = await _messageForUserTools.ShowAskForFileNameDialogAsync();
+        if (string.IsNullOrWhiteSpace(randomName))
+        {
+            return;
+        }
 
         var filePathToExport = Path.Combine(IGeneralApplicationData.DataDirectory, $"{randomName}{_resultHelperService.DefaultExcelExtension}");
         List<(DbDataReader, string)> listOfResults = [];
@@ -134,7 +138,14 @@ public sealed partial class SqlResultsViewModel
             return;
         }
 
-        List<SqlResultsViewModel> results = _activeDocumentManager.GetDocumentResults(docRes.HotDocumentViewModelAsT<SqlDocumentViewModel>());
+        SqlDocumentViewModel? relatedDocument = docRes.HotDocumentViewModelAsT<SqlDocumentViewModel>();
+        if (relatedDocument is null)
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance("ExportAllResults - the source document is not open", "Warning");
+            return;
+        }
+
+        List<SqlResultsViewModel> results = _activeDocumentManager.GetDocumentResults(relatedDocument);
         if (results is null || results.Count == 0)
         {
             return;
@@ -239,16 +250,24 @@ public sealed partial class SqlResultsViewModel
                 {
                     if (action == ResultGridToolbarAction.CopyAsExcelFileClipboard)
                     {
-                        randomName = await _messageForUserTools.ShowAskForFileNameDialogAsync(showInTaskbar: false);
-                        filePathToExport = Path.Combine(IGeneralApplicationData.DataDirectory, $"{randomName}{_resultHelperService.DefaultExcelExtension}");
-                        if (String.IsNullOrWhiteSpace(randomName))
+                        string? clipboardName = await _messageForUserTools.ShowAskForFileNameDialogAsync(showInTaskbar: false);
+                        if (String.IsNullOrWhiteSpace(clipboardName))
                         {
                             canceled = true;
+                        }
+                        else
+                        {
+                            filePathToExport = Path.Combine(IGeneralApplicationData.DataDirectory, $"{clipboardName}{_resultHelperService.DefaultExcelExtension}");
                         }
                     }
                     else if (action == ResultGridToolbarAction.SaveAsExcelFile)
                     {
-                        var saveFile = await _avaloniaSpecificHelpers.GetStorageProvider().SaveFilePickerAsync(
+                        if (_avaloniaSpecificHelpers.GetStorageProvider() is not { } storageProvider)
+                        {
+                            return;
+                        }
+
+                        var saveFile = await storageProvider.SaveFilePickerAsync(
                             new FilePickerSaveOptions()
                             {
                                 FileTypeChoices =
@@ -322,7 +341,10 @@ public sealed partial class SqlResultsViewModel
                     using var dataTransfer = new DataTransfer();
                     DataFormat<byte[]> _customBinaryDataFormat = DataFormat.CreateBytesPlatformFormat("HTML Format");
                     dataTransfer.Add(DataTransferItem.Create(_customBinaryDataFormat, html));
-                    await _avaloniaSpecificHelpers.GetClipboard().SetDataAsync(dataTransfer);
+                    if (_avaloniaSpecificHelpers.GetClipboard() is { } clipboard)
+                    {
+                        await clipboard.SetDataAsync(dataTransfer);
+                    }
                 }
                 else if (action == ResultGridToolbarAction.CopySelectedCellsCurrentColumn)
                 {

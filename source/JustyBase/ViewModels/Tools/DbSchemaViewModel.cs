@@ -31,7 +31,7 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
 
     private readonly SemaphoreSlim _revealGate = new(1, 1);
 
-    private TypeInDatabaseEnum GetSelectedType(object data) // evo..
+    private TypeInDatabaseEnum GetSelectedType(object? data) // evo..
     {
         if (SelectedSchemaItem is null)
         {
@@ -136,7 +136,10 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
         }
     }
 
-    private DbSchemaModel LastItemConrtextMenuReq => SelectedSchemaItem ?? _connectionCollection.FirstOrDefault();
+    private DbSchemaModel? LastItemConrtextMenuReq => SelectedSchemaItem ?? _connectionCollection.FirstOrDefault();
+
+    private IActiveDocumentManager ActiveDocumentManager => Factory as IActiveDocumentManager
+        ?? throw new InvalidOperationException("The dock factory does not support document operations.");
 
     public void ShowThis()
     {
@@ -272,21 +275,21 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
 
     private async Task ContextMenuActionAsync(string optionName)
     {
-        if (LastItemConrtextMenuReq is null)
+        if (LastItemConrtextMenuReq is not { } requestedItem)
         {
             return;
         }
+        string CONNECTION_NAME = requestedItem.ConnectionName;
 
-        string CONNECTION_NAME = LastItemConrtextMenuReq.ConnectionName;
-
-        if (CONNECTION_NAME is null)
+        if (string.IsNullOrWhiteSpace(CONNECTION_NAME))
         {
             _messageForUserTools.ShowSimpleMessageBoxInstance("CONNECTION_NAME is null", "Error");
+            return;
         }
 
         if (optionName == "DISTRIBUTE_CHART_NZ")
         {
-            if (LastItemConrtextMenuReq.DatabaseTypeEnumValue != DatabaseTypeEnum.NetezzaSQL)
+            if (requestedItem.DatabaseTypeEnumValue != DatabaseTypeEnum.NetezzaSQL)
             {
                 _messageForUserTools.ShowSimpleMessageBoxInstance(
                     "Distribution slices are a Netezza feature; this connection does not expose them.",
@@ -302,9 +305,9 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
         // to their own GetGroom/GetGenerateStats implementation (Db2: REORG/RUNSTATS).
         if ((optionName is "GROOM" or "STATS")
             && _netezzaMaintenanceDialogService is not null
-            && LastItemConrtextMenuReq.DatabaseTypeEnumValue == DatabaseTypeEnum.NetezzaSQL)
+            && requestedItem.DatabaseTypeEnumValue == DatabaseTypeEnum.NetezzaSQL)
         {
-            var item = LastItemConrtextMenuReq;
+            var item = requestedItem;
             var qualified = NetezzaMaintenanceSql.Qualify(item.Database, item.CurrentSchema, item.Name);
             var kind = optionName == "GROOM"
                 ? NetezzaMaintenanceDialogKind.Groom
@@ -315,15 +318,15 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
                 return;
             }
 
-            ((IActiveDocumentManager)Factory).AddNewDocument("");
-            ((IActiveDocumentManager)Factory).InsertSnippetTextToActiveDocument(wizardSql, CONNECTION_NAME);
+            ActiveDocumentManager.AddNewDocument("");
+            ActiveDocumentManager.InsertSnippetTextToActiveDocument(wizardSql, CONNECTION_NAME);
             return;
         }
 
         if (optionName is "IMPORT_DATA")
         {
-            var item = LastItemConrtextMenuReq;
-            ((IActiveDocumentManager)Factory).OpenImportDocument(
+            var item = requestedItem;
+            ActiveDocumentManager.OpenImportDocument(
                 CONNECTION_NAME,
                 item.Database,
                 item.CurrentSchema,
@@ -333,7 +336,7 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
 
         if (optionName == "COMPARE_DDL")
         {
-            var item = LastItemConrtextMenuReq;
+            var item = requestedItem;
             string ddlOption = item.ActualTypeInDatabase == TypeInDatabaseEnum.View ? "DDL_VIEW" : "DDL_TABLE";
             string objectSql = await IDatabaseSchemaItem.GetCode(
                 item,
@@ -377,7 +380,7 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
                 return;
             }
 
-            var copyItem = LastItemConrtextMenuReq;
+            var copyItem = requestedItem;
             await dialogService.ShowAsync(
                 CONNECTION_NAME,
                 copyItem.Database,
@@ -389,7 +392,7 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
 
         if (optionName == "EXPORT_DDL_DATA")
         {
-            var exportItem = LastItemConrtextMenuReq;
+            var exportItem = requestedItem;
             var exportService = _tableScriptExportService
                 ?? Program.ServiceProvider?.GetService<Services.Export.TableScriptExportService>();
             if (exportService is null)
@@ -432,7 +435,7 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
             return;
         }
 
-        var sql = await IDatabaseSchemaItem.GetCode(LastItemConrtextMenuReq, CONNECTION_NAME, optionName, _generalApplicationData, _simpleLogger, _databaseServiceResolver);
+        var sql = await IDatabaseSchemaItem.GetCode(requestedItem, CONNECTION_NAME, optionName, _generalApplicationData, _simpleLogger, _databaseServiceResolver);
 
         if (optionName.EndsWith("CLIP", StringComparison.Ordinal))
         {
@@ -440,18 +443,14 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
         }
         else
         {
-            ((IActiveDocumentManager)Factory).AddNewDocument("");
-            ((IActiveDocumentManager)Factory).InsertSnippetTextToActiveDocument(sql, CONNECTION_NAME);
+            ActiveDocumentManager.AddNewDocument("");
+            ActiveDocumentManager.InsertSnippetTextToActiveDocument(sql, CONNECTION_NAME);
         }
     }
 
     private async Task FindUsagesAsync(string connectionName, int depth)
     {
-        var item = LastItemConrtextMenuReq;
-        if (item is null)
-        {
-            return;
-        }
+        var item = LastItemConrtextMenuReq ?? throw new InvalidOperationException("No schema item is selected.");
 
         try
         {
@@ -513,8 +512,8 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
                 {string.Join(Environment.NewLine + "UNION ALL ", rows)}
                 ;
                 """;
-            ((IActiveDocumentManager)Factory).AddNewDocument("");
-            ((IActiveDocumentManager)Factory).InsertSnippetTextToActiveDocument(sql, connectionName);
+            ActiveDocumentManager.AddNewDocument("");
+            ActiveDocumentManager.InsertSnippetTextToActiveDocument(sql, connectionName);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -528,11 +527,7 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
 
     private async Task ShowDistributionChartAsync(string connectionName)
     {
-        var item = LastItemConrtextMenuReq;
-        if (item is null)
-        {
-            return;
-        }
+        var item = LastItemConrtextMenuReq ?? throw new InvalidOperationException("No schema item is selected.");
 
         try
         {
@@ -569,7 +564,7 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
                 var helpers = windowHelpers;
                 if (helpers is not null)
                 {
-                    await window.ShowDialog(helpers.GetMainWindow());
+                    await window.ShowDialogOrShow(helpers.GetMainWindow());
                 }
                 else
                 {
@@ -692,7 +687,7 @@ public sealed partial class DbSchemaViewModel : Tool, IDisposable
                         [!Image.SourceProperty] = CompiledBindingFactory.OneWay<DbSchemaModel, DbSchemaModel>(
                             nameof(DbSchemaModel.Self),
                             item => item.Self,
-                            App.Current.Resources["databaseIconConverter"] as DatabaseIconConverter),
+                            App.Current?.Resources["databaseIconConverter"] as DatabaseIconConverter),
                         //Source = SelectBitmap(node),
                         Margin = new Thickness(0, 0, 4, 0),
                         VerticalAlignment = VerticalAlignment.Center,

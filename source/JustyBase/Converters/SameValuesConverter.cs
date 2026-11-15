@@ -5,7 +5,7 @@ namespace JustyBase.Converters;
 //result grid, row view
 public sealed class SameValuesConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (targetType == typeof(IBrush) && (value is null || value is not List<string>))
         {
@@ -33,7 +33,7 @@ public sealed class SameValuesConverter : IValueConverter
         {
             if (!res)
             {
-                return App.Current.FindResource("SystemAccentColorBrush");
+                return App.Current?.FindResource("SystemAccentColorBrush") as IBrush ?? Brushes.Transparent;
             }
             return Avalonia.Media.Brushes.Transparent;
         }
@@ -41,14 +41,14 @@ public sealed class SameValuesConverter : IValueConverter
         {
             if (!res)
             {
-                return (double)App.Current.FindResource("ListAccentMediumOpacity");
+                return App.Current?.FindResource("ListAccentMediumOpacity") is double opacity ? opacity : 1.0;
             }
             return 1.0;
         }
         return null;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         throw new NotImplementedException();
     }

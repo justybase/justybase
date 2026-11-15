@@ -424,7 +424,7 @@ partial class SettingsViewModel
     private void SetColor()
     {
         ColorPaletteResources pal = GetSelectedPalett();
-        FluentThemeManager.StaticFluentThemeManager.Switch(-1, pal);
+        FluentThemeManager.StaticFluentThemeManager?.Switch(-1, pal);
     }
 
     private void GetColors()

@@ -20,7 +20,9 @@ namespace JustyBase;
 public partial class App : Application
 {
     private static IThemeManager? _themeManager;
-    private static IGeneralApplicationData _generalApplicationData;
+    private static IGeneralApplicationData? _generalApplicationDataCached;
+    private static IGeneralApplicationData GeneralApplicationData => _generalApplicationDataCached
+        ?? throw new InvalidOperationException("The application services are not initialized yet.");
     public override void Initialize()
     {
         StartupTrace.Write("App.Initialize start");
@@ -44,8 +46,8 @@ public partial class App : Application
         // one editor view per open SQL tab, preserving its visual state across tab switches.
         DataTemplates.Add(new SqlDocumentDataTemplate(_services));
         DataTemplates.Add(new ViewLocator(_services));
-        _generalApplicationData = _services.GetRequiredService<IGeneralApplicationData>();
-        StartupTrace.Write($"App.Initialize general data loaded theme={_generalApplicationData.Config.ThemeNum} splash={_generalApplicationData.Config.UseSplashScreen}");
+        _generalApplicationDataCached = _services.GetRequiredService<IGeneralApplicationData>();
+        StartupTrace.Write($"App.Initialize general data loaded theme={GeneralApplicationData.Config.ThemeNum} splash={GeneralApplicationData.Config.UseSplashScreen}");
 
         _themeManager = _services.GetRequiredService<IThemeManager>();
         _themeManager.Initialize(this);
@@ -80,7 +82,7 @@ public partial class App : Application
             Debug.WriteLine($"Failed to register syntax highlighting: {ex.Message}");
         }
 
-        if (_generalApplicationData.Config.ThemeNum == 1)
+        if (GeneralApplicationData.Config.ThemeNum == 1)
         {
             SqlCodeEditorHelpers.ResetStyle(dark: true);
             ApplySemanticColors(dark: true);
@@ -136,10 +138,15 @@ public partial class App : Application
         }
     }
 
-    private static ServiceProvider _services;
-    public static T GetRequiredService<T>()
+    // Assigned in Initialize before any consumer runs; a startup-order bug surfaces as
+    // a NullReferenceException at the call site instead of a bogus service.
+    private static ServiceProvider _services = null!;
+    private static ServiceProvider Services => _services
+        ?? throw new InvalidOperationException("The application services are not initialized yet.");
+
+    public static T GetRequiredService<T>() where T : notnull
     {
-        return _services.GetRequiredService<T>();
+        return Services.GetRequiredService<T>();
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -183,7 +190,7 @@ public partial class App : Application
                         break;
                     }
 
-                    if (Debugger.IsAttached || !_generalApplicationData.Config.UseSplashScreen)
+                    if (Debugger.IsAttached || !GeneralApplicationData.Config.UseSplashScreen)
                     {
                         StartupTrace.Write("showing MainWindow directly");
                         mainWindow.Show();

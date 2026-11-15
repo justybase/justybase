@@ -7,6 +7,7 @@ using JustyBase.PluginCommon.Models;
 using JustyBase.Services;
 using JustyBase.Services.Schema;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace JustyBase.ViewModels.Tools;
 public sealed partial class DbSchemaViewModel
@@ -38,18 +39,18 @@ public sealed partial class DbSchemaViewModel
             SetProperty(ref field, value);
             if (!ConnectedOnly)
             {
-                _connectedMenuItem.Header = "Show connected only";
+                _connectedMenuItem!.Header = "Show connected only";
             }
             else
             {
-                _connectedMenuItem.Header = "Show all connections";
+                _connectedMenuItem!.Header = "Show all connections";
             }
         }
     }
-    private MenuItem _connectedMenuItem;
+    private MenuItem? _connectedMenuItem;
 
     [ObservableProperty]
-    public partial ObservableCollection<Control> MenuItems { get; set; }
+    public partial ObservableCollection<Control> MenuItems { get; set; } = [];
 
     /// <summary>
     /// F2: UI-free projection of <see cref="MenuItems"/> for future XAML migration
@@ -59,28 +60,28 @@ public sealed partial class DbSchemaViewModel
     /// </summary>
     [ObservableProperty]
     public partial ObservableCollection<SchemaMenuItemViewModel> MenuItemViewModels { get; set; } = [];
-    private ObservableCollection<Control> MenuItemsForConnections { get; set; }
-    private ObservableCollection<Control> MenuItemsForSqliteConnections { get; set; }
-    private ObservableCollection<Control> MenuItemsForTableGroup { get; set; }
-    private ObservableCollection<Control> MenuItemsForTable { get; set; }
-    private ObservableCollection<Control> MenuItemsForTablePostgres { get; set; }
-    private ObservableCollection<Control> MenuItemsForView { get; set; }
-    private ObservableCollection<Control> MenuItemsForViewGroups { get; set; }
-    private ObservableCollection<Control> MenuItemsForProcedures { get; set; }
-    private ObservableCollection<Control> MenuItemsForFluids { get; set; }
-    private ObservableCollection<Control> MenuItemsForProceduresGroups { get; set; }
-    private ObservableCollection<Control> MenuItemsForExternalTablesNz { get; set; }
-    private ObservableCollection<Control> MenuItemsForExternalTablesNzGroups { get; set; }
-    private ObservableCollection<Control> MenuItemsForSynonyms { get; set; }
-    private ObservableCollection<Control> MenuItemsForSynonymsGroups { get; set; }
-    private ObservableCollection<Control> MenuItemsForSequenceGroups { get; set; }
-    private ObservableCollection<Control> MenuItemsForIndexes { get; set; }
-    private ObservableCollection<Control> MenuItemsForIndexGroups { get; set; }
-    private ObservableCollection<Control> MenuItemsForPartitions { get; set; }
-    private ObservableCollection<Control> MenuItemsForPartitionGroups { get; set; }
-    private ObservableCollection<Control> MenuItemsForTriggers { get; set; }
-    private ObservableCollection<Control> MenuItemsForTriggerGroups { get; set; }
-    private ObservableCollection<Control> FallbackMenuItems { get; set; }
+    private ObservableCollection<Control> MenuItemsForConnections { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForSqliteConnections { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForTableGroup { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForTable { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForTablePostgres { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForView { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForViewGroups { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForProcedures { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForFluids { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForProceduresGroups { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForExternalTablesNz { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForExternalTablesNzGroups { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForSynonyms { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForSynonymsGroups { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForSequenceGroups { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForIndexes { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForIndexGroups { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForPartitions { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForPartitionGroups { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForTriggers { get; set; } = [];
+    private ObservableCollection<Control> MenuItemsForTriggerGroups { get; set; } = [];
+    private ObservableCollection<Control> FallbackMenuItems { get; set; } = [];
 
 
     public void PrepareContextMenu(object? data)
@@ -410,9 +411,10 @@ public sealed partial class DbSchemaViewModel
         SyncMenuItemViewModels();
     }
 
+    [MemberNotNull(nameof(ContextMenuActionCommand), nameof(RefreshTableListCommand), nameof(ShowConnectedOnlyCommand))]
     public void SharedInit()
     {
-        ContextMenuActionCommand = new AsyncRelayCommand<string>(ContextMenuActionAsync);
+        ContextMenuActionCommand = new AsyncRelayCommand<string>(option => ContextMenuActionAsync(option ?? string.Empty));
         RefreshTableListCommand = new AsyncRelayCommand(RefreshTableListAsync);
         ShowConnectedOnlyCommand = new RelayCommand(ShowConnectedOnly);
     }

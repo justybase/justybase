@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Db2 lint rules renamed to `DB2L001`–`DB2L008` to avoid collisions with Rust language diagnostics
 - Postgres driver in the Slim variant (now Netezza + SQLite + DB2 + Postgres, still no AI)
 - MySQL driver in the Slim variant (now Netezza + SQLite + DB2 + Postgres + MySQL, still no AI)
+- Result store rework: a shared 4 GiB memory budget, spill after 250,000 rows (or when the budget is full), typed SQLite columns with exact decimals, SQL-driven paging/sorting/filtering, grouping only after a budget-checked materialization, a 2 GiB disk quota that keeps already-written rows, a 64 MiB LRU page cache, and startup cleanup of orphaned spill files ([docs/RESULT_STORE.md](docs/RESULT_STORE.md))
 
 ### Fixed
 

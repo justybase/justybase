@@ -92,6 +92,8 @@ public static class ServiceCollectionExtensions
             generalApplicationDataState.IsReady = true;
             return generalApplicationData;
         });
+        collection.AddSingleton(sp =>
+            new Services.Results.ResultStoreService(sp.GetRequiredService<IGeneralApplicationData>().Config));
         collection.AddSingleton<IApplicationUpdateService, ApplicationUpdateService>();
         collection.AddSingleton<IAvaloniaSpecificHelpers, AvaloniaSpecificHelpers>();
         collection.AddSingleton<Services.FileExplorer.IFileIconProvider, Services.FileExplorer.FileIconProvider>();

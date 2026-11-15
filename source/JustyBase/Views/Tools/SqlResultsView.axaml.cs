@@ -366,7 +366,15 @@ public sealed partial class SqlResultsView : UserControl, ISqlResultsViewBridge
                 return;
             }
 
-            vm.RowsLoadingMessage = $"{GridCollectionView?.Count ?? 0:N0} rows";
+            if (vm.IsSpillMode)
+            {
+                vm.ApplySpillColumnFiltering();
+            }
+            else
+            {
+                vm.RowsLoadingMessage = $"{GridCollectionView?.Count ?? 0:N0} rows";
+            }
+
             RefreshSummaryRowWidths();
             vm.RefreshFind();
         }, DispatcherPriority.Background);

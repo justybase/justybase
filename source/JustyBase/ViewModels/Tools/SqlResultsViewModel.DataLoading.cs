@@ -10,11 +10,16 @@ namespace JustyBase.ViewModels.Tools;
 partial class SqlResultsViewModel
 {
     private const int INITIAL_ROWS_LIMIT = 500;
-    private const int EXTREME_RESULT_THRESHOLD = 1_000_000;
+    private const int MIN_SPILL_THRESHOLD = 10_000;
     private const int MIN_SPILL_PAGE_SIZE = 1_000;
-    private const int MAX_SPILL_PAGE_SIZE = 50_000;
+    private const int MAX_SPILL_PAGE_SIZE = 100_000;
     private const int MIN_RESULT_ROWS_LIMIT = 50_000;
+    private const int MAX_GROUPABLE_ROWS = 1_000_000;
+
     private ResultSpillStore? _spillStore;
+    private IReadOnlyList<SpillSortKey> _spillSort = [];
+    private SpillFilter? _spillFilter;
+    private bool _applyingSpillFilter;
 
     public void LoadData((IDatabaseService dbService, DbDataReader rdr, string errorMessage) res)
     {
@@ -116,11 +121,12 @@ partial class SqlResultsViewModel
                 var drr = res.dbService.GetDatabaseRowReader(reader);
                 while (a++ < INITIAL_ROWS_LIMIT && reader.Read())
                 {
-                    var row = new TableRow
-                    {
-                        Fields = drr.ReadOneRow(),
-                    };
-                    rows.Add(row);
+                    object?[] fields = drr.ReadOneRow();
+                    rows.Add(new TableRow { Fields = fields });
+
+                    // The preview is bounded, so a full budget must not hide it;
+                    // the reservation is best-effort and LoadRest spills next.
+                    TryReserveInMemory(ResultRowSizer.Estimate(fields));
                 }
             }
         }
@@ -146,11 +152,15 @@ partial class SqlResultsViewModel
     {
         List<TableRow> rowsTemp = [];
         int i1 = CurrentResultsTable.Rows.Count;
-        int spillThreshold = Math.Max(EXTREME_RESULT_THRESHOLD, _generalApplicationData.Config.ResultSpillThreshold);
+        int spillThreshold = Math.Clamp(
+            _generalApplicationData.Config.ResultSpillThreshold,
+            MIN_SPILL_THRESHOLD,
+            int.MaxValue);
         int pageSize = Math.Clamp(_generalApplicationData.Config.ResultSpillPageSize, MIN_SPILL_PAGE_SIZE, MAX_SPILL_PAGE_SIZE);
         int effectiveResultRowsLimit = Math.Max(MIN_RESULT_ROWS_LIMIT, _generalApplicationData.Config.ResultRowsLimit);
         ResultSpillStore? spill = null;
         bool spillActivated = false;
+        string? spillNotice = null;
         int previewRows = i1;
 
         try
@@ -161,15 +171,8 @@ partial class SqlResultsViewModel
             // Peek the first remaining row so "loading more…" is only shown when more rows
             // actually exist (e.g. SELECT … LIMIT 1 must not advertise rows that do not come).
             // Sync Invoke: background reader must barrier on UI before continuing the DB loop.
-            if (reader.Read() && queryNum >= abortUbound)
+            if (queryNum >= abortUbound && reader.Read())
             {
-                rowsTemp.Add(new TableRow { Fields = drr.ReadOneRow() });
-                i1++;
-                if (i1 == effectiveResultRowsLimit)
-                {
-                    command.Cancel();
-                    abortUbound = queryNum + 1;
-                }
                 int previewShown = previewRows;
                 Dispatcher.UIThread.Invoke(() =>
                 {
@@ -178,33 +181,40 @@ partial class SqlResultsViewModel
                     RowsLoadingMessage = $"Preview {previewShown:N0} rows · loading more…";
                 }, DispatcherPriority.Background);
 
-                while (reader.Read() && queryNum >= abortUbound)
+                bool hasRow = true;
+                while (hasRow && queryNum >= abortUbound)
                 {
-                    var fields = drr.ReadOneRow();
+                    object?[] fields = drr.ReadOneRow();
                     i1++;
 
-                    if (!spillActivated && i1 > spillThreshold)
+                    if (!spillActivated && spillNotice is null)
                     {
-#pragma warning disable CA2000 // Ownership is transferred to _spillStore in the finally block.
-                        spill = new ResultSpillStore();
-#pragma warning restore CA2000
-                        spill.PageSize = pageSize;
-                        spill.BeginWriteBatch();
-                        foreach (var existing in CurrentResultsTable.Rows)
+                        bool reserved = TryReserveInMemory(ResultRowSizer.Estimate(fields));
+                        if (!reserved || i1 > spillThreshold)
                         {
-                            spill.WriteRow(existing.Fields);
+                            try
+                            {
+                                ActivateSpill();
+                            }
+                            catch (SpillQuotaExceededException ex)
+                            {
+                                spillNotice = BuildSpillQuotaMessage(ex, i1);
+                                break;
+                            }
                         }
-                        foreach (var pending in rowsTemp)
-                        {
-                            spill.WriteRow(pending.Fields);
-                        }
-                        rowsTemp.Clear();
-                        spillActivated = true;
                     }
 
                     if (spillActivated)
                     {
-                        spill!.WriteRow(fields);
+                        try
+                        {
+                            spill!.WriteRow(fields);
+                        }
+                        catch (SpillQuotaExceededException ex)
+                        {
+                            spillNotice = BuildSpillQuotaMessage(ex, i1);
+                            break;
+                        }
                     }
                     else
                     {
@@ -222,28 +232,55 @@ partial class SqlResultsViewModel
                         startTime = Stopwatch.GetTimestamp();
                         int localI = i1;
                         int localPreview = previewRows;
+                        bool localSpill = spillActivated;
                         _messageForUserTools.DispatcherActionInstance(() =>
                         {
-                            RowsLoadingMessage = spillActivated
+                            RowsLoadingMessage = localSpill
                                 ? $"{localI:N0} rows (spilling…)"
                                 : $"Preview {localPreview:N0} rows · loaded {localI:N0}…";
                         }, DispatcherPriority.Background);
                     }
+
+                    hasRow = reader.Read();
                 }
             }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            spillNotice ??= $"Result loading stopped: {ex.Message}";
+            _simpleLogger.TrackError(ex, isCrash: false);
         }
         finally
         {
             if (spillActivated && spill is not null)
             {
-                spill.EndWriteBatch();
-                DisposeSpill();
-                _spillStore = spill;
-                spill = null;
-                IsSpillMode = true;
-                SpillPageSize = pageSize;
-                SpillPageIndex = 0;
-                SpillTotalRows = spill.RowCount;
+                try
+                {
+                    spill.EndWriteBatch();
+                    DisposeSpill();
+                    _spillStore = spill;
+                    spill = null;
+                    IsSpillMode = true;
+                    SpillPageSize = pageSize;
+                    SpillPageIndex = 0;
+                    SpillTotalRows = _spillStore.RowCount;
+                    SpillFilteredRows = _spillStore.FilteredRowCount;
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    spillNotice ??= $"Spill finalization failed: {ex.Message}";
+                    _simpleLogger.TrackError(ex, isCrash: false);
+                    try
+                    {
+                        spill.Dispose();
+                    }
+                    catch (Exception cleanupEx) when (cleanupEx is not OutOfMemoryException)
+                    {
+                        // best effort
+                    }
+                    spill = null;
+                    spillActivated = false;
+                }
             }
             else
             {
@@ -265,20 +302,29 @@ partial class SqlResultsViewModel
 
                 if (IsSpillMode)
                 {
+                    _spillSort = [];
+                    _spillFilter = null;
                     ApplySpillPage(0);
-                    RowsLoadingMessage = $"Spill {SpillTotalRows:N0} rows · page {SpillPageIndex + 1}/{SpillPageCount} (filter/group in-memory only below threshold)";
+                    RowsLoadingMessage = spillNotice is null
+                        ? BuildSpillStatusMessage()
+                        : $"{BuildSpillStatusMessage()} · {spillNotice}";
                 }
                 else if (rowsTemp.Count > 0)
                 {
                     PublishFilteredRows(rowsTemp, replace: false, rebuildIndexMap: true);
                     rowsTemp.Clear();
-                    RowsLoadingMessage = $"{CurrentResultsTable.FilteredRows.Count:N0} rows";
+                    RowsLoadingMessage = spillNotice ?? $"{CurrentResultsTable.FilteredRows.Count:N0} rows";
                 }
                 else
                 {
                     lock (_lock)
                     {
                         CurrentResultsTable.RebuildRowIndexMap();
+                    }
+
+                    if (spillNotice is not null)
+                    {
+                        RowsLoadingMessage = spillNotice;
                     }
                 }
 
@@ -292,6 +338,35 @@ partial class SqlResultsViewModel
                 ViewBridge?.InvalidateSummaryLayout();
                 RefreshFind();
             }, DispatcherPriority.Background);
+        }
+
+        void ActivateSpill()
+        {
+            var schema = ResultSpillSchema.FromTable(CurrentResultsTable);
+            ResultSpillStore created = _resultStore.CreateSpillStore(schema);
+            try
+            {
+                created.PageSize = pageSize;
+                created.BeginWriteBatch();
+                foreach (var existing in CurrentResultsTable.Rows)
+                {
+                    created.WriteRow(existing.Fields);
+                }
+                foreach (var pending in rowsTemp)
+                {
+                    created.WriteRow(pending.Fields);
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                created.Dispose();
+                throw;
+            }
+
+            rowsTemp.Clear();
+            spill = created;
+            spillActivated = true;
+            ReleaseBudget();
         }
     }
 
@@ -324,7 +399,7 @@ partial class SqlResultsViewModel
 
         pageIndex = Math.Clamp(pageIndex, 0, Math.Max(0, SpillPageCount - 1));
         SpillPageIndex = pageIndex;
-        var page = _spillStore.ReadPage(pageIndex, SpillPageSize);
+        var page = _spillStore.ReadPage(pageIndex, SpillPageSize, _spillSort);
         var rows = page.Select(fields => new TableRow { Fields = fields! }).ToList();
 
         lock (_lock)
@@ -336,12 +411,141 @@ partial class SqlResultsViewModel
         }
     }
 
-    private void DisposeSpill()
+    /// <summary>
+    /// Loads every spilled row that matches the active filter into memory so the
+    /// existing grouping code can run. Refused when the filtered result would
+    /// exceed the shared budget or the grouping row limit.
+    /// </summary>
+    private bool TryMaterializeSpillForGrouping()
     {
-        _spillStore?.Dispose();
+        if (_spillStore is null)
+        {
+            return true;
+        }
+
+        int expected = _spillStore.FilteredRowCount;
+        if (expected >= MAX_GROUPABLE_ROWS)
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance("Too many items to group");
+            return false;
+        }
+
+        long estimate = _spillStore.EstimatedBytes;
+        if (estimate > _resultStore.Budget.AvailableBytes)
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance(
+                $"Grouping needs about {estimate / (1024.0 * 1024.0):N0} MiB but only " +
+                $"{_resultStore.Budget.AvailableBytes / (1024.0 * 1024.0):N0} MiB is available. " +
+                "Close another result tab or narrow the query.");
+            return false;
+        }
+
+        ResultSpillStore store = _spillStore;
+        if (!_resultStore.Budget.TryReserve(estimate))
+        {
+            _messageForUserTools.ShowSimpleMessageBoxInstance(
+                $"Grouping needs about {estimate / (1024.0 * 1024.0):N0} MiB but only " +
+                $"{_resultStore.Budget.AvailableBytes / (1024.0 * 1024.0):N0} MiB is available. " +
+                "Close another result tab or narrow the query.");
+            return false;
+        }
+
+        _budgetReservedBytes += estimate;
+        List<object?[]> raw;
+        try
+        {
+            raw = [.. store.ReadAll(_spillSort)];
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _budgetReservedBytes -= estimate;
+            _resultStore.Budget.Release(estimate);
+            _simpleLogger.TrackError(ex, isCrash: false);
+            _messageForUserTools.ShowSimpleMessageBoxInstance($"Could not load spilled rows for grouping: {ex.Message}");
+            return false;
+        }
+
+        long actual = raw.Sum(fields => ResultRowSizer.Estimate(fields));
+        if (actual > estimate)
+        {
+            long extra = actual - estimate;
+            if (_resultStore.Budget.TryReserve(extra))
+            {
+                _budgetReservedBytes += extra;
+            }
+        }
+        else if (actual < estimate)
+        {
+            long unused = estimate - actual;
+            _budgetReservedBytes -= unused;
+            _resultStore.Budget.Release(unused);
+        }
+
         _spillStore = null;
+        store.Dispose();
+        _spillSort = [];
+        _spillFilter = null;
         IsSpillMode = false;
         SpillTotalRows = 0;
+        SpillFilteredRows = 0;
+        SpillPageIndex = 0;
+
+        var rows = new List<TableRow>(raw.Count);
+        foreach (object?[] fields in raw)
+        {
+            rows.Add(new TableRow { Fields = fields });
+        }
+
+        lock (_lock)
+        {
+            CurrentResultsTable.Rows = rows;
+            CurrentResultsTable.FilteredRows.ReplaceAll(rows);
+            CurrentResultsTable.RebuildRowIndexMap();
+        }
+
+        GridCollectionView = new Avalonia.Collections.DataGridCollectionView(CurrentResultsTable.FilteredRows);
+        RowsLoadingMessage = $"{rows.Count:N0} rows materialized for grouping";
+        NotifySpillCommands();
+        return true;
+    }
+
+    private void DisposeSpill()
+    {
+        ReleaseBudget();
+        _spillStore?.Dispose();
+        _spillStore = null;
+        _spillSort = [];
+        _spillFilter = null;
+        IsSpillMode = false;
+        SpillTotalRows = 0;
+        SpillFilteredRows = 0;
         SpillPageIndex = 0;
     }
+
+    private bool TryReserveInMemory(long bytes)
+    {
+        if (!_resultStore.Budget.TryReserve(bytes))
+        {
+            return false;
+        }
+
+        _budgetReservedBytes += bytes;
+        return true;
+    }
+
+    private void ReleaseBudget()
+    {
+        long bytes = _budgetReservedBytes;
+        if (bytes <= 0)
+        {
+            return;
+        }
+
+        _budgetReservedBytes = 0;
+        _resultStore.Budget.Release(bytes);
+    }
+
+    private static string BuildSpillQuotaMessage(SpillQuotaExceededException ex, int loadedRows)
+        => $"Spill quota reached after {loadedRows:N0} rows; close another result or raise the quota "
+           + $"({ex.QuotaBytes / (1024.0 * 1024.0):N0} MiB configured).";
 }

@@ -1151,17 +1151,63 @@
 					<TextBlock Classes="page-title" Text="Results" />
 					<TextBlock Classes="section-caption" Text="LIMITS" />
 					<Border Classes="settings-card">
-						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
-							<StackPanel Grid.Column="0">
-								<TextBlock Classes="row-title" Text="Rows count limit" />
-								<TextBlock Classes="row-desc" Text="Maximum rows loaded into a results grid (100 – 10,000,000)." />
-							</StackPanel>
-							<NumericUpDown Name="Limits" Grid.Column="1" Classes="settings-control"
-										   Value="{Binding ResultRowsLimit}"
-										   AllowSpin="False" ShowButtonSpinner="False"
-										   FormatString="{}{0:N0}"
-										   ToolTip.Tip="Value from 100 to 10 000 000 is accepted" />
-						</Grid>
+						<StackPanel>
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Rows count limit" />
+									<TextBlock Classes="row-desc" Text="Maximum rows loaded into a results grid (100 – 10,000,000)." />
+								</StackPanel>
+								<NumericUpDown Name="Limits" Grid.Column="1" Classes="settings-control"
+											   Value="{Binding ResultRowsLimit}"
+											   AllowSpin="False" ShowButtonSpinner="False"
+											   FormatString="{}{0:N0}"
+											   ToolTip.Tip="Value from 100 to 10 000 000 is accepted" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Spill after rows" />
+									<TextBlock Classes="row-desc" Text="Rows kept in memory before the result moves to a typed SQLite spill (10,000 – 10,000,000)." />
+								</StackPanel>
+								<NumericUpDown Grid.Column="1" Classes="settings-control"
+											   Value="{Binding ResultSpillThreshold}"
+											   AllowSpin="False" ShowButtonSpinner="False"
+											   FormatString="{}{0:N0}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Spill page size" />
+									<TextBlock Classes="row-desc" Text="Rows loaded per page from the spill file (1,000 – 100,000)." />
+								</StackPanel>
+								<NumericUpDown Grid.Column="1" Classes="settings-control"
+											   Value="{Binding ResultSpillPageSize}"
+											   AllowSpin="False" ShowButtonSpinner="False"
+											   FormatString="{}{0:N0}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Result memory budget (MB)" />
+									<TextBlock Classes="row-desc" Text="Shared by every result tab before spilling (512 – 65,536 MB)." />
+								</StackPanel>
+								<NumericUpDown Grid.Column="1" Classes="settings-control"
+											   Value="{Binding ResultMemoryBudgetMb}"
+											   AllowSpin="False" ShowButtonSpinner="False"
+											   FormatString="{}{0:N0}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Spill storage quota (MB)" />
+									<TextBlock Classes="row-desc" Text="Temporary disk quota for all spilled results (256 – 65,536 MB)." />
+								</StackPanel>
+								<NumericUpDown Grid.Column="1" Classes="settings-control"
+											   Value="{Binding ResultSpillQuotaMb}"
+											   AllowSpin="False" ShowButtonSpinner="False"
+											   FormatString="{}{0:N0}" />
+							</Grid>
+						</StackPanel>
 					</Border>
 				</StackPanel>
 

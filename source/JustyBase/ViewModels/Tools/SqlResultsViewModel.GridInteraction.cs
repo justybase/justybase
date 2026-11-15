@@ -1,9 +1,12 @@
 using System.ComponentModel;
+using System.Globalization;
 using Avalonia.Collections;
+using Avalonia.Controls.DataGridFiltering;
 using JustyBase.Converters;
 using JustyBase.Helpers;
 using JustyBase.Models;
 using JustyBase.Services.DataGrid;
+using JustyBase.Services.Results;
 
 namespace JustyBase.ViewModels.Tools;
 
@@ -25,6 +28,14 @@ public sealed partial class SqlResultsViewModel
     public void ToggleGroupByColumn(string columnName, IResultGridGroupingService groupingService)
     {
         if (GridCollectionView is null || CurrentResultsTable is null)
+        {
+            return;
+        }
+
+        // Grouping walks every item, so a paged spill cannot be grouped in
+        // place. Materialize the filtered result when the shared budget allows
+        // it; otherwise refuse instead of silently grouping one page.
+        if (IsSpillMode && !TryMaterializeSpillForGrouping())
         {
             return;
         }
@@ -134,11 +145,18 @@ public sealed partial class SqlResultsViewModel
     /// </summary>
     public void ApplyFilterSearch(IResultGridSearchService searchService)
     {
-        if (SearchInProgress
-            || CurrentResultsTable is null
-            || CurrentResultsTable.Rows is null
-            || CurrentResultsTable.Rows.Count <= 0
-            || CurrentResultsTable.Headers.Count <= 0)
+        if (SearchInProgress || CurrentResultsTable is null || CurrentResultsTable.Headers.Count <= 0)
+        {
+            return;
+        }
+
+        if (IsSpillMode)
+        {
+            ApplySpillFilter();
+            return;
+        }
+
+        if (CurrentResultsTable.Rows is null || CurrentResultsTable.Rows.Count <= 0)
         {
             return;
         }
@@ -171,6 +189,181 @@ public sealed partial class SqlResultsViewModel
         }
     }
 
+    /// <summary>
+    /// Re-applies the grid's column filters to the spilled result in SQLite.
+    /// Called by the view when <see cref="FilteringModel"/> changes; without this,
+    /// a column filter would only hide rows on the currently visible page.
+    /// </summary>
+    public void ApplySpillColumnFiltering()
+    {
+        if (!IsSpillMode || _spillStore is null || _applyingSpillFilter)
+        {
+            return;
+        }
+
+        _applyingSpillFilter = true;
+        try
+        {
+            ApplySpillFilter();
+        }
+        finally
+        {
+            _applyingSpillFilter = false;
+        }
+    }
+
+    /// <summary>
+    /// Runs the grid search and the column filters against the spilled result in
+    /// SQLite, then loads the first matching page. This keeps filtering a
+    /// multi-million-row result from touching only the page that happens to be
+    /// visible.
+    /// </summary>
+    private void ApplySpillFilter()
+    {
+        if (_spillStore is null)
+        {
+            return;
+        }
+
+        SearchInProgress = true;
+        bool clearLargeSelection = SelectedItems?.Count > 5_000;
+        try
+        {
+            ViewBridge?.SuspendGridBinding();
+
+            _spillFilter = BuildSpillFilter();
+            SpillFilteredRows = _spillStore.SetFilter(_spillFilter);
+            ApplySpillPage(0);
+
+            if (clearLargeSelection && SelectedItems is not null && SelectedItems.Count > 0)
+            {
+                SelectedItems.Clear();
+            }
+
+            GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows);
+            RowsLoadingMessage = BuildSpillStatusMessage();
+            ViewBridge?.RecalculateSummaryValues();
+            RefreshFind();
+            ViewBridge?.InvalidateSummaryLayout();
+        }
+        finally
+        {
+            ViewBridge?.ResumeGridBinding(clearSelection: clearLargeSelection);
+            SearchInProgress = false;
+            NotifySpillCommands();
+        }
+    }
+
+    private SpillFilter BuildSpillFilter()
+    {
+        var columnFilters = new List<SpillColumnFilter>();
+        foreach (FilteringDescriptor descriptor in FilteringModel.Descriptors)
+        {
+            int index = ResolveSpillColumnIndex(descriptor);
+            if (index < 0)
+            {
+                continue;
+            }
+
+            switch (descriptor.Operator)
+            {
+                case FilteringOperator.Equals:
+                    columnFilters.Add(descriptor.Value is null
+                        ? new SpillColumnFilter(index, SpillFilterOperator.IsNull)
+                        : new SpillColumnFilter(index, SpillFilterOperator.Equal, descriptor.Value));
+                    break;
+                case FilteringOperator.NotEquals:
+                    columnFilters.Add(descriptor.Value is null
+                        ? new SpillColumnFilter(index, SpillFilterOperator.IsNotNull)
+                        : new SpillColumnFilter(index, SpillFilterOperator.NotEqual, descriptor.Value));
+                    break;
+                case FilteringOperator.Contains:
+                    columnFilters.Add(new SpillColumnFilter(index, SpillFilterOperator.Contains, descriptor.Value));
+                    break;
+                case FilteringOperator.StartsWith:
+                    columnFilters.Add(new SpillColumnFilter(index, SpillFilterOperator.StartsWith, descriptor.Value));
+                    break;
+                case FilteringOperator.EndsWith:
+                    columnFilters.Add(new SpillColumnFilter(index, SpillFilterOperator.EndsWith, descriptor.Value));
+                    break;
+                case FilteringOperator.GreaterThan:
+                    columnFilters.Add(new SpillColumnFilter(index, SpillFilterOperator.GreaterThan, descriptor.Value));
+                    break;
+                case FilteringOperator.GreaterThanOrEqual:
+                    columnFilters.Add(new SpillColumnFilter(index, SpillFilterOperator.GreaterThanOrEqual, descriptor.Value));
+                    break;
+                case FilteringOperator.LessThan:
+                    columnFilters.Add(new SpillColumnFilter(index, SpillFilterOperator.LessThan, descriptor.Value));
+                    break;
+                case FilteringOperator.LessThanOrEqual:
+                    columnFilters.Add(new SpillColumnFilter(index, SpillFilterOperator.LessThanOrEqual, descriptor.Value));
+                    break;
+                case FilteringOperator.Between when descriptor.Values is { Count: >= 2 }:
+                    columnFilters.Add(new SpillColumnFilter(index, SpillFilterOperator.GreaterThanOrEqual, descriptor.Values[0]));
+                    columnFilters.Add(new SpillColumnFilter(index, SpillFilterOperator.LessThanOrEqual, descriptor.Values[1]));
+                    break;
+                case FilteringOperator.In when descriptor.Values is { Count: > 0 }:
+                    bool includeNull = descriptor.Values.Any(static value => value is null);
+                    object[] values = descriptor.Values.Where(static value => value is not null).ToArray();
+                    if (values.Length == 0)
+                    {
+                        columnFilters.Add(new SpillColumnFilter(index, SpillFilterOperator.IsNull));
+                    }
+                    else
+                    {
+                        columnFilters.Add(new SpillColumnFilter(
+                            index,
+                            SpillFilterOperator.In,
+                            Values: values,
+                            IncludeNull: includeNull));
+                    }
+
+                    break;
+            }
+        }
+
+        return new SpillFilter(
+            string.IsNullOrWhiteSpace(SearchText) ? null : SearchText,
+            ContainsGeneralSearch,
+            columnFilters);
+    }
+
+    private int ResolveSpillColumnIndex(FilteringDescriptor descriptor)
+    {
+        const string prefix = "Fields[";
+        string? path = descriptor.PropertyPath;
+        if (path is not null)
+        {
+            int start = path.IndexOf(prefix, StringComparison.Ordinal);
+            if (start >= 0)
+            {
+                int end = path.IndexOf(']', start + prefix.Length);
+                if (end > start
+                    && int.TryParse(
+                        path.AsSpan(start + prefix.Length, end - start - prefix.Length),
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out int index)
+                    && index >= 0
+                    && index < CurrentResultsTable.Headers.Count)
+                {
+                    return index;
+                }
+            }
+        }
+
+        if (descriptor.ColumnId is string columnId)
+        {
+            int index = CurrentResultsTable.Headers.IndexOf(columnId);
+            if (index >= 0)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
     // ------------------------------------------------------------------
     // Sorting
     // ------------------------------------------------------------------
@@ -183,6 +376,24 @@ public sealed partial class SqlResultsViewModel
     {
         if (CurrentResultsTable is null)
         {
+            return;
+        }
+
+        if (IsSpillMode && _spillStore is not null)
+        {
+            _spillSort = [new SpillSortKey(comparer.Index, direction == ListSortDirection.Descending)];
+            ViewBridge?.SuspendGridBinding();
+            try
+            {
+                ApplySpillPage(0);
+                GridCollectionView = new DataGridCollectionView(CurrentResultsTable.FilteredRows);
+                RowsLoadingMessage = BuildSpillStatusMessage();
+            }
+            finally
+            {
+                ViewBridge?.ResumeGridBinding();
+            }
+
             return;
         }
 

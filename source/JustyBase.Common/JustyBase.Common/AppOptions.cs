@@ -7,13 +7,28 @@ namespace JustyBase.Common;
 public sealed class AppOptions
 {
     private const int ExtremeResultThreshold = 1_000_000;
+    private const int DefaultResultSpillThreshold = 250_000;
+    private const int MinResultSpillThreshold = 10_000;
+    private const int DefaultResultSpillPageSize = 20_000;
+    private const int MinResultSpillPageSize = 1_000;
+    private const int MaxResultSpillPageSize = 100_000;
+    private const long DefaultResultMemoryBudgetBytes = 4L * 1024 * 1024 * 1024;
+    private const long MinResultMemoryBudgetBytes = 512L * 1024 * 1024;
+    private const long MaxResultMemoryBudgetBytes = 64L * 1024 * 1024 * 1024;
+    private const long DefaultResultSpillQuotaBytes = 2L * 1024 * 1024 * 1024;
+    private const long MinResultSpillQuotaBytes = 256L * 1024 * 1024;
+    private const long MaxResultSpillQuotaBytes = 64L * 1024 * 1024 * 1024;
 
     public List<string> StartsFolderPaths { get; set; } = [];
     public int ResultRowsLimit { get; set; } = ExtremeResultThreshold;
     public int? ResultRowsLimitWarning { get; set; }//currently only in pro
-    /// <summary>When result rows exceed this threshold, spill to local SQLite and page the grid (MVP).</summary>
-    public int ResultSpillThreshold { get; set; } = ExtremeResultThreshold;
-    public int ResultSpillPageSize { get; set; } = ExtremeResultThreshold;
+    /// <summary>When result rows exceed this threshold, spill to local SQLite and page the grid.</summary>
+    public int ResultSpillThreshold { get; set; } = DefaultResultSpillThreshold;
+    public int ResultSpillPageSize { get; set; } = DefaultResultSpillPageSize;
+    /// <summary>Shared memory budget for decoded rows across every result tab (4 GiB by default).</summary>
+    public long ResultMemoryBudgetBytes { get; set; } = DefaultResultMemoryBudgetBytes;
+    /// <summary>Application-wide temporary-storage quota for spilled result files (2 GiB by default).</summary>
+    public long ResultSpillQuotaBytes { get; set; } = DefaultResultSpillQuotaBytes;
     public int ConnectionTimeout { get; set; } = 5; //s
     public int CommandTimeout { get; set; } = 3_600; //s = 3_600 = 1 hour
     //AllSnippets[name] = (snippetType, desc, text, keyword - not used)
@@ -475,15 +490,22 @@ public sealed class AppOptions
             ResultRowsLimit = ExtremeResultThreshold;
         }
 
-        if (ResultSpillThreshold < ExtremeResultThreshold)
+        if (ResultSpillThreshold < MinResultSpillThreshold)
         {
-            ResultSpillThreshold = ExtremeResultThreshold;
+            ResultSpillThreshold = DefaultResultSpillThreshold;
         }
 
-        if (ResultSpillPageSize < ExtremeResultThreshold)
-        {
-            ResultSpillPageSize = ExtremeResultThreshold;
-        }
+        ResultSpillPageSize = ResultSpillPageSize <= 0
+            ? DefaultResultSpillPageSize
+            : Math.Clamp(ResultSpillPageSize, MinResultSpillPageSize, MaxResultSpillPageSize);
+
+        ResultMemoryBudgetBytes = ResultMemoryBudgetBytes <= 0
+            ? DefaultResultMemoryBudgetBytes
+            : Math.Clamp(ResultMemoryBudgetBytes, MinResultMemoryBudgetBytes, MaxResultMemoryBudgetBytes);
+
+        ResultSpillQuotaBytes = ResultSpillQuotaBytes <= 0
+            ? DefaultResultSpillQuotaBytes
+            : Math.Clamp(ResultSpillQuotaBytes, MinResultSpillQuotaBytes, MaxResultSpillQuotaBytes);
     }
 }
 

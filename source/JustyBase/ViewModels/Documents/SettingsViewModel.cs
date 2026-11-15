@@ -169,6 +169,10 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         FullSettingsJsonString = JsonSerializer.Serialize(_generalApplicationData.Config, MyJsonContextAppOptions.Default.AppOptions);
 
         ResultRowsLimit = _generalApplicationData.Config.ResultRowsLimit;
+        ResultSpillThreshold = _generalApplicationData.Config.ResultSpillThreshold;
+        ResultSpillPageSize = _generalApplicationData.Config.ResultSpillPageSize;
+        ResultMemoryBudgetMb = (int)(_generalApplicationData.Config.ResultMemoryBudgetBytes / (1024 * 1024));
+        ResultSpillQuotaMb = (int)(_generalApplicationData.Config.ResultSpillQuotaBytes / (1024 * 1024));
         ConnectionTimeout = _generalApplicationData.Config.ConnectionTimeout;
         CommandTimeout = _generalApplicationData.Config.CommandTimeout;
 
@@ -373,6 +377,50 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
             }
             SetProperty(ref field, value);
             _generalApplicationData.Config.ResultRowsLimit = ResultRowsLimit ?? 10_000;
+        }
+    }
+
+    public int? ResultSpillThreshold
+    {
+        get;
+        set
+        {
+            value = Math.Clamp(value ?? 250_000, 10_000, 10_000_000);
+            SetProperty(ref field, value);
+            _generalApplicationData.Config.ResultSpillThreshold = value.Value;
+        }
+    }
+
+    public int? ResultSpillPageSize
+    {
+        get;
+        set
+        {
+            value = Math.Clamp(value ?? 20_000, 1_000, 100_000);
+            SetProperty(ref field, value);
+            _generalApplicationData.Config.ResultSpillPageSize = value.Value;
+        }
+    }
+
+    public int? ResultMemoryBudgetMb
+    {
+        get;
+        set
+        {
+            value = Math.Clamp(value ?? 4_096, 512, 65_536);
+            SetProperty(ref field, value);
+            _generalApplicationData.Config.ResultMemoryBudgetBytes = (long)value.Value * 1024 * 1024;
+        }
+    }
+
+    public int? ResultSpillQuotaMb
+    {
+        get;
+        set
+        {
+            value = Math.Clamp(value ?? 2_048, 256, 65_536);
+            SetProperty(ref field, value);
+            _generalApplicationData.Config.ResultSpillQuotaBytes = (long)value.Value * 1024 * 1024;
         }
     }
 

@@ -59,6 +59,22 @@ sequenceDiagram
   Disp->>Grid: Bind grid pages
 ```
 
+## Result storage and spill
+
+Decoded rows are held under a shared `ResultMemoryBudget` (4 GiB by default) and
+per-result row cap. When a result exceeds `ResultSpillThreshold` (250,000 rows by
+default) or the budget cannot serve the next row, loading switches to a typed
+SQLite spill file and the grid pages from disk. Sorting and search run in SQL
+against the spill; grouping materializes the filtered result only when it fits
+the budget and stays below one million rows.
+
+The application-wide spill quota (2 GiB) is enforced per write; a full quota
+keeps already-written rows and reports the limit instead of discarding results.
+A shared LRU page cache keeps scrolling cheap, and orphaned spill files from dead
+processes are removed at startup.
+
+Details and settings: [RESULT_STORE.md](RESULT_STORE.md).
+
 ## Plugins
 
 Each engine plugin:

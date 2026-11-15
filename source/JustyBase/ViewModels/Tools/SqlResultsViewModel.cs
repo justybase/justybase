@@ -18,6 +18,7 @@ using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommons;
 using JustyBase.Services;
 using JustyBase.Services.DataGrid;
+using JustyBase.Services.Results;
 using JustyBase.ViewModels.Documents;
 
 namespace JustyBase.ViewModels.Tools;
@@ -122,6 +123,8 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
     private readonly IResultGridActionRoutingService _actionRoutingService;
     private readonly IActiveDocumentManager _activeDocumentManager;
     private readonly IDataGridClipboardService _dataGridClipboardService;
+    private readonly ResultStoreService _resultStore;
+    private long _budgetReservedBytes;
 
     public IClipboardService Clipboard => _clipboardService;
     public SqlResultsViewModel(IFactory factory, IAvaloniaSpecificHelpers avaloniaSpecificHelpers, IClipboardService clipboardService,
@@ -129,7 +132,8 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         ISimpleLogger simpleLogger,
         IResultGridActionRoutingService actionRoutingService,
         IActiveDocumentManager activeDocumentManager,
-        IDataGridClipboardService dataGridClipboardService
+        IDataGridClipboardService dataGridClipboardService,
+        ResultStoreService? resultStore = null
         )
     {
         Factory = factory;
@@ -141,6 +145,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         _messageForUserTools = messageForUserTools;
         _simpleLogger = simpleLogger;
         _actionRoutingService = actionRoutingService;
+        _resultStore = resultStore ?? ResultStoreService.Shared;
         _resultHelperService = new(generalApplicationData, _messageForUserTools, _simpleLogger);
 
         DpWidth = "10";
@@ -335,10 +340,14 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
     [ObservableProperty]
     public partial int SpillTotalRows { get; set; }
 
+    /// <summary>Rows matching the active spill filter (equal to total when unfiltered).</summary>
+    [ObservableProperty]
+    public partial int SpillFilteredRows { get; set; }
+
     public int SpillPageCount =>
-        SpillPageSize <= 0 || SpillTotalRows == 0
+        SpillPageSize <= 0 || SpillFilteredRows == 0
             ? 0
-            : (SpillTotalRows + SpillPageSize - 1) / SpillPageSize;
+            : (SpillFilteredRows + SpillPageSize - 1) / SpillPageSize;
 
     [RelayCommand(CanExecute = nameof(CanGoSpillPrev))]
     private void SpillPrevPage()
@@ -349,7 +358,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         }
 
         ApplySpillPage(SpillPageIndex - 1);
-        RowsLoadingMessage = $"Spill {SpillTotalRows:N0} rows · page {SpillPageIndex + 1}/{SpillPageCount}";
+        RowsLoadingMessage = BuildSpillStatusMessage();
         NotifySpillCommands();
     }
 
@@ -362,7 +371,7 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         }
 
         ApplySpillPage(SpillPageIndex + 1);
-        RowsLoadingMessage = $"Spill {SpillTotalRows:N0} rows · page {SpillPageIndex + 1}/{SpillPageCount}";
+        RowsLoadingMessage = BuildSpillStatusMessage();
         NotifySpillCommands();
     }
 
@@ -374,6 +383,14 @@ public sealed partial class SqlResultsViewModel : Tool, ICleanableViewModel
         SpillPrevPageCommand.NotifyCanExecuteChanged();
         SpillNextPageCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(SpillPageCount));
+    }
+
+    private string BuildSpillStatusMessage()
+    {
+        string paging = $"Spill {SpillTotalRows:N0} rows · page {SpillPageIndex + 1}/{SpillPageCount}";
+        return SpillFilteredRows == SpillTotalRows
+            ? paging
+            : $"{paging} · {SpillFilteredRows:N0} match filter";
     }
 
     public bool ContainsGeneralSearch

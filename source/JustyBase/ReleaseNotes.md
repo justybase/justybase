@@ -1,3 +1,8 @@
+# JustyBase 1.4.3
+
+- Fixed large Netezza result sets being split into one result tab per 500-row block; all blocks now fill a single grid.
+- The schema tree shows its loading row only for slow loads and completes the requested node expansion when children arrive, so a fast node no longer needs a second click.
+
 # JustyBase 1.4.2
 
 - Added a Settings option to switch an installed Windows build between Full and Slim update channels.

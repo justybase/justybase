@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-11-15
+
+### Fixed
+
+- Large Netezza result sets no longer open a new result tab for every 500-row block: row blocks of the same query are appended to the grid that is already loading.
+- The schema tree shows its "Loading…" row only when a node takes longer than about 120 ms to load, and applies the requested expansion once the children arrive instead of requiring a second click.
+
 ## [1.4.2] - 2026-11-15
 
 ### Security

@@ -16,7 +16,7 @@ public sealed class DbSchemaResponsivenessTests : HeadlessSessionTestBase
     }
 
     [Fact]
-    public Task DbSchema_ExpandableNode_ExposesPlaceholderBeforeAsyncChildrenArrive() => RunOnUi(() =>
+    public Task DbSchema_ExpandableNode_ShowsPlaceholderOnlyWhenLoadIsSlow() => RunOnUi(() =>
     {
         const string connectionName = "SCHEMA_EXPAND_PLACEHOLDER";
         var appData = HeadlessProductHost.CreateAppData(connectionName);
@@ -41,12 +41,23 @@ public sealed class DbSchemaResponsivenessTests : HeadlessSessionTestBase
             ConnectionName = connectionName
         };
 
-        var placeholderChildren = node.Children;
+        _ = node.Children;
 
-        // The grid needs at least one row at expand time, otherwise the node
-        // collapses before the async load completes.
-        Assert.Single(placeholderChildren);
-        Assert.Equal("Loading…", placeholderChildren[0].Name);
+        // A fast load must not flash a "Loading…" row and swallow the first
+        // expand click; the placeholder appears only after the delay.
+        Assert.Empty(node.Children);
+        Assert.False(node.IsLoading);
+
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < deadline && node.Children.Count == 0)
+        {
+            Dispatcher.UIThread.RunJobs();
+            Thread.Sleep(20);
+        }
+
+        Dispatcher.UIThread.RunJobs();
+        Assert.Single(node.Children);
+        Assert.Equal("Loading…", node.Children[0].Name);
         Assert.True(node.IsLoading);
 
         DatabaseServiceHelpers.RemoveCachedConnection(connectionName);
@@ -80,7 +91,7 @@ public sealed class DbSchemaResponsivenessTests : HeadlessSessionTestBase
         node.ChildrenLoaded += (_, _) => raised++;
 
         _ = node.Children;
-        Assert.Single(node.Children);
+        Assert.Empty(node.Children);
 
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < deadline

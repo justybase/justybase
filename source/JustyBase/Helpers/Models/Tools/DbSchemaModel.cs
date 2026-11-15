@@ -65,6 +65,14 @@ public sealed partial class DbSchemaModel
     private const int MaxChildrenBeforeTruncation = 500;
     private const int MaxErrorMessageLength = 200;
 
+    /// <summary>
+    /// Fast schema loads finish in a few milliseconds. Showing the loading row
+    /// immediately made those expansions push an extra "Loading…" row and the
+    /// user had to click again after it vanished, so it is shown only when the
+    /// load is actually slow.
+    /// </summary>
+    internal static TimeSpan LoadingPlaceholderDelay { get; set; } = TimeSpan.FromMilliseconds(120);
+
     public void ClearChildren()
     {
         // Bump the generation first so an in-flight load cannot resurrect its
@@ -166,25 +174,12 @@ public sealed partial class DbSchemaModel
     private async Task LoadChildrenCoreAsync(CancellationTokenSource cts, int generation)
     {
         var cancellationToken = cts.Token;
-        DbSchemaModel? placeholder = null;
-        IsLoading = true;
+        bool expandedWhenLoadStarted = IsExpanded;
+        IsLoading = false;
         LoadError = null;
+        _ = ShowLoadingPlaceholderAfterDelayAsync(cts, generation);
         try
         {
-            // A node must expose at least one child as soon as it is expanded,
-            // otherwise the tree has nothing to render and the row collapses
-            // again before the async load finishes.
-            if (IsExpandedable && _children.Count == 0)
-            {
-                placeholder = new DbSchemaModel(TypeInDatabaseEnum.otherNoneEntry, DatabaseTypeEnumValue, _generalApplicationData, _resolver)
-                {
-                    Name = "Loading…",
-                    Parent = this,
-                    ConnectionName = ConnectionName,
-                    IsExpandedable = false
-                };
-                _children.Add(placeholder);
-            }
 
             // F1: connected-level check prefers resolver when available.
             var connectedLevel = _resolver is not null && !string.IsNullOrWhiteSpace(Name)
@@ -250,6 +245,14 @@ public sealed partial class DbSchemaModel
 
                 _childrenLoaded = true;
                 IsLoading = false;
+                if (expandedWhenLoadStarted && !IsExpanded)
+                {
+                    // The user asked to expand this node; the hierarchical model can
+                    // drop the state while the placeholder rows are replaced, so the
+                    // original intent is applied again as soon as data is available.
+                    IsExpanded = true;
+                }
+
                 ChildrenLoaded?.Invoke(this, EventArgs.Empty);
             });
         }
@@ -260,7 +263,7 @@ public sealed partial class DbSchemaModel
                 // Keep previous children on cancel; a newer load superseded this one.
                 if (generation == _loadGeneration)
                 {
-                    RemovePlaceholder(placeholder);
+                    RemovePlaceholder();
                     IsLoading = false;
                 }
             });
@@ -309,14 +312,47 @@ public sealed partial class DbSchemaModel
         }
     }
 
-    private void RemovePlaceholder(DbSchemaModel? placeholder)
+    /// <summary>
+    /// Adds the visible loading row only when the load is still running after
+    /// <see cref="LoadingPlaceholderDelay"/>. Keeping it as the single child
+    /// stops the tree from collapsing while the async work finishes.
+    /// </summary>
+    private async Task ShowLoadingPlaceholderAfterDelayAsync(CancellationTokenSource cts, int generation)
     {
-        if (placeholder is null)
+        try
+        {
+            await Task.Delay(LoadingPlaceholderDelay, cts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
         {
             return;
         }
 
-        if (_children.Count == 1 && ReferenceEquals(_children[0], placeholder))
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (generation != _loadGeneration
+                || _childrenLoaded
+                || LoadError is not null
+                || !IsExpandedable
+                || _children.Count > 0)
+            {
+                return;
+            }
+
+            IsLoading = true;
+            _children.Add(new DbSchemaModel(TypeInDatabaseEnum.otherNoneEntry, DatabaseTypeEnumValue, _generalApplicationData, _resolver)
+            {
+                Name = "Loading…",
+                Parent = this,
+                ConnectionName = ConnectionName,
+                IsExpandedable = false
+            });
+        });
+    }
+
+    private void RemovePlaceholder()
+    {
+        if (_children.Count == 1 && _children[0].Name == "Loading…")
         {
             _children.Clear();
         }

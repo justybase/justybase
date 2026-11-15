@@ -16,7 +16,9 @@ partial class SqlResultsViewModel
     private const int MAX_SPILL_PAGE_SIZE = 100_000;
     private const int MIN_RESULT_ROWS_LIMIT = 50_000;
     private const int MAX_GROUPABLE_ROWS = 1_000_000;
+    private const int MAX_BLOCK_CONTINUATIONS = 100_000;
 
+    private List<string> _sourceColumnNames = [];
     private ResultSpillStore? _spillStore;
     private IReadOnlyList<SpillSortKey> _spillSort = [];
     private SpillFilter? _spillFilter;
@@ -66,6 +68,7 @@ partial class SqlResultsViewModel
                 typeCodes.Add(Type.GetTypeCode(reader.GetFieldType(i)));
             }
         }
+        _sourceColumnNames = [.. headers];
         var st = reader.GetSchemaTable();
 
         if (st is not null && st.Columns.Contains("NumericScale"))
@@ -123,7 +126,7 @@ partial class SqlResultsViewModel
             lock (_lock)
             {
                 var drr = res.dbService.GetDatabaseRowReader(reader);
-                while (a++ < INITIAL_ROWS_LIMIT && reader.Read())
+                while (a++ < INITIAL_ROWS_LIMIT && ReadNextRow(reader))
                 {
                     object?[] fields = drr.ReadOneRow();
                     rows.Add(new TableRow { Fields = fields });
@@ -175,7 +178,7 @@ partial class SqlResultsViewModel
             // Peek the first remaining row so "loading more…" is only shown when more rows
             // actually exist (e.g. SELECT … LIMIT 1 must not advertise rows that do not come).
             // Sync Invoke: background reader must barrier on UI before continuing the DB loop.
-            if (queryNum >= abortUbound && reader.Read())
+            if (queryNum >= abortUbound && ReadNextRow(reader))
             {
                 int previewShown = previewRows;
                 Dispatcher.UIThread.Invoke(() =>
@@ -245,7 +248,7 @@ partial class SqlResultsViewModel
                         }, DispatcherPriority.Background);
                     }
 
-                    hasRow = reader.Read();
+                    hasRow = ReadNextRow(reader);
                 }
             }
         }
@@ -372,6 +375,57 @@ partial class SqlResultsViewModel
             spillActivated = true;
             ReleaseBudget();
         }
+    }
+
+    /// <summary>
+    /// Reads the next row of the current result. Some drivers (Netezza) report a
+    /// result-set boundary between row blocks of the same query, so a plain
+    /// <see cref="DbDataReader.Read"/> would stop after the first block and the
+    /// remaining blocks would be published as separate results. Cross the
+    /// boundary only when the upcoming columns still match this result; a real
+    /// second result set keeps a different shape and is left to the caller.
+    /// </summary>
+    private bool ReadNextRow(DbDataReader reader)
+    {
+        for (int guard = 0; guard < MAX_BLOCK_CONTINUATIONS; guard++)
+        {
+            if (reader.Read())
+            {
+                return true;
+            }
+
+            if (!HasSameColumnsAsLoadedResult(reader) || !reader.NextResult())
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private bool HasSameColumnsAsLoadedResult(DbDataReader reader)
+    {
+        List<string> names = _sourceColumnNames;
+        List<string> typeNames = CurrentResultsTable.DataTypeNames;
+        if (names.Count == 0 || reader.FieldCount != names.Count)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < names.Count; i++)
+        {
+            if (!string.Equals(reader.GetName(i), names[i], StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (i < typeNames.Count && !string.Equals(reader.GetDataTypeName(i), typeNames[i], StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void PublishFilteredRows(IReadOnlyList<TableRow> rows, bool replace, bool rebuildIndexMap = true)

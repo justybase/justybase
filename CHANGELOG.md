@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-11-15
+
 ### Security
 
 - CI now fails on any known vulnerable NuGet package (`dotnet list package --vulnerable --include-transitive`), and `NU1902`/`NU1903` are build errors.
@@ -35,6 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Cleared the remaining `CS8604`, `CS8601` and `CS8765` nullability warnings across the application, editor, Netezza plugin, importer helpers and tests.
 - `.editorconfig` section globs now use `folder/**`; the previous `folder/**/*.cs` pattern skipped files directly in the folder, so the documented test-project suppressions never applied (685 `CA1707` warnings).
 - README no longer claims ProDataGrid 12.0.5 or .NET 10; both were stale.
+- Excluded the non-shipped UCanAccess console utility from the production third-party notice scan so CI only requires restored assets for shipped projects.
 
 ## [1.4.1] - 2026-11-07
 

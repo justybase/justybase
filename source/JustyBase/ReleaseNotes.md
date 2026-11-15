@@ -1,3 +1,12 @@
+# JustyBase 1.4.2
+
+- Added a Settings option to switch an installed Windows build between Full and Slim update channels.
+- Reworked large-result storage with memory/disk budgets, typed spill storage, and asynchronous paging, sorting, filtering, and grouping.
+- Added streaming exports with progress and cancellation, including for results larger than the visible page.
+- Expanded DB2 support with definition search, impact analysis, session monitoring, and cross-connection table copy.
+- Added SQL editor improvements including dialect-aware linting, ranked completions, signature help, and an asynchronous schema tree.
+- Added SHA256SUMS manifests to release assets.
+
 # JustyBase 1.4.1
 
 - Added a Velopack installer for Slim (`win-slim` update channel), alongside the portable ZIP.

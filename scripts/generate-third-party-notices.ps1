@@ -18,7 +18,7 @@ if (-not (Test-Path $packagesRoot)) {
 
 # Production projects only: the application, its plugins/drivers, the editor and
 # the sibling Netezza/UCanAccess libraries that ship with the application.
-$excludedProjectSegment = '\\(obj|bin|tests|test|Benchmarks|samples|eng|JustyBase\.Tests|JustyBase\.HeadlessTests|JustyBase\.IntegrationTests|JustyBase\.LiveTests|JustyBase\.Screenshot)\\'
+$excludedProjectSegment = '\\(obj|bin|tests|test|Benchmarks|samples|eng|JustyBase\.Tests|JustyBase\.HeadlessTests|JustyBase\.IntegrationTests|JustyBase\.LiveTests|JustyBase\.Screenshot|UCanAccess\.Console)\\'
 
 $projectRoots = @(
     (Join-Path $repoRoot 'source'),

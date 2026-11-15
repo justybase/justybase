@@ -60,6 +60,22 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public async Task PrepareChannelSwitch_SkipsNonVelopackInstallation()
+    {
+        var applicationData = new Mock<IGeneralApplicationData>();
+        applicationData.SetupGet(x => x.Config).Returns(new AppOptions());
+        var logger = new Mock<ISimpleLogger>();
+        using var service = new ApplicationUpdateService(applicationData.Object, logger.Object);
+
+        ApplicationUpdateResult result = await service.PrepareChannelSwitchAsync(DistributionChannel.Slim);
+
+        Assert.Equal(ApplicationUpdateStatus.Unsupported, result.Status);
+        Assert.Null(service.InstalledChannel);
+        Assert.False(service.ApplyPreparedChannelSwitchAndRestart());
+        applicationData.Verify(x => x.SaveConfig(), Times.Never);
+    }
+
+    [Fact]
     public void CharAtMessage_CanBeAssigned()
     {
         var vm = new MainWindowViewModel

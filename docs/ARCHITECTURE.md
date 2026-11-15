@@ -96,5 +96,5 @@ Maturity by engine: [PLUGIN_CAPABILITIES.md](PLUGIN_CAPABILITIES.md).
 
 - Credentials stored encrypted under `%AppData%\JustDataEvo`
 - Logging redacts connection secrets
-- Windows update integration uses Velopack's `GithubSource` against the public JustyBase GitHub Releases feed. Automatic checks are throttled to once per 24 hours and downloaded updates require user confirmation before restart.
+- Windows update integration uses Velopack's `GithubSource` against the public JustyBase GitHub Releases feed. Automatic checks are throttled to once per 24 hours and downloaded updates require user confirmation before restart. Full and Slim builds share the `JustyBase` package id and are separated by the `win` / `win-slim` channels; Settings can switch an installed copy to the other variant (explicit channel with downgrade allowed, applied on restart).
  - Release artifacts: Windows is self-contained Native AOT (`PublishAot`/`PublishTrimmed`), Linux/macOS stay self-contained ReadyToRun (no trimming); workflow definitions check out both sibling repositories before restore/build, with no NuGet fallback for their libraries

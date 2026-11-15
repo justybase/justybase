@@ -212,7 +212,7 @@ publishWindows.bat <version>
 
 The GitHub Actions release workflow builds a self-contained Native AOT package on Windows and self-contained ReadyToRun packages on Linux/macOS. Dynamic plugins and reflection-heavy database providers remain in-process. The closed-source DataGrid assembly is preserved with `TrimmerRootAssembly` (see `source/JustyBase/JustyBase.csproj`), and trimming is disabled on Linux/macOS for provider compatibility.
 
-Windows installations created with Velopack automatically check the JustyBase GitHub Releases feed once per 24 hours, including prereleases. Updates download in the background and ask before restarting the application. The manual **Check for updates** command is available from the main window. Development runs and the Linux/macOS ZIP distributions do not perform automatic updates.
+Windows installations created with Velopack automatically check the JustyBase GitHub Releases feed once per 24 hours, including prereleases. Updates download in the background and ask before restarting the application. The manual **Check for updates** command is available from the main window. Settings → Others → **Distribution variant** switches between the Full and Slim (light) builds: the other installer is downloaded from its own Velopack channel (`win` / `win-slim`) and applied on restart, keeping connections, settings and open files. Development runs and the Linux/macOS ZIP distributions do not perform automatic updates.
 
 Netezza SQL and UCanAccess sources are required sibling checkouts for local builds. The GitHub Actions workflow definitions place both repositories next to `JustyBase` before restore/build; no NuGet fallback is used for these libraries.
 

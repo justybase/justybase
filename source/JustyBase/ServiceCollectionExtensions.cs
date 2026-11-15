@@ -95,6 +95,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton(sp =>
             new Services.Results.ResultStoreService(sp.GetRequiredService<IGeneralApplicationData>().Config));
         collection.AddSingleton<IApplicationUpdateService, ApplicationUpdateService>();
+        collection.AddSingleton<IApplicationRestartPreparation, ApplicationRestartPreparation>();
         collection.AddSingleton<IAvaloniaSpecificHelpers, AvaloniaSpecificHelpers>();
         collection.AddSingleton<Services.FileExplorer.IFileIconProvider, Services.FileExplorer.FileIconProvider>();
         collection.AddSingleton<Services.Dialogs.IQuickOpenDialogService, Services.Dialogs.QuickOpenDialogService>();

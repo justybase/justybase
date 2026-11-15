@@ -16,6 +16,7 @@ using JustyBase.Ai.Models;
 using JustyBase.Common.Models;
 using JustyBase.Ai.Services;
 using JustyBase.Services;
+using JustyBase.Services.Updates;
 using JustyBase.PluginCommon.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
@@ -29,6 +30,9 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
     private readonly IGeneralApplicationData _generalApplicationData;
     private readonly IClipboardService _clipboardService;
     private readonly NzLinterService? _linterService;
+    private readonly IApplicationUpdateService _applicationUpdateService;
+    private readonly IApplicationRestartPreparation _restartPreparation;
+    private CancellationTokenSource? _variantSwitchCts;
 #if AI
     private readonly ICopilotChatService _chatService;
     private readonly IFimModelBootstrapService _fimBootstrap;
@@ -54,6 +58,8 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         IActiveDocumentManager activeDocumentManager,
         IAvaloniaSpecificHelpers avaloniaSpecificHelpers,
         IClipboardService clipboardService,
+        IApplicationUpdateService applicationUpdateService,
+        IApplicationRestartPreparation restartPreparation,
 #if AI
         ICopilotChatService chatService,
         IFimModelBootstrapService fimBootstrap,
@@ -70,6 +76,9 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         _clipboardService = clipboardService;
         _ = avaloniaSpecificHelpers;
         _linterService = linterService;
+        _applicationUpdateService = applicationUpdateService;
+        _restartPreparation = restartPreparation;
+        SelectedDistributionVariant = DistributionChannel.ToVariant(applicationUpdateService.InstalledChannel) ?? "Full";
 #if AI
         _chatService = chatService;
         _fimBootstrap = fimBootstrap ?? throw new ArgumentNullException(nameof(fimBootstrap));
@@ -653,6 +662,80 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         }
     }
 
+    /// <summary>Variants offered by the release feed; both share the JustyBase package id.</summary>
+    public IReadOnlyList<string> DistributionVariantChoices { get; } = ["Full", "Slim"];
+
+    [ObservableProperty]
+    public partial string SelectedDistributionVariant { get; set; } = "Full";
+
+    [ObservableProperty]
+    public partial bool IsDistributionVariantSwitchInProgress { get; set; }
+
+    [ObservableProperty]
+    public partial string DistributionVariantStatus { get; set; } = string.Empty;
+
+    public bool IsDistributionVariantSwitchSupported => _applicationUpdateService.IsSupported;
+
+    public string InstalledDistributionVariantDescription
+    {
+        get
+        {
+            string? channel = _applicationUpdateService.InstalledChannel;
+            return channel switch
+            {
+                DistributionChannel.Full => "Installed: Full — every database driver and the AI features.",
+                DistributionChannel.Slim => "Installed: Slim (light) — Netezza, SQLite, DB2, Postgres and MySQL, without AI.",
+                null => "Variant switching needs the Velopack Windows installer. Portable ZIP builds stay on the variant you downloaded.",
+                _ => $"Installed build: channel {channel}.",
+            };
+        }
+    }
+
+    public bool CanEditDistributionVariant
+        => IsDistributionVariantSwitchSupported && !IsDistributionVariantSwitchInProgress;
+
+    public bool CanSwitchDistributionVariant
+    {
+        get
+        {
+            if (!CanEditDistributionVariant)
+            {
+                return false;
+            }
+
+            string? targetChannel = DistributionChannel.FromVariant(SelectedDistributionVariant);
+            return targetChannel is not null
+                && !string.Equals(
+                    _applicationUpdateService.InstalledChannel,
+                    targetChannel,
+                    StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    public string SwitchDistributionVariantButtonText
+        => CanSwitchDistributionVariant
+            ? $"Switch to {SelectedDistributionVariant}"
+            : "Variant installed";
+
+    public bool HasDistributionVariantStatus => !string.IsNullOrWhiteSpace(DistributionVariantStatus);
+
+    partial void OnSelectedDistributionVariantChanged(string value)
+    {
+        DistributionVariantStatus = string.Empty;
+        OnPropertyChanged(nameof(CanSwitchDistributionVariant));
+        OnPropertyChanged(nameof(SwitchDistributionVariantButtonText));
+    }
+
+    partial void OnIsDistributionVariantSwitchInProgressChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanEditDistributionVariant));
+        OnPropertyChanged(nameof(CanSwitchDistributionVariant));
+        OnPropertyChanged(nameof(SwitchDistributionVariantButtonText));
+    }
+
+    partial void OnDistributionVariantStatusChanged(string value)
+        => OnPropertyChanged(nameof(HasDistributionVariantStatus));
+
     public IReadOnlyList<string> LintSeverityChoices { get; } = ["Off", "Warning", "Error"];
 
     public bool SqlLinterEnabled
@@ -934,7 +1017,7 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
         new("Results", "Results", ["results", "rows", "limit", "rows count"]),
         new("Limits", "Limits", ["limits", "rows count limit", "result rows"]),
         new("Apperance", "Appearance", ["appearance", "theme", "color", "font", "splash", "details button", "accent", "dark", "folding", "collapse"]),
-        new("Others", "Others", ["others", "clear data", "autocomplete", "confirm", "update", "plugins", "log", "errors.log", "logging", "history", "months", "retention"]),
+        new("Others", "Others", ["others", "clear data", "autocomplete", "confirm", "update", "updates", "variant", "full", "slim", "light", "channel", "plugins", "log", "errors.log", "logging", "history", "months", "retention"]),
     ];
 
     private static string[] GetMatchingSectionIds(string? searchText)
@@ -951,8 +1034,107 @@ public partial class SettingsViewModel : DocumentBaseVM, IDisposable
             .ToArray();
     }
 
+    [RelayCommand]
+    private async Task SwitchDistributionVariantAsync()
+    {
+        if (!CanSwitchDistributionVariant)
+        {
+            return;
+        }
+
+        string? targetChannel = DistributionChannel.FromVariant(SelectedDistributionVariant);
+        if (targetChannel is null)
+        {
+            DistributionVariantStatus = $"Unknown variant '{SelectedDistributionVariant}'.";
+            return;
+        }
+
+        bool confirmed = await _messageForUserTools.ShowConfirmationDialogAsync(
+            $"Switch JustyBase to the {SelectedDistributionVariant} variant?\n\n"
+            + "The other installer is downloaded now and JustyBase restarts to apply it. "
+            + "Connections, settings and open files are kept.",
+            "Switch variant");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _variantSwitchCts?.Dispose();
+        using var cts = new CancellationTokenSource();
+        _variantSwitchCts = cts;
+        IsDistributionVariantSwitchInProgress = true;
+        DistributionVariantStatus = $"Downloading {SelectedDistributionVariant}…";
+        try
+        {
+            var progress = new Progress<int>(percent =>
+                DistributionVariantStatus = $"Downloading {SelectedDistributionVariant}… {percent}%");
+
+            ApplicationUpdateResult result = await _applicationUpdateService
+                .PrepareChannelSwitchAsync(targetChannel, progress, cts.Token)
+                .ConfigureAwait(true);
+
+            switch (result.Status)
+            {
+                case ApplicationUpdateStatus.Downloaded:
+                    _restartPreparation.SaveBeforeRestart();
+                    DistributionVariantStatus = "Restarting to apply the switch…";
+                    string[] restartArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();
+                    if (!_applicationUpdateService.ApplyPreparedChannelSwitchAndRestart(restartArgs))
+                    {
+                        DistributionVariantStatus = "The downloaded variant could not be applied. Try again.";
+                    }
+                    break;
+
+                case ApplicationUpdateStatus.Cancelled:
+                    DistributionVariantStatus = "Variant switch cancelled.";
+                    break;
+
+                case ApplicationUpdateStatus.Unsupported:
+                    DistributionVariantStatus = "Variant switching needs the Velopack Windows installer.";
+                    break;
+
+                case ApplicationUpdateStatus.NoUpdate:
+                    DistributionVariantStatus = $"No {SelectedDistributionVariant} release is available for this version.";
+                    break;
+
+                default:
+                    DistributionVariantStatus = result.ErrorMessage ?? "The variant switch failed.";
+                    break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            DistributionVariantStatus = "Variant switch cancelled.";
+        }
+        finally
+        {
+            if (ReferenceEquals(_variantSwitchCts, cts))
+            {
+                _variantSwitchCts = null;
+            }
+
+            IsDistributionVariantSwitchInProgress = false;
+        }
+    }
+
+    [RelayCommand]
+    private void CancelDistributionVariantSwitch()
+    {
+        if (_variantSwitchCts is null)
+        {
+            return;
+        }
+
+        _variantSwitchCts.Cancel();
+        DistributionVariantStatus = "Cancelling the download…";
+    }
+
     public void Dispose()
     {
+        _variantSwitchCts?.Cancel();
+        _variantSwitchCts?.Dispose();
+        _variantSwitchCts = null;
+
 #if AI
         _fimPrepareCts?.Cancel();
         _fimPrepareCts?.Dispose();

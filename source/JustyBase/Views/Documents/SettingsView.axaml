@@ -1483,14 +1483,41 @@
 
 					<TextBlock Classes="section-caption" Text="UPDATES" />
 					<Border Classes="settings-card">
-						<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
-							<StackPanel Grid.Column="0">
-								<TextBlock Classes="row-title" Text="Auto-download application updates" />
-								<TextBlock Classes="row-desc" Text="Check GitHub Releases every 24 hours and download updates in the background. You will be asked before restarting." />
-							</StackPanel>
-							<ToggleSwitch Grid.Column="1" Classes="settings-control"
-										  IsChecked="{Binding AutoDownloadUpdate}" />
-						</Grid>
+						<StackPanel>
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Auto-download application updates" />
+									<TextBlock Classes="row-desc" Text="Check GitHub Releases every 24 hours and download updates in the background. You will be asked before restarting." />
+								</StackPanel>
+								<ToggleSwitch Grid.Column="1" Classes="settings-control"
+											  IsChecked="{Binding AutoDownloadUpdate}" />
+							</Grid>
+							<Separator Classes="settings-sep" />
+							<Grid Classes="settings-row" ColumnDefinitions="*,Auto">
+								<StackPanel Grid.Column="0">
+									<TextBlock Classes="row-title" Text="Distribution variant" />
+									<TextBlock Classes="row-desc" Text="{Binding InstalledDistributionVariantDescription}" />
+									<TextBlock Classes="row-desc" Text="Full ships every database driver and the AI features. Slim (light) keeps Netezza, SQLite, DB2, Postgres and MySQL without AI." />
+									<TextBlock Classes="row-desc"
+											   Text="{Binding DistributionVariantStatus}"
+											   IsVisible="{Binding HasDistributionVariantStatus}" />
+								</StackPanel>
+								<StackPanel Grid.Column="1" Spacing="6" HorizontalAlignment="Right">
+									<ComboBox Classes="settings-control"
+											  ItemsSource="{Binding DistributionVariantChoices}"
+											  SelectedItem="{Binding SelectedDistributionVariant}"
+											  IsEnabled="{Binding CanEditDistributionVariant}" />
+									<Button Classes="settings-action"
+											Content="{Binding SwitchDistributionVariantButtonText}"
+											Command="{Binding SwitchDistributionVariantCommand}"
+											IsEnabled="{Binding CanSwitchDistributionVariant}" />
+									<Button Classes="settings-action"
+											Content="Cancel download"
+											Command="{Binding CancelDistributionVariantSwitchCommand}"
+											IsVisible="{Binding IsDistributionVariantSwitchInProgress}" />
+								</StackPanel>
+							</Grid>
+						</StackPanel>
 					</Border>
 
 					<TextBlock Classes="section-caption" Text="HISTORY" />

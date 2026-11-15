@@ -28,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Spill-aware export and clipboard: a streaming `SpillResultReader` feeds CSV/TSV/JSON/XML/Parquet/SQL/Excel and "copy all rows"/HTML, so large results are no longer truncated to the visible page
 - Spill filtering, sorting, paging and grouping now run their SQLite work off the UI thread with serialized, versioned operations that discard stale pages
 - Progress reporting and a **Cancel export** action for long-running result exports; cancelling removes the partial file and restores the result status
+- Settings → Others → **Distribution variant** switches an installed Windows build between Full (`win`) and Slim (`win-slim`); the other variant is downloaded with an explicit channel (downgrades allowed) and applied on restart, keeping connections, settings and open files
 
 ### Fixed
 

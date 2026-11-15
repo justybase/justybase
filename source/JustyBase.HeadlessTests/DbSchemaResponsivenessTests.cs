@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using JustyBase.Models.Tools;
 using JustyBase.PluginCommon.Enums;
 using JustyBase.PluginDatabaseBase.Database;
+using Moq;
 using Xunit.Abstractions;
 
 namespace JustyBase.HeadlessTests;
@@ -31,6 +32,21 @@ public sealed class DbSchemaResponsivenessTests : HeadlessSessionTestBase
         // normal desktop session is in when the user expands the tree root.
         fakeService.SetupProperty(s => s.ConnectedLevel, DatabaseConnectedLevel.ConnectedDatabaseObjects);
 
+        // Hold the database call on a gate instead of relying on a sleep: on a
+        // loaded CI agent the load result could reach the UI thread before the
+        // placeholder delay elapsed, making the assertion below flaky. With the
+        // gate the load cannot finish until the placeholder has been observed.
+        using var loadStarted = new ManualResetEventSlim(false);
+        using var releaseLoad = new ManualResetEventSlim(false);
+        fakeService
+            .Setup(s => s.GetDatabases(It.IsAny<string>()))
+            .Returns(() =>
+            {
+                loadStarted.Set();
+                releaseLoad.Wait(TimeSpan.FromSeconds(30));
+                return ["main"];
+            });
+
         DatabaseServiceHelpers.RemoveCachedConnection(connectionName);
         _ = DatabaseServiceHelpers.GetDatabaseService(null, connectionName, ownDatabaseService: fakeService.Object);
 
@@ -41,26 +57,48 @@ public sealed class DbSchemaResponsivenessTests : HeadlessSessionTestBase
             ConnectionName = connectionName
         };
 
-        _ = node.Children;
-
-        // A fast load must not flash a "Loading…" row and swallow the first
-        // expand click; the placeholder appears only after the delay.
-        Assert.Empty(node.Children);
-        Assert.False(node.IsLoading);
-
-        var deadline = DateTime.UtcNow.AddSeconds(10);
-        while (DateTime.UtcNow < deadline && node.Children.Count == 0)
+        try
         {
+            _ = node.Children;
+
+            // A fast load must not flash a "Loading…" row and swallow the first
+            // expand click; the placeholder appears only after the delay.
+            Assert.Empty(node.Children);
+            Assert.False(node.IsLoading);
+
+            Assert.True(loadStarted.Wait(TimeSpan.FromSeconds(10)), "GetDatabases was never called");
+
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (DateTime.UtcNow < deadline && node.Children.Count == 0)
+            {
+                Dispatcher.UIThread.RunJobs();
+                Thread.Sleep(20);
+            }
+
             Dispatcher.UIThread.RunJobs();
-            Thread.Sleep(20);
+            Assert.Single(node.Children);
+            Assert.Equal("Loading…", node.Children[0].Name);
+            Assert.True(node.IsLoading);
+
+            releaseLoad.Set();
+
+            deadline = DateTime.UtcNow.AddSeconds(10);
+            while (DateTime.UtcNow < deadline && !node.AreChildrenLoaded)
+            {
+                Dispatcher.UIThread.RunJobs();
+                Thread.Sleep(20);
+            }
+
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(node.AreChildrenLoaded);
+            Assert.DoesNotContain(node.Children, c => c.Name == "Loading…");
+            Assert.Contains(node.Children, c => c.Name == "main");
         }
-
-        Dispatcher.UIThread.RunJobs();
-        Assert.Single(node.Children);
-        Assert.Equal("Loading…", node.Children[0].Name);
-        Assert.True(node.IsLoading);
-
-        DatabaseServiceHelpers.RemoveCachedConnection(connectionName);
+        finally
+        {
+            releaseLoad.Set();
+            DatabaseServiceHelpers.RemoveCachedConnection(connectionName);
+        }
     });
 
     [Fact]

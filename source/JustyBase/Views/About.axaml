@@ -6,10 +6,10 @@
 		mc:Ignorable="d" 
         x:Class="JustyBase.Views.About"
 		d:DesignWidth="540" 
-		d:DesignHeight="260"
+		d:DesignHeight="320"
 		Width="540"
-		Height="260"
-		MinHeight="260"
+		Height="320"
+		MinHeight="320"
 		ExtendClientAreaToDecorationsHint="True"
 		WindowDecorations="Full"
 		ShowInTaskbar="False"
@@ -38,6 +38,11 @@
 					   Margin="0 5 0 0"
 					   Name="versionTb" 
 					   Text="{Binding CurrentVersionText}"/>
+			<Button Content="Third-party notices"
+					HorizontalAlignment="Center"
+					Margin="0 14 0 0"
+					Padding="16,5"
+					Click="ThirdPartyNotices_Click"/>
 		</StackPanel>
 	</Grid>
 </Window>

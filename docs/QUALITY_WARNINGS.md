@@ -7,6 +7,25 @@ with:
 ./scripts/audit-local-warnings.ps1 -Configuration Debug -NoIncremental
 ```
 
+## CI quality gates
+
+`dotnet-test.yml` fails a pull request when any of these checks fails:
+
+| Gate | Command |
+|---|---|
+| NuGet vulnerability audit | `dotnet list JustyBase.slnx package --vulnerable --include-transitive` (parsed; any vulnerability fails) |
+| Third-party notices freshness | `pwsh ./scripts/generate-third-party-notices.ps1 -Check` |
+| Formatting | `dotnet format JustyBase.slnx whitespace/style --verify-no-changes --include source` |
+| Tests | unit + headless (`Category!=Integration&Category!=Live`) |
+| Linux build | `dotnet build source/JustyBase/JustyBase.csproj` on `ubuntu-latest` |
+
+## EditorConfig section globs
+
+Section globs use `folder/**`, not `folder/**/*.cs`. Roslyn treats `**/` as requiring at
+least one directory level, so `folder/**/*.cs` silently skips files that sit directly in
+`folder/`. That is why the test-project `CA1707` suppressions did not apply before the
+glob fix, even though the rules were documented here.
+
 The desktop application currently uses `Nullable=annotations` while its
 nullability flow analysis is migrated in batches; shared libraries use full
 nullable analysis.

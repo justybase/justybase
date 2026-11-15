@@ -7,6 +7,11 @@ insert_final_newline = true
 indent_style = space
 indent_size = 4
 
+# Section globs use `folder/**` on purpose. Roslyn treats `**/` as requiring at
+# least one directory level, so `folder/**/*.cs` silently skips files that sit
+# directly in `folder/` (this hid the CA1707 suppression for the test projects).
+# `folder/**` matches both direct and nested files.
+
 # Keep SQL construction and native/security findings visible in every project.
 dotnet_diagnostic.CA2100.severity = warning
 dotnet_diagnostic.CA5392.severity = warning
@@ -14,49 +19,49 @@ dotnet_diagnostic.CA5394.severity = warning
 dotnet_diagnostic.CA5401.severity = warning
 
 # Desktop UI assembly: public types are used by XAML, DI and composition.
-[source/JustyBase/**/*.cs]
+[source/JustyBase/**]
 dotnet_diagnostic.CA1515.severity = silent
 
 # Underscores are the established naming convention for test methods.
-[source/JustyBase.Tests/**/*.cs]
+[source/JustyBase.Tests/**]
 dotnet_diagnostic.CA1707.severity = silent
 
-[source/JustyBase.HeadlessTests/**/*.cs]
+[source/JustyBase.HeadlessTests/**]
 dotnet_diagnostic.CA1707.severity = silent
 
-[source/JustyBase.IntegrationTests/**/*.cs]
+[source/JustyBase.IntegrationTests/**]
 dotnet_diagnostic.CA1707.severity = silent
 
-[source/JustyBase.LiveTests/**/*.cs]
+[source/JustyBase.LiveTests/**]
 dotnet_diagnostic.CA1707.severity = silent
 
 # UI code intentionally resumes on the UI context after awaits.
-[source/JustyBase/**/*.cs]
+[source/JustyBase/**]
 dotnet_diagnostic.CA2007.severity = silent
 
 # Nullability, disposal, SQL construction and P/Invoke security remain active.
 
 # These names are part of the existing public plugin contract and changing
 # them would break consumers; keep the naming exceptions scoped to the contract.
-[source/JustyBase.PluginCommon/**/*.cs]
+[source/JustyBase.PluginCommon/**]
 dotnet_diagnostic.CA1707.severity = silent
 dotnet_diagnostic.CA1711.severity = silent
 dotnet_diagnostic.CA1720.severity = silent
 
 # Existing plugin contracts expose legacy public fields and names. These are
 # compatibility warnings, not correctness or security findings.
-[source/JustyBase.PluginBase/**/*.cs]
+[source/JustyBase.PluginBase/**]
 dotnet_diagnostic.CA1051.severity = silent
 dotnet_diagnostic.CA1707.severity = silent
 dotnet_diagnostic.CA1711.severity = silent
 dotnet_diagnostic.CA1725.severity = silent
 
 # Public library namespaces/types are established API names.
-[source/JustyBase.Public.Lib/**/*.cs]
+[source/JustyBase.Public.Lib/**]
 dotnet_diagnostic.CA1711.severity = silent
 dotnet_diagnostic.CA1716.severity = silent
 
 # Database plugins preserve legacy provider contracts and parameter names.
-[source/Plugins/**/*.cs]
+[source/Plugins/**]
 dotnet_diagnostic.CA1707.severity = silent
 dotnet_diagnostic.CA1725.severity = silent

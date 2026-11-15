@@ -11,7 +11,7 @@
 
 [![CI](https://github.com/justybase/justybase/actions/workflows/dotnet-test.yml/badge.svg)](https://github.com/justybase/justybase/actions/workflows/dotnet-test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-10-purple.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![.NET](https://img.shields.io/badge/.NET-11-purple.svg)](https://dotnet.microsoft.com/download/dotnet/11.0)
 [![Windows](https://img.shields.io/badge/Windows-x64-0078D4?logo=windows&logoColor=white)](https://github.com/justybase/justybase/releases)
 [![Linux](https://img.shields.io/badge/Linux-x64-FCC624?logo=linux&logoColor=black)](https://github.com/justybase/justybase/releases)
 [![macOS](https://img.shields.io/badge/macOS-ARM64-000000?logo=apple&logoColor=white)](https://github.com/justybase/justybase/releases)
@@ -101,7 +101,7 @@ Dark theme screenshots are shown below for a consistent presentation.
 
 * [Avalonia](https://avaloniaui.net/) — cross-platform .NET UI
 * [Dock](https://github.com/wieslawsoltes/Dock) — docking layout
-* [ProDataGrid](https://github.com/wieslawsoltes/ProDataGrid) — high-performance DataGrid (NuGet 12.0.5)
+* [ProDataGrid](https://github.com/wieslawsoltes/ProDataGrid) — high-performance DataGrid (NuGet 12.1.5)
 * [AvaloniaEdit](https://github.com/AvaloniaUI/AvaloniaEdit) — Avalonia-based text editor (port of AvalonEdit)
 * [SpreadSheetTasks](https://github.com/justybase/SpreadSheetTasks) — Excel I/O
 * [Sylvan CSV](https://github.com/MarkPflug/Sylvan) — fast CSV
@@ -112,7 +112,7 @@ Dark theme screenshots are shown below for a consistent presentation.
 
 - **.NET 11.0 SDK**
 - **Windows x64**, **Linux x64**, **macOS ARM64**
-- NuGet access to restore **ProDataGrid 12.0.5**
+- NuGet access to restore **ProDataGrid 12.1.5**
 
 ## Quick start
 
@@ -136,7 +136,7 @@ On first launch, add an IBM Netezza connection from the schema or connections UI
 
 | Dependency | How it is resolved |
 |------------|--------------------|
-| **ProDataGrid** | NuGet package `ProDataGrid` version `12.0.5`. |
+| **ProDataGrid** | NuGet package `ProDataGrid` version `12.1.5`. |
 | **Netezza SQL libraries** | Required `../JustyBase.NetezzaSql` sibling, referenced as projects for parser, DDL, catalog, core, and import/export. The AI libraries (`JustyBase.Ai`, `JustyBase.Ai.Embedded`) are referenced only when `EnableAi=true` (the default); `JustyBase.Ai.Contracts` is dependency-free and is always referenced. `JustyBase.NetezzaDriver` remains a separate NuGet dependency. |
 | **JustyBase.UCanAccessCs** | Required `../JustyBase.UCanAccessCs` sibling, referenced by `AccessPlugin` for `.mdb`/`.accdb` execution and optional encrypted-ACCDB support. Its parser dependency also points to the local Netezza parser project. |
 | **JustyBase.Db2** | NuGet packages `JustyBase.Db2` + `JustyBase.Db2.IBMCompat`, restored from NuGet (default `0.1.0-alpha.1`; pin with `-p:JustyBaseDb2PackageVersion=...`). No local sibling checkout. |
@@ -250,6 +250,10 @@ For contribution guidelines and development workflow details, see [CONTRIBUTING.
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+Third-party NuGet packages bundled with the application are listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The file is generated from the production
+dependency graphs and is available from the in-app **About → Third-party notices** dialog.
 
 ## Support
 

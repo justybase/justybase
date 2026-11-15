@@ -9,6 +9,10 @@
 | DB integration | `source/JustyBase.IntegrationTests` | Netezza workflow / secrets |
 | Live FlaUI (optional) | `source/JustyBase.LiveTests` | Manual `workflow_dispatch` / local only |
 
+`dotnet-test.yml` also gates NuGet vulnerability audit, third-party notices freshness,
+`dotnet format --verify-no-changes`, and a Linux build of the application. See
+[QUALITY_WARNINGS.md](QUALITY_WARNINGS.md#ci-quality-gates).
+
 ## Local commands
 
 ```bash

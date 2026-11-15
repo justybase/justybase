@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="JustyBase.Views.ThirdPartyNoticesWindow"
+        d:DesignWidth="980"
+        d:DesignHeight="680"
+        Width="980"
+        Height="680"
+        MinWidth="620"
+        MinHeight="420"
+        WindowStartupLocation="CenterOwner"
+        Title="Third-party notices">
+	<Grid RowDefinitions="*,Auto">
+		<TextBox Grid.Row="0"
+		         Name="NoticesText"
+		         Margin="12"
+		         IsReadOnly="True"
+		         AcceptsReturn="True"
+		         TextWrapping="NoWrap"
+		         FontFamily="Consolas,Menlo,Courier New"
+		         FontSize="12"
+		         ScrollViewer.VerticalScrollBarVisibility="Auto"
+		         ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+		<Button Grid.Row="1"
+		        Content="Close"
+		        HorizontalAlignment="Right"
+		        Margin="12,0,12,12"
+		        Padding="24,6"
+		        Click="Close_Click"/>
+	</Grid>
+</Window>

@@ -34,9 +34,46 @@ jobs:
         with:
           dotnet-version: '11.0.x'
       - name: Restore
+        run: dotnet restore .\JustyBase.slnx --force-evaluate
+      - name: NuGet vulnerability audit
+        shell: pwsh
         run: |
-          dotnet restore .\source\JustyBase.Tests\JustyBase.Tests.csproj --force-evaluate
-          dotnet restore .\source\JustyBase.HeadlessTests\JustyBase.HeadlessTests.csproj --force-evaluate
+          $json = (dotnet list .\JustyBase.slnx package --vulnerable --include-transitive --format json | Out-String)
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $report = $json | ConvertFrom-Json
+          $vulnerable = foreach ($project in $report.projects) {
+            foreach ($framework in $project.frameworks) {
+              foreach ($group in @($framework.topLevelPackages, $framework.transitivePackages)) {
+                foreach ($package in @($group)) {
+                  if ($package -and $package.vulnerabilities) {
+                    [pscustomobject]@{
+                      Project  = $project.path
+                      Package  = $package.id
+                      Version  = $package.resolvedVersion
+                      Severity = ($package.vulnerabilities.severity -join ',')
+                      Advisory = ($package.vulnerabilities.advisoryurl -join ',')
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          if ($vulnerable) {
+            $vulnerable | Format-Table -AutoSize | Out-String | Write-Host
+            Write-Error 'Vulnerable NuGet packages found. Upgrade or pin a patched version.'
+            exit 1
+          }
+
+          Write-Host 'No vulnerable NuGet packages.'
+      - name: Verify third-party notices
+        shell: pwsh
+        run: pwsh ./scripts/generate-third-party-notices.ps1 -Check
+      - name: Format check
+        run: |
+          dotnet format .\JustyBase.slnx whitespace --verify-no-changes --no-restore --include source
+          dotnet format .\JustyBase.slnx style --verify-no-changes --no-restore --include source
       - name: Build
         run: |
           dotnet build .\source\JustyBase.Tests\JustyBase.Tests.csproj -c Debug --no-restore
@@ -82,3 +119,32 @@ jobs:
       # must not run before the AI-enabled test assemblies are executed.
       - name: Build no-AI application
         run: dotnet build .\source\JustyBase\JustyBase.csproj -c Debug -p:EnableAi=false
+
+  linux-build:
+    name: Linux build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: JustyBase
+    steps:
+      - name: Checkout JustyBase
+        uses: actions/checkout@v4
+        with:
+          path: JustyBase
+      - name: Checkout Netezza libraries
+        uses: actions/checkout@v4
+        with:
+          repository: justybase/JustyBase.NetezzaSql
+          path: JustyBase.NetezzaSql
+      - name: Checkout UCanAccess provider
+        uses: actions/checkout@v4
+        with:
+          repository: justybase/JustyBase.UCanAccessCs
+          path: JustyBase.UCanAccessCs
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '11.0.x'
+      - name: Restore application
+        run: dotnet restore ./source/JustyBase/JustyBase.csproj --force-evaluate
+      - name: Build application
+        run: dotnet build ./source/JustyBase/JustyBase.csproj -c Debug --no-restore

@@ -16,7 +16,7 @@ JustyBase (UI host: Views, ViewModels, app services)
 
 External:
 
-- **ProDataGrid** — NuGet dependency for DataGrid / hierarchical schema tree
+- **ProDataGrid** — NuGet dependency for DataGrid / hierarchical schema tree (MIT, resolved from nuget.org only)
  - **JustyBase.NetezzaSql** — required sibling projects for parser, DDL, catalog SQL, core, import/export, and AI
  - **JustyBase.UCanAccessCs** — required sibling provider used by `AccessPlugin`; it references the sibling Netezza parser project
 

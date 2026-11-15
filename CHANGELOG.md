@@ -6,8 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- CI now fails on any known vulnerable NuGet package (`dotnet list package --vulnerable --include-transitive`), and `NU1902`/`NU1903` are build errors.
+- Pinned `System.Security.Cryptography.Pkcs` 11.0.0 to remove the vulnerable 8.0.1 build pulled transitively by `Oracle.ManagedDataAccess.Core` (GHSA-846f-f764-76mx, GHSA-2fmv-rv2c-59x7).
+- Releases publish a `SHA256SUMS` manifest covering every uploaded artifact. Authenticode signing and macOS notarization remain future work.
+
 ### Added
 
+- `THIRD_PARTY_NOTICES.md`, generated from the production dependency graphs by `scripts/generate-third-party-notices.ps1`, with an **About → Third-party notices** dialog in the application.
+- CI gates for `dotnet format --verify-no-changes` (whitespace and style) and a Linux build of the application.
 - Definition index with lexer-aware "Find usages", three-level impact analysis and definition search (line numbers and snippets; shared by Schema Search)
 - Db2 LUW session monitor via `SYSPROC.MON_GET_CONNECTION` with `FORCE APPLICATION` termination
 - Cross-connection table copy dialog with column mapping, target table creation and streamed parameterized inserts
@@ -16,6 +24,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Db2 lint rules renamed to `DB2L001`–`DB2L008` to avoid collisions with Rust language diagnostics
 - Postgres driver in the Slim variant (now Netezza + SQLite + DB2 + Postgres, still no AI)
 - MySQL driver in the Slim variant (now Netezza + SQLite + DB2 + Postgres + MySQL, still no AI)
+
+### Fixed
+
+- `.editorconfig` section globs now use `folder/**`; the previous `folder/**/*.cs` pattern skipped files directly in the folder, so the documented test-project suppressions never applied (685 `CA1707` warnings).
+- README no longer claims ProDataGrid 12.0.5 or .NET 10; both were stale.
 
 ## [1.4.1] - 2026-11-07
 

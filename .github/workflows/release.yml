@@ -370,3 +370,37 @@ jobs:
           grep -Fx "JustyBase-${VERSION}-full.nupkg" <<<"$assets"
           grep -Fx 'releases.win-slim.json' <<<"$assets"
           grep -E "^JustyBase-${VERSION}-win-slim-full\.nupkg$" <<<"$assets"
+      - name: Publish SHA256SUMS
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/release-hashes"
+          rm -rf "$stage"
+          mkdir -p "$stage"
+          : > "$stage/SHA256SUMS"
+
+          # Hash exactly the assets that are published, including the Velopack
+          # feed files and delta packages, and fail when a published name has no
+          # local counterpart.
+          assets="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | sort)"
+          while IFS= read -r name; do
+            [[ -z "$name" ]] && continue
+            # A re-run may see the manifest from the earlier attempt.
+            [[ "$name" == "SHA256SUMS" ]] && continue
+            matches="$(find dist -type f -name "$name" -print)"
+            count="$(printf '%s\n' "$matches" | grep -c . || true)"
+            if [[ "$count" -ne 1 ]]; then
+              echo "Expected exactly one local copy of release asset '$name', found $count" >&2
+              exit 1
+            fi
+            (cd "$(dirname "$matches")" && sha256sum "$name") >> "$stage/SHA256SUMS"
+          done <<< "$assets"
+
+          sort -k2 -o "$stage/SHA256SUMS" "$stage/SHA256SUMS"
+          cat "$stage/SHA256SUMS"
+          gh release upload "$TAG" "$stage/SHA256SUMS" --repo "$GITHUB_REPOSITORY" --clobber
+          assets="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          grep -Fx 'SHA256SUMS' <<<"$assets"

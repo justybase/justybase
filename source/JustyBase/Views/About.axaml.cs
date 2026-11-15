@@ -22,4 +22,10 @@ public partial class About : Window
             (sender as Window)?.Close();
         }
     }
+
+    private async void ThirdPartyNotices_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var window = new ThirdPartyNoticesWindow();
+        await window.ShowDialog(this);
+    }
 }

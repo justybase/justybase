@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.4.5] - 2026-11-15
+
+### Fixed
+
+- Grouping a result grid no longer collapses every row into a single `<NULL>` group in the Native AOT Windows build. `DataGridPathGroupDescription` resolves `Fields[index]` through reflection that the trimmer removes, so the grid fell back to using the row object as the group key and rendered `TableRow.EMPTY_NAME_PLACEHOLDED` as `<NULL>`. Grouping now uses `ResultGridGroupingFactory`, which reads the column through a compiled delegate and keeps NULLs in one shared sentinel group.
+- Grouping a result grid no longer throws `InvalidCastException` when the reported column `TypeCode` disagrees with the runtime values (for example `Int32` values in a column typed as string). Grouped rows are ordered by the runtime value instead of a typed cast.
+
 ## [1.4.4] - 2026-11-15
 
 ### Changed

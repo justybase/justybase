@@ -94,14 +94,22 @@ public sealed partial class SqlResultsViewModel
         }
         else
         {
-            // Add sort description for grouping - DataGridCollectionView will handle sorting automatically
-            var dataGridSortDescription = DataGridSortDescription.FromPath(togglePlan.PropertyName, ListSortDirection.Ascending);
-            GridCollectionView.SortDescriptions.Add(dataGridSortDescription);
-
-            var group = new DataGridPathGroupDescription(togglePlan.PropertyName)
+            int columnIndex = ResultGridGroupingFactory.ResolveColumnIndex(togglePlan.PropertyName);
+            DataGridSortDescription? dataGridSortDescription =
+                ResultGridGroupingFactory.CreateSortDescription(CurrentResultsTable, columnIndex, ListSortDirection.Ascending);
+            if (dataGridSortDescription is not null)
             {
-                ValueConverter = new ForGroupValueConverter()
-            };
+                // Grouping sorts by the grouped column; DataGridCollectionView applies it.
+                GridCollectionView.SortDescriptions.Add(dataGridSortDescription);
+            }
+
+            DataGridGroupDescription? group =
+                ResultGridGroupingFactory.CreateGroupDescription(CurrentResultsTable, columnIndex);
+            if (group is null)
+            {
+                return;
+            }
+
             GridCollectionView.GroupDescriptions.Add(group);
         }
 

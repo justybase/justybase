@@ -1,3 +1,8 @@
+# JustyBase 1.4.5
+
+- Fixed result-grid grouping showing `<NULL>` for every row instead of the real column values in the Windows release build; each distinct value is again its own group and real NULLs share one `<NULL>` group.
+- Fixed grouping a result grid throwing when a column's reported type does not match the values the driver returns.
+
 # JustyBase 1.4.4
 
 - Finished the nullable migration of the desktop app: full flow analysis (`Nullable=enable`) with every nullable warning fixed by real null guards instead of suppressions.

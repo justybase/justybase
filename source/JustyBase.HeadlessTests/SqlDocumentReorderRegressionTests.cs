@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Reflection;
 using Avalonia.Controls;
 using Avalonia.Threading;
@@ -283,16 +283,30 @@ public sealed class SqlDocumentReorderRegressionTests : HeadlessSessionTestBase
         Assert.True(largeSql.Length >= 100_000, $"Expected >=100K chars, got {largeSql.Length}.");
         vm.SqlEditor.Document.Text = largeSql;
 
-        var secondEditor = new SqlCodeEditor();
-        var sw = Stopwatch.StartNew();
-        vm.SqlEditor = secondEditor;
-        sw.Stop();
-        Dispatcher.UIThread.RunJobs();
+        const int sampleCount = 5;
+        const double budgetMs = 50;
+        var transferTimesMs = new double[sampleCount];
+        // Discard the first transfer so one-time JIT and editor setup do not skew the budget.
+        for (var sampleIndex = -1; sampleIndex < sampleCount; sampleIndex++)
+        {
+            var replacementEditor = new SqlCodeEditor();
+            var stopwatch = Stopwatch.StartNew();
+            vm.SqlEditor = replacementEditor;
+            stopwatch.Stop();
+            Dispatcher.UIThread.RunJobs();
 
-        Assert.Equal(largeSql, secondEditor.Text);
+            Assert.Equal(largeSql, replacementEditor.Text);
+            if (sampleIndex >= 0)
+            {
+                transferTimesMs[sampleIndex] = stopwatch.Elapsed.TotalMilliseconds;
+            }
+        }
+
+        Array.Sort(transferTimesMs);
+        var medianMs = transferTimesMs[sampleCount / 2];
         Assert.True(
-            sw.ElapsedMilliseconds < 50,
-            $"Large transfer took {sw.ElapsedMilliseconds}ms (budget 50ms). Length={largeSql.Length}.");
+            medianMs < budgetMs,
+            $"Median large transfer took {medianMs:F1}ms (budget {budgetMs:F0}ms; samples: {string.Join(", ", transferTimesMs.Select(time => $"{time:F1}"))}). Length={largeSql.Length}.");
     });
 
     private static SqlDocumentView BindInWindow(SqlDocumentDataTemplate template, SqlDocumentViewModel vm, string title)

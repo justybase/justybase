@@ -4,6 +4,7 @@ using JustyBase.PluginDatabaseBase.Database;
 using JustyBase.PluginDatabaseBase.Models;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 
 namespace JustyBase.Tests;
 
@@ -57,6 +58,7 @@ public sealed class DatabaseCacheManagerConcurrencyTests
 
         public FakeDbConnection(Action onOpen) => _onOpen = onOpen;
 
+        [AllowNull]
         public override string ConnectionString { get; set; } = string.Empty;
         public override string Database => "db";
         public override string DataSource => "fake";
@@ -84,6 +86,7 @@ public sealed class DatabaseCacheManagerConcurrencyTests
 
         public FakeDbCommand(FakeDbConnection connection) => _connection = connection;
 
+        [AllowNull]
         public override string CommandText { get; set; } = string.Empty;
         public override int CommandTimeout { get; set; }
         public override CommandType CommandType { get; set; } = CommandType.Text;
@@ -233,8 +236,10 @@ public sealed class DatabaseCacheManagerConcurrencyTests
         public override DbType DbType { get; set; }
         public override ParameterDirection Direction { get; set; }
         public override bool IsNullable { get; set; }
+        [AllowNull]
         public override string ParameterName { get; set; } = string.Empty;
         public override int Size { get; set; }
+        [AllowNull]
         public override string SourceColumn { get; set; } = string.Empty;
         public override bool SourceColumnNullMapping { get; set; }
         public override object? Value { get; set; }

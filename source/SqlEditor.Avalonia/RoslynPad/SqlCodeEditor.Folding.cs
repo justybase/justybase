@@ -29,6 +29,11 @@ public sealed partial class SqlCodeEditor
 
     public bool ForceUpdateFoldings()
     {
+        if (_foldingManager is null)
+        {
+            return false;
+        }
+
         if (_xmlFoldingStrategy is not null)
         {
             _xmlFoldingStrategy.UpdateFoldings(_foldingManager, Document);

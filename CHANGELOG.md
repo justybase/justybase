@@ -31,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Cleared the remaining `CS8604`, `CS8601` and `CS8765` nullability warnings across the application, editor, Netezza plugin, importer helpers and tests.
 - `.editorconfig` section globs now use `folder/**`; the previous `folder/**/*.cs` pattern skipped files directly in the folder, so the documented test-project suppressions never applied (685 `CA1707` warnings).
 - README no longer claims ProDataGrid 12.0.5 or .NET 10; both were stale.
 

@@ -24,7 +24,7 @@ public sealed class SpreadSheetImportSource(ExcelReaderAbstract reader, bool isE
     public string? ActualSheetName
     {
         get => _reader.ActualSheetName;
-        set => _reader.ActualSheetName = value;
+        set => _reader.ActualSheetName = value ?? string.Empty;
     }
 
     public bool TreatAllColumnsAsText

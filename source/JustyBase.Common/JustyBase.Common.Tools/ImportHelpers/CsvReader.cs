@@ -77,7 +77,7 @@ public sealed class CsvReader(CompressionEnum csvCompression = CompressionEnum.N
                 break;
             case CsvCellKind.String:
                 w.type = ExcelDataType.String;
-                w.strValue = cell.StringValue;
+                w.strValue = cell.StringValue ?? string.Empty;
                 break;
             case CsvCellKind.Double:
                 w.type = ExcelDataType.Double;

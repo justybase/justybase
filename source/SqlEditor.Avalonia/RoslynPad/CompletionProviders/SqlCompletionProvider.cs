@@ -162,7 +162,7 @@ public partial class SqlCompletionProvider : ICodeEditorCompletionProvider
             {
                 completionData.Add(new CompletionDataSql(
                     snippetName,
-                    snippetValue.Description,
+                    snippetValue.Description ?? string.Empty,
                     false,
                     Glyph.Snippet,
                     _snippetService.SnippetManager));

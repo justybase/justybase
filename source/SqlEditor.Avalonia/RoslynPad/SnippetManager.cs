@@ -51,9 +51,9 @@ public sealed class SnippetManager
                 snippets.Add(new CodeSnippet
                     (
                     item.Key,
-                    item.Value.Description,
+                    item.Value.Description ?? string.Empty,
                     item.Value.Text ?? item.Key,
-                    item.Value.Keyword
+                    item.Value.Keyword ?? string.Empty
                     )
                 );
             }

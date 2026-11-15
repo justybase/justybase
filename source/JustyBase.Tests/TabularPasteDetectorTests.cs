@@ -75,12 +75,16 @@ public sealed class TabularPasteDetectorTests
             };
 
             Assert.True(importFile.InitImport());
-            string sheet = Assert.Single(importFile.SheetNamesToImport);
+            var sheetNames = importFile.SheetNamesToImport;
+            Assert.NotNull(sheetNames);
+            string sheet = Assert.Single(sheetNames);
 
             DatabaseTypeChooser? chooser = await importFile.DetectSheetAsync(sheet);
 
             Assert.NotNull(chooser);
-            Assert.Equal(["NAME", "NOTE"], chooser!.NormalizedColumnHeaderNames);
+            var headers = chooser.NormalizedColumnHeaderNames;
+            Assert.NotNull(headers);
+            Assert.Equal(["NAME", "NOTE"], headers);
             Assert.Equal(2, chooser.PreviewRows.Count);
             Assert.Equal("x,y", chooser.PreviewRows[0][1]);
             Assert.Equal("say \"hi\"", chooser.PreviewRows[1][1]);

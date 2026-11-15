@@ -20,6 +20,7 @@ public sealed class ImportCompatibilityTests
             [("ID", "BIGINT"), ("PRICE", "NUMERIC(16,2)"), ("LABEL", "VARCHAR(50)")]);
 
         Assert.False(hasErrors);
+        Assert.NotNull(mapping);
         Assert.Equal(["ID", "PRICE", "LABEL"], mapping);
         Assert.Contains("Compatibility OK", summary);
     }
@@ -59,6 +60,7 @@ public sealed class ImportCompatibilityTests
             [("ID", "BIGINT"), ("EXTRA", "VARCHAR(10)")]);
 
         Assert.False(hasErrors);
+        Assert.NotNull(mapping);
         Assert.Equal(["ID"], mapping);
         Assert.Contains("extra column", summary);
     }

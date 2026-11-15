@@ -31,7 +31,10 @@ public abstract class NetezzaCommonClass : DatabaseService, INetezza
             CurrentAutoCompletDatabaseMode.MakeUpperCase;
 
         _ddlBuilder = new NetezzaDdlBuilder(
-            (database, schema, table) => GetQuotedTwoOrTreePartName(database, schema, table),
+            (database, schema, table) => GetQuotedTwoOrTreePartName(
+                database,
+                schema ?? string.Empty,
+                table ?? string.Empty),
             GetCleanedNames,
             GetColumns,
             QuoteNameIfNeeded);
@@ -261,12 +264,17 @@ public abstract class NetezzaCommonClass : DatabaseService, INetezza
         var databaseDic = keysDictionary[databaseName];
 
         var con = dbConnection ?? Connection;
+        if (con is null)
+        {
+            throw new InvalidOperationException("A Netezza connection is required to read keys.");
+        }
+
         ChangeDatabaseSpecial(con, databaseName);
         if (con is not null && con.State != ConnectionState.Open)
         {
             con.Open();
         }
-        var cmd = CreateCommandFromConnection(con);
+        var cmd = CreateCommandFromConnection(con!);
         cmd.CommandText = NetezzaCatalogSql.GetKeysSql(databaseName);
 
         var rdr = cmd.ExecuteReader();
@@ -305,7 +313,14 @@ public abstract class NetezzaCommonClass : DatabaseService, INetezza
 
             if (!databaseDictLevel2.TryGetValue(keyName, out var databaseDictLevel3))
             {
-                databaseDictLevel3 = new NetezzaKeyItem(keyType, PKDATABASE, PKSCHEMA, PKRELATION, new List<(string colName, string referencedPkColName)>(), UPDT_TYPE, DEL_TYPE);
+                databaseDictLevel3 = new NetezzaKeyItem(
+                    keyType,
+                    PKDATABASE ?? string.Empty,
+                    PKSCHEMA ?? string.Empty,
+                    PKRELATION ?? string.Empty,
+                    new List<(string colName, string referencedPkColName)>(),
+                    UPDT_TYPE,
+                    DEL_TYPE);
                 databaseDictLevel2[keyName] = databaseDictLevel3;
             }
 
@@ -330,13 +345,18 @@ public abstract class NetezzaCommonClass : DatabaseService, INetezza
         var databaseDic = DistributionDictionary[databaseName];
 
         var con = dbConnection ?? Connection;
+        if (con is null)
+        {
+            throw new InvalidOperationException("A Netezza connection is required to read distribution information.");
+        }
+
         ChangeDatabaseSpecial(con, databaseName);
         if (con is not null && con.State != ConnectionState.Open)
         {
             con.Open();
         }
 
-        using var cmd = CreateCommandFromConnection(con);
+        using var cmd = CreateCommandFromConnection(con!);
         cmd.CommandText = NetezzaCatalogSql.GetDistributeSql(databaseName);
 
         var rdr = cmd.ExecuteReader();
@@ -367,7 +387,7 @@ public abstract class NetezzaCommonClass : DatabaseService, INetezza
         }
         databaseDic = OrganizeDictionary[databaseName];
 
-        using var cmd2 = CreateCommandFromConnection(con);
+        using var cmd2 = CreateCommandFromConnection(con!);
         cmd2.CommandText = NetezzaCatalogSql.GetOrganizeSql(databaseName);
 
         var rdr2 = cmd2.ExecuteReader();

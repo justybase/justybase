@@ -39,7 +39,7 @@ public sealed class DockSessionPersistenceServiceTests
 
         Assert.NotNull(savedContent);
         OfflineDocumentContainer? persisted = JsonSerializer.Deserialize(
-            savedContent,
+            savedContent!,
             MyJsonContextOfflineDocumentContainer.Default.OfflineDocumentContainer);
 
         Assert.NotNull(persisted);
@@ -75,7 +75,7 @@ public sealed class DockSessionPersistenceServiceTests
                 SaveEncodedText: content => savedContent = content));
 
         OfflineDocumentContainer? persisted = JsonSerializer.Deserialize(
-            savedContent,
+            savedContent!,
             MyJsonContextOfflineDocumentContainer.Default.OfflineDocumentContainer);
 
         Assert.NotNull(persisted);
@@ -105,7 +105,7 @@ public sealed class DockSessionPersistenceServiceTests
 
         Assert.NotNull(savedContent);
         OfflineDocumentContainer? persisted = JsonSerializer.Deserialize(
-            savedContent,
+            savedContent!,
             MyJsonContextOfflineDocumentContainer.Default.OfflineDocumentContainer);
 
         Assert.NotNull(persisted);
@@ -146,7 +146,7 @@ public sealed class DockSessionPersistenceServiceTests
 
         Assert.NotNull(savedContent);
         OfflineDocumentContainer? persisted = JsonSerializer.Deserialize(
-            savedContent,
+            savedContent!,
             MyJsonContextOfflineDocumentContainer.Default.OfflineDocumentContainer);
 
         Assert.NotNull(persisted);

@@ -1,4 +1,4 @@
-﻿using JustyBase.Editor;
+using JustyBase.Editor;
 using JustyBase.Editor.CompletionProviders;
 using JustyBase.PluginCommon.Contracts;
 using JustyBase.PluginCommon.Enums;
@@ -115,9 +115,9 @@ public sealed class AutocompleteService
             if (TYPE_SCHEMA_OPTIONAL && lastWord.Length >= 3)
             {
                 var yieldedShortNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (string schemaName in databaseService.GetSchemas(TEMP_DB, ""))
+                foreach (string schemaName in databaseService.GetSchemas(TEMP_DB ?? string.Empty, ""))
                 {
-                    foreach (var itme in getSchemaObjectsForAutocomplete(TEMP_DB, schemaName, lastWord))
+                    foreach (var itme in getSchemaObjectsForAutocomplete(TEMP_DB ?? string.Empty, schemaName, lastWord))
                     {
                         if (!yieldedShortNames.Add(itme.Text))
                             continue;
@@ -129,7 +129,7 @@ public sealed class AutocompleteService
 
         if (TYPE2_SCHEMA_OBJECT && howManyDots == 0) // schema autocomplete
         {
-            foreach (string item in databaseService.GetSchemas(TEMP_DB, lastWord))
+            foreach (string item in databaseService.GetSchemas(TEMP_DB ?? string.Empty, lastWord))
             {
                 yield return new CompletionDataSql(item, "schema", false, Glyph.Schema, null);
             }
@@ -173,14 +173,14 @@ public sealed class AutocompleteService
                 var parts = longName.Key.Split('.');
                 foreach (string alias in longName.Value)
                 {
-                    if (parts.Length == 1 && firstWord.Equals(alias, StringComparison.OrdinalIgnoreCase) && withHints.TryGetValue(longName.Key, out var colList))
+                    if (parts.Length == 1 && string.Equals(firstWord, alias, StringComparison.OrdinalIgnoreCase) && withHints.TryGetValue(longName.Key, out var colList))
                     {
                         foreach (var item in colList)
                         {
                             yield return new CompletionDataSql(item, "with column", false, Glyph.None, null);
                         }
                     }
-                    else if (parts.Length == 1 && firstWord.Equals(alias, StringComparison.OrdinalIgnoreCase) && tempTableHints.TryGetValue(longName.Key, out var colList2))
+                    else if (parts.Length == 1 && string.Equals(firstWord, alias, StringComparison.OrdinalIgnoreCase) && tempTableHints.TryGetValue(longName.Key, out var colList2))
                     {
                         foreach (var item in colList2)
                         {
@@ -193,7 +193,7 @@ public sealed class AutocompleteService
 
         if (TYPE2_SCHEMA_OBJECT && howManyDots == 1)
         {
-            foreach (var item in getSchemaObjectsForAutocomplete(TEMP_DB, firstWord, lastWord))
+            foreach (var item in getSchemaObjectsForAutocomplete(TEMP_DB ?? string.Empty, firstWord ?? string.Empty, lastWord))
             {
                 yield return item;
             }
@@ -201,7 +201,7 @@ public sealed class AutocompleteService
 
         if (TYPE3_DB_SCHEMA_OBJECT && howManyDots == 1)
         {
-            foreach (string item in databaseService.GetSchemas(firstWord, lastWord))
+            foreach (string item in databaseService.GetSchemas(firstWord ?? string.Empty, lastWord))
             {
                 yield return new CompletionDataSql(item, "schema", false, Glyph.Schema, null);
             }
@@ -213,7 +213,7 @@ public sealed class AutocompleteService
             {
                 foreach (string alias in longName.Value)
                 {
-                    if (!firstWord.Equals(alias, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(firstWord, alias, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     if (!TryParseAliasDbTableKey(longName.Key, TYPE2_SCHEMA_OBJECT, TYPE_SCHEMA_OPTIONAL, TEMP_DB,
@@ -243,7 +243,7 @@ public sealed class AutocompleteService
         if (TYPE3_DB_SCHEMA_OBJECT && howManyDots == 2 &&
             (!string.IsNullOrEmpty(middleWord) || TYPE_SCHEMA_CAN_BE_NULL))
         {
-            foreach (var item in getSchemaObjectsForAutocomplete(firstWord, middleWord, lastWord))
+            foreach (var item in getSchemaObjectsForAutocomplete(firstWord ?? string.Empty, middleWord, lastWord))
             {
                 yield return item;
             }
